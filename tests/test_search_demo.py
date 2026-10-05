@@ -123,3 +123,105 @@ def test_recipe_rejects_other_ecosystem(tmp_path, recipe, manifest, directory):
     value["build"] = {"recipe": recipe, "arguments": ["." if directory else manifest]}
     with pytest.raises(ValueError, match="ecosystem"):
         validate_demo(value, checkout=tmp_path)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "LD_PRELOAD",
+        "LD_LIBRARY_PATH",
+        "PYTHONPATH",
+        "PYTHONSTARTUP",
+        "NODE_OPTIONS",
+        "NODE_PATH",
+        "JAVA_TOOL_OPTIONS",
+        "_JAVA_OPTIONS",
+        "JDK_JAVA_OPTIONS",
+        "PHP_INI_SCAN_DIR",
+        "PHPRC",
+        "PATH",
+        "HOME",
+        "TMPDIR",
+        "OUSAST_SECRET",
+        "MY_CANARY_KEY",
+        "lowercase",
+        "1KEY",
+        "A" * 65,
+    ],
+)
+def test_environment_denylist(name):
+    value = document()
+    value["start"]["environment"] = {name: "value"}
+    with pytest.raises(ValueError):
+        validate_demo(value)
+
+
+@pytest.mark.parametrize("content", ["${canary}", "/fixture/canary", "$PROOF_MARKER", "x\0y"])
+@pytest.mark.parametrize("field,key", [("environment", "JWT_KEY"), ("files", "jwt.key")])
+def test_config_preserves_no_canary_rule(field, key, content):
+    value = document()
+    value["start"][field] = {key: content}
+    with pytest.raises(ValueError):
+        validate_demo(value)
+
+
+def test_config_boundaries_and_private_file_modes(tmp_path):
+    from openultrasast.search.demo import write_start_files
+
+    value = document()
+    value["start"]["environment"] = {f"KEY_{i}": "é" * 4096 for i in range(32)}
+    value["start"]["files"] = {f"keys/{i}.pem": "é" * 32768 for i in range(8)}
+    assert validate_demo(value) == value
+    write_start_files(tmp_path, value["start"])
+    for name, content in value["start"]["files"].items():
+        path = tmp_path / ".demo" / name
+        assert path.read_text() == content
+        assert path.stat().st_mode & 0o777 == 0o600
+    for field, key, content in [("environment", "EXTRA", "x"), ("files", "extra.pem", "x")]:
+        value["start"][field][key] = content
+        with pytest.raises(ValueError):
+            validate_demo(value)
+        del value["start"][field][key]
+    value["start"]["files"]["keys/0.pem"] += "x"
+    with pytest.raises(ValueError):
+        validate_demo(value)
+    value["start"]["files"] = {}
+    value["start"]["environment"]["KEY_0"] += "x"
+    with pytest.raises(ValueError):
+        validate_demo(value)
+
+
+@pytest.mark.parametrize("name", ["../key.pem", "a/../key.pem", "/tmp/key.pem", "a..pem", "app.py", "run.sh", "x.exe", "a\\b.pem"])
+def test_data_file_paths_and_extensions(name):
+    value = document()
+    value["start"]["files"] = {name: "data"}
+    with pytest.raises(ValueError):
+        validate_demo(value)
+
+
+@pytest.mark.parametrize("where", ["root", "parent", "file", "existing"])
+def test_data_files_never_follow_links_or_overwrite(tmp_path, where):
+    from openultrasast.search.demo import write_start_files
+
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    checkout = tmp_path / "checkout"
+    checkout.mkdir()
+    root = checkout / ".demo"
+    if where == "root":
+        root.symlink_to(outside, target_is_directory=True)
+    else:
+        root.mkdir()
+        if where == "parent":
+            (root / "keys").symlink_to(outside, target_is_directory=True)
+        else:
+            (root / "keys").mkdir()
+            if where == "file":
+                (root / "keys/key.pem").symlink_to(outside / "key.pem")
+            else:
+                (root / "keys/key.pem").write_text("original")
+    with pytest.raises((ValueError, FileExistsError)):
+        write_start_files(checkout, {"files": {"keys/key.pem": "changed"}})
+    assert not list(outside.iterdir())
+    if where == "existing":
+        assert (root / "keys/key.pem").read_text() == "original"

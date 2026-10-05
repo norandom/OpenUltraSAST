@@ -117,6 +117,16 @@ class Board:
         view["candidate"] = self.candidate()
         view["family"] = view["candidate"].get("family", "unknown")
         view["budget_left"] = budget_left or {}
+        for intent in view["intents"]:
+            if intent["status"] == "concluded":
+                facts = [f["id"] for f in state["facts"] if intent["id"] in f["from_intents"]]
+                intent["conclusion"] = {"facts": facts} if facts else {"failure": intent.get("failure", "no confirmed facts")}
+        checkpoint = state.get("checkpoint", {})
+        if checkpoint.get("duplicate_rejections"):
+            view["rejections"] = checkpoint["duplicate_rejections"]
+        if checkpoint.get("reason_completed", checkpoint.get("rounds", 0)) >= 2 and not any(f.get("demo") for f in state["facts"]):
+            view["Priority"] = "construct the demo now with the facts available, or finish with the precise blocker."
+
         # Keep recent observations, with explicit truncation, without mutating the board.
         remaining = 12000
         for fact in reversed(view["facts"]):

@@ -32,8 +32,9 @@ from urllib.parse import urlsplit
 from ..sandbox import SandboxJob
 from . import _sandbox, task_storage
 from .budget import SearchBudget
+from .demo import MAX_DEMO_BYTES
 
-MAX_COMMAND_BYTES = 65536
+MAX_COMMAND_BYTES = MAX_DEMO_BYTES + 65536
 MAX_RESULT_BYTES = 65536
 SAFE_ENV = {"PATH": "/venv/bin:/opt/java/openjdk/bin:/usr/local/bin:/usr/bin:/bin", "LANG": "C.UTF-8", "JAVA_HOME": "/opt/java/openjdk"}
 
@@ -70,7 +71,7 @@ class Command:
             if name in self.limits and (type(self.limits[name]) is not int or self.limits[name] < 512):
                 raise ValueError("invalid resource limit")
         data = json.dumps(asdict(self), sort_keys=True, allow_nan=False).encode()
-        if len(data) > MAX_COMMAND_BYTES:
+        if len(data) > (MAX_COMMAND_BYTES if self.name == "prepare_verification" else 65536):
             raise ValueError("command too large")
         return data
 

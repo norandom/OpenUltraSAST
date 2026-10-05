@@ -420,3 +420,37 @@ def test_command_failure_sanitizes_tokens_and_caps_tail(secret):
     failure = task_storage.CommandFailure("build", 1, "old\n" * 50 + "x" * 2000 + "\n" + secret)
     assert "hidden" not in failure.stderr and "old" not in failure.stderr
     assert len(failure.stderr) <= 1500
+
+
+def test_prepare_preserves_large_config_and_task_verifier_applies_it(workspace, monkeypatch):
+    repo = workspace / "checkout"
+    repo.mkdir()
+    source = (
+        "import os\nfrom pathlib import Path\n"
+        "assert os.environ['JWT_KEY'] == 'required-key'\n"
+        "assert Path(os.environ['JWT_FILE']).read_text() == 'x' * 65536\n"
+        "print('ready')\n"
+    )
+    (repo / "app.py").write_text(source)
+    request = spec()
+    request["demo"]["start"].update(
+        environment={"JWT_KEY": "required-key", "JWT_FILE": ".demo/jwt.pem"},
+        files={"jwt.pem": "x" * 65536, "other.json": "{}"},
+    )
+    blobs = []
+    app = executor.InProcessExecutor(repo, task_boundary=True)
+    app.prepared_put_url = "https://files.example/output"
+    monkeypatch.setattr(executor.URLTransport, "put", lambda self, url, data, timeout: blobs.append(data))
+    result = app.submit("prepare_verification", request)
+    assert result["status"] == "ok", result
+    destination = workspace / "unpacked"
+    verify_task.extract_checkout(blobs[0], destination)
+    exported = json.loads((destination / "spec.json").read_text())
+    assert exported == request
+    assert not (destination / "checkout/.demo").exists()
+    demo = workspace / "demo"
+    demo.mkdir()
+    (demo / "demo.json").write_text(json.dumps(exported["demo"]))
+    observation = verify_side_task(Side(destination / "checkout", products=destination / "products"), demo, "path")
+    assert observation.outcome == "observed", observation
+    assert len(observation.runs) == 1

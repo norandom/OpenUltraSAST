@@ -28,7 +28,7 @@ from typing import Any, cast
 from ..sandbox import SandboxJob, SandboxResult
 from . import _sandbox, task_storage
 from .budget import SearchBudget
-from .demo import BUILD_RECIPES, FAMILY_ORACLES, RUNTIMES, capture_output, load_demo, substitute, validate_oracle
+from .demo import BUILD_RECIPES, FAMILY_ORACLES, RUNTIMES, capture_output, load_demo, substitute, validate_oracle, write_start_files
 from .oracles import BrowserExecutor, Canary, Oracle, oracle_for
 from .task_storage import CommandFailure, diagnostic, exception_reason
 
@@ -323,6 +323,10 @@ def _side(side: Side, demo: Path, family: str, timeout: int, browser: BrowserExe
                         return record("could_not_build", "build recipe failed", "build", compiled)
                 if tuple(_tree(p) for p in immutable) != before:
                     return record("inconclusive", "build changed immutable inputs")
+                write_start_files(checkout, schema["start"])
+                if not task_boundary:
+                    for name in schema["start"].get("files", {}):
+                        _sandbox.writable_directory(checkout / ".demo" / name)
                 product_hash = _tree(products, generated_links=True)
                 checkout_hash = _tree(checkout, generated_links=True)
                 mounts["/build"] = products
@@ -347,7 +351,13 @@ def _side(side: Side, demo: Path, family: str, timeout: int, browser: BrowserExe
                     canary = Canary.fresh(root / "fixture")
                     if task_boundary and hasattr(oracle, "task_boundary"):
                         oracle.task_boundary = True
-                    app_env = oracle.prepare(canary)
+                    app_env = {
+                        **{
+                            key: "/workspace/" + value if value.startswith(".demo/") else value
+                            for key, value in start_spec.get("environment", {}).items()
+                        },
+                        **oracle.prepare(canary),
+                    }
                     app_scratch = canary.root if family == "command" else root / "app"
                     app_scratch.mkdir(exist_ok=True)
                     fixture = canary.root

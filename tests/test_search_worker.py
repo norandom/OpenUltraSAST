@@ -443,3 +443,17 @@ def test_worker_run_uses_search_memory_budget(tmp_path):
     assert worker.tool("grep", {"pattern": "needle"})["memory_bytes"] == 256 * 1024**2
     worker.limits["memory_bytes"] = 128 * 1024**2
     assert worker.tool("read_file", {"path": "app.py"})["memory_bytes"] == 128 * 1024**2
+
+
+@pytest.mark.parametrize("finish_first", [False, True])
+def test_finish_wins_over_other_calls_without_executing_them(tmp_path, finish_first):
+    finish = tool("finish", fact={"text": "Confirmed app source", "evidence_refs": ["tool:1"]})["tool_calls"][0]
+    other = tool("read_file", path="must-not-read")["tool_calls"][0]
+    model = StubModel([tool("read_file", path="app.py"), {"tool_calls": [finish, other] if finish_first else [other, finish]}])
+    (tmp_path / "app.py").write_text("print('readable')")
+    worker = Worker(model, repo=tmp_path, demo=tmp_path / "demo", executor=InProcessExecutor(tmp_path))
+    result = worker(task("explore"))
+    assert result["status"] == "ok"
+    assert result["fact"]["text"] == "Confirmed app source"
+    assert worker.metrics["warnings"] == 1
+    assert worker.evidence == {"tool:1"}

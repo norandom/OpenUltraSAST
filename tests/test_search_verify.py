@@ -514,3 +514,30 @@ def test_xss_without_browser_is_unavailable_not_no_oracle(pair):
     edit(demo, lambda value: value.update(oracle="xss"))
     result = verify(*sides, demo, "output_encoding")
     assert result.outcome == "inconclusive" and "runtime unavailable" in result.reason
+
+
+def test_app_requires_environment_and_data_files_on_both_sides(pair):
+    sides, demo = pair
+    for side in sides:
+        path = side.checkout / "app.py"
+        source = path.read_text()
+        startup = (
+            "import os\nfrom pathlib import Path\n"
+            "assert os.environ['JWT_SECRET'] == 'local-test-key'\n"
+            "assert Path(os.environ['JWT_KEY_FILE']).read_text() == 'local-key-data'\n"
+        )
+        path.write_text(startup + source)
+    missing = verify(*sides, demo, "path")
+    assert missing.outcome == "inconclusive", missing
+    assert [side.outcome for side in missing.sides] == ["could_not_run", "could_not_run"]
+    edit(
+        demo,
+        lambda value: value["start"].update(
+            environment={"JWT_SECRET": "local-test-key", "JWT_KEY_FILE": ".demo/keys/jwt.pem"},
+            files={"keys/jwt.pem": "local-key-data"},
+        ),
+    )
+    result = verify(*sides, demo, "path")
+    assert result.outcome == "demonstrated", result
+    assert all(len(side.runs) == 3 for side in result.sides)
+    assert all(not (side.checkout / ".demo").exists() for side in sides)
