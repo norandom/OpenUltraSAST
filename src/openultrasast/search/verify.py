@@ -436,10 +436,11 @@ def _run_task(
     the filesystem/network boundary. Its launch manifest must contain no keys.
     """
     translations = {"/workspace": str(job.repo_root), "/scratch": str(scratch), **{k: str(v) for k, v in (mounts or {}).items()}}
-    pattern = re.compile("|".join(re.escape(key) for key in sorted(translations, key=len, reverse=True)))
+    pattern = re.compile("(?:" + "|".join(re.escape(key) for key in sorted(translations, key=len, reverse=True)) + r")(?=/|$|['\"])")
 
     def translate(value: str) -> str:
-        # One substitution pass: host temp paths may themselves contain /scratch.
+        # One pass, at path-component boundaries: /fixture/fixture.db must
+        # translate its mount prefix without also rewriting the filename.
         return pattern.sub(lambda match: translations[match.group(0)], value)
 
     command = tuple(translate(arg) for arg in job.command)
