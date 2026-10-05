@@ -1,106 +1,78 @@
-"""Owned observations and adversarial artefacts, with real isolated toy processes."""
+"""Schema-only verification, owned observations and adversarial public inputs."""
 
-import os
-import shutil
-import signal
+import json
 import socket
-from pathlib import Path
 
 import pytest
 
-from openultrasast.search.verify import Side, verify
-
-FIXTURE = Path(__file__).parents[1] / "src/openultrasast/search/probe_apps/app.py.txt"
-PAYLOADS = {
-    "path": "../canary",
-    "sql": "' OR public=0 --",
-    "command": '; touch "$PROOF_MARKER"',
-    "ssrf": "$CALLBACK_URL",
-}
+from openultrasast.search import _sandbox
+from openultrasast.search.probe import materialise
+from openultrasast.search.verify import RunObservation, SideRecord, verify, verify_side_task
 
 
 @pytest.fixture
 def pair(tmp_path):
-    sides = []
-    for name in ("vulnerable", "fixed"):
-        root = tmp_path / name
-        root.mkdir()
-        shutil.copyfile(FIXTURE, root / "app.py")
-        if name == "fixed":
-            (root / "fixed").touch()
-        sides.append(Side(root, ("/usr/bin/python3", "-I", "/workspace/app.py")))
-    demo = tmp_path / "demo"
-    demo.mkdir()
-    (demo / "build.sh").write_text("test -s /workspace/app.py\n")
-    return sides, demo
+    sides, demos = materialise(tmp_path / "pair", "path")
+    return sides, demos["real"]
 
 
-def request(demo, family):
-    import json
-
-    (demo / "request.json").write_text(json.dumps([family, PAYLOADS[family]]))
+def edit(demo, change):
+    path = demo / "demo.json"
+    value = json.loads(path.read_text())
+    change(value)
+    path.write_text(json.dumps(value))
 
 
 @pytest.mark.parametrize("family", ["path", "sql", "command", "ssrf"])
-def test_real_differential(pair, family):
+def test_real_differential(tmp_path, family):
     if family == "ssrf":
         try:
             with socket.socket():
                 pass
         except PermissionError:
-            pytest.skip("host policy prohibits even localhost sockets")
-    sides, demo = pair
-    request(demo, family)
-    result = verify(*sides, demo, family)
+            pytest.skip("host policy prohibits localhost sockets")
+    sides, demos = materialise(tmp_path / family, family)
+    assert (sides[0].checkout / "app.py").stat().st_size > 0
+    result = verify(*sides, demos["real"], family)
     assert result.outcome == "demonstrated", result
     assert [r.observed for r in result.sides[0].runs] == [True] * 3
     assert [r.observed for r in result.sides[1].runs] == [False] * 3
-    assert result.elapsed_seconds > 0
+    assert result.isolation_mode == _sandbox.isolation_mode()
 
 
-@pytest.mark.parametrize(
-    "script",
-    [
-        "cat /fixture/canary; echo success; exit 42",
-        "if test ! -f /workspace/fixed; then echo demonstrated; fi",
-        "echo hacked > /workspace/sitecustomize.py",
-        "echo hacked > /usr/lib/python3.12/sitecustomize.py",
-        "echo hacked > /deps/0/module.py",
-        "cat /proc/1/environ; echo demonstrated",
-        '/usr/bin/python3 -I -c "import socket; socket.create_connection(("127.0.0.1",12345))"',
-    ],
-)
-def test_gaming_cannot_demonstrate(pair, tmp_path, script):
+@pytest.mark.parametrize("argument", ["/fixture/canary", "/proc/1/environ", "${CANARY}", "$CALLBACK_URL"])
+def test_gaming_private_references_rejected_before_process(pair, argument, monkeypatch):
     sides, demo = pair
-    deps = tmp_path / "deps"
-    deps.mkdir()
-    (deps / "module.py").write_text("original")
-    sides = [Side(s.checkout, s.command, dependencies=(deps,)) for s in sides]
-    (demo / "attack.sh").write_text(script)
+    edit(demo, lambda value: value["steps"][0].update(arguments=[argument]))
+    monkeypatch.setattr(_sandbox, "run", lambda *a, **kw: pytest.fail("invalid demo spawned a process"))
     result = verify(*sides, demo, "path")
-    assert result.outcome != "demonstrated"
-    assert (deps / "module.py").read_text() == "original"
-    assert not (sides[0].checkout / "sitecustomize.py").exists()
+    assert result.outcome == "inconclusive"
+    assert "invalid declarative demo" in result.reason
 
 
-def test_attack_exit_and_stdout_ignored(pair):
+def test_legacy_scripts_rejected_before_process(pair, monkeypatch):
     sides, demo = pair
-    (demo / "attack.sh").write_text('"$TARGET" path ../canary\necho fake\nexit 99\n')
-    assert verify(*sides, demo, "path").outcome == "demonstrated"
+    (demo / "attack.sh").write_text("echo demonstrated")
+    monkeypatch.setattr(_sandbox, "run", lambda *a, **kw: pytest.fail("script executed"))
+    assert verify(*sides, demo, "path").outcome == "inconclusive"
 
 
-def test_safe_build_failure_is_inconclusive(pair):
+def test_safe_build_failure_inconclusive(pair):
     sides, demo = pair
-    request(demo, "path")
-    (demo / "build.sh").write_text("test ! -f /workspace/fixed")
+    (sides[1].checkout / "app.py").unlink()
     result = verify(*sides, demo, "path")
     assert result.outcome == "inconclusive"
     assert result.sides[1].outcome == "could_not_build"
 
 
+def test_affected_build_failure(pair):
+    sides, demo = pair
+    (sides[0].checkout / "app.py").unlink()
+    assert verify(*sides, demo, "path").outcome == "could_not_build"
+
+
 def test_readiness_failure(pair):
     sides, demo = pair
-    request(demo, "path")
     (sides[1].checkout / "broken").touch()
     result = verify(*sides, demo, "path")
     assert result.outcome == "inconclusive"
@@ -113,140 +85,29 @@ def test_no_oracle(pair, family):
     assert verify(*sides, demo, family).outcome == "no_oracle"
 
 
-def test_flaky_observation_is_inconclusive(pair, monkeypatch):
+def test_flaky_observation_inconclusive(pair, monkeypatch):
     from openultrasast.search import oracles
 
     nonces = iter(["a" * 48, "b" * 48, "c" * 48] * 2)
     monkeypatch.setattr(oracles.secrets, "token_hex", lambda _: next(nonces))
     sides, demo = pair
     (sides[0].checkout / "flaky").touch()
-    request(demo, "path")
     result = verify(*sides, demo, "path")
     assert result.outcome == "inconclusive"
     assert [r.observed for r in result.sides[0].runs] == [True, False, False]
 
 
-def test_environment_injection_stays_in_artefact(pair, monkeypatch):
+def test_no_inherited_environment(pair, monkeypatch):
+    for key in ("PYTHONPATH", "NODE_OPTIONS", "LD_PRELOAD", "GEMINI_API_KEY"):
+        monkeypatch.setenv(key, "/bogus-key")
     sides, demo = pair
-    monkeypatch.setenv("PYTHONPATH", "/bogus")
-    monkeypatch.setenv("NODE_OPTIONS", "--require=/bogus")
-    monkeypatch.setenv("LD_PRELOAD", "/bogus")
-    (demo / "attack.sh").write_text(
-        'test -z "$PYTHONPATH$NODE_OPTIONS$LD_PRELOAD" || exit 3\n'
-        'echo "raise RuntimeError()" > /scratch/sitecustomize.py\n'
-        "export PYTHONPATH=/scratch NODE_OPTIONS=--require=/scratch/sitecustomize.py LD_PRELOAD=/bogus\n"
-        '"$TARGET" path ../canary\n'
-    )
     assert verify(*sides, demo, "path").outcome == "demonstrated"
-
-
-def test_untracked_file_outside_scratch_refused(pair):
-    sides, demo = pair
-    (demo / "attack.sh").write_text('echo hacked > /untracked\n"$TARGET" path ../canary\n')
-    assert verify(*sides, demo, "path").outcome == "inconclusive"
-
-
-def test_unknown_app_failure_cannot_prove_effect(pair):
-    sides, demo = pair
-    (sides[0].checkout / "app.py").write_text('raise RuntimeError("no app")')
-    request(demo, "path")
-    assert verify(*sides, demo, "path").outcome == "could_not_run"
-
-
-def test_affected_build_failure(pair):
-    sides, demo = pair
-    request(demo, "path")
-    (demo / "build.sh").write_text("test -f /workspace/fixed")
-    assert verify(*sides, demo, "path").outcome == "could_not_build"
-
-
-def test_missing_isolation_fails_closed(pair, monkeypatch):
-    from openultrasast.search import _sandbox
-
-    def unavailable(*args, **kwargs):
-        raise FileNotFoundError("bwrap unavailable")
-
-    monkeypatch.setattr(_sandbox, "run", unavailable)
-    sides, demo = pair
-    request(demo, "path")
-    with pytest.raises(_sandbox.IsolationUnavailable, match="bwrap unavailable"):
-        verify(*sides, demo, "path")
-
-
-def test_bwrap_failure_raises_before_product_outcomes(pair, monkeypatch):
-    from openultrasast.sandbox import SandboxResult
-    from openultrasast.search import _sandbox
-
-    calls = []
-    stderr = "bwrap: Creating new namespace failed: Resource temporarily unavailable"
-
-    def failed(job, **kwargs):
-        calls.append(job)
-        return SandboxResult(1, "", stderr, False)
-
-    monkeypatch.setattr(_sandbox, "run", failed)
-    sides, demo = pair
-    with pytest.raises(_sandbox.IsolationUnavailable, match=stderr):
-        verify(*sides, demo, "path")
-    assert len(calls) == 1
-    assert calls[0].command == ("/bin/cat", "/workspace/probe")
-
-
-def test_verification_with_many_host_processes(pair, monkeypatch):
-    from openultrasast.search import _sandbox
-
-    checks = []
-    original = _sandbox.isolation_check
-
-    def checked(**kwargs):
-        checks.append(True)
-        return original(**kwargs)
-
-    monkeypatch.setattr(_sandbox, "isolation_check", checked)
-    sides, demo = pair
-    request(demo, "path")
-    children = []
-    try:
-        for _ in range(300):
-            pid = os.fork()
-            if pid == 0:
-                try:
-                    while True:
-                        signal.pause()
-                finally:
-                    os._exit(0)
-            children.append(pid)
-        assert verify(*sides, demo, "path").outcome == "demonstrated"
-        assert checks == [True]
-    finally:
-        for pid in children:
-            os.kill(pid, signal.SIGKILL)
-        for pid in children:
-            os.waitpid(pid, 0)
 
 
 def test_symlink_input_refused(pair):
     sides, demo = pair
-    (demo / "escape").symlink_to("/etc/passwd")
-    request(demo, "path")
-    assert verify(*sides, demo, "path").outcome == "inconclusive"
-
-
-def test_xss_executor_contract(tmp_path):
-    from openultrasast.search.oracles import Canary, oracle_for
-
-    calls = []
-
-    def browser(document, nonce):
-        calls.append((document, nonce))
-        return document == "<script>execute()</script>"
-
-    oracle = oracle_for("xss", browser)
-    canary = Canary.fresh(tmp_path / "fixture")
-    assert oracle.prepare(canary) == {}
-    oracle.capture("<script>execute()</script>")
-    assert oracle.observe()[0]
-    assert calls == [("<script>execute()</script>", canary.nonce)]
+    (sides[0].checkout / "escape").symlink_to("/etc/passwd")
+    assert verify(*sides, demo, "path").outcome != "demonstrated"
 
 
 def test_six_fresh_canaries(pair, monkeypatch):
@@ -261,59 +122,109 @@ def test_six_fresh_canaries(pair, monkeypatch):
 
     monkeypatch.setattr(oracles.PathOracle, "prepare", record)
     sides, demo = pair
-    request(demo, "path")
     assert verify(*sides, demo, "path").outcome == "demonstrated"
     assert len(set(nonces)) == 6
 
 
-def test_readiness_effect_cannot_prove_ssrf(pair, monkeypatch):
-    from openultrasast.search import verify as module
-    from openultrasast.search.oracles import OutputOracle
+def test_missing_isolation_requires_fresh_task_dispatcher(pair, monkeypatch):
+    def failed(**kwargs):
+        raise _sandbox.IsolationUnavailable("namespace denied")
 
-    class ReadinessOracle(OutputOracle):
-        def observe(self):
-            return True, "request during readiness"
-
-    monkeypatch.setattr(module, "oracle_for", lambda *args: ReadinessOracle())
+    monkeypatch.setattr(_sandbox, "isolation_check", failed)
     sides, demo = pair
-    result = module.verify(*sides, demo, "ssrf")
-    assert result.outcome == "inconclusive"
-    assert not result.sides[0].runs
+    with pytest.raises(_sandbox.IsolationUnavailable, match="fresh-task dispatcher"):
+        verify(*sides, demo, "path")
+    calls = []
+
+    def dispatch(**kwargs):
+        calls.append(kwargs)
+        observed = kwargs["side"] == sides[0]
+        return SideRecord("observed", (RunObservation(observed, "", 0),) * 3, 0, "", isolation_mode="task-boundary")
+
+    result = verify(*sides, demo, "path", task_dispatcher=dispatch)
+    assert result.outcome == "demonstrated"
+    assert result.isolation_mode == "task-boundary"
+    assert len(calls) == 2 and all(call["fresh_task"] for call in calls)
 
 
-def test_dependency_hash_detects_replacement(pair, tmp_path, monkeypatch):
-    from openultrasast.search import _sandbox
-
-    original = _sandbox.run
-    dependency = tmp_path / "dependency"
-    dependency.mkdir()
-    (dependency / "module.py").write_text("original")
+def test_task_side_runs_one_repetition_without_model_environment(pair, monkeypatch):
     sides, demo = pair
-    sides = [Side(s.checkout, s.command, dependencies=(dependency,)) for s in sides]
-    request(demo, "path")
+    monkeypatch.setenv("GEMINI_API_KEY", "must-not-leak")
+    for side in sides:
+        source = side.checkout / "app.py"
+        source.write_text('import os\nassert "GEMINI_API_KEY" not in os.environ\n' + source.read_text())
+    monkeypatch.setattr(_sandbox, "run", lambda *a, **kw: pytest.fail("task entry attempted namespaces"))
+    result = verify_side_task(sides[0], demo, "path")
+    assert result.outcome == "observed", result.reason
+    assert len(result.runs) == 1 and result.runs[0].observed
+    assert result.isolation_mode == "task-boundary"
 
-    def changed(job, **kwargs):
-        result = original(job, **kwargs)
-        if job.command[-1] == "/demo/build.sh":
-            (kwargs["mounts"]["/deps/0"] / "module.py").write_text("replacement")
-        return result
 
-    monkeypatch.setattr(_sandbox, "run", changed)
+def test_capture_canary_cannot_replay(pair):
+    sides, demo = pair
+    edit(demo, lambda value: value["steps"][0].update(capture={"name": "stolen", "source": "output"}))
     result = verify(*sides, demo, "path")
-    assert result.outcome == "inconclusive"
-    assert result.sides[0].reason == "build changed immutable inputs"
+    assert result.outcome != "demonstrated"
+    assert "canary values cannot be captured" in result.sides[0].reason
 
 
-def test_trusted_build_products_are_used_readonly(pair):
+def test_ordered_cli_capture_and_stdin(pair):
     sides, demo = pair
-    sides = [
-        Side(s.checkout, ("/usr/bin/python3", "-I", "/build/app.py"), build_command=("/bin/cp", "/workspace/app.py", "/scratch/app.py"))
-        for s in sides
-    ]
-    request(demo, "path")
+    app = """import json, os, sys
+if sys.argv[1:] == ['--ready']: sys.exit(0)
+if sys.argv[1:] == ['token']: print(json.dumps({'token':'public-token'}))
+elif sys.argv[1:] == ['use', 'public-token'] and sys.stdin.read() == 'public-token':
+    from pathlib import Path
+    if not (Path(__file__).parent / 'fixed').exists(): print((Path(os.environ['SERVED_ROOT']).parent / 'canary').read_text())
+"""
+    for side in sides:
+        (side.checkout / "app.py").write_text(app)
+    edit(
+        demo,
+        lambda value: value.update(
+            steps=[
+                {"type": "cli", "arguments": ["token"], "capture": {"name": "token", "source": "json", "path": ["token"]}},
+                {"type": "cli", "arguments": ["use", "${token}"], "stdin": "${token}"},
+            ]
+        ),
+    )
     assert verify(*sides, demo, "path").outcome == "demonstrated"
-    (demo / "build.sh").write_text("echo patched > /build/app.py")
-    assert verify(*sides, demo, "path").outcome == "inconclusive"
+
+
+def test_http_steps_and_capture(pair):
+    try:
+        with socket.socket():
+            pass
+    except PermissionError:
+        pytest.skip("host policy prohibits localhost sockets")
+    sides, demo = pair
+    app = """from http.server import BaseHTTPRequestHandler, HTTPServer
+from pathlib import Path
+import json, os
+class Handler(BaseHTTPRequestHandler):
+ def do_GET(self):
+  self.send_response(200); self.end_headers()
+  if self.path == '/token': result=json.dumps({'token':'public-token'})
+  elif self.path == '/use/public-token' and not (Path(__file__).parent/'fixed').exists():
+   result=(Path(os.environ['SERVED_ROOT']).parent/'canary').read_text()
+  else: result='safe'
+  self.wfile.write(result.encode())
+ def log_message(self, *args): pass
+HTTPServer(('127.0.0.1', 18765), Handler).serve_forever()
+"""
+    for side in sides:
+        (side.checkout / "app.py").write_text(app)
+
+    def change(value):
+        value["start"].update(mode="http", port=18765)
+        value["steps"] = [
+            {"type": "http", "method": "GET", "path": "/token", "capture": {"name": "token", "source": "json", "path": ["token"]}},
+            {"type": "http", "method": "GET", "path": "/use/${token}"},
+        ]
+
+    edit(demo, change)
+    result = verify(*sides, demo, "path")
+    assert result.outcome == "demonstrated", result
 
 
 def test_private_namespace_handoff_without_sockets(tmp_path):
@@ -349,19 +260,6 @@ def test_private_namespace_handoff_without_sockets(tmp_path):
         process.terminate()
         process.wait(timeout=3)
         process.stdout.close()
-
-
-def test_attacker_sees_only_external_bridge_and_scratch(pair):
-    sides, demo = pair
-    (demo / "attack.sh").write_text(
-        "test ! -e /workspace/app.py || exit 3\n"
-        "test ! -e /fixture/canary || exit 3\n"
-        "test ! -e /build/app.py || exit 3\n"
-        "test ! -e /deps/0 || exit 3\n"
-        'test -z "$CALLBACK_URL$PROOF_MARKER$DATABASE$SERVED_ROOT" || exit 3\n'
-        '"$TARGET" path ../canary\n'
-    )
-    assert verify(*sides, demo, "path").outcome == "demonstrated"
 
 
 def test_listener_accepts_nonce_path_for_post_without_sockets(monkeypatch, capsys):
@@ -409,3 +307,168 @@ def test_listener_accepts_nonce_path_for_post_without_sockets(monkeypatch, capsy
     monkeypatch.setattr(http.server, "HTTPServer", Server)
     oracles._listen("secret")
     assert capsys.readouterr().out.splitlines()[1:] == ["observed"]
+
+
+def test_pip_products_imported_by_runtime_and_immutable(pair, monkeypatch):
+    from openultrasast.sandbox import SandboxResult
+
+    sides, demo = pair
+    for side in sides:
+        source = side.checkout / "app.py"
+        source.write_text("import dependency\nassert dependency.VALUE == 42\n" + source.read_text())
+        (side.checkout / "requirements.txt").write_text("dependency==1\n")
+    edit(demo, lambda value: value["build"].update(recipe="pip", arguments=["requirements.txt"]))
+    original = _sandbox.run
+    builds = []
+
+    def runner(job, **kwargs):
+        if "pip" in job.command:
+            assert "--no-index" in job.command and "--no-deps" in job.command
+            packages = kwargs["scratch"] / "packages"
+            packages.mkdir()
+            (packages / "dependency.py").write_text("VALUE = 42\n")
+            builds.append(job)
+            return SandboxResult(0, "", "", False)
+        return original(job, **kwargs)
+
+    monkeypatch.setattr(_sandbox, "run", runner)
+    result = verify(*sides, demo, "path")
+    assert result.outcome == "demonstrated", result
+    assert len(builds) == 6
+
+
+@pytest.mark.parametrize("count", [0, 1, 2, 4])
+def test_dispatcher_incomplete_repetitions_never_demonstrate(pair, monkeypatch, count):
+    sides, demo = pair
+
+    def unavailable(**kwargs):
+        raise _sandbox.IsolationUnavailable("denied")
+
+    monkeypatch.setattr(_sandbox, "isolation_check", unavailable)
+
+    def dispatch(**kwargs):
+        return SideRecord("observed", (RunObservation(kwargs["side"] == sides[0], "", 0),) * count, 0, "", isolation_mode="task-boundary")
+
+    assert verify(*sides, demo, "path", task_dispatcher=dispatch).outcome == "inconclusive"
+
+
+def test_json_file_accepted_without_directory_wrapper(pair):
+    sides, demo = pair
+    assert verify(*sides, demo / "demo.json", "path").outcome == "demonstrated"
+
+
+def test_http_startup_effect_vetoed_before_request_steps(tmp_path):
+    from openultrasast.sandbox import SandboxJob, SandboxResult
+    from openultrasast.search.verify import _http_steps
+
+    checks = []
+
+    def runner(job, **kwargs):
+        config = json.loads(kwargs["input_text"])
+        (kwargs["scratch"] / config["ready"]).touch()
+        # A startup effect must veto the go signal; no requests get authorized.
+        import time
+
+        time.sleep(0.05)
+        assert not (kwargs["scratch"] / config["go"]).exists()
+        return SandboxResult(1, "", "not authorized", False)
+
+    def check():
+        checks.append(True)
+        raise ValueError("startup effect")
+
+    with pytest.raises(ValueError, match="startup effect"):
+        _http_steps(
+            {}, (), lambda command: SandboxJob("", command, tmp_path, {}, 1, 256, 128), tmp_path, {}, {}, None, "nonce", runner, check
+        )
+    assert checks == [True]
+
+
+def test_explicit_task_dispatcher_used_on_userns_host(pair, monkeypatch):
+    sides, demo = pair
+    monkeypatch.setattr(_sandbox, "isolation_check", lambda **kwargs: pytest.fail("remote verification must not probe local execution"))
+    calls = []
+
+    def dispatch(**kwargs):
+        calls.append(kwargs)
+        return SideRecord("observed", (RunObservation(kwargs["side"] == sides[0], "", 0),) * 3, 0, "", isolation_mode="task-boundary")
+
+    result = verify(*sides, demo, "path", task_dispatcher=dispatch)
+    assert result.outcome == "demonstrated" and len(calls) == 2
+    assert result.isolation_mode == "task-boundary"
+
+
+@pytest.mark.parametrize("handshake", [False, True])
+def test_http_driver_requires_readiness_and_complete_outputs(tmp_path, handshake):
+    from openultrasast.sandbox import SandboxJob, SandboxResult
+    from openultrasast.search.verify import _http_steps
+
+    def runner(job, **kwargs):
+        config = json.loads(kwargs["input_text"])
+        if handshake:
+            (kwargs["scratch"] / config["ready"]).touch()
+        return SandboxResult(0, "[]", "", False)
+
+    with pytest.raises(ValueError, match="readiness|invalid HTTP driver output"):
+        _http_steps(
+            {"steps": [{}]},
+            (),
+            lambda command: SandboxJob("", command, tmp_path, {}, 1, 256, 128),
+            tmp_path,
+            {},
+            {},
+            None,
+            "nonce",
+            runner,
+            lambda: None,
+        )
+
+
+def test_generated_build_links_confined_and_hashed(tmp_path):
+    from openultrasast.search.verify import _tree
+
+    checkout = tmp_path / "checkout"
+    checkout.mkdir()
+    module = checkout / "node_modules" / "package"
+    module.mkdir(parents=True)
+    (module / "cli.js").write_text("original")
+    bins = checkout / "node_modules" / ".bin"
+    bins.mkdir()
+    (bins / "cli").symlink_to("../package/cli.js")
+    initial = _tree(checkout, generated_links=True)
+    with pytest.raises(ValueError, match="links"):
+        _tree(checkout)
+    (module / "cli.js").write_text("changed")
+    assert _tree(checkout, generated_links=True) != initial
+    (bins / "escape").symlink_to("/etc/passwd")
+    with pytest.raises(ValueError, match="escapes"):
+        _tree(checkout, generated_links=True)
+
+
+@pytest.mark.parametrize("target", ["missing", "link", "."])
+def test_generated_dangling_and_cyclic_links_rejected(tmp_path, target):
+    from openultrasast.search.verify import _tree
+
+    (tmp_path / "link").symlink_to(target)
+    with pytest.raises(ValueError, match="dangling|cyclic"):
+        _tree(tmp_path, generated_links=True)
+
+
+def test_http_failure_keeps_exception_tail(tmp_path):
+    from openultrasast.sandbox import SandboxJob, SandboxResult
+    from openultrasast.search.verify import _http_steps
+
+    traceback = "Traceback (most recent call last):\n" + "  frame\n" * 200 + "FileNotFoundError: /dev/null\n"
+    with pytest.raises(ValueError, match="FileNotFoundError: /dev/null"):
+        _http_steps(
+            {},
+            ("/bin/true",),
+            lambda command: SandboxJob("", command, tmp_path, {}, 1, 256, 128),
+            tmp_path,
+            {},
+            {},
+            None,
+            "nonce",
+            lambda *a, **kw: SandboxResult(1, "", traceback, False),
+            lambda: None,
+        )

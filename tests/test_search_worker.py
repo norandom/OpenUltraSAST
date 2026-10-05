@@ -8,6 +8,7 @@ from openultrasast.search import _sandbox
 from openultrasast.search.board import Board
 from openultrasast.search.budget import SearchBudget
 from openultrasast.search.coordinator import Coordinator, SearchTask
+from openultrasast.search.executor import InProcessExecutor
 from openultrasast.search.probe import materialise
 from openultrasast.search.verify import verify
 from openultrasast.search.worker import StubModel, Worker
@@ -30,7 +31,7 @@ def test_reason_no_tools_and_bounded(tmp_path):
     result = Worker(model, repo=tmp_path, demo=tmp_path / "demo")(task())
     assert result["intents"][0]["description"] == "inspect"
     assert model.calls[0]["tools"] == []
-    assert result["isolation_mode"] == _sandbox.isolation_mode()
+    assert result["isolation_mode"] == "brain-only"
     assert result["cost_usd"] == 0
     model = StubModel([reply({"intents": [{"description": "x"}] * 4})])
     assert Worker(model, repo=tmp_path, demo=tmp_path / "demo")(task())["status"] == "execution_failure"
@@ -41,7 +42,7 @@ def test_tools_bounds_and_path_escape(tmp_path):
     repo.mkdir()
     (repo / "many").write_text("needle\n" * 1000)
     (repo / "link").symlink_to("/etc/passwd")
-    worker = Worker(StubModel([]), repo=repo, demo=tmp_path / "demo")
+    worker = Worker(StubModel([]), repo=repo, demo=tmp_path / "demo", executor=InProcessExecutor(repo))
     assert len(worker.tool("read_file", {"path": "many", "lines": 900})["text"].splitlines()) == 400
     assert len(worker.tool("grep", {"pattern": "needle"})["matches"]) == 200
     for path in ("../escape", "/etc/passwd", "link"):
@@ -53,7 +54,7 @@ def test_tools_bounds_and_path_escape(tmp_path):
 
 def test_run_scrubs_model_key_in_real_sandbox(tmp_path, monkeypatch):
     monkeypatch.setenv("OPENROUTER_API_KEY", "must-not-reach-repo")
-    worker = Worker(StubModel([]), repo=tmp_path, demo=tmp_path / "demo")
+    worker = Worker(StubModel([]), repo=tmp_path, demo=tmp_path / "demo", executor=InProcessExecutor(tmp_path))
     result = worker.tool(
         "run",
         {
@@ -68,18 +69,17 @@ def test_run_scrubs_model_key_in_real_sandbox(tmp_path, monkeypatch):
 
 
 def test_coordinator_stub_smoke_real_verify(tmp_path):
-    sides, _ = materialise(tmp_path / "pair", "path")
+    sides, probe_demos = materialise(tmp_path / "pair", "path")
     demo = tmp_path / "demo"
     model = StubModel(
         [
             reply({"intents": [{"description": "prove path traversal", "from_facts": []}]}),
             tool("read_file", path="app.py"),
-            tool("write_demo", path="build.sh", content="test -s /workspace/app.py\n"),
-            tool("write_demo", path="request.json", content='["path", "../canary"]'),
+            tool("write_demo", schema=json.loads((probe_demos["real"] / "demo.json").read_text())),
             tool("finish", fact={"text": "Traversal candidate", "evidence_refs": ["tool:1"], "demo": "demo/"}),
         ]
     )
-    worker = Worker(model, repo=sides[0].checkout, demo=demo)
+    worker = Worker(model, repo=sides[0].checkout, demo=demo, executor=InProcessExecutor(sides[0].checkout))
     outcomes = []
 
     def executor(job):
@@ -131,7 +131,7 @@ def test_failed_model_call_charged_and_secrets_not_reported(tmp_path):
 
 
 def test_run_timeout_truncation_and_disk_bound(tmp_path):
-    worker = Worker(StubModel([]), repo=tmp_path, demo=tmp_path / "demo")
+    worker = Worker(StubModel([]), repo=tmp_path, demo=tmp_path / "demo", executor=InProcessExecutor(tmp_path))
     result = worker.tool("run", {"command": ["/bin/sleep", "3"], "timeout_seconds": 1})
     assert result["timed_out"]
     result = worker.tool("run", {"command": ["/usr/bin/python3", "-I", "-c", 'print("x" * 20000)']})
@@ -159,3 +159,73 @@ def test_reason_completion_cites_board_facts(tmp_path):
     from dataclasses import replace
 
     assert worker(replace(job, snapshot="facts: [{id: f1}]"))["complete"] == good["complete"]
+
+
+def test_brain_routes_every_repository_tool_without_local_access(tmp_path, monkeypatch):
+    class RecordingExecutor:
+        def __init__(self):
+            self.calls = []
+
+        def submit(self, name, args, **kwargs):
+            self.calls.append((name, args, kwargs))
+            return {"executor": name}
+
+    executor = RecordingExecutor()
+    worker = Worker(StubModel([]), repo=tmp_path / "absent", demo=tmp_path / "demo", executor=executor)
+    import subprocess
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("brain touched repository")
+
+    monkeypatch.setattr(subprocess, "Popen", forbidden)
+    monkeypatch.setattr(type(tmp_path), "open", forbidden)
+    for name, args in (
+        ("list_files", {}),
+        ("read_file", {"path": "app.py"}),
+        ("grep", {"pattern": "needle"}),
+        ("run", {"command": ["python3", "app.py"]}),
+    ):
+        assert worker.tool(name, args) == {"executor": name}
+    assert [c[0] for c in executor.calls] == ["list_files", "read_file", "grep", "run"]
+
+
+def test_brain_refuses_repository_tools_without_executor(tmp_path):
+    worker = Worker(StubModel([]), repo=tmp_path, demo=tmp_path / "demo")
+    with pytest.raises(ValueError, match="executor"):
+        worker.tool("list_files", {})
+
+
+def test_write_demo_accepts_only_declarative_json(tmp_path):
+    worker = Worker(StubModel([]), repo=tmp_path, demo=tmp_path / "demo")
+    schema = {
+        "build": {"recipe": "none", "arguments": []},
+        "start": {"runtime": "python", "path": "app.py", "arguments": [], "mode": "cli"},
+        "steps": [{"type": "cli", "arguments": ["hello"]}],
+    }
+    assert worker.tool("write_demo", {"schema": schema})["path"] == "demo/demo.json"
+    assert json.loads((tmp_path / "demo/demo.json").read_text()) == schema
+    with pytest.raises(ValueError):
+        worker.tool("write_demo", {"path": "build.sh", "content": "touch /tmp/pwn"})
+
+
+def test_inprocess_executor_observes_all_brain_repository_commands(tmp_path):
+    class RecordingExecutor(InProcessExecutor):
+        def __init__(self, repo):
+            super().__init__(repo)
+            self.commands = []
+
+        def execute(self, command):
+            self.commands.append(command)
+            return super().execute(command)
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / "sample.txt").write_text("needle")
+    executor = RecordingExecutor(repo)
+    worker = Worker(StubModel([]), repo=repo, demo=tmp_path / "demo", executor=executor)
+    assert worker.tool("list_files", {})["files"] == ["sample.txt"]
+    assert worker.tool("read_file", {"path": "sample.txt"})["input_bytes"] == 6
+    assert worker.tool("grep", {"pattern": "needle"})["matches"][0]["line"] == 1
+    assert worker.tool("run", {"command": ["/bin/cat", "/workspace/sample.txt"]})["stdout"] == "needle"
+    assert [c.name for c in executor.commands] == ["list_files", "read_file", "grep", "run"]
+    assert [c.seq for c in executor.commands] == [1, 2, 3, 4]

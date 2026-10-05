@@ -38,6 +38,9 @@ def test_root_argv(monkeypatch, tmp_path, pid):
         def wait(self, **kwargs):
             return 0
 
+        def communicate(self, **kwargs):
+            return None, None
+
     monkeypatch.setattr(_sandbox.subprocess, "Popen", Process)
     job = SandboxJob("", ("/bin/true",), tmp_path, {}, 5, 256, 128)
     _sandbox.run(job, scratch=tmp_path, namespace_pid=pid)
@@ -91,7 +94,8 @@ def test_namespace_diagnostics_precede_failed_preflight(monkeypatch, tmp_path):
     assert record["status"] == "instrument_failure"
     assert set(record["namespaces"]) == {"user", "pid", "net", "ipc", "uts", "cgroup", "mount", "setpriv"}
     assert all(row["exit_code"] == 1 and row["stderr"] == "denied" for row in record["namespaces"].values())
-    assert record["isolation_mode"] == _sandbox.isolation_mode()
+    assert record["isolation_mode"] == "task-boundary"
+    assert record["requires_fresh_side_tasks"]
 
 
 @pytest.mark.parametrize("uid", [0, 1000])
@@ -158,3 +162,22 @@ def test_root_fixture_permissions_and_browser_records(monkeypatch, tmp_path):
     assert record.isolation_mode == "root-no-userns"
     assert record.chromium_no_sandbox
     assert all(s.chromium_no_sandbox and s.isolation_mode == "root-no-userns" for s in record.sides)
+
+
+def test_devnull_can_be_opened_by_nested_launcher(tmp_path):
+    """The HTTP driver's Popen opens /dev/null inside bwrap, before any socket."""
+    _sandbox.isolation_check()
+    source = tmp_path / "input"
+    source.write_text("readable")
+    scratch = tmp_path / "scratch"
+    scratch.mkdir()
+    code = (
+        "from pathlib import Path; import subprocess; "
+        "print(Path('/workspace/input').stat().st_size); "
+        "p=subprocess.Popen(['/bin/true'], stdin=subprocess.DEVNULL, "
+        "stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL); "
+        "raise SystemExit(p.wait())"
+    )
+    result = _sandbox.run(SandboxJob("", ("/usr/bin/python3", "-I", "-c", code), tmp_path, {}, 5, 256, 128), scratch=scratch)
+    assert result.stdout.strip() == "8", result
+    assert result.exit_code == 0 and not result.timed_out, result

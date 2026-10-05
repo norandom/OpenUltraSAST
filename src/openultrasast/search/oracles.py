@@ -87,8 +87,8 @@ class CommandOracle(OutputOracle):
     def prepare(self, canary: Canary) -> dict[str, str]:
         super().prepare(canary)
         # Marker is in app-only writable scratch, inaccessible in artefact sandbox.
-        self.marker = canary.root / canary.nonce
-        return {"PROOF_MARKER": "/scratch/" + canary.nonce}
+        self.marker = canary.root / "marker"
+        return {}
 
     def observe(self) -> tuple[bool, str]:
         observed = self.marker.is_file() and not self.marker.is_symlink()
@@ -98,19 +98,22 @@ class CommandOracle(OutputOracle):
 class SSRFOracle(OutputOracle):
     """Separate listener process and private loopback namespace; no external egress."""
 
+    task_boundary = False
     process: subprocess.Popen[str] | None = None
 
     def prepare(self, canary: Canary) -> dict[str, str]:
         super().prepare(canary)
         self.process = subprocess.Popen(
             [
-                "/usr/bin/unshare",
-                *(["--user", "--map-root-user"] if _sandbox.isolation_mode() == "userns" else []),
-                "--net",
+                *(
+                    []
+                    if self.task_boundary
+                    else ["/usr/bin/unshare", *(["--user", "--map-root-user"] if _sandbox.isolation_mode() == "userns" else []), "--net"]
+                ),
                 "/usr/bin/python3",
                 "-I",
                 str(Path(__file__).resolve()),
-                "--listener",
+                "--task-listener" if self.task_boundary else "--listener",
                 canary.nonce,
             ],
             stdout=subprocess.PIPE,
@@ -127,6 +130,8 @@ class SSRFOracle(OutputOracle):
         if not line:
             raise OSError("private loopback listener unavailable")
         self.namespace_pid, port = json.loads(line)
+        if self.task_boundary:
+            self.namespace_pid = None
         return {"CALLBACK_URL": f"http://127.0.0.1:{port}/{canary.nonce}"}  # loopback: oracle listener inside the private sandbox namespace
 
     def observe(self) -> tuple[bool, str]:
@@ -154,13 +159,14 @@ class BrowserExecutor:
     Launch failures are unavailable execution, never a negative observation.
     """
 
-    def __init__(self, binary: str | None = None, *, timeout_seconds: float = 15) -> None:
+    def __init__(self, binary: str | None = None, *, timeout_seconds: float = 15, task_boundary: bool = False) -> None:
         selected = binary or shutil.which("chromium") or shutil.which("chromium-browser")
         self.timeout_seconds = timeout_seconds
         if not selected:
             raise OSError("headless chromium unavailable")
         self.binary: str = selected
-        self.no_sandbox = _sandbox.isolation_mode() == "root-no-userns"
+        self.task_boundary = task_boundary
+        self.no_sandbox = task_boundary or _sandbox.isolation_mode() == "root-no-userns"
 
     def __call__(self, document: str, nonce: str) -> bool:
         marker = secrets.token_hex(24)
@@ -181,7 +187,8 @@ class BrowserExecutor:
         with tempfile.TemporaryDirectory(prefix="ousast-browser-") as profile:
             # HTML can navigate even with CSP. A private network namespace, not
             # browser flags, is the no-egress boundary. Expose runtime only.
-            _sandbox.writable_directory(Path(profile))
+            if not self.task_boundary:
+                _sandbox.writable_directory(Path(profile))
             namespaces = ["--unshare-pid", "--unshare-ipc", "--unshare-uts", "--unshare-net"] if self.no_sandbox else ["--unshare-all"]
             sandbox = ["bwrap", *namespaces, "--die-with-parent", "--new-session", *_sandbox.capability_args()]
             for path in ("/usr", "/bin", "/lib", "/lib64"):
@@ -202,11 +209,13 @@ class BrowserExecutor:
                 "/profile",
                 "--",
             ]
+            if self.task_boundary:
+                sandbox = []
             try:
                 done = subprocess.run(
                     [
                         *sandbox,
-                        *(_sandbox.drop_privileges() if self.no_sandbox else []),
+                        *(_sandbox.drop_privileges() if self.no_sandbox and not self.task_boundary else []),
                         self.binary,
                         *(["--no-sandbox"] if self.no_sandbox else []),
                         "--headless",
@@ -217,7 +226,7 @@ class BrowserExecutor:
                         "--no-first-run",
                         "--no-default-browser-check",
                         "--disable-sync",
-                        "--user-data-dir=/profile",
+                        "--user-data-dir=" + (profile if self.task_boundary else "/profile"),
                         "--virtual-time-budget=1000",
                         "data:text/html;charset=utf-8," + quote(prelude + document),
                     ],
@@ -262,15 +271,16 @@ def oracle_for(family: str, browser: Browser | None = None) -> Oracle | None:
     return factory() if factory else None
 
 
-def _listen(nonce: str) -> None:
+def _listen(nonce: str, *, task_boundary: bool = False) -> None:
     import fcntl
     import socket
     import struct
     from http.server import BaseHTTPRequestHandler, HTTPServer
 
     # unshare created only loopback; bring it up without iproute2 or any egress.
-    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
-        fcntl.ioctl(sock, 0x8914, struct.pack("16sH14s", b"lo", 0x49, b""))
+    if not task_boundary:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+            fcntl.ioctl(sock, 0x8914, struct.pack("16sH14s", b"lo", 0x49, b""))
 
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self) -> None:
@@ -293,4 +303,4 @@ def _listen(nonce: str) -> None:
 if __name__ == "__main__":
     import sys
 
-    _listen(sys.argv[2])
+    _listen(sys.argv[2], task_boundary=sys.argv[1] == "--task-listener")
