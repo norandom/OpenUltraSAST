@@ -46,7 +46,7 @@ gates, runs every networked or paid step.
   - [ ] 5.3 Smoke test with a stub model (no spend) end to end on one toy pair on kube-ax.
 
 - [ ] 6. Feasibility pilot (paid, after go-ahead)
-  - [ ] 6.1 Select 20 development-corpus pairs (never v3 or the unseen pool) in the four pool families with an owned
+  - [x] 6.1 Select 20 development-corpus pairs (never v3 or the unseen pool) in the four pool families with an owned
     oracle, across the five languages; record selection advantages. _Requirements: 6.1_
   - [ ] 6.2 Run 3 searches, measure real cost per search, ask the maintainer for the pilot ceiling. _Requirements: 4.3_
   - [ ] 6.3 Run the pilot: both sides per pair, fixed side blind to the vulnerable revision; record demonstrated
@@ -97,3 +97,19 @@ gates, runs every networked or paid step.
   live-cluster criteria; their code/local smoke is implemented. No network, paid calls, image builds, pushes
   or commits. Offline wheel build could not resolve the uncached uv-build backend, so installed-wheel and
   real AX/gVisor/kind/Docker image validation remain gaps.
+
+- Task 6.1 and executor smoke (2026-10-05, explicitly authorized): added
+  `benchmarks/search/executor_smoke.py` and `pilot_select.py`, with offline tests and usage documentation.
+  The smoke drives one managed, key-free executor mailbox and records per-command timing/output measurements
+  and sampled workspace peak; AX and Docker lifecycle cleanup is covered by fake-lane tests. No live task ran.
+  Pilot selection read 10 development catalogs (873 rows, 904,050 bytes), retained 192 eligible pairs and selected
+  20 distinct repositories: four per language and five per family. Identities live only in the gitignored local
+  manifest; the aggregate record is `benchmarks/measurements/2026-10-05-search-pilot-selection/record.json`.
+  All 20 selections have unknown manifest/test-suite evidence; no matching local cache or frozen unseen-pool
+  metadata was present. These are feasibility inputs, not proof of buildability or qualification.
+  Both task-local independent reviews approved after a reserved-cache-symlink regression was fixed.
+  Fresh requested search/AX/plane tests, module audit, independent/reserved and unseen guards, and label guards:
+  287 passed, four skipped, exit 0. Skips: Chromium isolation, two localhost-socket cases, and no frozen pool.
+  Ruff and changed-source mypy pass; audit: 166 load-bearing, six standalone, zero orphaned.
+  No network or commits. The requested main merge could not update read-only Git metadata; HEAD and main
+  had identical file trees. Live AX/Docker executor smoke and oracle probes remain unmeasured.
