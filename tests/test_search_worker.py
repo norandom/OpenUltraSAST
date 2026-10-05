@@ -4,6 +4,7 @@ from dataclasses import asdict
 import pytest
 
 from openultrasast.plane.memory import FileStore
+from openultrasast.search import _sandbox
 from openultrasast.search.board import Board
 from openultrasast.search.budget import SearchBudget
 from openultrasast.search.coordinator import Coordinator, SearchTask
@@ -29,6 +30,7 @@ def test_reason_no_tools_and_bounded(tmp_path):
     result = Worker(model, repo=tmp_path, demo=tmp_path / "demo")(task())
     assert result["intents"][0]["description"] == "inspect"
     assert model.calls[0]["tools"] == []
+    assert result["isolation_mode"] == _sandbox.isolation_mode()
     assert result["cost_usd"] == 0
     model = StubModel([reply({"intents": [{"description": "x"}] * 4})])
     assert Worker(model, repo=tmp_path, demo=tmp_path / "demo")(task())["status"] == "execution_failure"
@@ -59,6 +61,7 @@ def test_run_scrubs_model_key_in_real_sandbox(tmp_path, monkeypatch):
             "timeout_seconds": 2,
         },
     )
+    assert result["isolation_mode"] == _sandbox.isolation_mode()
     assert result["exit_code"] == 0, result
     assert result["stdout"].splitlines()[0] == "False"
     assert "must-not-reach-repo" not in json.dumps(result)

@@ -10,6 +10,9 @@ def test_image_matches_runner_and_publishes_digest():
     assert runner in engine and runner in image
     for package in ("python3", "nodejs", "node-typescript", "php-cli", "sqlite3", "bubblewrap", "util-linux", "chromium"):
         assert package in image
+    assert image.rsplit("USER ", 1)[1].startswith("root\n")
+    assert "--uid 10001 --gid 10001 search" in image
+    assert "setpriv --version" in image
     assert "17-jdk" in image and "--no-install-recommends" in image
     assert "rm -rf /var/lib/apt/lists/" in image
     workflow_text = Path(".github/workflows/engine-image.yml").read_text()

@@ -22,6 +22,9 @@ from pathlib import Path
 from typing import Protocol
 from urllib.parse import quote
 
+if __name__ != "__main__":
+    from . import _sandbox
+
 
 @dataclass(frozen=True)
 class Canary:
@@ -30,7 +33,7 @@ class Canary:
 
     @classmethod
     def fresh(cls, root: Path) -> Canary:
-        root.mkdir()
+        root.mkdir(mode=0o700)
         return cls(root, secrets.token_hex(24))
 
 
@@ -66,6 +69,7 @@ class PathOracle(OutputOracle):
         super().prepare(canary)
         (canary.root / "public").mkdir()
         (canary.root / "canary").write_text(canary.nonce)
+        (canary.root / "canary").chmod(0o600)
         return {"SERVED_ROOT": "/fixture/public"}
 
 
@@ -75,6 +79,7 @@ class SQLOracle(OutputOracle):
         with sqlite3.connect(canary.root / "fixture.db") as db:
             db.execute("CREATE TABLE records (name TEXT, value TEXT, public INTEGER)")
             db.executemany("INSERT INTO records VALUES (?, ?, ?)", [("ordinary", "public value", 1), ("secret", canary.nonce, 0)])
+        (canary.root / "fixture.db").chmod(0o600)
         return {"DATABASE": "/fixture/fixture.db"}
 
 
@@ -100,8 +105,7 @@ class SSRFOracle(OutputOracle):
         self.process = subprocess.Popen(
             [
                 "/usr/bin/unshare",
-                "--user",
-                "--map-root-user",
+                *(["--user", "--map-root-user"] if _sandbox.isolation_mode() == "userns" else []),
                 "--net",
                 "/usr/bin/python3",
                 "-I",
@@ -145,7 +149,8 @@ class BrowserExecutor:
 
     Payloads call alert("ousast-xss"). Reflection/escaped HTML cannot set the fresh
     DOM marker. A restrictive CSP disables external resources and connections;
-    Chromium's sandbox stays enabled and each capture uses a fresh profile.
+    Chromium's sandbox stays enabled for userns; root containers use the outer
+    boundary and drop the browser uid. Each capture uses a fresh profile.
     Launch failures are unavailable execution, never a negative observation.
     """
 
@@ -155,6 +160,7 @@ class BrowserExecutor:
         if not selected:
             raise OSError("headless chromium unavailable")
         self.binary: str = selected
+        self.no_sandbox = _sandbox.isolation_mode() == "root-no-userns"
 
     def __call__(self, document: str, nonce: str) -> bool:
         marker = secrets.token_hex(24)
@@ -175,7 +181,9 @@ class BrowserExecutor:
         with tempfile.TemporaryDirectory(prefix="ousast-browser-") as profile:
             # HTML can navigate even with CSP. A private network namespace, not
             # browser flags, is the no-egress boundary. Expose runtime only.
-            sandbox = ["bwrap", "--unshare-all", "--die-with-parent", "--new-session"]
+            _sandbox.writable_directory(Path(profile))
+            namespaces = ["--unshare-pid", "--unshare-ipc", "--unshare-uts", "--unshare-net"] if self.no_sandbox else ["--unshare-all"]
+            sandbox = ["bwrap", *namespaces, "--die-with-parent", "--new-session", *_sandbox.capability_args()]
             for path in ("/usr", "/bin", "/lib", "/lib64"):
                 if Path(path).exists():
                     sandbox += ["--ro-bind", path, path]
@@ -198,7 +206,9 @@ class BrowserExecutor:
                 done = subprocess.run(
                     [
                         *sandbox,
+                        *(_sandbox.drop_privileges() if self.no_sandbox else []),
                         self.binary,
+                        *(["--no-sandbox"] if self.no_sandbox else []),
                         "--headless",
                         "--dump-dom",
                         "--disable-gpu",

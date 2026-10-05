@@ -251,6 +251,7 @@ class Worker:
                     scratch_bytes=int(self.limits["disk_bytes"]),
                 )
             return {
+                "isolation_mode": _sandbox.isolation_mode(),
                 "exit_code": result.exit_code,
                 "stdout": result.stdout[:MAX_OUTPUT],
                 "stderr": result.stderr[:MAX_OUTPUT],
@@ -362,12 +363,22 @@ class Worker:
                 result = self.explore(task, meter)
             else:
                 raise ValueError("verify requires the trusted verifier executor")
-            return {"status": "ok", **result, "cost_usd": meter.spent}
+            return {"status": "ok", **result, "cost_usd": meter.spent, "isolation_mode": _sandbox.isolation_mode()}
         except _sandbox.IsolationUnavailable:
-            return {"status": "instrument_failure", "failure": "sandbox isolation unavailable", "cost_usd": meter.spent}
+            return {
+                "status": "instrument_failure",
+                "failure": "sandbox isolation unavailable",
+                "cost_usd": meter.spent,
+                "isolation_mode": _sandbox.isolation_mode(),
+            }
         except Exception as exc:
             # Provider exceptions can contain keys/URLs. Never persist their text.
-            return {"status": "execution_failure", "failure": type(exc).__name__, "cost_usd": meter.spent}
+            return {
+                "status": "execution_failure",
+                "failure": type(exc).__name__,
+                "cost_usd": meter.spent,
+                "isolation_mode": _sandbox.isolation_mode(),
+            }
 
 
 def main() -> None:

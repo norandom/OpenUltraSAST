@@ -20,7 +20,7 @@ import stat
 import tempfile
 import time
 from collections.abc import Callable
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -61,6 +61,8 @@ class SideRecord:
     ready_seconds: float = 0.0
     run_seconds: float = 0.0
     scratch_peak_bytes: int = 0
+    isolation_mode: str = field(default_factory=_sandbox.isolation_mode)
+    chromium_no_sandbox: bool = False
 
 
 @dataclass(frozen=True)
@@ -69,6 +71,8 @@ class VerificationRecord:
     sides: tuple[SideRecord, ...]
     elapsed_seconds: float
     reason: str
+    isolation_mode: str = field(default_factory=_sandbox.isolation_mode)
+    chromium_no_sandbox: bool = False
 
 
 def _tree(root: Path) -> str:
@@ -125,7 +129,15 @@ def _side(side: Side, demo: Path, family: str, timeout: int, browser: BrowserExe
 
     def record(outcome: str, reason: str) -> SideRecord:
         return SideRecord(
-            outcome, tuple(observations), time.monotonic() - started, reason, timings["build"], timings["ready"], timings["run"], disk_peak
+            outcome,
+            tuple(observations),
+            time.monotonic() - started,
+            reason,
+            timings["build"],
+            timings["ready"],
+            timings["run"],
+            disk_peak,
+            chromium_no_sandbox=bool(getattr(browser, "no_sandbox", False)),
         )
 
     try:
@@ -170,7 +182,14 @@ def _side(side: Side, demo: Path, family: str, timeout: int, browser: BrowserExe
                     app_env = oracle.prepare(canary)
                     app_scratch = canary.root if family == "command" else root / "app"
                     app_scratch.mkdir(exist_ok=True)
-                    app_mounts = {**mounts, "/fixture": canary.root}
+                    fixture = canary.root
+                    if _sandbox.isolation_mode() == "root-no-userns" and family != "command":
+                        # Observer originals remain private. Only the app gets a
+                        # read-only copy of the fixtures its interface requires.
+                        fixture = shutil.copytree(canary.root, root / "app-fixture")
+                        for path in [fixture, *fixture.rglob("*")]:
+                            path.chmod(0o555 if path.is_dir() else 0o444)
+                    app_mounts = {**mounts, "/fixture": fixture}
                     ready = timed(
                         "ready",
                         _sandbox.run,
@@ -262,7 +281,13 @@ def verify(
         outcome, reason = "demonstrated", "owned effect in 3/3 affected runs and 0/3 safe runs"
     else:
         outcome, reason = "inconclusive", "no consistent differential effect"
-    return VerificationRecord(outcome, sides, time.monotonic() - started, reason)
+    return VerificationRecord(
+        outcome,
+        sides,
+        time.monotonic() - started,
+        reason,
+        chromium_no_sandbox=bool(getattr(browser, "no_sandbox", False)),
+    )
 
 
 def main() -> None:

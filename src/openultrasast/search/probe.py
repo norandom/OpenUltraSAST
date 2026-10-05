@@ -84,8 +84,33 @@ def image_facts() -> dict[str, Any]:
     return facts
 
 
+def namespace_facts() -> dict[str, Any]:
+    """Try capabilities independently, even when the combined preflight fails."""
+    commands = {
+        name: ["bwrap", f"--unshare-{name}", "--bind", "/", "/", "--", "/bin/true"]
+        for name in ("user", "pid", "net", "ipc", "uts", "cgroup")
+    }
+    commands["mount"] = ["bwrap", "--bind", "/", "/", "--", "/bin/true"]
+    commands["setpriv"] = [*_sandbox.drop_privileges(), "/usr/bin/id"]
+    facts = {}
+    for name, argv in commands.items():
+        try:
+            done = subprocess.run(argv, capture_output=True, text=True, timeout=5, env={"PATH": os.defpath})
+            facts[name] = {"exit_code": done.returncode, "stderr": done.stderr[:2000], "stdout": done.stdout[:2000]}
+        except (OSError, subprocess.SubprocessError) as exc:
+            facts[name] = {"exit_code": None, "stderr": str(exc)}
+    return facts
+
+
 def probe(root: Path) -> dict[str, Any]:
-    record: dict[str, Any] = {"status": "ok", "oracles": {}, "image": image_facts(), "isolation_check": None}
+    record: dict[str, Any] = {
+        "status": "ok",
+        "oracles": {},
+        "image": image_facts(),
+        "namespaces": namespace_facts(),
+        "isolation_check": None,
+        "isolation_mode": _sandbox.isolation_mode(),
+    }
     start = time.monotonic()
     try:
         _sandbox.isolation_check()
