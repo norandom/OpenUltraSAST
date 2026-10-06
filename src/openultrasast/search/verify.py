@@ -67,6 +67,7 @@ class SideRecord:
     exit_code: int | None = None
     stderr: str = ""
     stdout: str = ""
+    control_observed: bool | None = None
 
 
 @dataclass(frozen=True)
@@ -285,6 +286,7 @@ def _side(side: Side, demo: Path, family: str, timeout: int, browser: BrowserExe
 
     private_values: list[str] = []
     disk_peak = 0
+    control_observed: bool | None = None
     root: Path | None = None
 
     def timed(stage: str, operation: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
@@ -315,13 +317,14 @@ def _side(side: Side, demo: Path, family: str, timeout: int, browser: BrowserExe
                 result.stderr if result is not None else app_diagnostics.get("stderr", ""), maximum=1500, private=tuple(private_values)
             ),
             stdout=diagnostic(getattr(result, "stdout", app_diagnostics.get("stdout", "")), maximum=1500, private=tuple(private_values)),
+            control_observed=control_observed,
         )
 
     try:
         schema = load_demo(demo)
         originals = (side.checkout, *side.dependencies, demo, *((side.products,) if side.products else ()))
         initial = tuple(_tree(p) for p in originals)
-        for _ in range(1 if task_boundary else 3):
+        for run_index in range(1 if task_boundary else 3):
             tick = time.monotonic()
             with tempfile.TemporaryDirectory(prefix="ousast-proof-") as temporary:
                 root = Path(temporary)
@@ -475,6 +478,44 @@ def _side(side: Side, demo: Path, family: str, timeout: int, browser: BrowserExe
 
                     captures: dict[str, str] = {}
                     if schema["start"]["mode"] == "http":
+                        # Positive control: on the first run, a benign in-root request
+                        # for a verifier-planted marker, run as its OWN app start and
+                        # fully guarded so it can only annotate, never change the
+                        # verdict. Its marker returning proves the interface serves the
+                        # fixture; its absence (or any control failure) is recorded, not
+                        # trusted, since a valid app may answer only its own routes.
+                        probe = oracle.control()
+                        if run_index == 0 and probe is not None:
+                            control_schema = {
+                                **schema,
+                                "steps": [
+                                    {
+                                        "type": "http",
+                                        "method": probe.method,
+                                        "path": probe.path,
+                                        **({"body": probe.body} if probe.body else {}),
+                                    }
+                                ],
+                            }
+                            try:
+                                control_outputs = timed(
+                                    "run",
+                                    _http_steps,
+                                    control_schema,
+                                    command,
+                                    job,
+                                    app_scratch,
+                                    app_mounts,
+                                    app_env,
+                                    oracle.namespace_pid,
+                                    canary.nonce,
+                                    runner,
+                                    http_ready_check,
+                                    {},
+                                )
+                                control_observed = bool(control_outputs) and probe.token in control_outputs[0]
+                            except (CommandFailure, OSError, ValueError, AssertionError):
+                                control_observed = False
                         outputs = timed(
                             "run",
                             _http_steps,
