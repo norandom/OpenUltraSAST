@@ -48,7 +48,9 @@ def test_dispatch_uses_fresh_tasks_and_only_data(tmp_path):
     assert result.isolation_mode == "task-boundary"
     assert len(result.runs) == 3
     assert len(calls) == 3 and calls[0].id != calls[1].id
-    assert all(i.id.startswith("search-verify-") for i in calls)
+    # The operator egress rules match the task-name prefix, which comes from the workload kind.
+    assert all(len(i.id) == 32 and i.id.isalnum() for i in calls)
+    assert len({i.id for i in calls}) == 3
 
 
 @pytest.mark.parametrize(
