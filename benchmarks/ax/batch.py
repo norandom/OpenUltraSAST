@@ -643,7 +643,7 @@ class DockerLane(AXLane):
             for env in manifest["spec"]["env"]:
                 command += ["-e", env["name"] + "=" + env["value"]]
             command += [manifest["spec"]["image"], *manifest["spec"]["command"][1:]]
-            if "openultrasast.search.executor" not in manifest["spec"]["command"]:
+            if not {"openultrasast.search.executor", "openultrasast.search.verify_task"}.intersection(manifest["spec"]["command"]):
                 command += ["--heap-profile", "vm"]
         elif args[0] == "get":
             command = ["docker", "inspect", "--format", "{{.State.Running}} {{.State.ExitCode}}", self._docker_name]
@@ -759,6 +759,7 @@ class SearchExecutorTask:
         """Check the export manifest and every fragment before handing off the archive."""
         remaining = min(300, self.end - time.monotonic())
         result = self.client.submit("prepare_verification", spec, timeout_seconds=remaining)
+        self.preparation_result = result
         if result.get("status") != "ok":
             from openultrasast.search.task_storage import CommandFailure
 

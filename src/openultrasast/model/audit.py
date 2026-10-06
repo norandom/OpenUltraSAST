@@ -83,6 +83,7 @@ SPEC_OWNED = {
 
 # Reachable modules that stand alone: their own CLI subcommand or external protocol, off the scan path.
 STANDALONE = {
+    "search.demo_replay": "benchmarks standalone: no-model stored demo replay; python -m benchmarks.search.demo_replay",
     "search.coordinator": (
         "search-with-proof Req 1/2/4: injected search executor and offline board checkpoint inspector; agent worker pending"
     ),
