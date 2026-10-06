@@ -225,3 +225,39 @@ def test_data_files_never_follow_links_or_overwrite(tmp_path, where):
     assert not list(outside.iterdir())
     if where == "existing":
         assert (root / "keys/key.pem").read_text() == "original"
+
+
+@pytest.mark.parametrize("field", ["arguments", "environment", "files"])
+@pytest.mark.parametrize(
+    "oracle,name",
+    [("path", "served_root"), ("sql", "database_path"), ("sql", "database_url"), ("command", "marker_dir"), ("ssrf", "callback_url")],
+)
+def test_oracle_placeholders_scoped_to_start(field, oracle, name):
+    value = document()
+    value["oracle"] = oracle
+
+    def put(text):
+        value["start"][field] = [text] if field == "arguments" else {"CONFIG" if field == "environment" else "config.txt": text}
+
+    put("${" + name + "}")
+    assert validate_demo(value) == value
+    value["oracle"] = "xss"
+    with pytest.raises(ValueError):
+        validate_demo(value)
+    value["oracle"] = oracle
+    for invalid in ("${nonsense}", "/fixture/public", "SERVED_ROOT", "DATABASE", "CALLBACK_URL", "${SERVED_ROOT}", "${bad-name}"):
+        put(invalid)
+        with pytest.raises(ValueError):
+            validate_demo(value)
+
+
+@pytest.mark.parametrize("name", ["served_root", "database_path", "database_url", "marker_dir", "callback_url"])
+def test_fixture_placeholders_cannot_be_step_inputs_or_captures(name):
+    value = document()
+    value["steps"][0]["arguments"] = ["${" + name + "}"]
+    with pytest.raises(ValueError):
+        validate_demo(value)
+    value["steps"][0]["arguments"] = []
+    value["steps"][0]["capture"] = {"name": name, "source": "output"}
+    with pytest.raises(ValueError):
+        validate_demo(value)

@@ -283,6 +283,7 @@ def _side(side: Side, demo: Path, family: str, timeout: int, browser: BrowserExe
     timings = dict(build=0.0, ready=0.0, run=0.0)
     app_diagnostics: dict[str, Any] = {}
 
+    private_values: list[str] = []
     disk_peak = 0
     root: Path | None = None
 
@@ -301,7 +302,7 @@ def _side(side: Side, demo: Path, family: str, timeout: int, browser: BrowserExe
             outcome,
             tuple(observations),
             time.monotonic() - started,
-            diagnostic(reason, maximum=1500),
+            diagnostic(reason, maximum=1500, private=tuple(private_values)),
             timings["build"],
             timings["ready"] + app_diagnostics.get("ready_seconds", 0),
             max(0.0, timings["run"] - app_diagnostics.get("ready_seconds", 0)),
@@ -310,8 +311,10 @@ def _side(side: Side, demo: Path, family: str, timeout: int, browser: BrowserExe
             chromium_no_sandbox=bool(getattr(browser, "no_sandbox", False)),
             phase=phase,
             exit_code=result.exit_code if result is not None else None,
-            stderr=diagnostic(result.stderr if result is not None else app_diagnostics.get("stderr", ""), maximum=1500),
-            stdout=diagnostic(getattr(result, "stdout", app_diagnostics.get("stdout", "")), maximum=1500),
+            stderr=diagnostic(
+                result.stderr if result is not None else app_diagnostics.get("stderr", ""), maximum=1500, private=tuple(private_values)
+            ),
+            stdout=diagnostic(getattr(result, "stdout", app_diagnostics.get("stdout", "")), maximum=1500, private=tuple(private_values)),
         )
 
     try:
@@ -359,12 +362,6 @@ def _side(side: Side, demo: Path, family: str, timeout: int, browser: BrowserExe
                         return record("could_not_build", "build recipe failed", "build", compiled)
                 if tuple(_tree(p) for p in immutable) != before:
                     return record("inconclusive", "build changed immutable inputs")
-                write_start_files(checkout, schema["start"])
-                if not task_boundary:
-                    for name in schema["start"].get("files", {}):
-                        _sandbox.writable_directory(checkout / ".demo" / name)
-                product_hash = _tree(products, generated_links=True)
-                checkout_hash = _tree(checkout, generated_links=True)
                 mounts["/build"] = products
                 start_spec = schema["start"]
                 entry = checkout / start_spec["path"]
@@ -400,14 +397,34 @@ def _side(side: Side, demo: Path, family: str, timeout: int, browser: BrowserExe
                 assert oracle is not None
                 try:
                     canary = Canary.fresh(root / "fixture")
+                    private_values.extend((canary.nonce, str(root), "/fixture", "/scratch"))
                     if task_boundary and hasattr(oracle, "task_boundary"):
                         oracle.task_boundary = True
+                    oracle_env = oracle.prepare(canary)
+                    bindings = oracle.placeholders
+                    file_bindings = bindings
+                    if task_boundary:
+                        # Files are app data, so resolve their paths before writing;
+                        # the task runner only translates argv and environment.
+                        file_bindings = {
+                            key: re.sub(r"/(?:fixture|scratch)(?=/|$)", lambda _, path=str(canary.root): path, value)
+                            for key, value in bindings.items()
+                        }
+                    private_values.extend((*bindings.values(), *file_bindings.values()))
+                    write_start_files(checkout, start_spec, file_bindings)
+                    if not task_boundary:
+                        for name in start_spec.get("files", {}):
+                            _sandbox.writable_directory(checkout / ".demo" / name)
+                    product_hash = _tree(products, generated_links=True)
+                    checkout_hash = _tree(checkout, generated_links=True)
+                    command = tuple(substitute(arg, bindings) for arg in command)
                     app_env = {
                         **{
-                            key: "/workspace/" + value if value.startswith(".demo/") else value
+                            key: "/workspace/" + expanded if expanded.startswith(".demo/") else expanded
                             for key, value in start_spec.get("environment", {}).items()
+                            for expanded in [substitute(value, bindings)]
                         },
-                        **oracle.prepare(canary),
+                        **oracle_env,
                     }
                     if start_spec["runtime"] == "node":
                         app_env["NODE_PATH"] = "/build/node_modules"

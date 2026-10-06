@@ -1,6 +1,6 @@
 """Bounded declarative demonstrations; no executable agent content or private variables.
 
-Only a previously captured application response can define a substitution. Runtime
+Start configuration accepts oracle-owned fixture placeholders; steps accept prior response captures. Runtime
 paths and build manifests are checkout relative; request payloads remain data (and
 may contain traversal or injection strings being tested at the public interface).
 """
@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import sys
 import tomllib
 from pathlib import Path, PurePosixPath
 from typing import Any, cast
@@ -77,7 +78,16 @@ BUILD_RECIPES = {
     "maven": ("/usr/bin/mvn", "--offline", "-f"),
     "gradle": ("/usr/bin/gradle", "--offline", "--no-daemon", "--project-dir"),
 }
-RUNTIMES = {"python": ("/usr/bin/python3", "-I"), "node": ("/usr/bin/node",), "php": ("/usr/bin/php",), "java": ("/usr/bin/java", "-jar")}
+# Python apps run under the verifier's own interpreter: it is the one pip installed the products for
+# (the image carries a second, system Python with a different ABI tag; compiled extensions failed under it).
+RUNTIMES = {"python": (sys.executable, "-I"), "node": ("/usr/bin/node",), "php": ("/usr/bin/php",), "java": ("/usr/bin/java", "-jar")}
+ORACLE_PLACEHOLDERS = {
+    "path": {"served_root"},
+    "sql": {"database_path", "database_url"},
+    "command": {"marker_dir"},
+    "ssrf": {"callback_url"},
+    "xss": set(),
+}
 _REFERENCE = re.compile(r"\$\{([a-z][a-z0-9_]{0,31})\}")
 _PRIVATE = re.compile(r"/(?:fixture|proc|sys|dev|deps|build)(?:/|\b)|(?:PROOF_MARKER|CALLBACK_URL|DATABASE|SERVED_ROOT)", re.I)
 
@@ -274,11 +284,11 @@ def preparation_command(recipe: str, path: Path, checkout: Path, products: Path)
 def _text(value: Any, names: set[str], *, maximum: int = MAX_VALUE_BYTES) -> str:
     if not isinstance(value, str) or "\0" in value or len(value.encode()) > maximum:
         raise ValueError("invalid or oversized value")
-    if _PRIVATE.search(value):
+    if _PRIVATE.search(_REFERENCE.sub(lambda m: "" if m[1] in names else m[0], value)):
         raise ValueError("private verifier references are forbidden")
     references = _REFERENCE.findall(value)
     if any(name not in names for name in references) or "$" in _REFERENCE.sub("", value):
-        raise ValueError("only earlier response captures may be referenced")
+        raise ValueError("only allowed oracle placeholders or earlier response captures may be referenced")
     return value
 
 
@@ -289,7 +299,8 @@ def _arguments(value: Any, names: set[str]) -> None:
         _text(arg, names)
 
 
-def validate_start_config(start: dict[str, Any]) -> None:
+def validate_start_config(start: dict[str, Any], names: set[str] | None = None) -> None:
+    names = names or set()
     environment = start.get("environment", {})
     if not isinstance(environment, dict) or len(environment) > 32:
         raise ValueError("invalid environment map")
@@ -304,7 +315,7 @@ def validate_start_config(start: dict[str, Any]) -> None:
             raise ValueError("forbidden environment variable")
         if not isinstance(value, str) or len(value) > 4096:
             raise ValueError("invalid environment value")
-        _text(value, set())
+        _text(value, names)
     files = start.get("files", {})
     if not isinstance(files, dict) or len(files) > 8:
         raise ValueError("invalid data file map")
@@ -312,13 +323,15 @@ def validate_start_config(start: dict[str, Any]) -> None:
         checkout_path(name)
         if ".." in name or not any(name.endswith(ext) for ext in DATA_EXTENSIONS):
             raise ValueError("invalid data file extension or name")
-        _text(content, set(), maximum=MAX_DATA_BYTES)
+        _text(content, names, maximum=MAX_DATA_BYTES)
 
 
-def write_start_files(checkout: Path, start: dict[str, Any]) -> None:
+def write_start_files(checkout: Path, start: dict[str, Any], bindings: dict[str, str] | None = None) -> None:
     """Create only new private data files, before any app process is launched."""
-    validate_start_config(start)
+    bindings = bindings or {}
+    validate_start_config(start, set(bindings))
     for name, content in start.get("files", {}).items():
+        content = substitute(content, bindings, maximum=MAX_DATA_BYTES)
         path = checkout / ".demo" / name
         directory = checkout
         for part in path.parent.relative_to(checkout).parts:
@@ -361,7 +374,8 @@ def validate_demo(value: Any, *, checkout: Path | None = None) -> dict[str, Any]
         if checkout is not None:
             build_project(recipe, checkout / args[0], checkout)
     _keys(start, {"runtime", "path", "arguments", "mode"}, {"port", "environment", "files"})
-    validate_start_config(start)
+    placeholders = ORACLE_PLACEHOLDERS[value["oracle"]]
+    validate_start_config(start, placeholders)
     ordinary = {**value, "start": {k: v for k, v in start.items() if k not in {"environment", "files"}}}
     if len(json.dumps(ordinary, allow_nan=False).encode()) > 65536:
         raise ValueError("demo excluding configuration exceeds size limit")
@@ -370,7 +384,7 @@ def validate_demo(value: Any, *, checkout: Path | None = None) -> dict[str, Any]
     checkout_path(start["path"])
     if start["path"].split("/")[0] == ".demo":
         raise ValueError("data files cannot be runtime entrypoints")
-    _arguments(start["arguments"], set())
+    _arguments(start["arguments"], placeholders)
     if any(
         arg.startswith("/") or ".." in arg.split("/") or re.search(r"(?:^|[= :])/(?:etc|home|root|tmp|workspace|scratch)/", arg)
         for arg in start["arguments"]
@@ -423,6 +437,7 @@ def validate_demo(value: Any, *, checkout: Path | None = None) -> dict[str, Any]
                 or not re.fullmatch(r"[a-z][a-z0-9_]{0,31}", name)
                 or name in names
                 or name == "canary"
+                or any(name in allowed for allowed in ORACLE_PLACEHOLDERS.values())
                 or _PRIVATE.search(name)
             ):
                 raise ValueError("invalid capture name")
@@ -458,9 +473,9 @@ def load_demo(path: Path) -> dict[str, Any]:
         raise ValueError("demo nesting exceeds limit") from exc
 
 
-def substitute(value: str, captures: dict[str, str]) -> str:
+def substitute(value: str, captures: dict[str, str], *, maximum: int = MAX_VALUE_BYTES) -> str:
     result = _REFERENCE.sub(lambda m: captures[m.group(1)], value)
-    if len(result.encode()) > MAX_VALUE_BYTES or "\0" in result:
+    if len(result.encode()) > maximum or "\0" in result:
         raise ValueError("expanded value exceeds limit")
     return result
 
