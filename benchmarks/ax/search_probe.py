@@ -30,12 +30,12 @@ def validate_result(data: bytes, output: Path) -> None:
 
 def probe_workload(image: str, deadline: float = 900) -> Workload:
     validate_image(image)
-    return Workload(image, frozenset({"RESULT_URL"}), deadline, validate_result)
+    return Workload(image, frozenset({"RESULT_URL"}), deadline, validate_result, kind="search-probe")
 
 
 def probe_item(image: str) -> Item:
     return Item(
-        "search-probe",
+        "v1",
         {},
         "result.json",
         ("python3", "-m", "openultrasast.search.probe"),

@@ -9,6 +9,7 @@ import uuid
 from pathlib import Path
 
 from benchmarks.ax.batch import AXLane, CapacityDeadline, Item, SearchExecutorTask, Workload, validate_image
+from openultrasast.search.budget import verification_run_seconds
 from openultrasast.search.verify import RunObservation, SideRecord
 from openultrasast.search.verify_task import MAX_RESULT_BYTES, pack_checkout
 
@@ -66,7 +67,13 @@ class AXSideDispatcher:
             raise ValueError("verification accepts checkout and declarative inputs only")
         # The trusted host selects an executor for this side. Build/package work
         # finishes there before any verifier worker slot is acquired.
-        workload = Workload(self.image, frozenset({"VERIFY_INPUT_URL", "RESULT_URL"}), timeout_seconds * 6 + 60, validate_result)
+        workload = Workload(
+            self.image,
+            frozenset({"VERIFY_INPUT_URL", "RESULT_URL"}),
+            verification_run_seconds(demo, timeout_seconds) + 60,
+            validate_result,
+            kind="search-verify",
+        )
         lane = self.lane or AXLane(self.args, workload)
         spec = {"demo": demo, "family": family, "timeout_seconds": timeout_seconds}
         try:
@@ -79,7 +86,7 @@ class AXSideDispatcher:
             return SideRecord("could_not_build", (), 0, str(exc), isolation_mode="task-boundary")
         records = []
         for _ in range(3):
-            identity = "search-verify-" + uuid.uuid4().hex
+            identity = uuid.uuid4().hex
             item = Item(
                 identity,
                 {"VERIFY_INPUT_URL": archive},
@@ -113,4 +120,5 @@ class AXSideDispatcher:
             phase=last.phase,
             exit_code=last.exit_code,
             stderr=last.stderr,
+            stdout=last.stdout,
         )

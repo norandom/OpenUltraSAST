@@ -112,7 +112,7 @@ def test_fixed_verification_never_acquires_vulnerable_revision(tmp_path, monkeyp
 
     def stop(archive, bundle):
         bundle.mkdir()
-        (bundle / "spec.json").write_text(json.dumps({"demo": schema, "family": "path", "timeout_seconds": 5}))
+        (bundle / "spec.json").write_text(json.dumps({"demo": schema, "family": "path", "timeout_seconds": 30}))
 
     monkeypatch.setattr(pilot_run, "extract_checkout", stop)
     monkeypatch.setattr(pilot_run, "verify", lambda *args, **kwargs: (_ for _ in ()).throw(StopVerification()))
@@ -271,7 +271,7 @@ def test_fixed_effect_reporting_is_independent_of_differential(tmp_path, monkeyp
     pilot = make_pilot(tmp_path)
     side = SideRecord("observed", tuple(RunObservation(value, "owned", 0) for value in observed), 0, "completed")
     result = VerificationRecord("inconclusive", (side, side), 0, "no differential")
-    monkeypatch.setattr(pilot, "verification", lambda: result)
+    monkeypatch.setattr(pilot, "verification", lambda limits: result)
     task = SearchTask("task-1", "search-1", "verify", "", {}, asdict(SearchBudget()))
     assert pilot.dispatch(task)["outcome"] == "inconclusive"
     assert pilot.record["fixed_effect_observed"] is expected
@@ -538,3 +538,58 @@ def test_pilot_executor_deletes_task_when_submit_times_out(tmp_path, monkeypatch
     assert calls[-1][0][:2] == ("delete", "task")
     assert len(deleted) == 4
     assert pilot.record["executor_task_metrics"][-1]["end"] == "execution_failure"
+
+
+def test_start_failure_retains_sanitized_logs_and_readiness(tmp_path):
+    from openultrasast.search.verify import SideRecord
+
+    pilot = make_pilot(tmp_path)
+    side = SideRecord(
+        "could_not_run",
+        (),
+        1.5,
+        "timeout",
+        ready_seconds=1.1,
+        phase="start",
+        exit_code=-9,
+        stdout="x" * 2000 + " boot token=hidden",
+        stderr="y" * 2000 + " stderr password=hidden",
+    )
+    pilot.failure("verify", side.reason, side)
+    entry = pilot.record["failures"][-1]
+    assert entry["command_phase"] == "start" and entry["exit_code"] == -9
+    assert entry["ready_seconds"] == 1.1
+    assert len(entry["stdout"]) <= 1500 and len(entry["stderr"]) <= 1500
+    assert "hidden" not in entry["stdout"] + entry["stderr"]
+
+
+def test_ax_pilot_uses_verification_task_limits_for_deadline(tmp_path, monkeypatch):
+    from benchmarks.search import pilot_run
+    from openultrasast.search.probe import materialise
+
+    pilot = make_pilot(tmp_path)
+    pilot.args.verify_lane = "ax"
+    pilot.args.image = "image@sha256:" + "a" * 64
+    deadlines = []
+
+    class Lane:
+        workload = None
+
+        def __call__(self, *args):
+            deadlines.append(self.workload.deadline)
+
+    pilot.lane = Lane()
+    _, demos = materialise(tmp_path / "probe", "path")
+    schema = json.loads((demos["real"] / "demo.json").read_text())
+    (tmp_path / "demo/demo.json").write_text(json.dumps(schema))
+    captured = []
+
+    def verify(*args, **kwargs):
+        captured.append(kwargs["timeout_seconds"])
+        kwargs["task_dispatcher"].lane(None, None, 1)
+
+    monkeypatch.setattr(pilot_run, "verify", verify)
+    pilot.verification({"cli_start_seconds": 17})
+    assert captured == [17]
+    assert deadlines == [17 * (len(schema["steps"]) + 1) + 65]
+    assert pilot.lane.workload is None

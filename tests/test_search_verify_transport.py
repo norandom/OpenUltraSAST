@@ -48,7 +48,9 @@ def test_dispatch_uses_fresh_tasks_and_only_data(tmp_path):
     assert result.isolation_mode == "task-boundary"
     assert len(result.runs) == 3
     assert len(calls) == 3 and calls[0].id != calls[1].id
-    assert all(i.id.startswith("search-verify-") for i in calls)
+    # The operator egress rules match the task-name prefix, which comes from the workload kind.
+    assert all(len(i.id) == 32 and i.id.isalnum() for i in calls)
+    assert len({i.id for i in calls}) == 3
 
 
 @pytest.mark.parametrize(
@@ -240,3 +242,26 @@ def test_transport_checks_family_and_demo_oracle(family, oracle):
     schema["oracle"] = "path" if oracle != "path" else "sql"
     with pytest.raises(ValueError, match="not allowed"):
         entry.validate_spec(spec)
+
+
+@pytest.mark.parametrize("mode,timeout", [("http", 90), ("cli", 30)])
+def test_verifier_deadline_uses_mode_budget_and_all_steps(tmp_path, monkeypatch, mode, timeout):
+    from openultrasast.search.budget import verification_run_seconds, verification_timeout
+
+    schema = demo()
+    schema["start"]["mode"] = mode
+    schema["steps"] *= 8
+    assert verification_timeout(schema) == timeout
+    assert verification_timeout(schema, {mode + "_start_seconds": 17}) == 17
+    workloads = []
+
+    def lane(args, workload):
+        workloads.append(workload)
+        return lambda *args: asdict(record())
+
+    monkeypatch.setattr(transport, "AXLane", lane)
+    dispatch = transport.AXSideDispatcher(
+        SimpleNamespace(), "image@sha256:" + "a" * 64, tmp_path / "out", prepare=lambda side, spec: b"archive"
+    )
+    dispatch(side=Side(tmp_path), demo=schema, family="injection", timeout_seconds=timeout, fresh_task=True)
+    assert workloads[0].deadline == verification_run_seconds(schema, timeout) + 60 == timeout * 9 + 65

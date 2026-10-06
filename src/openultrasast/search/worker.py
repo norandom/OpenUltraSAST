@@ -174,8 +174,8 @@ class Worker:
         demo: Path,
         model: str = "scripted",
         prices: Prices | None = None,
-        max_output_tokens: int = 1024,
-        max_steps: int = 32,
+        max_output_tokens: int = 4096,
+        max_steps: int = SearchBudget().max_steps,
         executor: RepositoryExecutor | None = None,
         run_budget: SpendBudget | None = None,
     ) -> None:
@@ -262,6 +262,7 @@ class Worker:
             reservation.settle(actual)
             if run_reservation is not None:
                 run_reservation.settle(actual)
+            self.finish_reason = raw["choices"][0].get("finish_reason")
             return cast(dict[str, Any], raw["choices"][0]["message"])
         except Exception:
             if reservation._active:
@@ -356,14 +357,20 @@ class Worker:
         self.observations = []
         malformed = 0
         plain_text = 0
-        for index in range(self.max_steps):
+        shortening_retry = False
+        max_steps = min(self.max_steps, task.limits.get("max_steps", self.max_steps))
+        for index in range(max_steps):
             messages[0]["content"] = (
                 EXPLORE_PROMPT
                 + "\nSingle intent: "
                 + json.dumps(task.payload.get("description", ""))
-                + f"\nCalls left including this one: {self.max_steps - index}. "
+                + f"\nCalls left including this one: {max_steps - index}. "
                 "Finish now if only one remains; report confirmed observations or failure."
             )
+            if index and index % 10 == 0:
+                messages.append(
+                    {"role": "user", "content": f"Remaining steps: {max_steps - index}. Save a demo or finish within this budget."}
+                )
             message = self._call(messages, TOOLS, meter)
             messages.append(message)
             calls = message.get("tool_calls", [])
@@ -373,6 +380,27 @@ class Worker:
                     return {"status": "execution_failure", "failure": "second plain-text reply: " + str(message.get("content", ""))[:300]}
                 messages.append({"role": "user", "content": "Use a tool or call finish; plain text is not accepted."})
                 continue
+            truncated = False
+            for call in calls:
+                try:
+                    json.loads(call["function"]["arguments"])
+                except (ValueError, TypeError):
+                    truncated = getattr(self, "finish_reason", None) == "length"
+                    if truncated:
+                        break
+            if truncated and not shortening_retry:
+                # Reject the whole turn before any tools execute; retry once, fully metered.
+                shortening_retry = True
+                for call in calls:
+                    messages.append(
+                        {
+                            "role": "tool",
+                            "tool_call_id": call["id"],
+                            "content": json.dumps({"error": "Output truncated; no tools executed. Retry with a shorter call."}),
+                        }
+                    )
+                continue
+            shortening_retry = False
             finishes = [call for call in calls if isinstance(call, dict) and call.get("function", {}).get("name") == "finish"]
             if finishes:
                 if len(calls) > 1:
@@ -432,7 +460,7 @@ class Worker:
                 except (ValueError, OSError, KeyError, TypeError) as exc:
                     result = {"error": type(exc).__name__, "reason": exception_reason(exc)}
                 messages.append({"role": "tool", "tool_call_id": call["id"], "content": json.dumps(result)})
-        raise BudgetExhausted("tool step limit exceeded", usd=meter.spent, calls=self.max_steps, end_detail="worker_steps")
+        raise BudgetExhausted("tool step limit exceeded", usd=meter.spent, calls=max_steps, end_detail="worker_steps")
 
     def __call__(self, task: SearchTask) -> dict[str, Any]:
         self.budget_exhausted = False

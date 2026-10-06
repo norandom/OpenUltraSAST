@@ -327,7 +327,7 @@ def test_task_spend_finishes_with_confirmed_observations(tmp_path, with_evidence
     worker = Worker(model, repo=tmp_path, demo=tmp_path / "demo", prices=Prices(1, 1, 1), executor=InProcessExecutor(tmp_path))
     job = task("explore")
     # First reservation fits; the second includes the real file contents and cannot fit.
-    job.limits["max_call_usd"] = 0.01 if with_evidence else 0.000001
+    job.limits["max_call_usd"] = 0.014 if with_evidence else 0.000001
     result = worker(job)
     assert result["end_detail"] == result["budget_exhaustion"]["end_detail"] == "task_spend"
     assert len(model.calls) == int(with_evidence)
@@ -362,7 +362,7 @@ def test_calibrated_reservation_covers_reported_usage(tmp_path):
     expected_input = math.ceil(len(json.dumps([call["messages"], call["tools"]], ensure_ascii=False).encode()) / 2) + 1024 * (
         len(call["messages"]) + 1
     )
-    assert worker.metrics["reserved"] == pytest.approx((expected_input + 1024 * 2) / 1_000_000)
+    assert worker.metrics["reserved"] == pytest.approx((expected_input + 4096 * 2) / 1_000_000)
     assert worker.metrics["reserved"] >= worker.metrics["settled"] == pytest.approx(0.029048)
 
 
@@ -481,3 +481,36 @@ def test_plain_text_consumes_step(tmp_path):
     result = Worker(model, repo=tmp_path, demo=tmp_path / "demo", max_steps=1)(task("explore"))
     assert result["end_detail"] == "worker_steps"
     assert len(model.calls) == 1
+
+
+@pytest.mark.parametrize("finish_reason,expected_calls", [("length", 3), ("tool_calls", 2)])
+def test_truncated_arguments_retry_once_before_malformed(tmp_path, finish_reason, expected_calls):
+    broken = tool("run", command=["unused"])
+    broken["tool_calls"][0]["function"]["arguments"] = '{"command":["unterminated'
+
+    class LengthModel(StubModel):
+        def complete_chat_raw(self, **kwargs):
+            raw = super().complete_chat_raw(**kwargs)
+            raw["choices"][0]["finish_reason"] = finish_reason
+            return raw
+
+    model = LengthModel([broken, broken, tool("finish", failure="shorter call worked")])
+    worker = Worker(model, repo=tmp_path, demo=tmp_path / "demo")
+    result = worker(task("explore"))
+    assert len(model.calls) == expected_calls
+    assert all(call["extra_body"]["max_tokens"] == 4096 for call in model.calls)
+    if finish_reason == "length":
+        assert result["failure"] == "shorter call worked"
+        assert "shorter call" in model.calls[1]["messages"][-1]["content"]
+    else:
+        assert "two consecutive malformed" in result["failure"]
+
+
+def test_default_forty_steps_and_ten_step_reminders(tmp_path):
+    model = StubModel([tool("list_files")] * 40)
+    worker = Worker(model, repo=tmp_path, demo=tmp_path / "demo", executor=InProcessExecutor(tmp_path))
+    result = worker(task("explore"))
+    assert result["end_detail"] == "worker_steps"
+    assert len(model.calls) == SearchBudget().max_steps == 40
+    for index in (10, 20, 30):
+        assert f"Remaining steps: {40 - index}" in model.calls[index]["messages"][-1]["content"]
