@@ -378,6 +378,12 @@ def test_recipe_command_with_real_fake_tool(workspace, monkeypatch, recipe, mani
     )
     tool.chmod(0o755)
     monkeypatch.setitem(executor.SAFE_ENV, "PATH", str(tools) + ":/usr/bin:/bin")
+    if recipe == "pip":
+        from types import SimpleNamespace
+
+        from openultrasast.search import demo
+
+        monkeypatch.setattr(demo, "sys", SimpleNamespace(executable=str(tool)))
     monkeypatch.setattr(executor.URLTransport, "put", lambda *args: None)
     app = executor.InProcessExecutor(repo, task_boundary=True)
     app.prepared_put_url = "https://files.example/output"
@@ -596,3 +602,99 @@ def test_java_classpath_includes_products(workspace, monkeypatch):
     result = verify_side_task(Side(repo, products=products), demo, "path")
     assert result.outcome == "observed", result
     assert len(calls) == 2
+
+
+def test_python_package_start_imports_checkout_root(workspace):
+    repo, products = workspace / "checkout", workspace / "products"
+    package = repo / "tiny_package"
+    package.mkdir(parents=True)
+    (products / "packages").mkdir(parents=True)
+    (package / "__init__.py").write_text("VALUE = 42\n")
+    (package / "__main__.py").write_text(
+        "from tiny_package import VALUE\n"
+        "import sys, dependency\n"
+        f"assert sys.executable == {sys.executable!r}\n"
+        "assert sys.flags.isolated == 1\n"
+        "assert VALUE == dependency.VALUE == 42\n"
+        "print('ready')\n"
+    )
+    # Products still take precedence over checkout modules.
+    (repo / "dependency.py").write_text("VALUE = 0\n")
+    (products / "packages/dependency.py").write_text("VALUE = 42\n")
+    print("input_bytes=", len((package / "__main__.py").read_bytes()))
+    value = spec()["demo"]
+    value["start"]["path"] = "tiny_package/__main__.py"
+    demo = workspace / "demo.json"
+    demo.write_text(json.dumps(value))
+    result = verify_side_task(Side(repo, products=products), demo, "path")
+    assert result.outcome == "observed", result
+
+
+@pytest.mark.parametrize("mutate", [False, True])
+def test_npm_project_install_export_and_runtime(workspace, monkeypatch, mutate):
+    if not Path("/usr/bin/node").exists():
+        pytest.skip("node unavailable")
+    repo = workspace / "checkout"
+    project = repo / "nested/project"
+    project.mkdir(parents=True)
+    (project / "package.json").write_text("{}")
+    (project / "package-lock.json").write_text("{}")
+    # A launcher outside the npm project requires NODE_PATH, not Node's
+    # ordinary resolution through ancestors of the entry script.
+    (repo / "app.js").write_text(
+        "const fs = require('fs');\n"
+        "if (require('dependency') !== 42) process.exit(7);\n"
+        "const paths = process.env.NODE_PATH.split(':');\n"
+        "if (!paths[0].endsWith('/checkout/nested/project/node_modules') || "
+        "!paths[1].endsWith('/products/node_modules')) process.exit(8);\n"
+        + (
+            "if (!process.argv.includes('--ready')) fs.writeFileSync(require.resolve('dependency'), 'module.exports = 0;');\n"
+            if mutate
+            else ""
+        )
+        + "console.log('ready');\n"
+    )
+    print("input_bytes=", len((repo / "app.js").read_bytes()))
+    fake_bin = workspace / "bin"
+    fake_bin.mkdir()
+    npm = fake_bin / "npm"
+    npm.write_text(
+        "#!" + sys.executable + "\nimport sys\nfrom pathlib import Path\n"
+        "assert sys.argv[1:] == ['ci', '--ignore-scripts']\n"
+        "assert Path('package.json').read_text() == '{}'\n"
+        "p = Path('node_modules/dependency'); p.mkdir(parents=True)\n"
+        "(p / 'index.js').write_text('module.exports = 42;')\n"
+        "cache = Path('node_modules/.cache'); cache.mkdir()\n"
+        "(cache / 'discard').write_text('cache')\n"
+    )
+    npm.chmod(0o755)
+    monkeypatch.setitem(executor.SAFE_ENV, "PATH", str(fake_bin) + ":/usr/bin:/bin")
+    blobs = []
+    monkeypatch.setattr(
+        executor.URLTransport, "put", lambda self, url, data, timeout: blobs.append(data.read() if hasattr(data, "read") else data)
+    )
+    app = executor.InProcessExecutor(repo, task_boundary=True)
+    app.prepared_put_url = "https://files.example/output"
+    request = spec()
+    request["demo"]["build"] = {"recipe": "npm", "arguments": ["nested/project/package.json"]}
+    request["demo"]["start"].update(runtime="node", path="app.js")
+    built = app.submit("prepare_verification", request)
+    assert built["status"] == "ok", built
+    destination = workspace / "unpacked"
+    verify_task.extract_checkout(blobs[0], destination)
+    module = destination / "checkout/nested/project/node_modules/dependency/index.js"
+    assert module.read_text() == "module.exports = 42;"
+    assert not (module.parent.parent / ".cache").exists()
+    # Product fallback must not shadow the selected project's dependency.
+    fallback = destination / "products/node_modules/dependency"
+    fallback.mkdir(parents=True)
+    (fallback / "index.js").write_text("module.exports = 0;")
+    exported = json.loads((destination / "spec.json").read_text())
+    assert exported["demo"]["build"] == {"recipe": "none", "arguments": []}
+    demo = workspace / "demo.json"
+    demo.write_text(json.dumps(exported["demo"]))
+    result = verify_side_task(Side(destination / "checkout", products=destination / "products"), demo, "path")
+    assert result.outcome == ("inconclusive" if mutate else "observed"), result
+    if mutate:
+        assert result.reason == "immutable input or dependency changed"
+    assert module.read_text() == "module.exports = 42;"

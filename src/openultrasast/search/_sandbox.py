@@ -16,6 +16,7 @@ import resource
 import signal
 import struct
 import subprocess
+import sys
 import tempfile
 from contextlib import suppress
 from pathlib import Path
@@ -139,6 +140,11 @@ def run(
     argv += [*capability_args(), "--clearenv", "--dev", "/dev"]
     for path in ("/usr", "/lib", "/lib64", "/bin"):
         if Path(path).exists():
+            argv += ["--ro-bind", path, path]
+    # The verifier's Python can live in /venv or a host venv backed by
+    # an interpreter outside /usr. Keep that same ABI available in this lane.
+    for path in dict.fromkeys((sys.base_prefix, sys.prefix)):
+        if not any(Path(path).is_relative_to(base) for base in ("/usr", "/lib", "/lib64", "/bin")):
             argv += ["--ro-bind", path, path]
     argv += ["--bind" if writable_checkout else "--ro-bind", str(job.repo_root), "/workspace"]
     if scratch_bytes is None:

@@ -373,10 +373,10 @@ def _side(side: Side, demo: Path, family: str, timeout: int, browser: BrowserExe
                     # recipe's offline packages without trusting PYTHONPATH.
                     bootstrap = (
                         "import os,runpy,sys; sys.dont_write_bytecode=True; p=sys.argv.pop(1); "
-                        "sys.path[:0]=['/build/packages',os.path.dirname(p)]; sys.argv[0]=p; "
+                        "sys.path[:0]=['/build/packages','/workspace',os.path.dirname(p)]; sys.argv[0]=p; "
                         "runpy.run_path(p,run_name='__main__')"
                     )
-                    command = ("/usr/bin/python3", "-I", "-c", bootstrap, "/workspace/" + start_spec["path"], *start_spec["arguments"])
+                    command = (*RUNTIMES["python"], "-c", bootstrap, "/workspace/" + start_spec["path"], *start_spec["arguments"])
 
                 if start_spec["runtime"] == "java":
                     # -jar ignores CLASSPATH. Use the jar's declared main class
@@ -427,7 +427,17 @@ def _side(side: Side, demo: Path, family: str, timeout: int, browser: BrowserExe
                         **oracle_env,
                     }
                     if start_spec["runtime"] == "node":
-                        app_env["NODE_PATH"] = "/build/node_modules"
+                        # Executor npm runs in its selected project. That project
+                        # may be separate from the launcher (e.g. .demo/), and the
+                        # exported spec no longer carries a build recipe. Discover
+                        # project installs, pruning dependency-internal installs.
+                        node_paths = []
+                        for parent, dirs, _ in os.walk(checkout):
+                            dirs.sort()
+                            if "node_modules" in dirs:
+                                node_paths.append("/workspace/" + (Path(parent) / "node_modules").relative_to(checkout).as_posix())
+                                dirs.remove("node_modules")
+                        app_env["NODE_PATH"] = ":".join([*node_paths, "/build/node_modules"])
                     app_scratch = canary.root if family == "command" else root / "app"
                     app_scratch.mkdir(exist_ok=True)
                     fixture = canary.root
