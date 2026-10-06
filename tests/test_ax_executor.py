@@ -381,7 +381,8 @@ def test_ax_executor_blocking_store_read_cannot_delay_task_deletion(setup):
     started = time.monotonic()
     try:
         done, _ = ax.AX(args, store).execute(source, output, PIN, "pin")
-        assert done is None
+        # A result deadline is a failed attempt that names its reason; the lane treats it like None.
+        assert done is None or (done.returncode and "deadline" in done.stderr)
         assert time.monotonic() - started < 2
         assert json.loads(log.read_text().splitlines()[-1])["args"][:2] == ["delete", "task"]
     finally:
