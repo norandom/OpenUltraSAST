@@ -1,0 +1,123 @@
+{
+  "record": "2026-10-06 search-with-proof feasibility pilot (path family, vulnerable side, cluster verify lane)",
+  "image": "ghcr.io/norandom/ousast-search-task@sha256:60bfd73f...",
+  "note": "First pilot after the verify-side keystone and the agent-side path-oracle target-parity fix. Feasibility only; payloads/boards live in the gitignored private area.",
+  "ceiling_usd": 3.0,
+  "searches": [
+    {
+      "pair_index": 3,
+      "language": "php",
+      "family": "path",
+      "outcome": "inconclusive",
+      "end_reason": "budget_spent",
+      "end_detail": "demonstrations",
+      "model_calls": 78,
+      "executor_tasks": 12,
+      "verify_tasks": 6,
+      "settled_usd": 0.5779,
+      "wall_seconds": 439,
+      "failure_classes": [
+        {
+          "phase": "explore",
+          "class": "no cli entrypoint exists"
+        },
+        {
+          "phase": "verify/could_not_build",
+          "class": "runtime entry missing from"
+        },
+        {
+          "phase": "verify/could_not_build",
+          "class": "runtime entry missing from"
+        },
+        {
+          "phase": "verify",
+          "class": "noconsistentdifferential"
+        },
+        {
+          "phase": "verify/could_not_build",
+          "class": "runtime entry missing from"
+        },
+        {
+          "phase": "verify/could_not_build",
+          "class": "runtime entry missing from"
+        },
+        {
+          "phase": "verify",
+          "class": "noconsistentdifferential"
+        },
+        {
+          "phase": "verify/could_not_build",
+          "class": "runtime entry missing from"
+        },
+        {
+          "phase": "verify/could_not_build",
+          "class": "runtime entry missing from"
+        },
+        {
+          "phase": "verify",
+          "class": "noconsistentdifferential"
+        }
+      ]
+    },
+    {
+      "pair_index": 9,
+      "language": "typescript",
+      "family": "path",
+      "outcome": "plausible_unproven",
+      "end_reason": "budget_spent",
+      "end_detail": "reason_rounds",
+      "model_calls": 154,
+      "executor_tasks": 12,
+      "verify_tasks": 0,
+      "settled_usd": 1.1979,
+      "wall_seconds": 2300,
+      "failure_classes": []
+    },
+    {
+      "pair_index": 13,
+      "language": "python",
+      "family": "path",
+      "outcome": "plausible_unproven",
+      "end_reason": "budget_spent",
+      "end_detail": "run_ceiling",
+      "model_calls": 118,
+      "executor_tasks": 9,
+      "verify_tasks": 0,
+      "settled_usd": 1.1739,
+      "wall_seconds": 564,
+      "failure_classes": [
+        {
+          "phase": "explore",
+          "class": "as predicted the parent"
+        },
+        {
+          "phase": "explore",
+          "class": "passfalse canary workspacecheckoutcanary passfalse"
+        },
+        {
+          "phase": "explore",
+          "class": "with the servedroot prefix"
+        },
+        {
+          "phase": "explore",
+          "class": "h check at filepy"
+        },
+        {
+          "phase": "explore",
+          "class": "are plain attribute reads"
+        }
+      ]
+    }
+  ],
+  "aggregate": {
+    "outcomes": {
+      "inconclusive": 1,
+      "plausible_unproven": 2
+    },
+    "demonstrations": 0,
+    "false_proofs_fixed_side": 0,
+    "settled_usd": 2.9496,
+    "searches": 3
+  },
+  "finding": "Parity fix validated: the agent now runs directed, target-aware search toward the named observable (pair 13 reasoned explicitly about reaching it and inspected the app's file-serving guard). No demonstration: all three exhausted their per-pair allowance (demonstrations/reason_rounds/run_ceiling) before a differential; pairs 9 and 13 wrote 0 verify demos (budget consumed in reason/explore). Pair 3 (php) hit entrypoint-discovery failures (no CLI entrypoint / runtime entry missing). Cost ~$0.98/search, higher than the $0.2-0.5 estimate."
+}
