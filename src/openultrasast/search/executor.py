@@ -406,18 +406,24 @@ class InProcessExecutor:
             bundle = Path(directory)
             products = bundle / "products"
             products.mkdir()
+            phases = {"build": 0.0, "bundle": 0.0, "upload": 0.0}
+            built = {"exit_code": 0, "stderr": ""}
+            before = time.monotonic()
             if recipe["recipe"] != "none":
                 path = self._path(recipe["arguments"][0])
                 argv, project = preparation_command(recipe["recipe"], path, self.repo, products)
                 self.phase = "build"
                 built = self._task_run(argv, self._remaining(), {"disk_bytes": task_storage.DEFAULT_SCRATCH_BYTES, **limits}, cwd=project)
+                phases["build"] = time.monotonic() - before
                 if built.get("disk_limit_exceeded") or built["exit_code"] or built["timed_out"]:
                     return {
                         **built,
                         "status": "could_not_build",
+                        "wall_seconds_by_phase": phases,
                         "phase": "build",
                         "stderr": task_storage.diagnostic(built.get("stderr", ""), maximum=1500),
                     }
+            before = time.monotonic()
             # Validate internal generated links before materializing them as
             # regular archive members. No host/external files may be exported.
             _tree(self.repo, generated_links=True)
@@ -442,6 +448,8 @@ class InProcessExecutor:
                 archive.seek(0)
                 digest = hashlib.file_digest(archive, "sha256").hexdigest()
                 archive.seek(0)
+                phases["bundle"] = time.monotonic() - before
+                before = time.monotonic()
                 self.phase = "result upload"
                 if self.prepared_part_urls:
                     manifest = upload_parts(
@@ -453,7 +461,16 @@ class InProcessExecutor:
                     URLTransport().put(self.prepared_put_url, archive, self._remaining())
                 else:
                     raise ValueError("multipart archive URLs required")
-                return {"status": "ok", "archive_bytes": size, "sha256": digest}
+                phases["upload"] = time.monotonic() - before
+                return {
+                    "status": "ok",
+                    "archive_bytes": size,
+                    "sha256": digest,
+                    "archive_parts": len(json.loads(manifest)["parts"]) if self.prepared_part_urls else 1,
+                    "exit_code": built["exit_code"],
+                    "stderr": task_storage.diagnostic(built.get("stderr", ""), maximum=1500),
+                    "wall_seconds_by_phase": phases,
+                }
 
     def _tree_bytes(self) -> int:
         total = 0
