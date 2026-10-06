@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import gzip
+import hashlib
 import io
 import ipaddress
 import json
@@ -48,6 +49,9 @@ def public_endpoint(url: str) -> str:
 
 
 MAX_ARCHIVE_BYTES = 1024**3
+MAX_PART_BYTES = 90_000_000
+MAX_PARTS = (MAX_ARCHIVE_BYTES + MAX_PART_BYTES - 1) // MAX_PART_BYTES
+MAX_MANIFEST_BYTES = 65536
 MAX_CHECKOUT_BYTES = 2 * 1024**3
 MAX_FILES = 20000
 MAX_SPEC_BYTES = 70000
@@ -78,7 +82,7 @@ def pack_checkout(root: Path, output: BinaryIO | None = None) -> bytes:
     buffer = output if output is not None else io.BytesIO()
     total, count = 0, 0
     directories: dict[str, int] = {}
-    with tarfile.open(fileobj=buffer, mode="w:gz") as archive:
+    with tarfile.open(fileobj=buffer, mode="w:gz", compresslevel=6) as archive:
         for parent, dirs, files in os.walk(root, followlinks=False):
             ignored = bundle_ignore(parent, dirs + files)
             dirs[:] = sorted(set(dirs) - ignored)
@@ -101,13 +105,70 @@ def pack_checkout(root: Path, output: BinaryIO | None = None) -> bytes:
     return cast(io.BytesIO, buffer).getvalue() if output is None else b""
 
 
-def extract_checkout(data: bytes, destination: Path) -> None:
-    if len(data) > MAX_ARCHIVE_BYTES:
+def upload_parts(source: BinaryIO, put: Any, urls: list[str]) -> bytes:
+    """Publish bounded gzip fragments, then return the ordered digest manifest."""
+    source.seek(0, 2)
+    size = source.tell()
+    if not 0 < size <= MAX_ARCHIVE_BYTES:
+        raise ValueError("archive exceeds size limit")
+    if len(urls) < (size + MAX_PART_BYTES - 1) // MAX_PART_BYTES:
+        raise ValueError("missing archive part URLs")
+    source.seek(0)
+    parts: list[dict[str, Any]] = []
+    while block := source.read(MAX_PART_BYTES):
+        index = len(parts)
+        put(urls[index], block)
+        parts.append({"index": index, "size": len(block), "sha256": hashlib.sha256(block).hexdigest()})
+    return json.dumps({"format": "gzip-parts-v1", "size": size, "parts": parts}).encode()
+
+
+def assemble_parts(data: bytes, output: BinaryIO, get: Any) -> None:
+    """Validate the complete manifest before fetching, and each part before use."""
+    if len(data) > MAX_MANIFEST_BYTES:
+        raise ValueError("oversized archive manifest")
+    manifest = json.loads(data)
+    if not isinstance(manifest, dict) or manifest.get("format") != "gzip-parts-v1":
+        raise ValueError("invalid archive manifest")
+    parts = manifest.get("parts")
+    size = manifest.get("size")
+    if type(size) is not int or not 0 < size <= MAX_ARCHIVE_BYTES:
+        raise ValueError("archive exceeds size limit")
+    if not isinstance(parts, list) or not 1 <= len(parts) <= MAX_PARTS:
+        raise ValueError("invalid archive parts")
+    total = 0
+    for index, part in enumerate(parts):
+        if (
+            not isinstance(part, dict)
+            or type(part.get("index")) is not int
+            or part["index"] != index
+            or type(part.get("size")) is not int
+            or not 0 < part["size"] <= MAX_PART_BYTES
+            or not isinstance(part.get("sha256"), str)
+            or len(part["sha256"]) != 64
+        ):
+            raise ValueError("invalid archive part")
+        total += part["size"]
+    if total != size:
+        raise ValueError("archive part sizes mismatch")
+    for part in parts:
+        block = get(part)
+        if len(block) != part["size"] or hashlib.sha256(block).hexdigest() != part["sha256"]:
+            raise ValueError("archive part digest mismatch")
+        output.write(block)
+    output.seek(0)
+
+
+def extract_checkout(data: bytes | BinaryIO, destination: Path) -> None:
+    compressed_source = io.BytesIO(data) if isinstance(data, bytes) else data
+    compressed_source.seek(0, 2)
+    size = compressed_source.tell()
+    compressed_source.seek(0)
+    if size > MAX_ARCHIVE_BYTES:
         raise ValueError("archive exceeds size limit")
     # Bound expansion before tarfile parses PAX headers, using disk rather than
     # allocating the entire expanded tree in worker RAM.
     with tempfile.TemporaryFile() as expanded:
-        with gzip.GzipFile(fileobj=io.BytesIO(data)) as compressed:
+        with gzip.GzipFile(fileobj=compressed_source) as compressed:
             maximum = MAX_CHECKOUT_BYTES + MAX_FILES * 4096
             while block := compressed.read(min(65536, maximum - expanded.tell() + 1)):
                 expanded.write(block)
@@ -232,7 +293,12 @@ def task_main() -> None:
     with tempfile.TemporaryDirectory(prefix="ousast-verify-task-") as temporary:
         root = Path(temporary)
         try:
-            extract_checkout(archive, root / "input")
+            if archive.startswith(b"\x1f\x8b"):
+                extract_checkout(archive, root / "input")
+            else:
+                with tempfile.TemporaryFile() as compressed:
+                    assemble_parts(archive, compressed, lambda part: download(part["url"], part["size"]))
+                    extract_checkout(compressed, root / "input")
             task_storage.check(task_storage.WORKSPACE if task_storage.WORKSPACE.is_dir() else root)
             bundle = root / "input"
             if {p.name for p in bundle.iterdir()} != {"checkout", "products", "spec.json"}:

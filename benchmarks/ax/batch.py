@@ -270,13 +270,35 @@ class AXLane:
         prefix = f"engine-queue/{self.run}/{key_id}/attempt-{attempt}/"
         keys = [prefix + item.object_names.get(key, key.lower() + PRESIGNED_ARCHIVE_SUFFIX) for key in item.inputs]
         keys.append(prefix + item.result_object)
+        part_keys = []
         expires = timedelta(seconds=self.workload.deadline + 600)
         worker_ip = None
         submitted = False
         started = self.clock()
         phase = ""
         try:
-            for key, data in zip(keys, item.inputs.values(), strict=False):
+            for env, key, data in zip(item.inputs, keys, item.inputs.values(), strict=False):
+                if env == "VERIFY_INPUT_URL":
+                    import io
+
+                    from openultrasast.search.verify_task import MAX_PART_BYTES, upload_parts
+
+                    count = (len(data) + MAX_PART_BYTES - 1) // MAX_PART_BYTES
+                    destinations = [key + f".part-{index}" for index in range(count)]
+                    part_keys.extend(destinations)
+                    put_urls = [self.store.presign_put(part, expires) for part in destinations]
+                    get_urls = [self.store.presign_get(part, expires) for part in destinations]
+                    if any(public_endpoint(url) != self.host for url in put_urls + get_urls):
+                        raise EgressError("archive part hostname must match store egress policy")
+                    from openultrasast.search.executor import URLTransport
+
+                    data = upload_parts(
+                        io.BytesIO(data), lambda url, block: URLTransport().put(url, block, self.workload.deadline), put_urls
+                    )
+                    data = json.loads(data)
+                    for part, url in zip(data["parts"], get_urls, strict=True):
+                        part["url"] = url
+                    data = json.dumps(data).encode()
                 self.store._put(key, data)
             urls = {env: self.store.presign_get(key, expires) for env, key in zip(item.inputs, keys, strict=False)}
             urls["RESULT_URL"] = self.store.presign_put(keys[-1], expires)
@@ -337,7 +359,7 @@ class AXLane:
                     # A successful list already confirmed a disappeared task is gone.
                     if phase != "Missing":
                         errors.append("task: " + exception_reason(exc))
-            for key in keys:
+            for key in [*keys, *part_keys]:
                 try:
                     self.store._delete(key)
                 except Exception as exc:
@@ -391,8 +413,17 @@ def manifest(name, workload, item, urls, atespace="default", *, validate_name=Tr
         raise ValueError("unexpected task environment")
     if set(item.extra_env) & set(urls):
         raise ValueError("overlapping task environment")
-    for url in urls.values():
-        public_endpoint(url)
+    for key, value in urls.items():
+        if key == "PREPARED_PART_URLS":
+            from openultrasast.search.verify_task import MAX_PARTS
+
+            parts = json.loads(value)
+            if not isinstance(parts, list) or len(parts) != MAX_PARTS:
+                raise ValueError("invalid prepared part URLs")
+            for url in parts:
+                public_endpoint(url)
+        else:
+            public_endpoint(value)
     env = [{"name": key, "value": str(value)} for key, value in {**urls, **item.extra_env}.items()]
     if len(json.dumps(env).encode()) >= 32768:
         raise ValueError("AX Task env exceeds the 32 KB limit")
@@ -660,7 +691,10 @@ class SearchExecutorTask:
         self.lane, self.archive, self.deadline = lane, checkout_archive, deadline
         token = uuid.uuid4().hex[:20]
         self.name = "ousast-engine-search-exec-" + token
-        self.keys = [f"engine-queue/search-exec/{token}/{name}" for name in ("repo.tar", "command.json", "result.json", "prepared.tar.gz")]
+        self.keys = [f"engine-queue/search-exec/{token}/{name}" for name in ("repo.tar", "command.json", "result.json", "prepared.json")]
+        from openultrasast.search.verify_task import MAX_PARTS
+
+        self.keys.extend(self.keys[3] + f".part-{index}" for index in range(MAX_PARTS))
         self.submitted = False
         self.slot = False
 
@@ -684,10 +718,12 @@ class SearchExecutorTask:
                 "EXECUTOR_RESULT_PUT_URL": store.presign_put(self.keys[2], expires),
                 "PREPARED_PUT_URL": store.presign_put(self.keys[3], expires),
             }
+            part_urls = [store.presign_put(key, expires) for key in self.keys[4:]]
             command_put = store.presign_put(self.keys[1], expires)
             result_get = store.presign_get(self.keys[2], expires)
-            if any(public_endpoint(url) != self.lane.host for url in [*urls.values(), command_put, result_get]):
+            if any(public_endpoint(url) != self.lane.host for url in [*urls.values(), *part_urls, command_put, result_get]):
                 raise EgressError("executor presign hostname must match store egress policy")
+            urls["PREPARED_PART_URLS"] = json.dumps(part_urls)
             work = Workload(self.lane.workload.image, frozenset(urls), self.deadline, None)
             item = Item(
                 self.name,
@@ -720,7 +756,7 @@ class SearchExecutorTask:
             raise
 
     def prepare(self, spec):
-        """Return the executor-built single verifier input, checking its digest."""
+        """Check the export manifest and every fragment before handing off the archive."""
         remaining = min(300, self.end - time.monotonic())
         result = self.client.submit("prepare_verification", spec, timeout_seconds=remaining)
         if result.get("status") != "ok":
@@ -732,7 +768,19 @@ class SearchExecutorTask:
         stored = bounded_read(lambda: self.lane.store._get(self.keys[3]), self.end - time.monotonic())
         if stored is None or hashlib.sha256(stored[0]).hexdigest() != result.get("sha256"):
             raise ValueError("executor archive missing or digest mismatch")
-        return stored[0]
+        import io
+
+        from openultrasast.search.verify_task import assemble_parts
+
+        def get(part):
+            value = bounded_read(lambda: self.lane.store._get(self.keys[4 + part["index"]]), self.end - time.monotonic())
+            if value is None:
+                raise ValueError("executor archive part missing")
+            return value[0]
+
+        archive = io.BytesIO()
+        assemble_parts(stored[0], archive, get)
+        return archive.getvalue()
 
     def __exit__(self, exc_type, exc, traceback):
         errors = []

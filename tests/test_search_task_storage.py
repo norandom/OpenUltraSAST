@@ -335,13 +335,23 @@ def test_verifier_app_virtual_memory(workspace):
 @pytest.mark.parametrize(
     "recipe,manifest,extra,expected",
     [
-        ("pip", "pyproject.toml", {}, ["-I", "-m", "pip", "install", "--no-deps", "--target", "PACKAGES", "PROJECT"]),
-        ("pip", "requirements.txt", {}, ["-I", "-m", "pip", "install", "--no-deps", "--target", "PACKAGES", "-r", "MANIFEST"]),
+        (
+            "pip",
+            "pyproject.toml",
+            {},
+            ["-I", "-m", "pip", "install", "--ignore-installed", "--no-warn-script-location", "--target", "PACKAGES", "PROJECT"],
+        ),
+        (
+            "pip",
+            "requirements.txt",
+            {},
+            ["-I", "-m", "pip", "install", "--ignore-installed", "--no-warn-script-location", "--target", "PACKAGES", "-r", "MANIFEST"],
+        ),
         (
             "pip",
             "pyproject.toml",
             {"requirements.txt": ""},
-            ["-I", "-m", "pip", "install", "--no-deps", "--target", "PACKAGES", "-r", "REQUIREMENTS"],
+            ["-I", "-m", "pip", "install", "--ignore-installed", "--no-warn-script-location", "--target", "PACKAGES", "-r", "REQUIREMENTS"],
         ),
         ("npm", "package.json", {}, ["install", "--ignore-scripts"]),
         ("npm", "package.json", {"package-lock.json": "{}"}, ["ci", "--ignore-scripts"]),
@@ -481,27 +491,30 @@ def test_large_export_spools_to_workspace_and_excludes_caches(workspace, monkeyp
         path = repo / "nested" / directory
         path.mkdir(parents=True)
         (path / "excluded").write_bytes(b"cache")
-    seen = {}
+    uploaded = {}
 
     def upload(self, url, data, timeout):
-        assert not isinstance(data, bytes)
-        assert str(workspace) in os.readlink(f"/proc/self/fd/{data.fileno()}")
-        seen["size"] = os.fstat(data.fileno()).st_size
-        seen["sha256"] = hashlib.file_digest(data, "sha256").hexdigest()
-        data.seek(0)
-        with tarfile.open(fileobj=data, mode="r:gz") as archive:
-            names = archive.getnames()
-            assert "checkout/large.bin" in names
-            assert not any(name.endswith("excluded") for name in names)
-        data.seek(0)
+        assert isinstance(data, bytes)
+        assert len(data) <= verify_task.MAX_PART_BYTES
+        uploaded[url] = data
 
     monkeypatch.setattr(executor.URLTransport, "put", upload)
     app = executor.InProcessExecutor(repo, task_boundary=True)
     app.prepared_put_url = "https://files.example/output"
+    app.prepared_part_urls = [f"https://files.example/part-{i}" for i in range(verify_task.MAX_PARTS)]
     result = app.submit("prepare_verification", spec(), timeout_seconds=60)
     assert result["status"] == "ok", result
-    assert 128 * 1024**2 < result["archive_bytes"] == seen["size"]
-    assert result["sha256"] == seen["sha256"]
+    manifest = uploaded[app.prepared_put_url]
+    assert result["sha256"] == hashlib.sha256(manifest).hexdigest()
+    assert len(uploaded) == 3  # two bounded parts and the manifest
+    assert json.loads(manifest)["size"] == result["archive_bytes"] > 128 * 1024**2
+    with verify_task.tempfile.TemporaryFile(dir=workspace) as archive:
+        assert str(workspace) in os.readlink(f"/proc/self/fd/{archive.fileno()}")
+        verify_task.assemble_parts(manifest, archive, lambda part: uploaded[app.prepared_part_urls[part["index"]]])
+        with tarfile.open(fileobj=archive, mode="r:gz") as contents:
+            names = contents.getnames()
+            assert "checkout/large.bin" in names
+            assert not any(name.endswith("excluded") for name in names)
     assert verify_task.MAX_ARCHIVE_BYTES == 1024**3
 
 
@@ -525,3 +538,61 @@ def test_export_over_cap_reports_size_and_five_relative_directories(workspace, m
     for i in range(2, 6):
         assert f"checkout/dir{i} (" in result["reason"]
     assert "dir0" not in result["reason"] and "dir1" not in result["reason"]
+
+
+@pytest.mark.parametrize("location", ["products", "checkout"])
+def test_node_resolves_bundled_module(workspace, location):
+    if not Path("/usr/bin/node").exists():
+        pytest.skip("node unavailable")
+    repo, products = workspace / "checkout", workspace / "products"
+    (repo / "bin").mkdir(parents=True)
+    products.mkdir()
+    module = (products if location == "products" else repo) / "node_modules/bash-color"
+    module.mkdir(parents=True)
+    (module / "index.js").write_text("module.exports = 'bundled dependency';")
+    if location == "checkout":
+        destination = workspace / "bundle-check"
+        verify_task.extract_checkout(verify_task.pack_checkout(repo), destination)
+        assert (destination / "node_modules/bash-color/index.js").read_text() == (module / "index.js").read_text()
+    (repo / "bin/glance.js").write_text("if(require('bash-color') !== 'bundled dependency') process.exit(7); console.log('ready');")
+    value = spec()["demo"]
+    value["start"].update(runtime="node", path="bin/glance.js")
+    demo = workspace / "demo.json"
+    demo.write_text(json.dumps(value))
+    result = verify_side_task(Side(repo, products=products), demo, "path")
+    assert result.outcome == "observed", result
+    assert result.exit_code is None or result.exit_code == 0
+
+
+def test_java_classpath_includes_products(workspace, monkeypatch):
+    import importlib
+    import zipfile
+
+    from openultrasast.sandbox import SandboxResult
+
+    verifier = importlib.import_module("openultrasast.search.verify")
+    repo, products = workspace / "checkout", workspace / "products"
+    repo.mkdir()
+    (products / "lib").mkdir(parents=True)
+    (products / "lib/dependency.jar").write_bytes(b"dependency")
+    with zipfile.ZipFile(repo / "app.jar", "w") as jar:
+        jar.writestr("META-INF/MANIFEST.MF", "Manifest-Version: 1.0\nMain-Class: example.\n Main\n\n")
+    value = spec()["demo"]
+    value["start"].update(runtime="java", path="app.jar")
+    demo = workspace / "demo.json"
+    demo.write_text(json.dumps(value))
+    calls = []
+
+    def run(job, **kwargs):
+        calls.append(job.command)
+        assert job.command[:2] == ("/usr/bin/java", "-cp")
+        assert "/build/lib/dependency.jar" in job.command[2]
+        assert "/build/classes" in job.command[2]
+        assert job.command[3] == "example.Main"
+        assert (kwargs["mounts"]["/build"] / "lib/dependency.jar").read_bytes() == b"dependency"
+        return SandboxResult(0, "ready", "", False)
+
+    monkeypatch.setattr(verifier, "_run_task", run)
+    result = verify_side_task(Side(repo, products=products), demo, "path")
+    assert result.outcome == "observed", result
+    assert len(calls) == 2

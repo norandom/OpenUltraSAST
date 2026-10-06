@@ -146,6 +146,8 @@ class Pilot:
                 stdout=diagnostic(getattr(command, "stdout", ""), maximum=1500, private=private),
                 ready_seconds=getattr(command, "ready_seconds", 0),
             )
+        if (phase == "verify" or phase.startswith("verify/")) and entry.get("stderr"):
+            entry["reason"] = entry["stderr"][-300:]
         self.record["failures"].append(entry)
 
     @contextmanager

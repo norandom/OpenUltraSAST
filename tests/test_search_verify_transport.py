@@ -67,7 +67,8 @@ def test_extract_rejects_escape_and_links(tmp_path, name, kind):
         entry.extract_checkout(data.getvalue(), tmp_path / "repo")
 
 
-def test_entry_reads_input_and_scrubs_environment(tmp_path, monkeypatch, capsys):
+@pytest.mark.parametrize("multipart", [False, True])
+def test_entry_reads_input_and_scrubs_environment(tmp_path, monkeypatch, capsys, multipart):
     root = tmp_path / "repo"
     root.mkdir()
     (root / "app.py").write_text("print(1)")
@@ -80,9 +81,18 @@ def test_entry_reads_input_and_scrubs_environment(tmp_path, monkeypatch, capsys)
     (bundle / "spec.json").write_text(json.dumps({"demo": demo(), "family": "injection", "timeout_seconds": 2}))
     blob = entry.pack_checkout(bundle)
 
+    objects = {}
+    if multipart:
+        urls = ["https://store.example/part"]
+        manifest = json.loads(entry.upload_parts(io.BytesIO(blob), objects.__setitem__, urls))
+        manifest["parts"][0]["url"] = urls[0]
+        objects["https://store.example/input"] = json.dumps(manifest).encode()
+    else:
+        objects["https://store.example/input"] = blob
+
     def download(url, limit):
-        assert limit == 1024**3
-        return blob
+        assert len(objects[url]) <= limit
+        return objects[url]
 
     monkeypatch.setattr(entry, "download", download)
     outputs = []
@@ -265,3 +275,41 @@ def test_verifier_deadline_uses_mode_budget_and_all_steps(tmp_path, monkeypatch,
     )
     dispatch(side=Side(tmp_path), demo=schema, family="injection", timeout_seconds=timeout, fresh_task=True)
     assert workloads[0].deadline == verification_run_seconds(schema, timeout) + 60 == timeout * 9 + 65
+
+
+@pytest.mark.parametrize("corrupt", [False, True])
+def test_multipart_digest_checked_before_extraction(tmp_path, monkeypatch, corrupt):
+    import hashlib
+
+    monkeypatch.setattr(entry, "MAX_PART_BYTES", 100)
+    source = tmp_path / "source"
+    source.mkdir()
+    (source / "input").write_bytes(bytes(range(256)) * 4)
+    blob = entry.pack_checkout(source)
+    objects = {}
+    urls = [f"https://store.example/part-{index}" for index in range(entry.MAX_PARTS)]
+    manifest = entry.upload_parts(io.BytesIO(blob), objects.__setitem__, urls)
+    parts = json.loads(manifest)["parts"]
+    assert len(objects) == len(parts) > 1
+    assert all(len(value) <= 100 for value in objects.values())
+    assert all(hashlib.sha256(objects[urls[p["index"]]]).hexdigest() == p["sha256"] for p in parts)
+    if corrupt:
+        objects[urls[1]] = b"x" * len(objects[urls[1]])
+    assembled = io.BytesIO()
+    if corrupt:
+        with pytest.raises(ValueError, match="part digest mismatch"):
+            entry.assemble_parts(manifest, assembled, lambda part: objects[urls[part["index"]]])
+        assert not (tmp_path / "restored").exists()
+    else:
+        entry.assemble_parts(manifest, assembled, lambda part: objects[urls[part["index"]]])
+        entry.extract_checkout(assembled, tmp_path / "restored")
+        assert (tmp_path / "restored/input").read_bytes() == (source / "input").read_bytes()
+
+
+def test_multipart_rejects_total_cap_before_fetch(monkeypatch):
+    monkeypatch.setattr(entry, "MAX_ARCHIVE_BYTES", 10)
+    with pytest.raises(ValueError, match="size limit"):
+        entry.upload_parts(io.BytesIO(b"x" * 11), lambda *args: pytest.fail("must not upload"), ["unused"])
+    manifest = json.dumps({"format": "gzip-parts-v1", "size": 11, "parts": []}).encode()
+    with pytest.raises(ValueError, match="size limit"):
+        entry.assemble_parts(manifest, io.BytesIO(), lambda *args: pytest.fail("must not fetch"))

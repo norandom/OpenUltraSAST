@@ -77,7 +77,13 @@ def setup(tmp_path, monkeypatch):
         if args[0] == "apply":
             doc = kwargs["manifest"]
             assert doc["metadata"]["name"].startswith("ousast-engine-search-exec-")
-            assert {x["name"] for x in doc["spec"]["env"]} == {"REPO_URL", "COMMAND_GET_URL", "EXECUTOR_RESULT_PUT_URL", "PREPARED_PUT_URL"}
+            assert {x["name"] for x in doc["spec"]["env"]} == {
+                "REPO_URL",
+                "COMMAND_GET_URL",
+                "EXECUTOR_RESULT_PUT_URL",
+                "PREPARED_PUT_URL",
+                "PREPARED_PART_URLS",
+            }
 
     lane.ax = ax
     return executor, lane, events
