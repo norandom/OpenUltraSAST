@@ -217,7 +217,13 @@ def test_search_executor_task_links_and_cleanup(monkeypatch, failure):
         assert session.client.command_url.endswith("?put")
         doc = calls[0][1]["manifest"]
         assert doc["spec"]["command"][2] == "openultrasast.search.executor"
-        assert {r["name"] for r in doc["spec"]["env"]} == {"COMMAND_GET_URL", "EXECUTOR_RESULT_PUT_URL", "REPO_URL", "PREPARED_PUT_URL"}
+        assert {r["name"] for r in doc["spec"]["env"]} == {
+            "COMMAND_GET_URL",
+            "EXECUTOR_RESULT_PUT_URL",
+            "REPO_URL",
+            "PREPARED_PUT_URL",
+            "PREPARED_PART_URLS",
+        }
         assert "API_KEY" not in json.dumps(doc)
         if failure:
 
@@ -227,7 +233,9 @@ def test_search_executor_task_links_and_cleanup(monkeypatch, failure):
             monkeypatch.setattr(session.client, "submit", submit)
             session.client.submit("list_files", {})
     assert calls[-1][0][:2] == ("delete", "task")
-    assert len(lane.store.deleted) == 4
+    from openultrasast.search.verify_task import MAX_PARTS
+
+    assert len(lane.store.deleted) == 4 + MAX_PARTS
 
 
 def test_capacity_backpressure_retries_same_manifest_until_deadline(tmp_path, monkeypatch):
@@ -419,3 +427,88 @@ def test_search_preparation_failure_retains_command_record():
         task.prepare({})
     assert caught.value.phase == "build" and caught.value.exit_code == 8
     assert "dependency missing" in caught.value.stderr and "hidden" not in caught.value.stderr
+
+
+def test_verifier_lane_uploads_parts_and_task_reassembles(tmp_path, monkeypatch):
+    import io
+    import subprocess
+    from types import SimpleNamespace
+
+    from benchmarks.ax.batch import AXLane
+    from openultrasast.search import executor, verify_task
+
+    monkeypatch.setattr(verify_task, "MAX_PART_BYTES", 100)
+    monkeypatch.setenv("S3_ENDPOINT", "https://files.example")
+    source = tmp_path / "source"
+    source.mkdir()
+    (source / "input").write_bytes(bytes(range(256)) * 4)
+    blob = verify_task.pack_checkout(source)
+    objects, puts = {}, []
+
+    class Store:
+        def _put(self, key, data):
+            objects["https://files.example/" + key] = data
+
+        def _get(self, key):
+            return b"completed", None
+
+        def _delete(self, key):
+            objects.pop("https://files.example/" + key, None)
+
+        def presign_get(self, key, expiry):
+            return "https://files.example/" + key
+
+        presign_put = presign_get
+
+    def put(self, url, block, timeout):
+        assert len(block) <= 100
+        puts.append(url)
+        objects[url] = block
+
+    monkeypatch.setattr(executor.URLTransport, "put", put)
+    work = Workload(IMAGE, frozenset({"VERIFY_INPUT_URL", "RESULT_URL"}), 10, lambda *args: None, kind="search-verify")
+    lane = AXLane(SimpleNamespace(ax_bin="fake", kubeconfig=None, atespace="default"), work, Store())
+
+    def ax(*args, **kwargs):
+        if args[0] == "apply":
+            env = {value["name"]: value["value"] for value in kwargs["manifest"]["spec"]["env"]}
+            assert set(env) == {"VERIFY_INPUT_URL", "RESULT_URL"}
+            restored = io.BytesIO()
+            verify_task.assemble_parts(objects[env["VERIFY_INPUT_URL"]], restored, lambda part: objects[part["url"]])
+            assert restored.getvalue() == blob
+        return subprocess.CompletedProcess([], 0, "", "")
+
+    monkeypatch.setattr(lane, "ax", ax)
+    request = Item("verify", {"VERIFY_INPUT_URL": blob}, "result.json", ("python3",), {}, "digest")
+    output, _ = lane._execute_attempt(request, tmp_path, 0, [])
+    assert output.returncode == 0, output
+    assert len(puts) > 1
+    assert not objects  # fragment cleanup is part of the task lifecycle
+
+
+@pytest.mark.parametrize("corrupt", [False, True])
+def test_executor_prepare_checks_part_digest(monkeypatch, corrupt):
+    import hashlib
+    import io
+    import time
+    from types import SimpleNamespace
+
+    from benchmarks.ax.batch import SearchExecutorTask
+    from openultrasast.search import verify_task
+
+    monkeypatch.setattr(verify_task, "MAX_PART_BYTES", 100)
+    blob = b"compressed bytes" * 30
+    objects = {}
+    lane = SimpleNamespace(store=SimpleNamespace(_get=lambda key: (objects[key], None)))
+    task = SearchExecutorTask(lane, b"checkout")
+    metadata = verify_task.upload_parts(io.BytesIO(blob), objects.__setitem__, task.keys[4:])
+    objects[task.keys[3]] = metadata
+    if corrupt:
+        objects[task.keys[4]] = b"corrupt"
+    task.end = time.monotonic() + 60
+    task.client = SimpleNamespace(submit=lambda *args, **kwargs: {"status": "ok", "sha256": hashlib.sha256(metadata).hexdigest()})
+    if corrupt:
+        with pytest.raises(ValueError, match="part digest mismatch"):
+            task.prepare({})
+    else:
+        assert task.prepare({}) == blob

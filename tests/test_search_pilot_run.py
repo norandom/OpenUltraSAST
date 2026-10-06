@@ -536,7 +536,9 @@ def test_pilot_executor_deletes_task_when_submit_times_out(tmp_path, monkeypatch
     with pytest.raises(TimeoutError, match="upload deadline"), pilot.executor("a" * 40, deadline=60) as session:
         session.client.submit("list_files", {})
     assert calls[-1][0][:2] == ("delete", "task")
-    assert len(deleted) == 4
+    from openultrasast.search.verify_task import MAX_PARTS
+
+    assert len(deleted) == 4 + MAX_PARTS
     assert pilot.record["executor_task_metrics"][-1]["end"] == "execution_failure"
 
 
@@ -593,3 +595,15 @@ def test_ax_pilot_uses_verification_task_limits_for_deadline(tmp_path, monkeypat
     assert captured == [17]
     assert deadlines == [17 * (len(schema["steps"]) + 1) + 65]
     assert pilot.lane.workload is None
+
+
+def test_verify_failure_reason_is_last_300_stderr_characters(tmp_path):
+    from openultrasast.search.verify import SideRecord
+
+    pilot = make_pilot(tmp_path)
+    stderr = "Traceback:\n" + "middle of traceback " * 200 + "\nModuleNotFoundError: No module named 'sniffio'"
+    side = SideRecord("could_not_run", (), 0, "app readiness failed", phase="start", exit_code=1, stderr=stderr)
+    pilot.failure("verify/could_not_run", side.reason, side)
+    failure = pilot.record["failures"][-1]
+    assert failure["reason"] == stderr[-300:]
+    assert failure["reason"].endswith("ModuleNotFoundError: No module named 'sniffio'")

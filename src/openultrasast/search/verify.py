@@ -18,6 +18,7 @@ import stat
 import subprocess
 import tempfile
 import time
+import zipfile
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import suppress
@@ -380,6 +381,21 @@ def _side(side: Side, demo: Path, family: str, timeout: int, browser: BrowserExe
                     )
                     command = ("/usr/bin/python3", "-I", "-c", bootstrap, "/workspace/" + start_spec["path"], *start_spec["arguments"])
 
+                if start_spec["runtime"] == "java":
+                    # -jar ignores CLASSPATH. Use the jar's declared main class
+                    # with the verifier-owned product directories and jars.
+                    with zipfile.ZipFile(entry) as jar, jar.open("META-INF/MANIFEST.MF") as jar_manifest:
+                        metadata = jar_manifest.read(65537)
+                    if len(metadata) > 65536:
+                        return record("could_not_build", "oversized Java manifest")
+                    metadata = metadata.replace(b"\r\n", b"\n").replace(b"\n ", b"")
+                    main = re.search(rb"(?mi)^Main-Class: ([\w.$]+)\s*$", metadata.split(b"\n\n", 1)[0])
+                    if main is None:
+                        return record("could_not_build", "Java jar missing Main-Class")
+                    classpath = ["/workspace/" + start_spec["path"], "/build/", "/build/classes"]
+                    classpath.extend("/build/" + str(path.relative_to(products)) for path in sorted(products.rglob("*.jar")))
+                    command = ("/usr/bin/java", "-cp", ":".join(classpath), main[1].decode(), *start_spec["arguments"])
+
                 oracle = oracle_for(family, browser)
                 assert oracle is not None
                 try:
@@ -393,6 +409,8 @@ def _side(side: Side, demo: Path, family: str, timeout: int, browser: BrowserExe
                         },
                         **oracle.prepare(canary),
                     }
+                    if start_spec["runtime"] == "node":
+                        app_env["NODE_PATH"] = "/build/node_modules"
                     app_scratch = canary.root if family == "command" else root / "app"
                     app_scratch.mkdir(exist_ok=True)
                     fixture = canary.root
@@ -483,7 +501,7 @@ def _side(side: Side, demo: Path, family: str, timeout: int, browser: BrowserExe
         return record("could_not_run", str(exc), exc.phase, exc)
     except task_storage.ScratchLimit as exc:
         return record("could_not_build", exception_reason(exc))
-    except (OSError, ValueError, AssertionError, KeyError, IndexError, TypeError) as exc:
+    except (OSError, ValueError, AssertionError, KeyError, IndexError, TypeError, zipfile.BadZipFile) as exc:
         return record("could_not_run", "verification unavailable or refused: " + exception_reason(exc))
 
 

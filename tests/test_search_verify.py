@@ -325,7 +325,7 @@ def test_pip_products_imported_by_runtime_and_immutable(pair, monkeypatch):
 
     def runner(job, **kwargs):
         if "pip" in job.command:
-            assert "--no-index" in job.command and "--no-deps" in job.command
+            assert "--no-index" in job.command and "--ignore-installed" in job.command and "--no-warn-script-location" in job.command
             packages = kwargs["scratch"] / "packages"
             packages.mkdir()
             (packages / "dependency.py").write_text("VALUE = 42\n")

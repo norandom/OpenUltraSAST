@@ -18,8 +18,10 @@ Verified by the operator on 2026-10-05. These constraints apply across all workl
   quota or a replacement for the worker memory limit.
 - `ousast-engine-search-verify-*` tasks have no egress. The requested exception for
   `files.because-security.com:443` is **pending**, not operationally verified. They
-  receive one presigned archive containing `checkout/`, `products/`, and `spec.json`,
-  built/exported by an executor. Only `VERIFY_INPUT_URL` and `RESULT_URL` cross the
+  receive a presigned manifest for a gzip level-6 archive containing `checkout/`,
+  `products/`, and `spec.json`, built/exported by an executor. Compressed archives
+  retain the 1 GiB cap and travel in parts of at most 90 MB, each digest-checked
+  before assembly and extraction under `/workspace`. Only `VERIFY_INPUT_URL` and `RESULT_URL` cross the
   verifier boundary. Verifiers reject build recipes and do not install dependencies
   or fetch repositories. Executors finish and release their slots before verifier
   repetitions start. Both task types must be provisioned without model credentials.

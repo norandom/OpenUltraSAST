@@ -107,6 +107,7 @@ class InProcessExecutor:
         self.last_result: dict[str, Any] = {}
         self.isolation_mode = "unprobed"
         self.prepared_put_url: str | None = None
+        self.prepared_part_urls: list[str] = []
 
     def submit(
         self, name: str, args: dict[str, Any], *, timeout_seconds: float = 30, limits: dict[str, Any] | None = None
@@ -392,7 +393,7 @@ class InProcessExecutor:
 
         from .demo import preparation_command, validate_demo
         from .verify import _tree
-        from .verify_task import ArchiveLimit, bundle_ignore, pack_checkout, validate_spec
+        from .verify_task import MAX_PART_BYTES, ArchiveLimit, bundle_ignore, pack_checkout, upload_parts, validate_spec
 
         if not self.task_boundary or not self.prepared_put_url:
             raise ValueError("preparation requires an executor task output")
@@ -442,7 +443,16 @@ class InProcessExecutor:
                 digest = hashlib.file_digest(archive, "sha256").hexdigest()
                 archive.seek(0)
                 self.phase = "result upload"
-                URLTransport().put(self.prepared_put_url, archive, self._remaining())
+                if self.prepared_part_urls:
+                    manifest = upload_parts(
+                        archive, lambda url, block: URLTransport().put(url, block, self._remaining()), self.prepared_part_urls
+                    )
+                    URLTransport().put(self.prepared_put_url, manifest, self._remaining())
+                    digest = hashlib.sha256(manifest).hexdigest()
+                elif size <= MAX_PART_BYTES:
+                    URLTransport().put(self.prepared_put_url, archive, self._remaining())
+                else:
+                    raise ValueError("multipart archive URLs required")
                 return {"status": "ok", "archive_bytes": size, "sha256": digest}
 
     def _tree_bytes(self) -> int:
@@ -656,6 +666,7 @@ def main() -> None:
     result_url = args.result_put_url or os.environ.get("EXECUTOR_RESULT_PUT_URL")
     repo_url = os.environ.get("REPO_URL")
     prepared_url = os.environ.get("PREPARED_PUT_URL")
+    prepared_parts = json.loads(os.environ.get("PREPARED_PART_URLS", "[]"))
     # Clearing Python's environment cannot remove initial /proc/self/environ.
     # Refuse a misconfigured task before any repository input is opened.
     inherited = sorted(
@@ -678,6 +689,7 @@ def main() -> None:
         unpack_checkout(download(repo_url, 128 * 1024**2, readiness_budget=min(60, args.deadline)), args.repo)
     executor = InProcessExecutor(args.repo, task_boundary=args.task_boundary)
     executor.prepared_put_url = prepared_url
+    executor.prepared_part_urls = prepared_parts
     serve(executor, command_url, result_url, deadline_seconds=args.deadline)
 
 
