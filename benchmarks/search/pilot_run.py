@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import hashlib
 import io
 import json
@@ -34,7 +35,7 @@ from openultrasast.plane.memory import FileStore, open_store
 from openultrasast.provider.openrouter import OpenRouterChatClient
 from openultrasast.search import _sandbox
 from openultrasast.search.board import Board
-from openultrasast.search.budget import SearchBudget
+from openultrasast.search.budget import SearchBudget, verification_run_seconds, verification_timeout
 from openultrasast.search.coordinator import Coordinator
 from openultrasast.search.demo import FAMILY_ORACLES, load_demo, validate_oracle
 from openultrasast.search.executor import InProcessExecutor
@@ -142,6 +143,8 @@ class Pilot:
                 command_phase=diagnostic(command.phase),
                 exit_code=command.exit_code,
                 stderr=diagnostic(command.stderr, maximum=1500, private=private),
+                stdout=diagnostic(getattr(command, "stdout", ""), maximum=1500, private=private),
+                ready_seconds=getattr(command, "ready_seconds", 0),
             )
         self.record["failures"].append(entry)
 
@@ -224,26 +227,35 @@ class Pilot:
             wall = self.record["wall_seconds_by_phase"]
             wall["build_export"] = wall.get("build_export", 0) + time.monotonic() - before
 
-    def verification(self):
+    def verification(self, limits=None):
         if not FAMILY_ORACLES[self.family]:
             return VerificationRecord("no_oracle", (), 0, "no configured owned oracle")
         demo = load_demo(self.root / "demo")
         validate_oracle(self.family, demo["oracle"])
+        timeout = verification_timeout(demo, limits or self.worker.limits)
         if self.args.dry_run:
             sides = self.sides if self.args.side == "vulnerable" else (self.sides[1], self.sides[1])
-            return verify(*sides, self.root / "demo", self.family, oracle=demo["oracle"])
+            return verify(*sides, self.root / "demo", self.family, timeout_seconds=timeout, oracle=demo["oracle"])
         revisions = [self.row[self.args.side], self.row["fixed"]]
         if self.args.verify_lane == "ax":
             # Side paths are opaque lookup keys; no checkout or opposite revision reaches the brain.
             sides = [Side(self.root / str(i)) for i in range(2)]
             pins = {s.checkout: pin for s, pin in zip(sides, revisions, strict=True)}
             parent = self
+            verify_lane = copy.copy(self.lane)
+            verify_lane.workload = Workload(
+                self.args.image,
+                frozenset({"VERIFY_INPUT_URL", "RESULT_URL"}),
+                verification_run_seconds(demo, timeout) + 60,
+                validate_result,
+                kind="search-verify",
+            )
 
             class CountingLane:
                 def __call__(self, *a, **kw):
                     parent.admit_task()
                     parent.record["verify_tasks"] += 1
-                    return parent.lane(*a, **kw)
+                    return verify_lane(*a, **kw)
 
             dispatcher = AXSideDispatcher(
                 self.args,
@@ -256,6 +268,7 @@ class Pilot:
                 *sides,
                 self.root / "demo",
                 self.family,
+                timeout_seconds=timeout,
                 oracle=demo["oracle"],
                 task_dispatcher=dispatcher,
                 browser=BrowserExecutor(task_boundary=True) if demo["oracle"] == "xss" else None,
@@ -263,7 +276,7 @@ class Pilot:
         if _sandbox.isolation_mode() != "userns":
             raise _sandbox.IsolationUnavailable("VM verification requires userns")
         sides = []
-        spec = dict(demo=demo, family=self.family, timeout_seconds=5)
+        spec = dict(demo=demo, family=self.family, timeout_seconds=timeout)
         for revision in revisions:
             archive = self.prepare(revision, spec)
             bundle = self.root / ("built-" + uuid.uuid4().hex)
@@ -280,6 +293,7 @@ class Pilot:
             *sides,
             self.root / "verify-demo",
             self.family,
+            timeout_seconds=timeout,
             oracle=demo["oracle"],
             browser=BrowserExecutor() if demo["oracle"] == "xss" else None,
         )
@@ -293,7 +307,7 @@ class Pilot:
         end = "execution_failure"
         try:
             if task.step == "verify":
-                result = self.verification()
+                result = self.verification(task.limits)
                 self.verifications.append(result.outcome)
                 self.record["outcome"] = result.outcome
                 if self.args.side == "fixed" and result.sides:
@@ -393,7 +407,7 @@ def main(argv=None):
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--verify-lane", choices=("vm", "ax"), default="vm")
     parser.add_argument("--model", default=DEFAULT_DETECTOR_MODEL)
-    parser.add_argument("--max-tokens", type=int, default=1024)
+    parser.add_argument("--max-tokens", type=int, default=4096)
     parser.add_argument("--usd-per-mtok-in", type=float)
     parser.add_argument("--usd-per-mtok-out", type=float)
     parser.add_argument("--image")
@@ -501,7 +515,9 @@ def main(argv=None):
         try:
             store = open_store(args.board_memory) if args.board_memory else FileStore(root / "boards")
             if not args.dry_run:
-                lane = AXLane(args, Workload(args.image, frozenset({"VERIFY_INPUT_URL", "RESULT_URL"}), 900, validate_result, kind="search-verify"))
+                lane = AXLane(
+                    args, Workload(args.image, frozenset({"VERIFY_INPUT_URL", "RESULT_URL"}), 900, validate_result, kind="search-verify")
+                )
         except Exception as exc:
             aborted_reason = exception_reason(exc)
         for index in indices if aborted_reason is None else []:

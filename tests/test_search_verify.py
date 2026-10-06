@@ -381,7 +381,16 @@ def test_http_startup_effect_vetoed_before_request_steps(tmp_path):
 
     with pytest.raises(ValueError, match="startup effect"):
         _http_steps(
-            {}, (), lambda command: SandboxJob("", command, tmp_path, {}, 1, 256, 128), tmp_path, {}, {}, None, "nonce", runner, check
+            {"steps": []},
+            (),
+            lambda command: SandboxJob("", command, tmp_path, {}, 1, 256, 128),
+            tmp_path,
+            {},
+            {},
+            None,
+            "nonce",
+            runner,
+            check,
         )
     assert checks == [True]
 
@@ -463,7 +472,7 @@ def test_http_failure_keeps_exception_tail(tmp_path):
     traceback = "Traceback (most recent call last):\n" + "  frame\n" * 200 + "FileNotFoundError: /dev/null\n"
     with pytest.raises(ValueError, match="FileNotFoundError: /dev/null"):
         _http_steps(
-            {},
+            {"steps": []},
             ("/bin/true",),
             lambda command: SandboxJob("", command, tmp_path, {}, 1, 256, 128),
             tmp_path,
@@ -541,3 +550,150 @@ def test_app_requires_environment_and_data_files_on_both_sides(pair):
     assert result.outcome == "demonstrated", result
     assert all(len(side.runs) == 3 for side in result.sides)
     assert all(not (side.checkout / ".demo").exists() for side in sides)
+
+
+@pytest.mark.parametrize("delay,timeout,expected", [(8, None, "observed"), (8, 1, "could_not_run")])
+def test_delayed_http_readiness_and_timeout_diagnostics(pair, monkeypatch, delay, timeout, expected):
+    try:
+        with socket.socket() as sock:
+            sock.bind(("127.0.0.1", 0))
+            port = sock.getsockname()[1]
+    except PermissionError:
+        pytest.skip("host policy prohibits localhost sockets")
+    sides, demo = pair
+    app = f"""import sys, time
+from http.server import BaseHTTPRequestHandler, HTTPServer
+print('x' * 2000 + ' boot stdout token=hidden', flush=True)
+print('y' * 2000 + ' boot stderr password=hidden', file=sys.stderr, flush=True)
+time.sleep({delay})
+class Handler(BaseHTTPRequestHandler):
+ def do_GET(self):
+  self.send_response(503); self.end_headers()
+  self.wfile.write(b'listening')
+ def log_message(self, *args): pass
+HTTPServer(('127.0.0.1', {port}), Handler).serve_forever()
+"""
+    (sides[0].checkout / "app.py").write_text(app)
+
+    def change(value):
+        value["start"].update(mode="http", port=port)
+        value["steps"] = [{"type": "http", "method": "GET", "path": "/attack"}]
+
+    edit(demo, change)
+    result = verify_side_task(sides[0], demo, "path", timeout)
+    assert result.outcome == expected, result
+    assert "boot stdout" in result.stdout and "boot stderr" in result.stderr
+    assert "hidden" not in result.stdout + result.stderr
+    assert len(result.stdout) <= 1500 and len(result.stderr) <= 1500
+    if expected == "observed":
+        assert result.ready_seconds >= 8
+        assert len(result.runs) == 1
+    else:
+        assert result.phase == "start" and result.exit_code != 0
+        assert 0.9 <= result.ready_seconds < 4
+        assert not result.runs
+
+
+def test_killed_http_driver_retains_app_logs(pair, monkeypatch):
+    from openultrasast.sandbox import SandboxResult
+    from openultrasast.search import verify as module
+
+    sides, demo = pair
+    edit(
+        demo,
+        lambda value: (
+            value["start"].update(mode="http", port=18080),
+            value.update(steps=[{"type": "http", "method": "GET", "path": "/"}]),
+        ),
+    )
+
+    def killed(job, **kwargs):
+        config = json.loads(kwargs["input_text"])
+        for key in ("output", "errors"):
+            (kwargs["scratch"] / config[key]).write_text("app log token=hidden")
+        return SandboxResult(-9, "", "", True)
+
+    monkeypatch.setattr(module, "_run_task", killed)
+    result = verify_side_task(sides[0], demo, "path", 1)
+    assert result.phase == "start" and result.exit_code == -9
+    assert result.ready_seconds >= 0
+    assert result.stdout == result.stderr == "app log token=[redacted]"
+
+
+@pytest.mark.parametrize("timeout,ready", [(90, True), (1, False)])
+def test_http_driver_polls_eight_second_listener_before_get_and_steps(tmp_path, monkeypatch, capsys, timeout, ready):
+    import http.client
+    import io
+    import subprocess
+    import sys
+    import time
+    from types import SimpleNamespace
+
+    from openultrasast.search import demo as demo_module
+    from openultrasast.search.verify import _HTTP_DRIVER
+
+    tick = [0.0]
+    polls, requests = [], []
+    monkeypatch.setattr(time, "monotonic", lambda: tick[0])
+
+    def sleep(seconds):
+        assert seconds == 0.5
+        tick[0] += seconds
+
+    monkeypatch.setattr(time, "sleep", sleep)
+
+    def connect(address, timeout):
+        assert address == ("127.0.0.1", 18080)
+        polls.append(tick[0])
+        if tick[0] < 8:
+            raise ConnectionRefusedError()
+        return SimpleNamespace(close=lambda: None)
+
+    monkeypatch.setattr(socket, "create_connection", connect)
+
+    class HTTP:
+        def __init__(self, host, port, timeout):
+            assert tick[0] >= 8
+
+        def request(self, method, path, **kwargs):
+            requests.append((method, path))
+
+        def getresponse(self):
+            return SimpleNamespace(status=503, read=lambda size: b"listening")
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr(http.client, "HTTPConnection", HTTP)
+
+    def app(*args, **kwargs):
+        kwargs["stdout"].write(b"boot stdout")
+        kwargs["stderr"].write(b"boot stderr")
+        return SimpleNamespace(poll=lambda: None, terminate=lambda: None, wait=lambda **kw: None)
+
+    monkeypatch.setattr(subprocess, "Popen", app)
+    config = dict(
+        schema={"start": {"port": 18080}, "steps": [{"method": "GET", "path": "/attack"}]},
+        command=["fake-app"],
+        timeout=timeout,
+        nonce="nonce",
+        ready="ready",
+        go="go",
+        errors="errors",
+        output="output",
+    )
+    (tmp_path / "go").touch()
+    monkeypatch.setattr(sys, "stdin", io.StringIO(json.dumps(config)))
+    driver = _HTTP_DRIVER.replace("/verifier-demo.py", demo_module.__file__).replace("/scratch/", str(tmp_path) + "/")
+    if ready:
+        exec(driver, {})
+        assert requests == [("GET", "/"), ("GET", "/attack")]
+        assert json.loads(capsys.readouterr().out) == ["listening"]
+        assert tick[0] == 8
+    else:
+        with pytest.raises(RuntimeError, match="readiness timed out"):
+            exec(driver, {})
+        assert not requests and not (tmp_path / "ready").exists()
+    assert polls == [i * 0.5 for i in range(len(polls))]
+    assert (tmp_path / "output").read_text() == "boot stdout"
+    assert (tmp_path / "errors").read_text() == "boot stderr"

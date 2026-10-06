@@ -21,13 +21,13 @@ import time
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import suppress
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
 from typing import Any, cast
 
 from ..sandbox import SandboxJob, SandboxResult
 from . import _sandbox, task_storage
-from .budget import SearchBudget
+from .budget import SearchBudget, verification_run_seconds, verification_timeout
 from .demo import BUILD_RECIPES, FAMILY_ORACLES, RUNTIMES, capture_output, load_demo, substitute, validate_oracle, write_start_files
 from .oracles import BrowserExecutor, Canary, Oracle, oracle_for
 from .task_storage import CommandFailure, diagnostic, exception_reason
@@ -65,6 +65,7 @@ class SideRecord:
     phase: str = ""
     exit_code: int | None = None
     stderr: str = ""
+    stdout: str = ""
 
 
 @dataclass(frozen=True)
@@ -138,16 +139,17 @@ def _tree(root: Path, *, generated_links: bool = False) -> str:
 # Executed as verifier-owned code inside the same network sandbox as the app.
 # Redirects are refused: only the configured loopback application is reachable.
 _HTTP_DRIVER = r"""
-import http.client, importlib.util, json, os, socket, subprocess, sys, tempfile, time
+import http.client, importlib.util, json, os, socket, subprocess, sys, time
 spec = importlib.util.spec_from_file_location('demo', '/verifier-demo.py')
 demo = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(demo)
 config = json.load(sys.stdin)
 schema = config['schema']
-app_errors = tempfile.TemporaryFile()
-app = subprocess.Popen(config['command'], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=app_errors)
+app_errors = open("/scratch/" + config["errors"], "wb")
+app_output = open("/scratch/" + config["output"], "wb")
+app = subprocess.Popen(config['command'], stdin=subprocess.DEVNULL, stdout=app_output, stderr=app_errors)
 try:
-    until = time.monotonic() + config['timeout'] / 2
+    until = time.monotonic() + config['timeout']
     while True:
         if app.poll() is not None:
             raise SystemExit(app.returncode or 1)
@@ -158,11 +160,16 @@ try:
         except OSError:
             if time.monotonic() >= until:
                 raise RuntimeError('HTTP readiness timed out')
-            time.sleep(0.03)
+            time.sleep(0.5)
+    conn = http.client.HTTPConnection('127.0.0.1', schema['start']['port'], timeout=max(0.01, until - time.monotonic()))
+    conn.request('GET', '/')
+    response = conn.getresponse()  # Any HTTP status establishes listening.
+    conn.close()
     with open('/scratch/' + config['ready'], 'w') as ready:
         ready.write('ready')
+    acknowledgment_deadline = time.monotonic() + 3
     while not os.path.exists('/scratch/' + config['go']):
-        if time.monotonic() >= until + config['timeout'] / 2:
+        if time.monotonic() >= acknowledgment_deadline:
             raise RuntimeError('verifier readiness acknowledgment timed out')
         time.sleep(0.01)
     captures, outputs = {}, []
@@ -171,7 +178,7 @@ try:
         if not path.startswith('/') or path.startswith('//') or '\r' in path or '\n' in path:
             raise ValueError('invalid expanded HTTP path')
         headers = {key: demo.substitute(value, captures) for key, value in step.get('headers', {}).items()}
-        conn = http.client.HTTPConnection('127.0.0.1', schema['start']['port'], timeout=config['timeout'] / 2)
+        conn = http.client.HTTPConnection('127.0.0.1', schema['start']['port'], timeout=config['timeout'])
         conn.request(step['method'], path, body=demo.substitute(step.get('body', ''), captures).encode(), headers=headers)
         response = conn.getresponse()
         body = response.read(1048577)
@@ -189,9 +196,8 @@ finally:
     except subprocess.TimeoutExpired:
         app.kill()
         app.wait()
-    app_errors.seek(max(0, app_errors.seek(0, 2) - 16384))
-    sys.stderr.write(app_errors.read().decode(errors="replace"))
     app_errors.close()
+    app_output.close()
 """
 
 
@@ -206,16 +212,34 @@ def _http_steps(
     nonce: str,
     runner: Callable[..., SandboxResult],
     ready_check: Callable[[], None],
+    diagnostics: dict[str, Any] | None = None,
 ) -> list[str]:
     from . import demo as demo_module
 
     ready, go = ".ready-" + secrets.token_hex(12), ".go-" + secrets.token_hex(12)
-    request = {"schema": schema, "command": command, "timeout": job(command).timeout_seconds, "nonce": nonce, "ready": ready, "go": go}
+    diagnostics = diagnostics if diagnostics is not None else {}
+    request = {
+        "schema": schema,
+        "command": command,
+        "timeout": job(command).timeout_seconds,
+        "nonce": nonce,
+        "ready": ready,
+        "go": go,
+        "errors": ready + ".err",
+        "output": ready + ".out",
+    }
+    diagnostics.update(stdout="", stderr="")
     acknowledged = False
+    started = time.monotonic()
+    driver_job = replace(
+        job(command),
+        command=("/usr/bin/python3", "-I", "-c", _HTTP_DRIVER),
+        timeout_seconds=verification_run_seconds(schema, job(command).timeout_seconds),
+    )
     with ThreadPoolExecutor(max_workers=1) as pool:
         future = pool.submit(
             runner,
-            job(("/usr/bin/python3", "-I", "-c", _HTTP_DRIVER)),
+            driver_job,
             scratch=scratch,
             mounts={**mounts, "/verifier-demo.py": Path(demo_module.__file__)},
             env=env,
@@ -223,19 +247,26 @@ def _http_steps(
             network=True,
             input_text=json.dumps(request),
         )
-        deadline = time.monotonic() + job(command).timeout_seconds
+        deadline = time.monotonic() + job(command).timeout_seconds + 5
         while not (scratch / ready).exists() and not future.done() and time.monotonic() < deadline:
             time.sleep(0.01)
+        diagnostics["ready_seconds"] = diagnostics.get("ready_seconds", 0) + time.monotonic() - started
         if (scratch / ready).exists():
             ready_check()
             (scratch / go).touch()
             acknowledged = True
         result = future.result()
+    for key, suffix in (("stdout", ".out"), ("stderr", ".err")):
+        path = scratch / (ready + suffix)
+        if path.is_file():
+            with path.open("rb") as stream:
+                stream.seek(max(0, path.stat().st_size - 16384))
+                diagnostics[key] = diagnostic(stream.read().decode(errors="replace"), maximum=1500)
     if not acknowledged or result.exit_code or result.timed_out:
         raise CommandFailure(
             "start" if not acknowledged else "run",
             result.exit_code,
-            result.stderr,
+            diagnostics.get("stderr", "") + "\n" + result.stderr,
             "HTTP application/steps failed or readiness not acknowledged",
         )
     outputs = json.loads(result.stdout)
@@ -249,6 +280,7 @@ def _side(side: Side, demo: Path, family: str, timeout: int, browser: BrowserExe
     runner = _run_task if task_boundary else _sandbox.run
     observations: list[RunObservation] = []
     timings = dict(build=0.0, ready=0.0, run=0.0)
+    app_diagnostics: dict[str, Any] = {}
 
     disk_peak = 0
     root: Path | None = None
@@ -270,14 +302,15 @@ def _side(side: Side, demo: Path, family: str, timeout: int, browser: BrowserExe
             time.monotonic() - started,
             diagnostic(reason, maximum=1500),
             timings["build"],
-            timings["ready"],
-            timings["run"],
+            timings["ready"] + app_diagnostics.get("ready_seconds", 0),
+            max(0.0, timings["run"] - app_diagnostics.get("ready_seconds", 0)),
             disk_peak,
             isolation_mode="task-boundary" if task_boundary else _sandbox.isolation_mode(),
             chromium_no_sandbox=bool(getattr(browser, "no_sandbox", False)),
             phase=phase,
             exit_code=result.exit_code if result is not None else None,
-            stderr=diagnostic(result.stderr, maximum=1500) if result is not None else "",
+            stderr=diagnostic(result.stderr if result is not None else app_diagnostics.get("stderr", ""), maximum=1500),
+            stdout=diagnostic(getattr(result, "stdout", app_diagnostics.get("stdout", "")), maximum=1500),
         )
 
     try:
@@ -380,6 +413,7 @@ def _side(side: Side, demo: Path, family: str, timeout: int, browser: BrowserExe
                             env=app_env,
                             namespace_pid=oracle.namespace_pid,
                         )
+                        app_diagnostics.update(stdout=ready.stdout, stderr=ready.stderr)
                         if ready.exit_code or ready.timed_out:
                             return record("could_not_run", "app readiness failed", "start", ready)
                     if family == "ssrf" and oracle.observe()[0]:
@@ -409,6 +443,7 @@ def _side(side: Side, demo: Path, family: str, timeout: int, browser: BrowserExe
                             canary.nonce,
                             runner,
                             http_ready_check,
+                            app_diagnostics,
                         )
                         for output in outputs:
                             timed("run", oracle.capture, output)
@@ -425,6 +460,7 @@ def _side(side: Side, demo: Path, family: str, timeout: int, browser: BrowserExe
                                 namespace_pid=oracle.namespace_pid,
                                 input_text=substitute(step.get("stdin", ""), captures),
                             )
+                            app_diagnostics.update(stdout=result.stdout, stderr=result.stderr)
                             if result.timed_out:
                                 return record("inconclusive", "app attack timed out")
                             if result.exit_code:
@@ -507,7 +543,7 @@ def _run_task(
         )
 
 
-def verify_side_task(side: Side, demo: Path, family: str, timeout_seconds: int = 5) -> SideRecord:
+def verify_side_task(side: Side, demo: Path, family: str, timeout_seconds: int | None = None) -> SideRecord:
     """Fresh AX task entry: one repetition, grouped by the trusted dispatcher.
 
     This explicit API is never selected as a fallback in the host verifier.
@@ -517,10 +553,10 @@ def verify_side_task(side: Side, demo: Path, family: str, timeout_seconds: int =
         return SideRecord("no_oracle", (), 0, "no owned oracle", isolation_mode="task-boundary")
     validate_oracle(family, schema["oracle"])
     kind = schema["oracle"]
-    if timeout_seconds < 1:
+    if timeout_seconds is not None and timeout_seconds < 1:
         raise ValueError("timeout must be positive")
     browser = BrowserExecutor(task_boundary=True) if kind == "xss" else None
-    return _side(side, demo, kind, timeout_seconds, browser, task_boundary=True)
+    return _side(side, demo, kind, timeout_seconds or verification_timeout(schema), browser, task_boundary=True)
 
 
 def verify(
@@ -529,7 +565,7 @@ def verify(
     artefact: Path,
     family: str,
     *,
-    timeout_seconds: int = 5,
+    timeout_seconds: int | None = None,
     oracle: str | None = None,
     browser: BrowserExecutor | None = None,
     task_dispatcher: Callable[..., SideRecord] | None = None,
@@ -538,7 +574,7 @@ def verify(
     started = time.monotonic()
     if family in FAMILY_ORACLES and not FAMILY_ORACLES[family]:
         return VerificationRecord("no_oracle", (), time.monotonic() - started, "no configured owned oracle for " + family)
-    if timeout_seconds < 1:
+    if timeout_seconds is not None and timeout_seconds < 1:
         raise ValueError("timeout must be positive")
     try:
         schema = load_demo(artefact)
@@ -550,6 +586,7 @@ def verify(
             raise ValueError("oracle runtime unavailable")
     except (OSError, ValueError) as exc:
         return VerificationRecord("inconclusive", (), time.monotonic() - started, "invalid declarative demo: " + exception_reason(exc))
+    timeout_seconds = timeout_seconds or verification_timeout(schema)
     mode = "task-boundary" if task_dispatcher is not None else _sandbox.isolation_mode()
     if task_dispatcher is None:
         try:
