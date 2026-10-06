@@ -697,3 +697,167 @@ def test_http_driver_polls_eight_second_listener_before_get_and_steps(tmp_path, 
     assert polls == [i * 0.5 for i in range(len(polls))]
     assert (tmp_path / "output").read_text() == "boot stdout"
     assert (tmp_path / "errors").read_text() == "boot stderr"
+
+
+@pytest.mark.parametrize("task_boundary", [False, True])
+@pytest.mark.parametrize("config", ["arguments", "environment", "files"])
+def test_node_directory_option_uses_owned_fixture(pair, config, task_boundary):
+    sides, demo = pair
+    app = """const fs = require('fs'), path = require('path');
+const args = process.argv.slice(2);
+const root = args[0] === '--dir' ? args[1] :
+    (process.env.PUBLIC_DIRECTORY || fs.readFileSync(path.join(__dirname, '.demo/root.txt'), 'utf8'));
+if (!fs.statSync(root).isDirectory()) throw new Error('missing served directory');
+if (args.includes('--ready')) process.exit(0);
+const target = path.resolve(root, args.at(-1));
+if (!fs.existsSync(path.join(__dirname, 'fixed')) || target.startsWith(root + '/'))
+    process.stdout.write(fs.readFileSync(target));
+"""
+    for side in sides:
+        (side.checkout / "app.js").write_text(app)
+
+    def change(value):
+        value["start"].update(runtime="node", path="app.js")
+        if config == "arguments":
+            value["start"]["arguments"] = ["--dir", "${served_root}"]
+        elif config == "environment":
+            value["start"]["environment"] = {"PUBLIC_DIRECTORY": "${served_root}"}
+        else:
+            value["start"]["files"] = {"root.txt": "${served_root}"}
+        value["steps"] = [{"type": "cli", "arguments": ["../canary"]}]
+
+    edit(demo, change)
+    original = (demo / "demo.json").read_bytes()
+    if task_boundary:
+        records = [verify_side_task(side, demo, "path") for side in sides]
+    else:
+        result = verify(*sides, demo, "path")
+        assert result.outcome == "demonstrated", result
+        records = result.sides
+    assert all(record.outcome == "observed" for record in records), records
+    assert all(run.observed for run in records[0].runs)
+    assert all(not run.observed for run in records[1].runs)
+    assert (demo / "demo.json").read_bytes() == original
+    assert all(not (side.checkout / ".demo").exists() for side in sides)
+
+
+@pytest.mark.parametrize("placeholder", ["database_path", "database_url"])
+@pytest.mark.parametrize("task_boundary", [False, True])
+def test_sql_cli_database_fixture(tmp_path, placeholder, task_boundary):
+    sides, demos = materialise(tmp_path / "sql", "sql")
+    for side in sides:
+        path = side.checkout / "app.py"
+        source = path.read_text().replace('os.environ["DATABASE"]', "database")
+        source = source.replace(
+            "fixed = ", 'database = sys.argv.pop(1).removeprefix("sqlite:///")\nassert pathlib.Path(database).is_file()\nfixed = '
+        )
+        path.write_text(source)
+    edit(demos["real"], lambda value: value["start"].update(arguments=["${" + placeholder + "}"]))
+    if task_boundary:
+        records = [verify_side_task(side, demos["real"], "injection") for side in sides]
+    else:
+        result = verify(*sides, demos["real"], "injection")
+        assert result.outcome == "demonstrated", result
+        records = result.sides
+    assert all(record.outcome == "observed" for record in records), records
+    assert all(run.observed for run in records[0].runs)
+    assert all(not run.observed for run in records[1].runs)
+
+
+@pytest.mark.parametrize("task_boundary", [False, True])
+def test_command_marker_directory_configuration(tmp_path, task_boundary):
+    sides, demos = materialise(tmp_path / "command", "command")
+    for side in sides:
+        path = side.checkout / "app.py"
+        source = path.read_text().replace(
+            'subprocess.run("echo " + payload, shell=True, check=False)',
+            'subprocess.run("echo " + payload, shell=True, check=False, cwd=os.environ["MARKER_DIRECTORY"])',
+        )
+        path.write_text(source)
+    edit(demos["real"], lambda value: value["start"].update(environment={"MARKER_DIRECTORY": "${marker_dir}"}))
+    if task_boundary:
+        records = [verify_side_task(side, demos["real"], "injection") for side in sides]
+    else:
+        result = verify(*sides, demos["real"], "injection")
+        assert result.outcome == "demonstrated", result
+        records = result.sides
+    assert all(record.outcome == "observed" for record in records), records
+    assert all(run.observed for run in records[0].runs)
+    assert all(not run.observed for run in records[1].runs)
+
+
+def test_fixture_values_and_nonce_redacted_from_diagnostics(pair, monkeypatch):
+    from dataclasses import asdict
+
+    from openultrasast.search import oracles
+
+    sides, demo = pair
+    nonces = []
+    prepare = oracles.PathOracle.prepare
+
+    def remember(self, canary):
+        nonces.append(canary.nonce)
+        return prepare(self, canary)
+
+    monkeypatch.setattr(oracles.PathOracle, "prepare", remember)
+    edit(demo, lambda value: value["start"].update(environment={"PUBLIC_DIRECTORY": "${served_root}"}))
+    path = sides[0].checkout / "app.py"
+    path.write_text('import os\nprint(os.environ["PUBLIC_DIRECTORY"])\n' + path.read_text())
+    result = verify(*sides, demo, "path")
+    assert result.outcome == "demonstrated", result
+    serialized = json.dumps(asdict(result))
+    assert nonces and all(nonce not in serialized for nonce in nonces)
+    assert "/fixture" not in serialized and "ousast-proof-" not in serialized
+
+
+def test_callback_placeholder_is_fresh_and_app_only_without_network(tmp_path, monkeypatch):
+    import io
+    from types import SimpleNamespace
+
+    from openultrasast.sandbox import SandboxResult
+    from openultrasast.search import oracles
+
+    sides, demos = materialise(tmp_path / "ssrf", "ssrf")
+    launched, commands = [], []
+
+    def listener(argv, **kwargs):
+        launched.append(argv[-1])
+        return SimpleNamespace(stdout=io.StringIO("[123, 18765]\n"), terminate=lambda: None, wait=lambda **kw: None)
+
+    class Selector:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            pass
+
+        def register(self, *args):
+            pass
+
+        def select(self, timeout):
+            return [True]
+
+    monkeypatch.setattr(oracles.subprocess, "Popen", listener)
+    monkeypatch.setattr(oracles.selectors, "DefaultSelector", Selector)
+    monkeypatch.setattr(_sandbox, "isolation_check", lambda **kw: None)
+
+    def runner(job, **kwargs):
+        url = f"http://127.0.0.1:18765/{launched[-1]}"
+        assert job.command[-2 if job.command[-1] == "--ready" else -3] == url
+        assert kwargs["env"]["INTERNAL_URL"] == kwargs["env"]["CALLBACK_URL"] == url
+        assert (job.repo_root / ".demo/url.txt").read_text() == url
+        commands.append(job.command)
+        return SandboxResult(0, "safe", "", False)
+
+    monkeypatch.setattr(_sandbox, "run", runner)
+    edit(
+        demos["real"],
+        lambda value: value["start"].update(
+            arguments=["${callback_url}"], environment={"INTERNAL_URL": "${callback_url}"}, files={"url.txt": "${callback_url}"}
+        ),
+    )
+    result = verify(*sides, demos["real"], "untrusted_destination")
+    assert all(side.outcome == "observed" for side in result.sides), result
+    assert len(launched) == len(set(launched)) == 6
+    assert len(commands) == 12
+    assert "${callback_url}" in (demos["real"] / "demo.json").read_text()

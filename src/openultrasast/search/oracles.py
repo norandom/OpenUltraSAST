@@ -39,6 +39,7 @@ class Canary:
 
 class Oracle(Protocol):
     namespace_pid: int | None
+    placeholders: dict[str, str]
 
     def prepare(self, canary: Canary) -> dict[str, str]: ...
     def capture(self, output: str) -> None: ...
@@ -52,6 +53,7 @@ class OutputOracle:
     def prepare(self, canary: Canary) -> dict[str, str]:
         self.canary = canary
         self.seen = False
+        self.placeholders: dict[str, str] = {}
         return {}
 
     def capture(self, output: str) -> None:
@@ -70,6 +72,7 @@ class PathOracle(OutputOracle):
         (canary.root / "public").mkdir()
         (canary.root / "canary").write_text(canary.nonce)
         (canary.root / "canary").chmod(0o600)
+        self.placeholders = {"served_root": "/fixture/public"}
         return {"SERVED_ROOT": "/fixture/public"}
 
 
@@ -80,6 +83,7 @@ class SQLOracle(OutputOracle):
             db.execute("CREATE TABLE records (name TEXT, value TEXT, public INTEGER)")
             db.executemany("INSERT INTO records VALUES (?, ?, ?)", [("ordinary", "public value", 1), ("secret", canary.nonce, 0)])
         (canary.root / "fixture.db").chmod(0o600)
+        self.placeholders = {"database_path": "/fixture/fixture.db", "database_url": "sqlite:////fixture/fixture.db"}
         return {"DATABASE": "/fixture/fixture.db"}
 
 
@@ -88,6 +92,7 @@ class CommandOracle(OutputOracle):
         super().prepare(canary)
         # Marker is in app-only writable scratch, inaccessible in artefact sandbox.
         self.marker = canary.root / "marker"
+        self.placeholders = {"marker_dir": "/scratch"}
         return {}
 
     def observe(self) -> tuple[bool, str]:
@@ -132,7 +137,8 @@ class SSRFOracle(OutputOracle):
         self.namespace_pid, port = json.loads(line)
         if self.task_boundary:
             self.namespace_pid = None
-        return {"CALLBACK_URL": f"http://127.0.0.1:{port}/{canary.nonce}"}  # loopback: oracle listener inside the private sandbox namespace
+        self.placeholders = {"callback_url": f"http://127.0.0.1:{port}/{canary.nonce}"}  # loopback: private oracle listener
+        return {"CALLBACK_URL": self.placeholders["callback_url"]}
 
     def observe(self) -> tuple[bool, str]:
         assert self.process is not None and self.process.stdout is not None

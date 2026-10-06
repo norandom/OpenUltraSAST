@@ -91,22 +91,21 @@ DEMO_GUIDE = (
     "HTTP mode requires port (1024-65535) and steps {type:http,method,path,headers?,body?}; "
     "CLI mode forbids port and uses {type:cli,arguments,stdin?}. Supply 1-32 ordered steps. "
     "Optional capture {name,source:output|json,path?} defines ${name} only for later steps from app responses. "
-    "Config via start.environment and small data files in start.files is allowed; no scripts or private canary references. "
+    "start.environment and start.files allow data, never scripts or raw private references. "
+    "Only the selected oracle's placeholders expand per side only in start.arguments, environment values and files contents. "
     "environment maps up to 32 uppercase names to values (4096 chars); loader/interpreter variables are forbidden. "
     "files maps up to 8 relative data filenames to contents (64 KiB each), created under .demo/ mode 0600; "
     "point environment values at .demo/name. Allowed: .pem .key .json .yaml .yml .txt .env .ini .toml .db .sqlite .crt."
 )
 ORACLE_GUIDE = (
-    "Family oracles: path plants a private nonce file outside the served directory and observes its contents in app output. "
-    "SQL plants public and secret rows in a fixture database and observes the secret nonce in app output. "
-    "Command reserves an app-only marker location and observes whether an injected command creates that file. "
-    "SSRF provides a private loopback listener with a fresh nonce URL and observes a request to it. "
+    'Path observes a private nonce file outside ${served_root} in app output; e.g. "arguments": ["--dir", "${served_root}"]. '
+    'SQL observes secret rows in ${database_path} (${database_url} is its SQLite URL); e.g. "arguments": ["--db", "${database_path}"]. '
+    'Command observes marker creation at marker location ${marker_dir}/marker; e.g. "environment": {"MARKER_DIR": "${marker_dir}"}. '
+    'SSRF observes the nonce URL at its loopback listener ${callback_url}; e.g. "environment": {"INTERNAL_URL": "${callback_url}"}. '
     "XSS installs a verifier-owned alert hook in a browser and observes actual execution of alert('ousast-xss'); "
     "reflection alone is insufficient. "
     "Set the required oracle field using the allowed choices below; for injection choose sql or command. "
-    "Other families have no owned oracle; report that gap instead of inventing one. "
-    + "Allowed family/oracle choices: "
-    + json.dumps(FAMILY_ORACLES)
+    "Other families have no oracle; report the gap. " + "Allowed family/oracle choices: " + json.dumps(FAMILY_ORACLES)
 )
 REASON_PROMPT = (
     "Your goal is a declarative demo conforming to demo.py's schema that makes the verifier observe the effect "
