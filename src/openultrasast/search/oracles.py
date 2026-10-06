@@ -37,6 +37,18 @@ class Canary:
         return cls(root, secrets.token_hex(24))
 
 
+@dataclass(frozen=True)
+class ControlProbe:
+    """A benign interaction a correctly functioning app must answer by returning
+    ``token`` in its response body. It proves the demo's interface is wired and the
+    app can serve before any absence of the secret effect is trusted as a negative."""
+
+    method: str
+    path: str
+    token: str
+    body: str = ""
+
+
 class Oracle(Protocol):
     namespace_pid: int | None
     placeholders: dict[str, str]
@@ -44,6 +56,7 @@ class Oracle(Protocol):
     def prepare(self, canary: Canary) -> dict[str, str]: ...
     def capture(self, output: str) -> None: ...
     def observe(self) -> tuple[bool, str]: ...
+    def control(self) -> ControlProbe | None: ...
     def close(self) -> None: ...
 
 
@@ -62,18 +75,36 @@ class OutputOracle:
     def observe(self) -> tuple[bool, str]:
         return self.seen, "canary in verifier-captured app output" if self.seen else "no canary in app output"
 
+    def control(self) -> ControlProbe | None:
+        # No positive control by default. SQL/command/ssrf/xss controls are a
+        # documented follow-up; only the path oracle plants one for now.
+        return None
+
     def close(self) -> None:
         pass
 
 
 class PathOracle(OutputOracle):
+    control_name = "control"
+
     def prepare(self, canary: Canary) -> dict[str, str]:
         super().prepare(canary)
         (canary.root / "public").mkdir()
         (canary.root / "canary").write_text(canary.nonce)
         (canary.root / "canary").chmod(0o600)
+        # A benign in-root control file, distinct from the out-of-root secret, so a
+        # correctly serving app returns it on BOTH revisions without any traversal.
+        # Drawn from os.urandom, not secrets.token_hex, so it never perturbs callers
+        # that monkeypatch the nonce source and count its draws.
+        self.control_token = os.urandom(24).hex()
+        control_file = canary.root / "public" / self.control_name
+        control_file.write_text(self.control_token)
+        control_file.chmod(0o600)
         self.placeholders = {"served_root": "/fixture/public"}
         return {"SERVED_ROOT": "/fixture/public"}
+
+    def control(self) -> ControlProbe | None:
+        return ControlProbe(method="GET", path="/" + self.control_name, token=self.control_token)
 
 
 class SQLOracle(OutputOracle):
