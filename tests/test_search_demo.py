@@ -261,3 +261,14 @@ def test_fixture_placeholders_cannot_be_step_inputs_or_captures(name):
     value["steps"][0]["capture"] = {"name": name, "source": "output"}
     with pytest.raises(ValueError):
         validate_demo(value)
+
+
+def test_pip_recipes_use_app_interpreter(tmp_path):
+    import sys
+
+    from openultrasast.search.demo import BUILD_RECIPES, RUNTIMES, preparation_command
+
+    requirements = tmp_path / "requirements.txt"
+    requirements.write_text("dependency==1\n")
+    command, _ = preparation_command("pip", requirements, tmp_path, tmp_path / "products")
+    assert BUILD_RECIPES["pip"][:2] == tuple(command[:2]) == RUNTIMES["python"] == (sys.executable, "-I")

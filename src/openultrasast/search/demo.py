@@ -61,7 +61,7 @@ MAX_VALUE_BYTES = 16384
 BUILD_RECIPES = {
     "none": (),
     "pip": (
-        "/usr/bin/python3",
+        sys.executable,
         "-I",
         "-m",
         "pip",
@@ -258,7 +258,7 @@ def preparation_command(recipe: str, path: Path, checkout: Path, products: Path)
         if not target.resolve().is_relative_to(checkout.resolve()):
             raise ValueError("recipe input outside checkout")
         return [
-            "python3",
+            sys.executable,
             "-I",
             "-m",
             "pip",
