@@ -16,7 +16,7 @@ import urllib.error
 import urllib.request
 from dataclasses import asdict
 from pathlib import Path, PurePosixPath
-from typing import Any, cast
+from typing import Any, BinaryIO, cast
 from urllib.parse import urlsplit
 
 from . import task_storage
@@ -47,78 +47,109 @@ def public_endpoint(url: str) -> str:
     return host
 
 
-MAX_ARCHIVE_BYTES = 64 * 1024 * 1024
-MAX_CHECKOUT_BYTES = 256 * 1024 * 1024
+MAX_ARCHIVE_BYTES = 1024**3
+MAX_CHECKOUT_BYTES = 2 * 1024**3
 MAX_FILES = 20000
 MAX_SPEC_BYTES = 70000
 MAX_RESULT_BYTES = 65536
 
 
-def pack_checkout(root: Path) -> bytes:
+CACHE_NAMES = {".npm", ".pip", ".m2", ".composer", ".gradle", "__pycache__", ".git"}
+
+
+def bundle_ignore(directory: str, names: list[str]) -> set[str]:
+    return {name for name in names if name in CACHE_NAMES or (Path(directory).name == "node_modules" and name == ".cache")}
+
+
+class ArchiveLimit(ValueError):
+    def __init__(self, size: int, directories: dict[str, int]) -> None:
+        self.archive_bytes = size
+        largest = sorted(directories.items(), key=lambda item: (-item[1], item[0]))[:5]
+        super().__init__(
+            f"archive exceeds size limit: {size} bytes > {MAX_ARCHIVE_BYTES} bytes; top 5 directories: "
+            + ", ".join(f"{name} ({count} bytes)" for name, count in largest)
+        )
+
+
+def pack_checkout(root: Path, output: BinaryIO | None = None) -> bytes:
     root = Path(root)
     if root.is_symlink() or not root.is_dir():
         raise ValueError("checkout must be a real directory")
-    buffer, total = io.BytesIO(), 0
+    buffer = output if output is not None else io.BytesIO()
+    total, count = 0, 0
+    directories: dict[str, int] = {}
     with tarfile.open(fileobj=buffer, mode="w:gz") as archive:
-        paths = (p for p in root.rglob("*") if ".git" not in p.relative_to(root).parts)
-        for index, path in enumerate(sorted(paths)):
-            mode = path.lstat().st_mode
-            if index >= MAX_FILES or not (stat.S_ISREG(mode) or stat.S_ISDIR(mode)):
-                raise ValueError("checkout contains too many files or special files")
-            total += path.stat().st_size if path.is_file() else 0
-            if total > MAX_CHECKOUT_BYTES:
-                raise ValueError("checkout exceeds size limit")
-            archive.add(path, arcname=str(path.relative_to(root)), recursive=False)
-    data = buffer.getvalue()
-    if len(data) > MAX_ARCHIVE_BYTES:
-        raise ValueError("archive exceeds size limit")
-    return data
+        for parent, dirs, files in os.walk(root, followlinks=False):
+            ignored = bundle_ignore(parent, dirs + files)
+            dirs[:] = sorted(set(dirs) - ignored)
+            for name in sorted(dirs + [name for name in files if name not in ignored]):
+                path = Path(parent) / name
+                mode = path.lstat().st_mode
+                count += 1
+                if count > MAX_FILES or not (stat.S_ISREG(mode) or stat.S_ISDIR(mode)):
+                    raise ValueError("checkout contains too many files or special files")
+                size = path.stat().st_size if path.is_file() else 0
+                total += size
+                if total > MAX_CHECKOUT_BYTES:
+                    raise ValueError("checkout exceeds size limit")
+                for directory in path.relative_to(root).parents:
+                    if str(directory) != ".":
+                        directories[str(directory)] = directories.get(str(directory), 0) + size
+                archive.add(path, arcname=str(path.relative_to(root)), recursive=False)
+    if buffer.tell() > MAX_ARCHIVE_BYTES:
+        raise ArchiveLimit(buffer.tell(), directories)
+    return cast(io.BytesIO, buffer).getvalue() if output is None else b""
 
 
 def extract_checkout(data: bytes, destination: Path) -> None:
     if len(data) > MAX_ARCHIVE_BYTES:
         raise ValueError("archive exceeds size limit")
-    # Bound expansion before tarfile parses PAX headers or allocates member data.
-    with gzip.GzipFile(fileobj=io.BytesIO(data)) as compressed:
-        expanded = compressed.read(MAX_CHECKOUT_BYTES + MAX_FILES * 4096 + 1)
-    if len(expanded) > MAX_CHECKOUT_BYTES + MAX_FILES * 4096:
-        raise ValueError("expanded checkout exceeds size limit")
-    destination.mkdir(parents=True)
-    total, seen = 0, set()
-    with tarfile.open(fileobj=io.BytesIO(expanded), mode="r:") as archive:
-        for index, member in enumerate(archive):
-            path = PurePosixPath(member.name)
-            if (
-                index >= MAX_FILES
-                or path.is_absolute()
-                or ".." in path.parts
-                or not path.parts
-                or "\\" in member.name
-                or member.name in seen
-                or not (member.isfile() or member.isdir())
-            ):
-                raise ValueError("unsafe checkout archive member")
-            seen.add(member.name)
-            total += member.size
-            if member.size < 0 or total > MAX_CHECKOUT_BYTES:
-                raise ValueError("expanded checkout exceeds size limit")
-            target = destination.joinpath(*path.parts)
-            if member.isdir():
-                target.mkdir(parents=True, exist_ok=True)
-            else:
-                target.parent.mkdir(parents=True, exist_ok=True)
-                source = archive.extractfile(member)
-                if source is None:
-                    raise ValueError("missing regular checkout member")
-                with source, target.open("xb") as output:
-                    remaining = member.size
-                    while remaining:
-                        block = source.read(min(65536, remaining))
-                        if not block:
-                            raise ValueError("truncated checkout member")
-                        output.write(block)
-                        remaining -= len(block)
-                target.chmod(0o755 if member.mode & 0o111 else 0o644)
+    # Bound expansion before tarfile parses PAX headers, using disk rather than
+    # allocating the entire expanded tree in worker RAM.
+    with tempfile.TemporaryFile() as expanded:
+        with gzip.GzipFile(fileobj=io.BytesIO(data)) as compressed:
+            maximum = MAX_CHECKOUT_BYTES + MAX_FILES * 4096
+            while block := compressed.read(min(65536, maximum - expanded.tell() + 1)):
+                expanded.write(block)
+                if expanded.tell() > maximum:
+                    raise ValueError("expanded checkout exceeds size limit")
+        expanded.seek(0)
+        destination.mkdir(parents=True)
+        total, seen = 0, set()
+        with tarfile.open(fileobj=expanded, mode="r:") as archive:
+            for index, member in enumerate(archive):
+                path = PurePosixPath(member.name)
+                if (
+                    index >= MAX_FILES
+                    or path.is_absolute()
+                    or ".." in path.parts
+                    or not path.parts
+                    or "\\" in member.name
+                    or member.name in seen
+                    or not (member.isfile() or member.isdir())
+                ):
+                    raise ValueError("unsafe checkout archive member")
+                seen.add(member.name)
+                total += member.size
+                if member.size < 0 or total > MAX_CHECKOUT_BYTES:
+                    raise ValueError("expanded checkout exceeds size limit")
+                target = destination.joinpath(*path.parts)
+                if member.isdir():
+                    target.mkdir(parents=True, exist_ok=True)
+                else:
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    source = archive.extractfile(member)
+                    if source is None:
+                        raise ValueError("missing regular checkout member")
+                    with source, target.open("xb") as output:
+                        remaining = member.size
+                        while remaining:
+                            block = source.read(min(65536, remaining))
+                            if not block:
+                                raise ValueError("truncated checkout member")
+                            output.write(block)
+                            remaining -= len(block)
+                    target.chmod(0o755 if member.mode & 0o111 else 0o644)
     if not seen:
         raise ValueError("empty checkout")
     print(f"checkout_bytes={total} checkout_entries={len(seen)}", flush=True)

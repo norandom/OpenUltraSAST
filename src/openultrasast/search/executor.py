@@ -26,7 +26,7 @@ from collections.abc import Iterator, Mapping
 from contextlib import suppress
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any, BinaryIO, Protocol
 from urllib.parse import urlsplit
 
 from ..sandbox import SandboxJob
@@ -392,7 +392,7 @@ class InProcessExecutor:
 
         from .demo import preparation_command, validate_demo
         from .verify import _tree
-        from .verify_task import pack_checkout, validate_spec
+        from .verify_task import ArchiveLimit, bundle_ignore, pack_checkout, validate_spec
 
         if not self.task_boundary or not self.prepared_put_url:
             raise ValueError("preparation requires an executor task output")
@@ -421,17 +421,29 @@ class InProcessExecutor:
             # regular archive members. No host/external files may be exported.
             _tree(self.repo, generated_links=True)
             _tree(products, generated_links=True)
-            shutil.copytree(self.repo, bundle / "checkout", symlinks=False)
+            shutil.copytree(self.repo, bundle / "checkout", symlinks=False, ignore=bundle_ignore)
             materialized = bundle / "materialized"
-            shutil.copytree(products, materialized, symlinks=False)
+            shutil.copytree(products, materialized, symlinks=False, ignore=bundle_ignore)
             shutil.rmtree(products)
             materialized.rename(products)
             (bundle / "spec.json").write_text(json.dumps(spec))
             task_storage.check(task_storage.WORKSPACE if task_storage.WORKSPACE.is_dir() else bundle)
-            blob = pack_checkout(bundle)
-            self.phase = "result upload"
-            URLTransport().put(self.prepared_put_url, blob, self._remaining())
-            return {"status": "ok", "archive_bytes": len(blob), "sha256": hashlib.sha256(blob).hexdigest()}
+            # The task entrypoint configures tempfile under disk-backed /workspace.
+            spool_root = task_storage.WORKSPACE if task_storage.WORKSPACE.is_dir() else bundle.parent
+            with tempfile.TemporaryFile(dir=spool_root) as archive:
+                self.phase = "build export"
+                try:
+                    pack_checkout(bundle, archive)
+                except ArchiveLimit as exc:
+                    return {"status": "could_not_build", "phase": self.phase, "reason": str(exc), "archive_bytes": exc.archive_bytes}
+                size = archive.tell()
+                task_storage.check(spool_root, additional_bytes=size)
+                archive.seek(0)
+                digest = hashlib.file_digest(archive, "sha256").hexdigest()
+                archive.seek(0)
+                self.phase = "result upload"
+                URLTransport().put(self.prepared_put_url, archive, self._remaining())
+                return {"status": "ok", "archive_bytes": size, "sha256": digest}
 
     def _tree_bytes(self) -> int:
         total = 0
@@ -449,7 +461,7 @@ class InProcessExecutor:
 class Transport(Protocol):
     def get(self, url: str, timeout: float) -> bytes | None: ...
 
-    def put(self, url: str, data: bytes, timeout: float) -> None: ...
+    def put(self, url: str, data: bytes | BinaryIO, timeout: float) -> None: ...
 
 
 class URLTransport:
@@ -472,13 +484,33 @@ class URLTransport:
         except urllib.error.HTTPError as exc:
             if exc.code == 404:
                 return None
-            raise OSError(f"object read failed: HTTP {exc.code}") from None
+            raise
 
-    def put(self, url: str, data: bytes, timeout: float) -> None:
-        with self.opener.open(
-            urllib.request.Request(url, data=data, method="PUT", headers={"Content-Type": "application/json"}), timeout=timeout
-        ):
+    def put(self, url: str, data: bytes | BinaryIO, timeout: float) -> None:
+        headers = {"Content-Type": "application/json"}
+        if not isinstance(data, bytes):
+            headers["Content-Length"] = str(os.fstat(data.fileno()).st_size)
+        with self.opener.open(urllib.request.Request(url, data=data, method="PUT", headers=headers), timeout=timeout):
             pass
+
+
+RETRY_SECONDS = 90.0
+
+
+def retry_mailbox(operation: Any, *, deadline: float | None = None) -> Any:
+    """Retry transient store failures; each attempt has a bounded socket timeout."""
+    end = min(time.monotonic() + RETRY_SECONDS, deadline if deadline is not None else float("inf"))
+    delay = 0.2
+    while True:
+        try:
+            return operation(max(0.001, min(10, end - time.monotonic())))
+        except (OSError, TimeoutError) as exc:
+            if isinstance(exc, urllib.error.HTTPError) and not 500 <= exc.code < 600:
+                raise
+            if time.monotonic() >= end:
+                raise
+            time.sleep(min(delay, max(0, end - time.monotonic())))
+            delay = min(delay * 2, 5)
 
 
 class ObjectStoreExecutor:
@@ -492,26 +524,35 @@ class ObjectStoreExecutor:
         self.poll_seconds = poll_seconds
         self.seq = 0
         self.uncertain = False
+        self.pending: Command | None = None
         self.isolation_mode = "remote-executor"
 
     def submit(
         self, name: str, args: dict[str, Any], *, timeout_seconds: float = 30, limits: dict[str, Any] | None = None
     ) -> dict[str, Any]:
-        if self.uncertain:
-            raise RuntimeError("previous command outcome uncertain; discard executor task")
         command = Command(self.seq + 1, name, args, timeout_seconds, limits or {})
+        if self.pending is not None:
+            if (name, args, limits or {}) != (self.pending.name, self.pending.args, self.pending.limits):
+                raise RuntimeError("previous command outcome uncertain; retry the same command")
+            command = self.pending
         payload = command.validate()
         end = time.monotonic() + timeout_seconds
         self.uncertain = True
+        self.pending = copy.deepcopy(command)
+        retry_end = end + RETRY_SECONDS
         last_error = ""
         phase = "result upload"
         while time.monotonic() < end:
             try:
                 # A lost PUT acknowledgement is retried with the exact same sequence.
                 phase = "command upload"
-                self.transport.put(self.command_url, payload, max(0.001, end - time.monotonic()))
-                phase = "result read"
-                raw = self.transport.get(self.result_url, max(0.001, end - time.monotonic()))
+                before = time.monotonic()
+                try:
+                    retry_mailbox(lambda timeout: self.transport.put(self.command_url, payload, timeout), deadline=retry_end)
+                    phase = "result read"
+                    raw = retry_mailbox(lambda timeout: self.transport.get(self.result_url, timeout), deadline=retry_end)
+                finally:
+                    end = min(retry_end, end + time.monotonic() - before)
                 if raw is not None:
                     if len(raw) > MAX_RESULT_BYTES:
                         raise ValueError("result too large")
@@ -522,10 +563,14 @@ class ObjectStoreExecutor:
                         raise ValueError("future result sequence")
                     if result["seq"] == command.seq:
                         self.seq, self.uncertain = command.seq, False
+                        self.pending = None
                         self.isolation_mode = result.get("isolation_mode", self.isolation_mode)
                         return result
             except (OSError, TimeoutError) as exc:
+                if isinstance(exc, urllib.error.HTTPError) and not 500 <= exc.code < 600:
+                    raise
                 last_error = task_storage.exception_reason(exc)
+                break
             time.sleep(min(self.poll_seconds, max(0, end - time.monotonic())))
         raise TimeoutError(f"executor {phase} deadline; {last_error or 'no result received'}")
 
@@ -543,7 +588,7 @@ def serve(
     end = time.monotonic() + deadline_seconds
     while time.monotonic() < end:
         try:
-            raw = transport.get(command_get_url, min(10, max(0.001, end - time.monotonic())))
+            raw = retry_mailbox(lambda timeout: transport.get(command_get_url, timeout), deadline=end)
             if raw is not None:
                 if len(raw) > MAX_COMMAND_BYTES:
                     raise ValueError("command too large")
@@ -551,13 +596,16 @@ def serve(
                 if command.seq != executor.seq and command.timeout_seconds > end - time.monotonic():
                     raise TimeoutError("command exceeds task lifetime")
                 result = executor.execute(command)
-                transport.put(result_put_url, json.dumps(result).encode(), min(10, max(0.001, end - time.monotonic())))
+                retry_mailbox(
+                    lambda timeout, result=result: transport.put(result_put_url, json.dumps(result).encode(), timeout), deadline=end
+                )
                 if result.get("stopped"):
                     return
         except (OSError, TimeoutError) as exc:
             if executor.last_result:
                 executor.last_result["result_upload_reason"] = task_storage.exception_reason(exc)
                 executor.last_result["result_upload_phase"] = "result upload"
+            raise
 
         time.sleep(min(poll_seconds, max(0, end - time.monotonic())))
     raise TimeoutError("executor task deadline")

@@ -131,7 +131,7 @@ def test_worker_failure_is_not_no_evidence(tmp_path):
     record = pilot.run()
     assert record["outcome"] == "inconclusive"
     assert record["failures"][0]["phase"] == "explore"
-    assert "ValueError: explore must use tools or finish" in record["failures"][0]["reason"]
+    assert "second plain-text reply:" in record["failures"][0]["reason"]
 
 
 def test_shared_budget_reserved_and_settled_on_error(tmp_path):
@@ -500,3 +500,41 @@ def test_pilot_retains_command_diagnostics(tmp_path, phase):
     assert "line-29" in failure["stderr"] and "line-0\n" not in failure["stderr"]
     assert "hidden" not in failure["stderr"] and "https://" not in failure["stderr"]
     assert len(failure["stderr"]) <= 1500
+
+
+@pytest.mark.parametrize("failure_at", ["acquire", "body"])
+def test_pilot_executor_deletes_task_when_submit_times_out(tmp_path, monkeypatch, failure_at):
+    import time
+    from types import SimpleNamespace
+
+    from openultrasast.search.executor import ObjectStoreExecutor
+
+    pilot = make_pilot(tmp_path)
+    deleted, calls = [], []
+    store = SimpleNamespace(
+        _put=lambda *a: None,
+        _delete=deleted.append,
+        presign_get=lambda key, expires: "https://files.example/" + key,
+        presign_put=lambda key, expires: "https://files.example/" + key,
+    )
+    pilot.lane = SimpleNamespace(
+        store=store,
+        host="files.example",
+        args=SimpleNamespace(atespace="default"),
+        workload=SimpleNamespace(image="registry/task@sha256:" + "a" * 64),
+        ax=lambda *a, **kw: calls.append((a, kw)),
+        clock=time.monotonic,
+        pause=lambda _: None,
+    )
+
+    def submit(self, name, args, **kwargs):
+        if failure_at == "acquire" or name == "list_files":
+            raise TimeoutError("executor command upload deadline")
+        return {"exit_code": 0, "input_bytes": 10}
+
+    monkeypatch.setattr(ObjectStoreExecutor, "submit", submit)
+    with pytest.raises(TimeoutError, match="upload deadline"), pilot.executor("a" * 40, deadline=60) as session:
+        session.client.submit("list_files", {})
+    assert calls[-1][0][:2] == ("delete", "task")
+    assert len(deleted) == 4
+    assert pilot.record["executor_task_metrics"][-1]["end"] == "execution_failure"

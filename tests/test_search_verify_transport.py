@@ -77,7 +77,12 @@ def test_entry_reads_input_and_scrubs_environment(tmp_path, monkeypatch, capsys)
     (bundle / "products").mkdir()
     (bundle / "spec.json").write_text(json.dumps({"demo": demo(), "family": "injection", "timeout_seconds": 2}))
     blob = entry.pack_checkout(bundle)
-    monkeypatch.setattr(entry, "download", lambda url, limit: blob)
+
+    def download(url, limit):
+        assert limit == 1024**3
+        return blob
+
+    monkeypatch.setattr(entry, "download", download)
     outputs = []
     monkeypatch.setattr(entry, "upload", lambda url, data: outputs.append(json.loads(data)))
 

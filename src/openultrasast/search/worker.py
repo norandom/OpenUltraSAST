@@ -355,6 +355,7 @@ class Worker:
         self.evidence = set()
         self.observations = []
         malformed = 0
+        plain_text = 0
         for index in range(self.max_steps):
             messages[0]["content"] = (
                 EXPLORE_PROMPT
@@ -367,7 +368,11 @@ class Worker:
             messages.append(message)
             calls = message.get("tool_calls", [])
             if not isinstance(calls, list) or not calls:
-                raise ValueError("explore must use tools or finish")
+                plain_text += 1
+                if plain_text >= 2:
+                    return {"status": "execution_failure", "failure": "second plain-text reply: " + str(message.get("content", ""))[:300]}
+                messages.append({"role": "user", "content": "Use a tool or call finish; plain text is not accepted."})
+                continue
             finishes = [call for call in calls if isinstance(call, dict) and call.get("function", {}).get("name") == "finish"]
             if finishes:
                 if len(calls) > 1:
@@ -410,7 +415,7 @@ class Worker:
                             raise ValueError("incomplete demonstration")
                         schema = load_demo(self.demo)
                         family = (yaml.safe_load(task.snapshot) or {}).get("family")
-                        if family not in (None, "unknown"):
+                        if family is not None and family != "unknown":
                             validate_oracle(family, schema["oracle"])
                         fact["oracle"] = schema["oracle"]
                     return {"fact": fact}

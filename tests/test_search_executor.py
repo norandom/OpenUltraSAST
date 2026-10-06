@@ -77,7 +77,7 @@ def test_mailbox_timeout():
     with pytest.raises(TimeoutError):
         client.submit("list_files", {}, timeout_seconds=0.01)
     with pytest.raises(RuntimeError, match="uncertain"):
-        client.submit("list_files", {})
+        client.submit("stop", {})
 
 
 def test_serve_retries_result_without_reexecuting(tmp_path):
@@ -96,7 +96,7 @@ def test_serve_retries_result_without_reexecuting(tmp_path):
             assert json.loads(data)["stopped"]
 
     transport = Transport()
-    serve(executor, "command", "result", transport=transport, deadline_seconds=0.2, poll_seconds=0.001)
+    serve(executor, "command", "result", transport=transport, deadline_seconds=1, poll_seconds=0.001)
     assert transport.writes == 2
 
 
@@ -316,3 +316,123 @@ def test_guard_io_failure_after_child_exit_is_not_success(tmp_path, monkeypatch)
     assert result["phase"] == "scratch guard"
     assert result["exit_code"] is not None
     assert "cache cannot be read" in result["reason"]
+
+
+@pytest.mark.parametrize("side", ["host", "task"])
+@pytest.mark.parametrize("method", ["put", "get"])
+@pytest.mark.parametrize("error", ["timeout", "connection", "503"])
+def test_transient_mailbox_failures_retry_same_sequence(tmp_path, monkeypatch, side, method, error):
+    import urllib.error
+
+    from openultrasast.search import executor as module
+
+    now = [0.0]
+    monkeypatch.setattr(module.time, "monotonic", lambda: now[0])
+    monkeypatch.setattr(module.time, "sleep", lambda delay: now.__setitem__(0, now[0] + delay))
+    app = InProcessExecutor(tmp_path)
+    failures, payloads, results = [], [], []
+
+    def fail():
+        failures.append(now[0])
+        if len(failures) <= 4:
+            if error == "503":
+                raise urllib.error.HTTPError("https://store.example", 503, "unavailable", {}, None)
+            raise (TimeoutError if error == "timeout" else ConnectionError)("temporary store failure")
+
+    class Flaky:
+        def put(self, url, data, timeout):
+            payloads.append(data)
+            if side == "host":
+                results[:] = [app.execute(Command(**json.loads(data)))]
+            if method == "put":
+                fail()
+
+        def get(self, url, timeout):
+            if method == "get":
+                fail()
+            if side == "host":
+                return json.dumps(results[-1]).encode()
+            return Command(1, "stop", {}, 1).validate()
+
+    if side == "host":
+        client = ObjectStoreExecutor("https://store.example/command", "https://store.example/result", transport=Flaky())
+        assert client.submit("stop", {}, timeout_seconds=1)["stopped"]
+        assert client.seq == 1 and not client.uncertain
+    else:
+        serve(app, "command", "result", transport=Flaky(), deadline_seconds=100)
+    assert app.seq == 1 and app.stopped
+    assert len(set(payloads)) == 1
+    assert len(failures) == 5 and now[0] > 1
+
+
+def test_retry_budget_is_90_seconds_and_permanent_http_errors_fail_fast(monkeypatch):
+    import urllib.error
+
+    from openultrasast.search import executor as module
+
+    now, calls = [0.0], []
+    monkeypatch.setattr(module.time, "monotonic", lambda: now[0])
+    monkeypatch.setattr(module.time, "sleep", lambda delay: now.__setitem__(0, now[0] + delay))
+
+    def fail(timeout):
+        calls.append(timeout)
+        raise TimeoutError("still unavailable")
+
+    with pytest.raises(TimeoutError):
+        module.retry_mailbox(fail)
+    assert now[0] == 90 and all(0 < value <= 10 for value in calls)
+
+    def forbidden(timeout):
+        raise urllib.error.HTTPError("https://store.example", 403, "forbidden", {}, None)
+
+    with pytest.raises(urllib.error.HTTPError):
+        module.retry_mailbox(forbidden)
+    assert now[0] == 90
+
+
+def test_uncertain_command_can_be_resubmitted_without_changing_seq(tmp_path):
+    class Lost(Mailbox):
+        available = False
+
+        def put(self, url, data, timeout):
+            self.writes += 1
+            self.result = json.dumps(self.executor.execute(Command(**json.loads(data)))).encode()
+
+        def get(self, url, timeout):
+            return self.result if self.available else None
+
+    (tmp_path / "input").write_text("original")
+    mailbox = Lost(InProcessExecutor(tmp_path))
+    client = ObjectStoreExecutor("https://store.example/command", "https://store.example/result", transport=mailbox, poll_seconds=0.001)
+    with pytest.raises(TimeoutError):
+        client.submit("read_file", {"path": "input"}, timeout_seconds=0.01)
+    (tmp_path / "input").write_text("changed")
+    mailbox.available = True
+    assert client.submit("read_file", {"path": "input"})["text"] == "original"
+    assert client.seq == 1
+
+
+def test_url_transport_uploads_file_without_buffering(tmp_path):
+    from contextlib import nullcontext
+
+    from openultrasast.search.executor import URLTransport
+
+    path = tmp_path / "archive"
+    path.write_bytes(b"synthetic archive" * 10000)
+    transport = URLTransport()
+    seen = {}
+
+    class Opener:
+        def open(self, request, timeout):
+            assert request.get_method() == "PUT"
+            assert not isinstance(request.data, bytes)
+            seen["length"] = int(request.get_header("Content-length"))
+            seen["bytes"] = 0
+            while block := request.data.read(8192):
+                seen["bytes"] += len(block)
+            return nullcontext()
+
+    transport.opener = Opener()
+    with path.open("rb") as stream:
+        transport.put("https://files.example/archive", stream, 10)
+    assert seen["length"] == seen["bytes"] == path.stat().st_size

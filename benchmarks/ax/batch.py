@@ -715,7 +715,7 @@ class SearchExecutorTask:
                 raise
             self.client = ObjectStoreExecutor(command_put, result_get)
             return self
-        except Exception as exc:
+        except BaseException as exc:
             self.__exit__(type(exc), exc, exc.__traceback__)
             raise
 
@@ -739,6 +739,7 @@ class SearchExecutorTask:
         if self.submitted:
             try:
                 self.lane.ax("delete", "task", self.name)
+                self.submitted = False
             except Exception as error:
                 errors.append(exception_reason(error))
         for key in self.keys:
