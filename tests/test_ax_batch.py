@@ -177,7 +177,8 @@ def test_search_environment(step):
             manifest("ousast-engine-search-1", workload(), it, urls)
 
 
-def test_search_executor_task_links_and_cleanup():
+@pytest.mark.parametrize("failure", [None, TimeoutError, KeyboardInterrupt])
+def test_search_executor_task_links_and_cleanup(monkeypatch, failure):
     from types import SimpleNamespace
 
     from benchmarks.ax.batch import SearchExecutorTask
@@ -209,13 +210,22 @@ def test_search_executor_task_links_and_cleanup():
         clock=__import__("time").monotonic,
         pause=lambda _: None,
     )
-    with SearchExecutorTask(lane, b"archive", deadline=60) as session:
+    from contextlib import nullcontext
+
+    with pytest.raises(failure) if failure else nullcontext(), SearchExecutorTask(lane, b"archive", deadline=60) as session:
         assert session.name.startswith("ousast-engine-search-exec-")
         assert session.client.command_url.endswith("?put")
         doc = calls[0][1]["manifest"]
         assert doc["spec"]["command"][2] == "openultrasast.search.executor"
         assert {r["name"] for r in doc["spec"]["env"]} == {"COMMAND_GET_URL", "EXECUTOR_RESULT_PUT_URL", "REPO_URL", "PREPARED_PUT_URL"}
         assert "API_KEY" not in json.dumps(doc)
+        if failure:
+
+            def submit(*args, **kwargs):
+                raise failure("transport interrupted")
+
+            monkeypatch.setattr(session.client, "submit", submit)
+            session.client.submit("list_files", {})
     assert calls[-1][0][:2] == ("delete", "task")
     assert len(lane.store.deleted) == 4
 

@@ -75,7 +75,9 @@ def test_executor_exports_built_input_and_verifier_needs_no_build(workspace, mon
     blobs = []
     app = executor.InProcessExecutor(repo, task_boundary=True)
     app.prepared_put_url = "https://files.example/output"
-    monkeypatch.setattr(executor.URLTransport, "put", lambda self, url, data, timeout: blobs.append(data))
+    monkeypatch.setattr(
+        executor.URLTransport, "put", lambda self, url, data, timeout: blobs.append(data.read() if hasattr(data, "read") else data)
+    )
     result = app.submit("prepare_verification", spec())
     assert result["status"] == "ok", result
     destination = workspace / "unpacked"
@@ -140,7 +142,9 @@ def test_preparation_builds_before_export_and_exports_products(workspace, monkey
     app = executor.InProcessExecutor(repo, task_boundary=True)
     app.prepared_put_url = "https://files.example/output"
     blobs, commands = [], []
-    monkeypatch.setattr(executor.URLTransport, "put", lambda self, url, data, timeout: blobs.append(data))
+    monkeypatch.setattr(
+        executor.URLTransport, "put", lambda self, url, data, timeout: blobs.append(data.read() if hasattr(data, "read") else data)
+    )
 
     def build(argv, timeout, limits, **kwargs):
         commands.append(argv)
@@ -246,7 +250,9 @@ def test_preparation_uses_project_gradle_wrapper(workspace, monkeypatch, project
     app = executor.InProcessExecutor(repo, task_boundary=True)
     app.prepared_put_url = "https://files.example/output"
     blobs = []
-    monkeypatch.setattr(executor.URLTransport, "put", lambda self, url, data, timeout: blobs.append(data))
+    monkeypatch.setattr(
+        executor.URLTransport, "put", lambda self, url, data, timeout: blobs.append(data.read() if hasattr(data, "read") else data)
+    )
     request = spec()
     request["demo"]["build"] = {"recipe": "gradle", "arguments": [project]}
     result = app.submit("prepare_verification", request)
@@ -302,7 +308,9 @@ def test_prepare_build_virtual_memory(workspace, monkeypatch, memory_bytes):
     app = executor.InProcessExecutor(repo, task_boundary=True)
     app.prepared_put_url = "https://files.example/output"
     blobs = []
-    monkeypatch.setattr(executor.URLTransport, "put", lambda self, url, data, timeout: blobs.append(data))
+    monkeypatch.setattr(
+        executor.URLTransport, "put", lambda self, url, data, timeout: blobs.append(data.read() if hasattr(data, "read") else data)
+    )
     request = spec()
     request["demo"]["build"] = {"recipe": "npm", "arguments": ["."]}
     limits = {} if memory_bytes is None else {"memory_bytes": memory_bytes}
@@ -440,7 +448,9 @@ def test_prepare_preserves_large_config_and_task_verifier_applies_it(workspace, 
     blobs = []
     app = executor.InProcessExecutor(repo, task_boundary=True)
     app.prepared_put_url = "https://files.example/output"
-    monkeypatch.setattr(executor.URLTransport, "put", lambda self, url, data, timeout: blobs.append(data))
+    monkeypatch.setattr(
+        executor.URLTransport, "put", lambda self, url, data, timeout: blobs.append(data.read() if hasattr(data, "read") else data)
+    )
     result = app.submit("prepare_verification", request)
     assert result["status"] == "ok", result
     destination = workspace / "unpacked"
@@ -454,3 +464,64 @@ def test_prepare_preserves_large_config_and_task_verifier_applies_it(workspace, 
     observation = verify_side_task(Side(destination / "checkout", products=destination / "products"), demo, "path")
     assert observation.outcome == "observed", observation
     assert len(observation.runs) == 1
+
+
+def test_large_export_spools_to_workspace_and_excludes_caches(workspace, monkeypatch):
+    import hashlib
+    import tarfile
+
+    repo = workspace / "checkout"
+    repo.mkdir()
+    (repo / "app.py").write_text("print('safe')")
+    # Incompressible input exceeds the former 64 MiB archive cap.
+    with (repo / "large.bin").open("wb") as stream:
+        for _ in range(129):
+            stream.write(os.urandom(1024**2))
+    for directory in [".npm", ".pip", ".m2", ".composer", ".gradle", "__pycache__", ".git", "node_modules/.cache"]:
+        path = repo / "nested" / directory
+        path.mkdir(parents=True)
+        (path / "excluded").write_bytes(b"cache")
+    seen = {}
+
+    def upload(self, url, data, timeout):
+        assert not isinstance(data, bytes)
+        assert str(workspace) in os.readlink(f"/proc/self/fd/{data.fileno()}")
+        seen["size"] = os.fstat(data.fileno()).st_size
+        seen["sha256"] = hashlib.file_digest(data, "sha256").hexdigest()
+        data.seek(0)
+        with tarfile.open(fileobj=data, mode="r:gz") as archive:
+            names = archive.getnames()
+            assert "checkout/large.bin" in names
+            assert not any(name.endswith("excluded") for name in names)
+        data.seek(0)
+
+    monkeypatch.setattr(executor.URLTransport, "put", upload)
+    app = executor.InProcessExecutor(repo, task_boundary=True)
+    app.prepared_put_url = "https://files.example/output"
+    result = app.submit("prepare_verification", spec(), timeout_seconds=60)
+    assert result["status"] == "ok", result
+    assert 128 * 1024**2 < result["archive_bytes"] == seen["size"]
+    assert result["sha256"] == seen["sha256"]
+    assert verify_task.MAX_ARCHIVE_BYTES == 1024**3
+
+
+def test_export_over_cap_reports_size_and_five_relative_directories(workspace, monkeypatch):
+    repo = workspace / "checkout"
+    repo.mkdir()
+    (repo / "app.py").write_text("print('safe')")
+    for i in range(6):
+        directory = repo / f"dir{i}"
+        directory.mkdir()
+        (directory / "data").write_bytes(os.urandom(1000 * (i + 1)))
+    monkeypatch.setattr(verify_task, "MAX_ARCHIVE_BYTES", 1000)
+    monkeypatch.setattr(executor.URLTransport, "put", lambda *a: pytest.fail("oversized upload"))
+    app = executor.InProcessExecutor(repo, task_boundary=True)
+    app.prepared_put_url = "https://files.example/output"
+    result = app.submit("prepare_verification", spec())
+    assert result["status"] == "could_not_build"
+    assert str(result["archive_bytes"]) + " bytes > 1000 bytes" in result["reason"]
+    assert str(workspace) not in result["reason"]
+    assert "top 5 directories: checkout (" in result["reason"]
+    for i in range(2, 6):
+        assert f"checkout/dir{i} (" in result["reason"]
+    assert "dir0" not in result["reason"] and "dir1" not in result["reason"]

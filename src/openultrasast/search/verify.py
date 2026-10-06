@@ -113,7 +113,9 @@ def _tree(root: Path, *, generated_links: bool = False) -> str:
         digest.update(str(path.relative_to(root)).encode())
         digest.update(str(mode).encode())
         if path.is_file():
-            digest.update(path.read_bytes())
+            with path.open("rb") as stream:
+                while block := stream.read(65536):
+                    digest.update(block)
     if generated_links:
         visiting: set[Path] = set()
         visited: set[Path] = set()

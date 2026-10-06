@@ -457,3 +457,27 @@ def test_finish_wins_over_other_calls_without_executing_them(tmp_path, finish_fi
     assert result["fact"]["text"] == "Confirmed app source"
     assert worker.metrics["warnings"] == 1
     assert worker.evidence == {"tool:1"}
+
+
+def test_plain_text_gets_one_reminder_then_can_finish(tmp_path):
+    model = StubModel([{"content": "I will inspect"}, tool("finish", failure="no evidence")])
+    result = Worker(model, repo=tmp_path, demo=tmp_path / "demo", max_steps=2)(task("explore"))
+    assert result["failure"] == "no evidence"
+    assert len(model.calls) == 2
+    assert model.calls[1]["messages"][-1] == {"role": "user", "content": "Use a tool or call finish; plain text is not accepted."}
+
+
+def test_second_plain_text_records_first_300_characters(tmp_path):
+    text = "second response " * 40
+    model = StubModel([{"content": "first"}, {"content": text}])
+    result = Worker(model, repo=tmp_path, demo=tmp_path / "demo", max_steps=3)(task("explore"))
+    assert result["status"] == "execution_failure"
+    assert result["failure"] == "second plain-text reply: " + text[:300]
+    assert len(model.calls) == 2
+
+
+def test_plain_text_consumes_step(tmp_path):
+    model = StubModel([{"content": "first"}])
+    result = Worker(model, repo=tmp_path, demo=tmp_path / "demo", max_steps=1)(task("explore"))
+    assert result["end_detail"] == "worker_steps"
+    assert len(model.calls) == 1
