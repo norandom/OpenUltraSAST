@@ -66,7 +66,7 @@ class AXSideDispatcher:
             raise ValueError("verification accepts checkout and declarative inputs only")
         # The trusted host selects an executor for this side. Build/package work
         # finishes there before any verifier worker slot is acquired.
-        workload = Workload(self.image, frozenset({"VERIFY_INPUT_URL", "RESULT_URL"}), timeout_seconds * 6 + 60, validate_result)
+        workload = Workload(self.image, frozenset({"VERIFY_INPUT_URL", "RESULT_URL"}), timeout_seconds * 6 + 60, validate_result, kind="search-verify")
         lane = self.lane or AXLane(self.args, workload)
         spec = {"demo": demo, "family": family, "timeout_seconds": timeout_seconds}
         try:
@@ -79,7 +79,7 @@ class AXSideDispatcher:
             return SideRecord("could_not_build", (), 0, str(exc), isolation_mode="task-boundary")
         records = []
         for _ in range(3):
-            identity = "search-verify-" + uuid.uuid4().hex
+            identity = uuid.uuid4().hex
             item = Item(
                 identity,
                 {"VERIFY_INPUT_URL": archive},

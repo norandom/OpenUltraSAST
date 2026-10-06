@@ -501,7 +501,7 @@ def main(argv=None):
         try:
             store = open_store(args.board_memory) if args.board_memory else FileStore(root / "boards")
             if not args.dry_run:
-                lane = AXLane(args, Workload(args.image, frozenset({"VERIFY_INPUT_URL", "RESULT_URL"}), 900, validate_result))
+                lane = AXLane(args, Workload(args.image, frozenset({"VERIFY_INPUT_URL", "RESULT_URL"}), 900, validate_result, kind="search-verify"))
         except Exception as exc:
             aborted_reason = exception_reason(exc)
         for index in indices if aborted_reason is None else []:
