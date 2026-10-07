@@ -1,10 +1,72 @@
 """Offline executor boundary and mailbox protocol checks."""
 
 import json
+import subprocess
 
 import pytest
 
 from openultrasast.search.executor import MAX_RESULT_BYTES, Command, InProcessExecutor, ObjectStoreExecutor, clean_environment, serve
+
+
+@pytest.mark.parametrize("lockfile", [None, "package-lock.json", "npm-shrinkwrap.json"])
+@pytest.mark.parametrize("git_date", ["ok", "no_git", "missing", "failed", "empty", "timeout"])
+def test_npm_preparation_commit_date(tmp_path, monkeypatch, lockfile, git_date):
+    from openultrasast.search import executor
+
+    # A nested project must still use the checkout's HEAD, with its own build cwd.
+    project = tmp_path / "app"
+    project.mkdir()
+    (project / "package.json").write_text("{}")
+    (project / "index.js").write_text('console.log("ready")')
+    if lockfile:
+        (project / lockfile).write_text("{}")
+    if git_date != "no_git":
+        (tmp_path / ".git").mkdir()
+    date = "2015-06-03T12:34:56+02:00"
+    git_calls, builds = [], []
+
+    def git(argv, **kwargs):
+        git_calls.append(argv)
+        assert argv == ["git", "-C", str(project), "show", "-s", "--format=%cI", "HEAD"]
+        assert kwargs["check"] and 0 < kwargs["timeout"] <= 5
+        assert kwargs["env"] == clean_environment()
+        if git_date == "missing":
+            raise FileNotFoundError("git")
+        if git_date == "failed":
+            raise subprocess.CalledProcessError(128, argv)
+        if git_date == "timeout":
+            raise subprocess.TimeoutExpired(argv, kwargs["timeout"])
+        return subprocess.CompletedProcess(argv, 0, "  \n" if git_date == "empty" else date + "\n", "")
+
+    def build(argv, timeout, limits, *, cwd):
+        builds.append(argv)
+        assert cwd == project
+        return {"exit_code": 0, "timed_out": False, "stderr": ""}
+
+    app = InProcessExecutor(tmp_path, task_boundary=True)
+    app.prepared_put_url = "https://files.example/output"
+    monkeypatch.setattr(executor.subprocess, "run", git)
+    monkeypatch.setattr(app, "_task_run", build)
+    monkeypatch.setattr(executor.URLTransport, "put", lambda *args: None)
+    result = app.submit(
+        "prepare_verification",
+        {
+            "demo": {
+                "oracle": "path",
+                "build": {"recipe": "npm", "arguments": ["app/package.json"]},
+                "start": {"runtime": "node", "path": "app/index.js", "arguments": [], "mode": "cli"},
+                "steps": [{"type": "cli", "arguments": []}],
+            },
+            "family": "path",
+            "timeout_seconds": 2,
+        },
+    )
+    assert result["status"] == "ok", result
+    expected = ["npm", "ci" if lockfile else "install", "--ignore-scripts"]
+    if not lockfile and git_date == "ok":
+        expected += ["--before", date]
+    assert builds == [expected]
+    assert len(git_calls) == int(not lockfile and git_date != "no_git")
 
 
 def test_order_retry_stop(tmp_path):
