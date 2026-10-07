@@ -14,12 +14,30 @@ it only advises; it never blocks until you turn blocking on.
 
 ## Why this matters now
 
-You and your coding agents ship quickly. Security is not most engineers' day job,
-and an agent writing code does not pause to audit itself. A pre-push check is the
-place to catch a security regression that you, or an agent acting for you,
-introduced, before it reaches the remote. In an agent-driven workflow it is the
-oversight step: the gate that reviews what the agent wrote, every push, without
-you having to become the security reviewer.
+Your backlog is full and your schedule is not yours. Security findings compete
+with feature tickets, and a vague "possible vulnerability" loses that fight every
+time: no one gets capacity to chase a maybe. Meanwhile you and your coding agents
+ship quickly, and an agent writing code does not pause to audit itself. A
+pre-push check is the place to catch a regression that you, or an agent acting
+for you, introduced, before it reaches the remote. In an agent-driven workflow it
+is the oversight step: the gate that reviews what the agent wrote, every push,
+without you having to become the security reviewer.
+
+## From a finding to capacity
+
+The point of the proof is the prioritization conversation, not just your terminal.
+
+A theoretical warning dies in the backlog. A demonstrated proof does not: it is a
+reproducible check that triggers the problem on the current code and stops once
+the code is fixed. That is the thing you take to a product owner or to the
+business when you need capacity. It turns "security thinks this might be a
+problem" into "here is the exact input, the exact behavior, and the one-line
+difference that stops it," which is something a product owner can weigh against a
+feature with real information instead of fear.
+
+So the output is built to drop into your ticket system as evidence: a location, a
+concrete repair direction, and, where the app is runnable, the reproduction
+itself. That is what gets a fix scheduled rather than deferred.
 
 ## What you do
 

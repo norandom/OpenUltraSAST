@@ -48,7 +48,11 @@ and lane-selected. Models and spend caps stay in `.env`.
    static arm must be fast on a single diff. What is the time contract, and does
    the large-repo latency problem block it?
 2. Return contract: exactly what a coding agent gets back (findings, locations,
-   repair direction, optional proof) and how it decides pass/fail in oversight mode.
+   repair direction, optional proof) and how it decides pass/fail in oversight
+   mode. The return should be ticket-ready evidence a busy developer can paste
+   into the issue tracker to win capacity in a prioritization discussion with a
+   product owner, since a reproducible proof is what moves a security fix out of
+   the backlog.
 3. Does oversight mode need a signed/attestable result so a reviewer can trust
    that the agent actually ran the check?
 4. Reuse: the `ousast mcp` tool set already exists; which tools are enough and
