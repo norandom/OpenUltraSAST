@@ -1,0 +1,15 @@
+{
+  "record": "2026-10-07 search-with-proof: Python pair re-validation after served-root-wiring guidance fix",
+  "ceiling_usd": 1.5,
+  "pair": {"index": 13, "language": "python", "family": "path"},
+  "outcome": "inconclusive",
+  "end_detail": "run_ceiling",
+  "verify_tasks": 6,
+  "model_calls": 164,
+  "settled_usd": 1.4661,
+  "wall_seconds": 2025,
+  "false_proofs_fixed_side": 0,
+  "demo_wires_served_root": true,
+  "finding": "Served-root fix VALIDATED: the authored demo now references ${served_root} (it did not before). Still inconclusive, 0 false proofs. Two remaining issues: (1) the agent spread its budget across multiple disclosure vectors (the served-root traversal plus a separate temp-path approach) and hit the per-run ceiling (164 calls, $1.47 of $1.50) before converging on one working demo; (2) the committed demo's single traversal step did not produce a differential, so the exact traversal reaching the observable is not yet right. This is now the per-app exploit-authoring + convergence layer, the same layer the $0 local glance ceiling proof handled by a hand-authored demo.",
+  "progression": "parity -> target-aware; verify-time-only -> no explore trap; fair-share budget -> authors+verifies; served-root -> wires the served dir; remaining -> exact traversal + convergence within budget."
+}
