@@ -412,6 +412,20 @@ class InProcessExecutor:
             if recipe["recipe"] != "none":
                 path = self._path(recipe["arguments"][0])
                 argv, project = preparation_command(recipe["recipe"], path, self.repo, products)
+                if argv[:2] == ["npm", "install"] and (self.repo / ".git").exists():
+                    # Lockless old projects should resolve dependencies from their era.
+                    # Metadata is optional; unavailable git must not prevent a build.
+                    with suppress(OSError, subprocess.SubprocessError, UnicodeError):
+                        commit_date = subprocess.run(
+                            ["git", "-C", str(project), "show", "-s", "--format=%cI", "HEAD"],
+                            check=True,
+                            capture_output=True,
+                            text=True,
+                            env=clean_environment(),
+                            timeout=min(5, self._remaining()),
+                        ).stdout.strip()
+                        if commit_date:
+                            argv.extend(["--before", commit_date])
                 self.phase = "build"
                 built = self._task_run(argv, self._remaining(), {"disk_bytes": task_storage.DEFAULT_SCRATCH_BYTES, **limits}, cwd=project)
                 phases["build"] = time.monotonic() - before

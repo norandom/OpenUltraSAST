@@ -270,7 +270,8 @@ def preparation_command(recipe: str, path: Path, checkout: Path, products: Path)
             *(["-r", str(target)] if requirements else [str(target)]),
         ], project
     if recipe == "npm":
-        return ["npm", "ci" if (project / "package-lock.json").is_file() else "install", "--ignore-scripts"], project
+        locked = any((project / name).is_file() for name in ("package-lock.json", "npm-shrinkwrap.json"))
+        return ["npm", "ci" if locked else "install", "--ignore-scripts"], project
     if recipe == "composer":
         return ["composer", "install", "--no-interaction", "--no-plugins", "--no-scripts"], project
     if recipe == "maven":
