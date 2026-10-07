@@ -1,0 +1,12 @@
+{
+  "record": "2026-10-07 xiaomusic vulnerable-side search on the oracle-broadened image (prefix-bypass canary present)",
+  "image": "ghcr.io/norandom/ousast-search-task@sha256:e2c8b460...",
+  "ceiling_usd": 1.5,
+  "outcome": "inconclusive",
+  "verify_tasks": 6,
+  "model_calls": 49,
+  "settled_usd": 0.2922,
+  "false_proofs_fixed_side": 0,
+  "finding": "Oracle broadening landed in the agent: the authored demo now TARGETS the new prefix-sibling vector (references the sibling leak file) instead of the parent-only canary. But it did not demonstrate: the agent set the app's served-directory env var to a value of its OWN instead of the ${served_root} placeholder, so the app served the wrong tree and the sibling canary was outside it (unreachable). This is the served-root-wiring behaviour recurring NONDETERMINISTICALLY (a prior run did wire ${served_root}; this one did not). Cheap ($0.29), ended naturally at 49 calls, not on budget. Remaining gap = agent RELIABILITY on one demo detail: the served-directory config VALUE must be the literal ${served_root}, not the agent's explore-time test path.",
+  "progression": "oracle now covers the vuln class and the agent targets it; last-mile blocker is reliably setting the served-dir config to ${served_root}."
+}
