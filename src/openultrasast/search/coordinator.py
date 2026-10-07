@@ -274,6 +274,17 @@ class Coordinator:
                         )
                         return self._end("goal_met")
                     self.progress["failures"].append({"task_id": result["task_id"], "reason": "not_demonstrated"})
+                    if result.get("control_observed") is False and not any(h["id"] == "served-root" for h in self.state["hints"]):
+                        self.state["hints"].append(
+                            dict(
+                                id="served-root",
+                                step="verify",
+                                task_id=result["task_id"],
+                                text="The application did not serve the oracle root: its served-directory configuration "
+                                "(argument, environment variable, or config file) must be set to the ${served_root} "
+                                "placeholder itself, not a real path or an explore-time test directory.",
+                            )
+                        )
                 elif intent is not None:
                     result = self._call("explore", {"intent_id": intent["id"], "description": intent["description"]})
                     intent["status"] = "concluded"

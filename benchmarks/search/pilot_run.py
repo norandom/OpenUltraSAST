@@ -328,7 +328,13 @@ class Pilot:
                 if result.outcome != "demonstrated":
                     self.failure("verify", "no_consistent_differential" if result.outcome == "inconclusive" else result.outcome)
                 end = result.outcome
-                return dict(status="ok", outcome=result.outcome, evidence_refs=["verify:owned"], cost_usd=0)
+                return dict(
+                    status="ok",
+                    outcome=result.outcome,
+                    evidence_refs=["verify:owned"],
+                    cost_usd=0,
+                    control_observed=result.sides[0].control_observed if result.sides else None,
+                )
             if task.step == "explore":
                 if self.args.dry_run:
                     self.worker.executor = InProcessExecutor(self.sides[0 if self.args.side == "vulnerable" else 1].checkout)

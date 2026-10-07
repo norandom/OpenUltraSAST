@@ -350,6 +350,30 @@ def test_fixed_effect_reporting_is_independent_of_differential(tmp_path, monkeyp
     assert pilot.record["fixed_effect_observed"] is expected
 
 
+@pytest.mark.parametrize("control_observed", [False, True, None])
+@pytest.mark.parametrize("with_sides", [False, True])
+def test_verify_dispatch_returns_affected_control_signal(tmp_path, monkeypatch, control_observed, with_sides):
+    from dataclasses import asdict
+
+    from openultrasast.search.budget import SearchBudget
+    from openultrasast.search.coordinator import SearchTask
+    from openultrasast.search.verify import SideRecord, VerificationRecord
+
+    pilot = make_pilot(tmp_path)
+    affected = SideRecord("observed", (), 0, "completed", control_observed=control_observed)
+    comparator = SideRecord("observed", (), 0, "completed", control_observed=control_observed is not True)
+    result = VerificationRecord("inconclusive", (affected, comparator) if with_sides else (), 0, "no differential")
+    monkeypatch.setattr(pilot, "verification", lambda limits: result)
+    task = SearchTask("task-1", "search-1", "verify", "", {}, asdict(SearchBudget()))
+    assert pilot.dispatch(task) == {
+        "status": "ok",
+        "outcome": "inconclusive",
+        "evidence_refs": ["verify:owned"],
+        "cost_usd": 0,
+        "control_observed": control_observed if with_sides else None,
+    }
+
+
 def test_vm_preflight_refuses_before_client_or_store(tmp_path, monkeypatch):
     from benchmarks.search import pilot_run
 
