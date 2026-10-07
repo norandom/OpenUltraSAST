@@ -81,7 +81,24 @@ in a **gVisor-isolated** corpus, to demonstrate a regression before push. Guardr
    scratch/egress limits), or does it need a new task kind?
 5. Cost envelope per proof vs the current DeepSeek authoring.
 
+## OpenCode MCP as the endpoint for both PoC and fix
+
+Maintainer note (2026-10-07): OpenCode MCP is a good server endpoint for the PoC **and** the fix,
+not only proof authoring. The same agentic endpoint can:
+
+1. Author the PoC (the demonstrated proof) for a caught finding.
+2. Write a candidate fix against the finding's repair direction and the failing PoC.
+3. Hand the fix back to the differential verifier, which re-runs the PoC and confirms absence
+   (the proof flips from failing to passing).
+
+This turns the "no auto-patch" gap in `../../../docs/use-case-fix-and-reverify.md` into "the proof
+endpoint also proposes the fix, and the fix is accepted only when the proof it generated goes green."
+The PoC is the acceptance test for the fix, so a wrong fix is caught, not trusted. The fix stays a
+proposal for the developer to review; the verifier's green proof is the objective signal, not the
+model's say-so. This fix capability is specced alongside the proof authoring when this arm is built.
+
 ## Not in scope
 
 Changing the search arm, the oracle differential, or the abstract-interpretation triage. This brief
-is only about the **proof-authoring** driver and its learning loop.
+is about the **proof-authoring and fix** driver and its learning loop, planned as a full spec after
+the safety net is qualified.
