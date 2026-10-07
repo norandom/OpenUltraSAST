@@ -1,0 +1,22 @@
+{
+  "record": "2026-10-07 FIRST CLUSTER DEMONSTRATION for search-with-proof",
+  "pair": {"index": 13, "repo": "hanxi/xiaomusic", "family": "path", "class": "prefix-check-bypass (startswith without separator)", "language": "python"},
+  "image": "ghcr.io/norandom/ousast-search-task@sha256:e2c8b460...",
+  "side": "vulnerable",
+  "outcome": "demonstrated",
+  "verify_tasks": 18,
+  "model_calls": 55,
+  "settled_usd": 0.3686,
+  "wall_seconds": 2170,
+  "false_proofs_fixed_side": 0,
+  "demo_wires_served_root": true,
+  "finding": "The agent autonomously produced a demonstrated finding on a real CVE fix-pair end to end on the kube-ax cluster: it found the prefix-bypass sink, wired the app's served directory to ${served_root} (prompted by the new served-root control-signal hint after an earlier mis-wire), targeted the oracle's prefix-sibling canary, and the differential verifier confirmed the owned effect on the vulnerable revision and its absence on the fixed revision. Cost $0.37, 55 model calls.",
+  "fix_chain_that_enabled_it": [
+    "parity: agent targets the observable",
+    "verify-time-only: no explore reachability trap",
+    "fair-share budget: authors+verifies within budget",
+    "served-root guidance: wire the served dir to ${served_root}",
+    "oracle prefix-bypass coverage: sibling canary for startswith-without-separator vulns",
+    "control-signal feedback: served-root hint so the agent self-corrects wiring"
+  ]
+}
