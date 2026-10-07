@@ -1,0 +1,10 @@
+{
+  "feature_name": "mcp-shift-left-agent",
+  "created_at": "2026-10-07T15:10:00Z",
+  "updated_at": "2026-10-07T15:10:00Z",
+  "language": "en",
+  "phase": "brief",
+  "approvals": {"requirements": {"generated": false, "approved": false}, "design": {"generated": false, "approved": false}, "tasks": {"generated": false, "approved": false}},
+  "ready_for_implementation": false,
+  "summary": "MCP agent + skills so developers and coding agents get the safety net's feedback early (shift-left, in-editor) and so a coding agent can be required to pass a security check before it ships. Delivery surface after G0-G5 qualification; builds on the existing ousast mcp server."
+}
