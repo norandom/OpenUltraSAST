@@ -1,0 +1,14 @@
+{
+  "record": "2026-10-07 search-with-proof: Python pair re-validation of the per-search fair-share budget fix",
+  "ceiling_usd": 1.5,
+  "pair": {"index": 13, "language": "python", "family": "path"},
+  "outcome": "inconclusive",
+  "end_detail": "demonstrations",
+  "verify_tasks": 18,
+  "model_calls": 98,
+  "settled_usd": 0.7411,
+  "wall_seconds": 2722,
+  "false_proofs_fixed_side": 0,
+  "finding": "Budget fix VALIDATED: with a fair per-search share the Python agent completed the full loop and ran 18 verify tasks (0 before), authoring and verifying demos within budget. Still inconclusive ('no consistent differential'), zero false proofs. Structural root cause confirmed from the authored demo: it does NOT reference ${served_root} anywhere; the agent set the app's served-directory config (an app env var) to a value of its own rather than to the oracle placeholder ${served_root}, so the app served the wrong tree and the planted observable (which lives relative to ${served_root}) was never reachable. Next guidance lever: require the agent to point the application's served/root directory at ${served_root} (via arg, env, or config) for the path oracle, so the observable is in the served tree.",
+  "progression": "parity fix -> agent targets observable; verify-time-only fix -> agent stops the explore reachability trap; budget fair-share -> agent authors+verifies within budget; remaining -> wire served dir to ${served_root}."
+}
