@@ -1,0 +1,58 @@
+{
+  "record": "2026-10-07 search-with-proof validation of the explore-time reachability-trap fix (path family, vulnerable, cluster)",
+  "compares_against": "benchmarks/measurements/2026-10-06-search-pilot-path",
+  "ceiling_usd": 2.0,
+  "searches": [
+    {
+      "pair_index": 9,
+      "language": "typescript",
+      "outcome": "inconclusive",
+      "end_reason": "budget_spent",
+      "end_detail": "reason_rounds",
+      "model_calls": 170,
+      "verify_tasks": 2,
+      "settled_usd": 1.6032,
+      "wall_seconds": 2281,
+      "failure_classes": [
+        {
+          "phase": "explore",
+          "class": "valueerror fact requires tool evidence"
+        },
+        {
+          "phase": "verify/could_not_build",
+          "class": "runtime entry missing from checkout"
+        },
+        {
+          "phase": "verify/could_not_build",
+          "class": "runtime entry missing from checkout"
+        },
+        {
+          "phase": "verify",
+          "class": "no consistent differential"
+        }
+      ]
+    },
+    {
+      "pair_index": 13,
+      "language": "python",
+      "outcome": "plausible_unproven",
+      "end_reason": "budget_spent",
+      "end_detail": "run_ceiling",
+      "model_calls": 36,
+      "verify_tasks": 0,
+      "settled_usd": 0.3418,
+      "wall_seconds": 254,
+      "failure_classes": []
+    }
+  ],
+  "aggregate": {
+    "outcomes": {
+      "inconclusive": 1,
+      "plausible_unproven": 1
+    },
+    "demonstrations": 0,
+    "false_proofs_fixed_side": 0,
+    "settled_usd": 1.945
+  },
+  "finding": "Trap fix validated behaviourally. TypeScript pair 9: now AUTHORS a demo (verify_tasks 0->2) where it wrote none before; the demo fails could_not_build ('runtime entry missing from checkout') -- an entrypoint/build issue, same class as the php pair. Python pair 13: no longer burns budget on the reachability dead-end (calls 118->36, $1.17->$0.34); its board shows efficient directed analysis that traced the full route-to-sink path and the app entrypoint, but it hit the per-run budget ceiling (run_ceiling) before authoring/verifying a demo. Still 0 demonstrations, 0 false proofs. Remaining blockers: (1) per-run budget/step allocation leaves no room to author+verify after analysis; (2) demo entrypoint/build (start.path) for compiled/served apps (ts, php)."
+}
