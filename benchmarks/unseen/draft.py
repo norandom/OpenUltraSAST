@@ -219,7 +219,7 @@ def inputs(used, seed, known_empty, clones):
         "used_set_digest": digest({label: sorted(names) for label, names in used.sources.items()}),
         "known_empty": sorted(known_empty),
         "clone_limit_bytes": getattr(clones, "limit_bytes", 500 * 1024 * 1024),
-        "journal_version": 1,
+        "journal_version": 2,
     }
     # Hardcoded design thresholds and algorithms are covered as well as taxonomy data.
     for name in ("draft", "source", "extract", "eligibility", "journal"):
@@ -235,7 +235,7 @@ def enumerate_advisories(github, journal):
         if key not in journal.rows["advisories"]:
             journal.boundary()
             result = github.advisory_page(page)
-            journal.put("advisories", key, result)
+            journal.put("advisories", key, {"rows": [source.reduce_advisory(row) for row in result["rows"]], "done": result["done"]})
         result = journal.rows["advisories"][key]
         records.update((row["ghsa_id"], row) for row in result["rows"])
         if result["done"]:

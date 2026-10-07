@@ -525,3 +525,89 @@ def test_journal_fsync_lock_and_corruption(tmp_path, monkeypatch):
         handle.write(b'{"id":')
     with pytest.raises(ValueError, match="journal_incomplete_record"), j.Journal(path).open({"seed": 1}):
         pass
+
+
+def test_advisory_journal_reduces_nested_blobs_and_resumes_by_page(tmp_path):
+    import json
+
+    raw = json.loads((Path(__file__).resolve().parents[1] / "benchmarks/unseen/fixtures/advisory.json").read_bytes())
+    expected = copy.deepcopy(raw)
+    raw.update(description="raw advisory blob" * 10000, cvss={"vector_string": "unused"})
+    raw["cwes"][0]["name"] = "unused CWE description"
+    raw["vulnerabilities"][0].update(vulnerable_version_range="unused", first_patched_version={"identifier": "unused"})
+    raw["vulnerabilities"][0]["package"]["url"] = "https://example.invalid/unused"
+    raw["references"] = [{"url": raw["references"][0], "type": "FIX"}, {"url": "https://example.invalid/unused"}]
+
+    class Pages:
+        calls = []
+
+        def advisory_page(self, page):
+            self.calls.append(page)
+            return {"rows": [raw], "done": True, "unused": "raw page blob"}
+
+    api, used = Pages(), e.UsedSet()
+    parameters = d.inputs(used, 1, set(used.sources), FakeClones())
+    path = tmp_path / "journal"
+    with d.Journal(path).open(parameters) as journal:
+        rows = d.enumerate_advisories(api, journal)
+        assert rows == [expected]
+    saved = json.loads((path / "advisories.jsonl").read_bytes())
+    assert saved["value"] == {"rows": [expected], "done": True}
+    assert b"unused" not in (path / "advisories.jsonl").read_bytes()
+    assert b"raw advisory blob" not in (path / "advisories.jsonl").read_bytes()
+    assert b"raw page blob" not in (path / "advisories.jsonl").read_bytes()
+    with d.Journal(path).open(parameters) as journal:
+        resumed = d.enumerate_advisories(api, journal)
+    assert api.calls == [1] and resumed == rows
+
+    class Bracket(FakeOSV):
+        def get(self, identifier):
+            return {
+                "affected": [
+                    {"package": {"ecosystem": "PyPI", "name": "fixture"}, "ranges": [{"type": "SEMVER", "events": [{"introduced": "1.2"}]}]}
+                ]
+            }
+
+    decision = d.decide(resumed[0], FakeAPI(), Bracket(), used, set())
+    candidate = s.Candidate(**decision["candidate"])
+    assert candidate.repository == "fixture/project"
+    assert candidate.fix == "a" * 40 and candidate.parent == "b" * 40
+    assert candidate.first_affected == "1.2" and candidate.post_cutoff and candidate.family == "injection"
+    assert s.candidate(raw, FakeAPI(), Bracket()) == candidate
+
+
+def test_reduced_advisories_preserve_all_fix_exclusions_and_selection():
+    rows = list(FakeAPI(2).advisories())
+    rows[0].update(published_at="2018-01-01", type="unreviewed", withdrawn_at="2020-01-01", cwes=[])
+    rows[0]["references"].append("https://github.com/fixture/project001/commit/" + "c" * 40)
+    rows[0]["vulnerabilities"].append({"package": {"ecosystem": "rubygems", "name": "other"}})
+    reduced = [s.reduce_advisory(row) for row in rows]
+    assert (
+        d.advisory_index(reduced, FakeAPI())
+        == d.advisory_index(rows, FakeAPI())
+        == {"fixture/project000": {"a" * 40}, "fixture/project001": {"a" * 40, "c" * 40}}
+    )
+    assert [r["ghsa_id"] for r in s.ordered_advisories(rows, 7)] == [r["ghsa_id"] for r in s.ordered_advisories(reduced, 7)]
+    for key, value, reason in [
+        ("published_at", "2018-01-01", "date"),
+        ("type", "unreviewed", "advisory_status"),
+        ("withdrawn_at", "2026-01-01", "advisory_status"),
+        ("cwes", [], "family"),
+    ]:
+        raw = {**rows[1], key: value}
+        with pytest.raises(s.Rejected, match=f"^{reason}$"):
+            s.candidate(s.reduce_advisory(raw), FakeAPI(), FakeOSV())
+
+
+def test_old_raw_advisory_journal_version_refused_before_calls(tmp_path):
+    used, api, osv, clones = e.UsedSet(), FakeAPI(1), FakeOSV(), FakeClones()
+    path = tmp_path / "journal"
+    parameters = d.inputs(used, 7, set(used.sources), clones)
+    assert parameters["journal_version"] == 2
+    with d.Journal(path).open({**parameters, "journal_version": 1}) as journal:
+        journal.put("advisories", "1", {"rows": list(api.advisories()), "done": True})
+    report = d.run(
+        tmp_path / "repo", github=api, osv=osv, clones=clones, used=used, seed=7, known_empty=set(used.sources), journal_path=path
+    )
+    assert report["status"] == "resume_refused" and report["changed_parameters"] == ["journal_version"]
+    assert api.calls == osv.calls == 0 and clones.counts == {}

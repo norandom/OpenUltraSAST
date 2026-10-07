@@ -61,6 +61,23 @@ def ecosystem(row: dict) -> str | None:
     return next((e for e in ECOSYSTEMS if e in values), None)
 
 
+def reduce_advisory(row: dict) -> dict:
+    """Keep only selection inputs, including every fix needed by the exclusion index.
+
+    Preserve the parser's shape so fresh and resumed pages follow the same path.
+    Commit parents, licenses and OSV brackets are resolved later into Candidate.
+    """
+    return {
+        "ghsa_id": row["ghsa_id"],
+        "published_at": row["published_at"],
+        "type": row.get("type", "reviewed"),
+        "withdrawn_at": row.get("withdrawn_at"),
+        "cwes": [{"cwe_id": c["cwe_id"]} for c in row.get("cwes", [])],
+        "vulnerabilities": [{"package": {key: v["package"][key] for key in ("ecosystem", "name")}} for v in row.get("vulnerabilities", [])],
+        "references": [f"https://github.com/{name}/commit/{sha}" for name, sha in sorted(fix_links(row))],
+    }
+
+
 def ordered_advisories(rows: list[dict], seed: int) -> list[dict]:
     """Stable seeded ordering, post-cutoff first in each ecosystem; round-robin strata."""
     rng = random.Random(seed)
@@ -166,14 +183,17 @@ class JSONTransport:
         self.rate_limit = {}
 
     def get(self, url: str, headers: dict) -> object:
-        from urllib.error import HTTPError
+        from http.client import IncompleteRead
+        from urllib.error import HTTPError, URLError
         from urllib.request import Request
 
         for attempt in range(5):
             self.attempts += 1
+            retry_headers, limited = {}, False
             try:
                 with self.opener(Request(url, headers=headers), timeout=60) as response:
-                    self.record_rate(getattr(response, "headers", {}))
+                    retry_headers = getattr(response, "headers", {})
+                    self.record_rate(retry_headers)
                     return json.load(response)
             except HTTPError as exc:
                 self.record_rate(exc.headers)
@@ -185,18 +205,22 @@ class JSONTransport:
                 transient = exc.code in {500, 502, 503, 504}
                 if attempt == 4 or not (limited or transient):
                     raise ValueError("http_failure") from None
-                try:
-                    delay = float(exc.headers.get("Retry-After", "0"))
-                    if limited and not delay:
-                        delay = max(60, float(exc.headers.get("X-RateLimit-Reset", "0")) - self.clock() + 1)
-                    delay = max(delay, 2**attempt)
-                    if delay > 3605:
-                        raise ValueError("retry_window")
-                except (TypeError, ValueError):
-                    raise ValueError("http_retry_failed") from None
-                self.sleeper(delay)
+                retry_headers = exc.headers
+            except (URLError, TimeoutError, ConnectionError, IncompleteRead, json.JSONDecodeError):
+                if attempt == 4:
+                    raise ValueError("http_failure") from None
             except Exception:
                 raise ValueError("http_failure") from None
+            try:
+                delay = float(retry_headers.get("Retry-After", "0"))
+                if limited and not delay:
+                    delay = max(60, float(retry_headers.get("X-RateLimit-Reset", "0")) - self.clock() + 1)
+                delay = max(delay, 2**attempt)
+                if delay > 3605:
+                    raise ValueError("retry_window")
+            except (TypeError, ValueError):
+                raise ValueError("http_retry_failed") from None
+            self.sleeper(delay)
         raise ValueError("http_failure")
 
     def record_rate(self, headers):

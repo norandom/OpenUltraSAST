@@ -180,3 +180,94 @@ def test_transport_rate_limit_retry_and_sanitized_failure():
     with pytest.raises(ValueError, match="^http_failure$"):
         transport.get("https://example.invalid", {})
     assert transport.attempts == 5
+
+
+@pytest.mark.parametrize("failures", [1, 3, 4, 5, 7])
+@pytest.mark.parametrize("kind", ["url", "timeout", "connection", "reset", "incomplete", "json"])
+def test_transport_connection_and_body_transients(kind, failures):
+    import io
+    from http.client import IncompleteRead
+    from urllib.error import URLError
+
+    errors = {
+        "url": URLError("private endpoint"),
+        "timeout": TimeoutError("private endpoint"),
+        "connection": ConnectionError("private endpoint"),
+        "reset": ConnectionResetError("private endpoint"),
+        "incomplete": IncompleteRead(b"private partial body", 100),
+    }
+    waits, calls = [], []
+
+    class BrokenBody(io.BytesIO):
+        def read(self, *args):
+            raise errors[kind]
+
+    def opener(request, timeout):
+        calls.append(request)
+        if len(calls) <= failures:
+            if kind == "json":
+                return io.BytesIO(b'{"private":')  # exercise json.load, not just the opener
+            if kind == "incomplete":
+                return BrokenBody()
+            raise errors[kind]
+        return io.BytesIO(b'{"ok": true}')
+
+    transport = s.JSONTransport(opener=opener, sleeper=waits.append)
+    if failures >= 5:
+        with pytest.raises(ValueError, match="^http_failure$"):
+            transport.get("https://example.invalid", {})
+    else:
+        assert transport.get("https://example.invalid", {}) == {"ok": True}
+    assert transport.attempts == len(calls) == min(failures + 1, 5)
+    assert waits == [2**i for i in range(min(failures, 4))]
+
+
+@pytest.mark.parametrize("code", [400, 401, 403, 404, 422])
+def test_transport_nonretryable_http_status(code):
+    from urllib.error import HTTPError
+
+    waits = []
+
+    def opener(request, timeout):
+        raise HTTPError(request.full_url, code, "private endpoint", {}, None)
+
+    transport = s.JSONTransport(opener=opener, sleeper=waits.append)
+    error, message = (s.RepositoryNotFound, "not_found") if code == 404 else (ValueError, "http_failure")
+    with pytest.raises(error, match=f"^{message}$"):
+        transport.get("https://example.invalid", {})
+    assert transport.attempts == 1 and waits == []
+
+
+@pytest.mark.parametrize("code", [403, 429, 500, 502, 503, 504])
+@pytest.mark.parametrize("retry_after", ["7", "invalid", "3606"])
+def test_transport_http_retry_after_and_window_guard(code, retry_after):
+    import io
+    from urllib.error import HTTPError
+
+    waits, calls = [], []
+
+    def opener(request, timeout):
+        calls.append(request)
+        if len(calls) == 1:
+            raise HTTPError(request.full_url, code, "private endpoint", {"Retry-After": retry_after}, None)
+        return io.BytesIO(b"{}")
+
+    transport = s.JSONTransport(opener=opener, sleeper=waits.append)
+    if retry_after == "7":
+        assert transport.get("https://example.invalid", {}) == {}
+        assert waits == [7] and transport.attempts == 2
+    else:
+        with pytest.raises(ValueError, match="^http_retry_failed$"):
+            transport.get("https://example.invalid", {})
+        assert waits == [] and transport.attempts == 1
+
+
+def test_transport_decode_retry_respects_response_retry_after():
+    import io
+
+    waits = []
+    responses = [io.BytesIO(b'{"truncated":'), io.BytesIO(b"{}")]
+    responses[0].headers = {"Retry-After": "9"}
+    transport = s.JSONTransport(opener=lambda *a, **kw: responses.pop(0), sleeper=waits.append)
+    assert transport.get("https://example.invalid", {}) == {}
+    assert waits == [9]
