@@ -92,6 +92,10 @@ class PathOracle(OutputOracle):
         (canary.root / "public").mkdir()
         (canary.root / "canary").write_text(canary.nonce)
         (canary.root / "canary").chmod(0o600)
+        # Parent canary covers classic traversal; this sibling covers prefix checks
+        # using startswith without a separator.
+        (canary.root / "public_leak").write_text(canary.nonce)
+        (canary.root / "public_leak").chmod(0o600)
         # A benign in-root control file, distinct from the out-of-root secret, so a
         # correctly serving app returns it on BOTH revisions without any traversal.
         # Drawn from os.urandom, not secrets.token_hex, so it never perturbs callers
