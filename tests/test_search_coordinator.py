@@ -32,6 +32,48 @@ def test_reason_explore_verify_and_resume(tmp_path):
     assert len(calls) == 3
 
 
+@pytest.mark.parametrize("control_observed", [False, True, None])
+@pytest.mark.parametrize("outcome", ["inconclusive", "demonstrated"])
+def test_served_root_hint_is_advisory_and_deduplicated(tmp_path, control_observed, outcome):
+    import yaml
+
+    verifications = []
+    reason_hints = []
+
+    def execute(task):
+        if task.step == "reason":
+            reason_hints.append(yaml.safe_load(task.snapshot)["hints"])
+            descriptions = ["inspect startup configuration", "construct corrected demo"]
+            intents = [{"description": descriptions[len(verifications)]}] if len(verifications) < 2 else []
+            return {"status": "ok", "cost_usd": 0, "intents": intents, "complete": not intents}
+        if task.step == "explore":
+            return {"status": "ok", "cost_usd": 0, "fact": {"text": "candidate", "evidence_refs": ["capture:1"], "demo": "demo:1"}}
+        verifications.append(task.id)
+        return {"status": "ok", "cost_usd": 0, "outcome": outcome, "evidence_refs": ["verify:1"], "control_observed": control_observed}
+
+    b = board(tmp_path)
+    state = Coordinator(b, execute).run()
+    hints = [hint for hint in state["hints"] if hint["id"] == "served-root"]
+    if outcome == "inconclusive":
+        assert len(verifications) == 2
+        assert state["end_reason"] == "exhausted"
+        assert state["checkpoint"]["failures"] == [{"task_id": task_id, "reason": "not_demonstrated"} for task_id in verifications]
+    else:
+        assert len(verifications) == 1
+        assert state["end_reason"] == "goal_met"
+        assert not state["checkpoint"]["failures"]
+    if control_observed is False and outcome == "inconclusive":
+        assert len(hints) == 1
+        assert hints[0]["step"] == "verify" and hints[0]["task_id"] == verifications[0]
+        assert "${served_root}" in hints[0]["text"]
+        assert "argument, environment variable, or config file" in hints[0]["text"]
+        assert reason_hints == [[], hints, hints]
+    else:
+        assert not hints
+        assert all(not snapshot_hints for snapshot_hints in reason_hints)
+    assert Board.resume(b.store, "search-1", b.head, coordinator="host").state == state
+
+
 def test_reason_claim_cannot_prove_goal(tmp_path):
     result = Coordinator(board(tmp_path), lambda task: {"status": "ok", "cost_usd": 0, "complete": True, "facts": []}).run()
     assert result["end_reason"] == "exhausted"
