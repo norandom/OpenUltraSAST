@@ -113,3 +113,18 @@ gates, runs every networked or paid step.
   Ruff and changed-source mypy pass; audit: 166 load-bearing, six standalone, zero orphaned.
   No network or commits. The requested main merge could not update read-only Git metadata; HEAD and main
   had identical file trees. Live AX/Docker executor smoke and oracle probes remain unmeasured.
+
+- **FIRST CLUSTER DEMONSTRATION (2026-10-07) — pilot is live (6.2/6.3 in progress).** search-with-proof produced its
+  first autonomous `demonstrated` finding end to end on kube-ax: pair 13 (hanxi/xiaomusic, path, prefix-check-bypass
+  class), vulnerable side `demonstrated` (3/3 affected, 0/3 safe, $0.37), fixed side blind negative `inconclusive`
+  with 0 false proofs ($0.56); pair total $1.22, image e2c8b460. Record:
+  `benchmarks/measurements/2026-10-07-search-first-cluster-demonstration/`. This closes the handoff's open question.
+  The infra probe (3.2) passed earlier; the pilot (6.x) has run many times. Enabling fix chain, each merged + paid-run
+  validated: (1) parity (name the observable to the agent), (2) verify-time-only (observable injected at verify time,
+  absent in exploration — ends the explore reachability trap), (3) fair-share pilot budget (no starvation across
+  searches), (4) served-root guidance (demo MUST serve `${served_root}`), (5) oracle prefix-bypass coverage (sibling
+  canary for `startswith`-without-separator path traversal), (6) control-signal feedback (served-root hint so the
+  agent self-corrects wiring). Plus the keystone (positive control → `could_not_run`, never a silent clean-looking
+  `inconclusive`). NEXT: fan out the path family to ≥5 demonstrations / 0 false proofs (6.2 exit), then the
+  ≥73-negative BLOCK qualification (6.3). glance (classic traversal) also demonstrates once its npm `filed`→`mime@4`
+  build-break is pinned.

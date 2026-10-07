@@ -1,6 +1,12 @@
 {
   "record": "2026-10-07 FIRST CLUSTER DEMONSTRATION for search-with-proof",
-  "pair": {"index": 13, "repo": "hanxi/xiaomusic", "family": "path", "class": "prefix-check-bypass (startswith without separator)", "language": "python"},
+  "pair": {
+    "index": 13,
+    "repo": "hanxi/xiaomusic",
+    "family": "path",
+    "class": "prefix-check-bypass (startswith without separator)",
+    "language": "python"
+  },
   "image": "ghcr.io/norandom/ousast-search-task@sha256:e2c8b460...",
   "side": "vulnerable",
   "outcome": "demonstrated",
@@ -18,5 +24,23 @@
     "served-root guidance: wire the served dir to ${served_root}",
     "oracle prefix-bypass coverage: sibling canary for startswith-without-separator vulns",
     "control-signal feedback: served-root hint so the agent self-corrects wiring"
-  ]
+  ],
+  "both_sides": {
+    "vulnerable": {
+      "outcome": "demonstrated",
+      "settled_usd": 0.3686,
+      "verify_tasks": 18,
+      "model_calls": 55
+    },
+    "fixed_blind_negative": {
+      "outcome": "inconclusive",
+      "false_proof": false,
+      "settled_usd": 0.5632,
+      "verify_tasks": 18,
+      "model_calls": 85,
+      "note": "Agent searched the FIXED (safe) revision blind (no vuln knowledge); authored demos but the verifier found no effect -> no false proof (Req 6.3 negative)."
+    },
+    "pair_total_settled_usd": 1.224,
+    "verdict": "True positive on the vulnerable revision, zero false proof on the fixed revision."
+  }
 }

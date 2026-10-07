@@ -131,3 +131,12 @@ manifest; without a subtype verification returns `no_oracle`. No subtype is gues
 from repository names. The selected manifest's pair 1 currently lacks this metadata.
 Live transport, provider authentication/cost, real project buildability, and AX
 oracle operation must still be measured; an offline probe cannot establish them.
+
+## Status (2026-10-07)
+
+The feasibility pilot achieved its first cluster `demonstrated` finding (xiaomusic, path /
+prefix-check-bypass): vulnerable side demonstrated, fixed side blind search produced no
+false proof. See `benchmarks/measurements/2026-10-07-search-first-cluster-demonstration/`.
+Outcomes and spend are aggregates only; stored demos and boards stay in the gitignored
+`benchmarks/search/private/` area. Pilot exit (≥5 demonstrations / 0 false proofs per
+family) and the ≥73-negative BLOCK qualification remain open.

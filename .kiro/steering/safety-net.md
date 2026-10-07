@@ -142,3 +142,19 @@ promising but does not qualify security queries or hook latency. The contributor
 vendor/correspondence completeness vetoes, and query-to-operation identity as the next
 shared-contract work. Resolving a boundary requires evidence of its relevance and scope;
 do not simply drop completeness checks to increase admissions. Rollout remains NO-GO.
+
+On 2026-10-07, the **search-with-proof** arm reached its first milestone: an autonomous,
+execution-backed `demonstrated` finding end to end on the kube-ax cluster. On a real CVE
+fix-pair (hanxi/xiaomusic, path traversal of the prefix-check-bypass class), the agent
+found the vulnerability, authored a declarative demo, and the differential verifier
+confirmed the owned effect on the vulnerable revision and its absence on the fixed one;
+a blind search of the fixed revision produced zero false proofs. This is the proof-based
+BLOCK mechanism the maintainer directed after classification hit a precision wall: a BLOCK
+rests on a demonstrated finding with a direct execution trace, not a confidence score.
+Scope note: this is feasibility-pilot evidence on a development-corpus pair (known location,
+labelled family, runnable-project selection bias), not release readiness. The pilot exit
+(≥5 demonstrations in one family with 0 false proofs, Req 6.2) and the ≥73-negative BLOCK
+qualification (Req 6.3) remain open, and no capability is enabled. The decision/classification
+engine is retained as a triage ranker (it could not prove 95% precision as a gatekeeper);
+proof is the BLOCK gate. See `search-with-proof/HANDOFF.md` and
+`benchmarks/measurements/2026-10-07-search-first-cluster-demonstration/`.
