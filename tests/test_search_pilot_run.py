@@ -67,6 +67,79 @@ def test_ceiling_refuses_before_stub_call(tmp_path):
     assert record["task_metrics"][0]["end"] == "run_ceiling"
 
 
+@pytest.mark.parametrize(
+    "ceiling,first_spend,allocations",
+    [(2.0, 0.25, [1.0, 1.75]), (2.0, 1.0, [1.0, 1.0]), (0.0, 0.0, [0.0, 0.0])],
+)
+def test_driver_allocates_fair_share_with_settled_rollover(tmp_path, monkeypatch, ceiling, first_spend, allocations):
+    from types import SimpleNamespace
+
+    from benchmarks.search import pilot_run
+    from openultrasast.plane.budget import BudgetExhausted
+
+    monkeypatch.chdir(tmp_path)
+    root = Path("benchmarks/search/private")
+    root.mkdir(parents=True)
+    row = dict(
+        repo="https://github.com/private/project",
+        vulnerable="a" * 40,
+        fixed="b" * 40,
+        family="path",
+        language="python",
+        file="app.py",
+        function="main",
+    )
+    (root / "pilot.json").write_text(json.dumps({"pairs": [row] * 3}))
+    monkeypatch.setattr(pilot_run, "load_dotenv", lambda: None)
+    monkeypatch.setenv(pilot_run.DEEPSEEK_KEY_ENV, "fake-test-key")
+    monkeypatch.setattr(pilot_run, "OpenRouterChatClient", lambda **kw: SimpleNamespace(max_attempts=1))
+    monkeypatch.setattr(pilot_run, "AXLane", lambda *args: object())
+    budgets = []
+
+    def run(pilot):
+        budget = pilot.worker.run_budget
+        share = allocations[len(budgets)]
+        assert all(budget is not previous for previous in budgets)
+        assert budget.spent == budget.reserved == 0
+        # Prove the cap through admission, then settle less than reserved to test rollover.
+        with pytest.raises(BudgetExhausted):
+            budget.reserve(share + 0.01)
+        reservation = budget.reserve(share)
+        reservation.settle(first_spend if not budgets else share)
+        budgets.append(budget)
+        pilot.record.update(spend={"reserved": share, "settled": budget.spent}, model_calls=0, tokens_in=0, tokens_out=0)
+        return pilot.record
+
+    monkeypatch.setattr(pilot_run.Pilot, "run", run)
+    output = tmp_path / "records.jsonl"
+    assert (
+        main(
+            [
+                "--side",
+                "vulnerable",
+                "--pairs",
+                "2,0",
+                "--ceiling-usd",
+                str(ceiling),
+                "--verify-lane",
+                "ax",
+                "--image",
+                "image@sha256:" + "a" * 64,
+                "--out",
+                str(output),
+            ]
+        )
+        == 0
+    )
+    first, second, summary = [json.loads(line) for line in output.read_text().splitlines()]
+    assert [first["pair_index"], second["pair_index"]] == [2, 0]
+    assert len(budgets) == summary["searches"] == 2
+    assert second["spend"]["settled"] == pytest.approx(allocations[1])
+    total = sum(record["spend"]["settled"] for record in (first, second))
+    assert summary["spend"]["settled"] == total <= ceiling
+    assert total == pytest.approx(ceiling)
+
+
 def make_pilot(tmp_path, *, side="fixed", dry_run=False):
     from argparse import Namespace
 

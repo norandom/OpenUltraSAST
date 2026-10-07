@@ -419,7 +419,7 @@ def main(argv=None):
     args = parser.parse_args(argv)
     if not math.isfinite(args.ceiling_usd) or args.ceiling_usd < 0:
         parser.error("ceiling must be finite and nonnegative")
-    run_budget = SpendBudget(args.ceiling_usd)
+    remaining_ceiling = args.ceiling_usd
     if not re.fullmatch(r"\d+(,\d+)*", args.pairs) or args.max_tokens < 1:
         parser.error("pairs must be comma-separated nonnegative indices; max tokens must be positive")
     indices = [int(i) for i in args.pairs.split(",")]
@@ -522,17 +522,20 @@ def main(argv=None):
                 )
         except Exception as exc:
             aborted_reason = exception_reason(exc)
-        for index in indices if aborted_reason is None else []:
+        for position, index in enumerate(indices if aborted_reason is None else []):
             local = root / str(index)
             local.mkdir()
             if args.dry_run:
                 sides, demos = materialise(local / "probe", "path")
                 client = scripted(load_demo(demos["real"]))
-            pilot = Pilot(args, rows[index], index, local, store, run_budget, client, prices, lane)
+            searches_remaining = len(indices) - position
+            per_search = remaining_ceiling / searches_remaining if searches_remaining > 0 and remaining_ceiling > 0 else 0.0
+            pilot = Pilot(args, rows[index], index, local, store, SpendBudget(per_search), client, prices, lane)
             if args.dry_run:
                 pilot.sides = sides
                 pilot.record["input_bytes"] = len((sides[0 if args.side == "vulnerable" else 1].checkout / "app.py").read_bytes())
             record = pilot.run()
+            remaining_ceiling = max(0.0, remaining_ceiling - record["spend"]["settled"])
             records.append(record)
             output.write(json.dumps(record, allow_nan=False) + "\n")
             output.flush()
