@@ -182,6 +182,127 @@ class FakeClones:
         return ""
 
 
+class FailingClones(FakeClones):
+    def __init__(self, failures):
+        super().__init__()
+        self.failures = failures
+
+    @contextmanager
+    def open(self, url):
+        self.url = url
+        with super().open(url) as git:
+            yield git
+
+    def run(self, *args):
+        if args[0] == "fetch" and self.url in self.failures:
+            raise self.failures[self.url]
+        return super().run(*args)
+
+
+def test_extraction_failures_skip_bad_repositories_and_reach_target(tmp_path, monkeypatch):
+    api, used = FakeAPI(303), e.UsedSet()
+    ordered = s.ordered_advisories(list(api.advisories()), 7)
+    failures = {row["references"][0].split("/commit/")[0]: d.InstrumentFailure("git_exit_128") for row in ordered[:3]}
+    clones = FailingClones(failures)
+    changes = entries()[0]["changes"]
+    monkeypatch.setattr(d, "repository_changes", lambda *a, **kw: (changes, {}, {"bytes": 12, "files": 1}))
+    report = d.run(tmp_path, github=api, osv=FakeOSV(), clones=clones, used=used, seed=7, known_empty=set(used.sources))
+    assert report["status"] == "draft" and report["repositories"] == 300
+    assert report["rejections"] == {"extract_git_exit_128": 3}
+    assert clones.counts["clones"] == 303
+
+
+@pytest.mark.parametrize(
+    "successes,failures,status",
+    [
+        (0, 24, "insufficient_repositories"),
+        (0, 26, "instrument_failure"),
+        (1, 200, "insufficient_repositories"),
+        (1, 202, "instrument_failure"),
+    ],
+)
+def test_systemic_extraction_guard_boundaries(tmp_path, monkeypatch, successes, failures, status):
+    api, used = FakeAPI(successes + failures), e.UsedSet()
+    ordered = s.ordered_advisories(list(api.advisories()), 7)
+    clones = FailingClones({row["references"][0].split("/commit/")[0]: d.InstrumentFailure("git_exit_128") for row in ordered[successes:]})
+    changes = entries()[0]["changes"]
+    monkeypatch.setattr(d, "repository_changes", lambda *a, **kw: (changes, {}, {"bytes": 12, "files": 1}))
+    journal_path = tmp_path / "journal"
+    kwargs = dict(
+        root=tmp_path / "repo",
+        github=api,
+        osv=FakeOSV(),
+        clones=clones,
+        used=used,
+        seed=7,
+        known_empty=set(used.sources),
+        journal_path=journal_path,
+    )
+    report = d.run(**kwargs)
+    expected_failures = min(failures, 201 if successes else 25)
+    assert report["status"] == status
+    assert report["rejections"] == {"extract_git_exit_128": expected_failures}
+    assert clones.counts["clones"] == successes + expected_failures
+    assert not (journal_path / "draft-p1.toml").exists()
+    if status == "instrument_failure":
+        assert report["error_type"] == "InstrumentFailure"
+        # Replayed failures must trip the same guard without attempting more clones.
+        resumed = d.run(**kwargs)
+        assert resumed["status"] == status and resumed["rejections"] == report["rejections"]
+        assert clones.counts["clones"] == successes + expected_failures
+
+
+@pytest.mark.parametrize(
+    "exception,reason", [(d.InstrumentFailure("clone_size_cap"), "extract_clone_size_cap"), (OSError("disk_error"), "extract_disk_error")]
+)
+def test_extraction_failure_preserves_rejection_shape_and_count_delta(exception, reason):
+    class BrokenClones(FakeClones):
+        @contextmanager
+        def open(self, url):
+            with super().open(url):
+                raise exception
+                yield  # pragma: no cover
+
+    candidate = s.candidate(next(FakeAPI(1).advisories()), FakeAPI(), FakeOSV())
+    clones = BrokenClones()
+    clones.counts["clones"] = 10
+    assert d.extract_repository(candidate, FakeAPI(), clones, set(), 7) == {
+        "rejected": reason,
+        "ordinary_exclusions": {},
+        "counts": {"clones": 1},
+    }
+
+
+def test_non_instrument_extraction_bug_propagates_and_aborts(tmp_path):
+    api, used = FakeAPI(2), e.UsedSet()
+    candidate = s.candidate(next(api.advisories()), api, FakeOSV())
+    clones = FailingClones({row["references"][0].split("/commit/")[0]: ValueError("code_bug") for row in api.advisories()})
+    with pytest.raises(ValueError, match="code_bug"):
+        d.extract_repository(candidate, api, clones, set(), 7)
+    report = d.run(tmp_path, github=api, osv=FakeOSV(), clones=clones, used=used, seed=7, known_empty=set(used.sources))
+    assert report["status"] == "instrument_failure" and report["error_type"] == "ValueError"
+    assert report["rejections"] == {} and clones.counts["clones"] == 2
+
+
+def test_ordinary_rejections_do_not_trip_extraction_guard(tmp_path, monkeypatch):
+    class ExcludedAPI(FakeAPI):
+        def advisories(self):
+            for row in super().advisories():
+                if int(row["ghsa_id"].rsplit("-", 1)[1]) < 225:
+                    row["references"] = []
+                yield row
+
+    def ordinary_floor(*args, **kwargs):
+        raise s.Rejected("ordinary_floor")
+
+    monkeypatch.setattr(d, "repository_changes", ordinary_floor)
+    used, clones = e.UsedSet(), FakeClones()
+    report = d.run(tmp_path, github=ExcludedAPI(450), osv=FakeOSV(), clones=clones, used=used, seed=7, known_empty=set(used.sources))
+    assert report["status"] == "insufficient_repositories" and report["repositories"] == 0
+    assert report["rejections"] == {"fix_links": 225, "ordinary_floor": 225}
+    assert clones.counts["clones"] == 225
+
+
 def test_coordinator_end_to_end_fakes_pinned_license_and_no_names(tmp_path, monkeypatch, capsys):
     rows = entries()
     changes = copy.deepcopy(rows[0]["changes"])
@@ -214,14 +335,17 @@ def test_used_rename_and_fork_resolution_and_shortfall(tmp_path, monkeypatch):
     assert not (tmp_path / "benchmarks/unseen/draft-p1.toml").exists()
 
 
-def test_zero_source_is_instrument_failure_not_rejection(tmp_path, monkeypatch):
+def test_systemic_zero_source_is_instrument_failure_with_recorded_rejections(tmp_path, monkeypatch):
     def unread(*args, **kwargs):
         raise d.InstrumentFailure("zero_source_bytes")
 
     monkeypatch.setattr(d, "repository_changes", unread)
     used = e.UsedSet()
-    report = d.run(tmp_path, github=FakeAPI(1), osv=FakeOSV(), clones=FakeClones(), used=used, seed=1, known_empty=set(used.sources))
-    assert report["status"] == "instrument_failure" and not report["rejections"]
+    clones = FakeClones()
+    report = d.run(tmp_path, github=FakeAPI(30), osv=FakeOSV(), clones=clones, used=used, seed=1, known_empty=set(used.sources))
+    assert report["status"] == "instrument_failure"
+    assert report["rejections"] == {"extract_zero_source_bytes": 25}
+    assert clones.counts["clones"] == 25
 
 
 @pytest.mark.parametrize("deadline_args,deadline", [([], 240.0), (["--extract-deadline", "12.5"], 12.5)])
