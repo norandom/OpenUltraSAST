@@ -219,7 +219,7 @@ def inputs(used, seed, known_empty, clones):
         "used_set_digest": digest({label: sorted(names) for label, names in used.sources.items()}),
         "known_empty": sorted(known_empty),
         "clone_limit_bytes": getattr(clones, "limit_bytes", 500 * 1024 * 1024),
-        "journal_version": 3,
+        "journal_version": 4,
     }
     # Hardcoded design thresholds and algorithms are covered as well as taxonomy data.
     for name in ("draft", "source", "extract", "eligibility", "journal"):
@@ -232,15 +232,19 @@ def enumerate_advisories(github, journal):
     records = {}
     for ecosystem in source.ECOSYSTEMS:
         page = 1
+        next_url = None
         while True:
             key = f"{ecosystem}:{page}"
             if key not in journal.rows["advisories"]:
                 journal.boundary()
-                result = github.advisory_page(page, ecosystem=ecosystem)
-                journal.put("advisories", key, {"rows": [source.reduce_advisory(row) for row in result["rows"]], "done": result["done"]})
+                result = github.advisory_page(next_url, ecosystem=ecosystem)
+                journal.put(
+                    "advisories", key, {"rows": [source.reduce_advisory(row) for row in result["rows"]], "next_url": result["next_url"]}
+                )
             result = journal.rows["advisories"][key]
             records.update((row["ghsa_id"], row) for row in result["rows"])
-            if result["done"]:
+            next_url = result["next_url"]
+            if next_url is None:
                 break
             page += 1
     if not records:

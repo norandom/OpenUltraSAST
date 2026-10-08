@@ -114,6 +114,8 @@ def test_http_adapters_with_fake_transport():
     from urllib.parse import parse_qs, urlsplit
 
     class Transport:
+        response_headers = {}
+
         def __init__(self):
             self.calls = []
 
@@ -121,9 +123,10 @@ def test_http_adapters_with_fake_transport():
             self.calls.append((url, headers))
             parsed = urlsplit(url)
             if parsed.path == "/advisories":
-                page = int(parse_qs(parsed.query)["page"][0])
+                after = parse_qs(parsed.query).get("after")
+                self.response_headers = {} if after else {"Link": f'<{url}&after=cursor>; rel="next"'}
                 return [
-                    {**advisory(), "ghsa_id": f"GHSA-test-test-{i:04d}"} for i in range(0 if page == 1 else 100, 100 if page == 1 else 101)
+                    {**advisory(), "ghsa_id": f"GHSA-test-test-{i:04d}"} for i in range(0 if not after else 100, 100 if not after else 101)
                 ]
             if "/license" in parsed.path:
                 assert parse_qs(parsed.query)["ref"] == ["b" * 40]
@@ -150,6 +153,8 @@ def test_http_adapters_with_fake_transport():
 
 def test_http_failures_are_not_empty_results():
     class Transport:
+        response_headers = {}
+
         def get(self, url, headers):
             raise ValueError("http_failure")
 
@@ -283,12 +288,13 @@ def test_advisory_page_filters_match_candidate_population(ecosystem):
     expected = {c for f in taxonomy.families if f.id in s.FAMILIES for c in f.cwes}
 
     class Transport:
+        response_headers = {}
+
         def get(self, url, headers):
             query = parse_qs(urlsplit(url).query)
             assert query == {
                 "type": ["reviewed"],
                 "per_page": ["100"],
-                "page": ["2"],
                 "sort": ["published"],
                 "direction": ["asc"],
                 "ecosystem": [ecosystem],
@@ -297,7 +303,7 @@ def test_advisory_page_filters_match_candidate_population(ecosystem):
             }
             return []
 
-    assert s.GitHub("fake", Transport()).advisory_page(2, ecosystem=ecosystem) == {"rows": [], "done": True}
+    assert s.GitHub("fake", Transport()).advisory_page(ecosystem=ecosystem) == {"rows": [], "next_url": None}
     # Every enumerated CWE is selectable at the inclusive date boundary.
     for cwe in expected:
         row = advisory()
@@ -317,6 +323,8 @@ def test_advisory_page_omits_entire_cwe_filter_for_non_exact_taxonomy(monkeypatc
     monkeypatch.setattr(s, "load_families", lambda: taxonomy)
 
     class Transport:
+        response_headers = {}
+
         def get(self, url, headers):
             query = parse_qs(urlsplit(url).query)
             assert "cwes" not in query
@@ -324,4 +332,61 @@ def test_advisory_page_omits_entire_cwe_filter_for_non_exact_taxonomy(monkeypatc
             assert query["ecosystem"] == ["pip"]
             return []
 
-    s.GitHub("fake", Transport()).advisory_page(1, ecosystem="pip")
+    s.GitHub("fake", Transport()).advisory_page(ecosystem="pip")
+
+
+@pytest.mark.parametrize("journaled", [False, True])
+def test_cursor_walk_ignores_page_numbers_and_stops_without_next(tmp_path, journaled):
+    import io
+    from email.message import Message
+    from urllib.parse import parse_qs, urlencode, urlsplit
+
+    calls = []
+
+    def opener(request, timeout):
+        query = parse_qs(urlsplit(request.full_url).query)
+        eco = query["ecosystem"][0]
+        after = query.get("after", [None])[0]
+        calls.append((eco, after))
+        assert len(calls) <= 12  # Fail loudly if a page-number loop repeats forever.
+        # Like /advisories, ignore any page parameter. Only the opaque cursor advances.
+        offset = 100 if after == "opaque+/=" else 0
+        rows = [{**advisory(), "ghsa_id": f"GHSA-test-test-{i:04d}"} for i in range(offset, offset + 100)]
+        response = io.BytesIO(json.dumps(rows).encode())
+        response.headers = Message()
+        if after is None:
+            following = "https://api.github.com/advisories?" + urlencode({**query, "after": ["opaque+/="]}, doseq=True)
+            response.headers["link"] = f'<https://api.github.com/advisories?before=other>; rel="prev", <{following}>; rel="next"'
+        else:
+            # A full last page with a Link header, but no next relation, is exhausted.
+            response.headers["link"] = '<https://api.github.com/advisories?before=other>; rel="prev"'
+        return response
+
+    transport = s.JSONTransport(opener=opener)
+    first = "https://api.github.com/advisories?ecosystem=pip"
+    assert transport.get(first + "&page=1", {}) == transport.get(first + "&page=100", {})
+    calls.clear()
+    api = s.GitHub("fake", transport)
+    if journaled:
+        draft = importlib.import_module("benchmarks.unseen.draft")
+        with draft.Journal(tmp_path / "journal").open({"journal_version": 4}) as journal:
+            rows = draft.enumerate_advisories(api, journal)
+    else:
+        rows = list(api.advisories())
+    assert [row["ghsa_id"] for row in rows] == [f"GHSA-test-test-{i:04d}" for i in range(200)]
+    assert calls == [(eco, cursor) for eco in s.ECOSYSTEMS for cursor in (None, "opaque+/=")]
+
+
+def test_transport_replaces_last_successful_response_headers():
+    import io
+
+    responses = [io.BytesIO(b"{}"), io.BytesIO(b'{"broken":'), io.BytesIO(b"[]")]
+    responses[0].headers = {"Link": '<https://api.github.com/advisories?after=cursor>; rel="next"'}
+    responses[1].headers = {"Link": "failed response"}
+    waits = []
+    transport = s.JSONTransport(opener=lambda *a, **kw: responses.pop(0), sleeper=waits.append)
+    assert transport.get("https://example.invalid", {}) == {}
+    assert "cursor" in transport.response_headers["Link"]
+    assert transport.get("https://example.invalid", {}) == []
+    assert transport.response_headers == {}
+    assert waits == [1]

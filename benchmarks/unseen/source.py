@@ -181,6 +181,7 @@ class JSONTransport:
         self.clock = clock or time.time
         self.attempts = 0
         self.rate_limit = {}
+        self.response_headers = {}
 
     def get(self, url: str, headers: dict) -> object:
         from http.client import IncompleteRead
@@ -194,7 +195,9 @@ class JSONTransport:
                 with self.opener(Request(url, headers=headers), timeout=60) as response:
                     retry_headers = getattr(response, "headers", {})
                     self.record_rate(retry_headers)
-                    return json.load(response)
+                    body = json.load(response)
+                    self.response_headers = retry_headers
+                    return body
             except HTTPError as exc:
                 self.record_rate(exc.headers)
                 if exc.code == 404:
@@ -247,7 +250,8 @@ class GitHub:
 
     def get(self, path: str):
         self.calls += 1
-        return self.transport.get("https://api.github.com" + path, self.headers)
+        url = path if path.startswith("https://api.github.com/") else "https://api.github.com" + path
+        return self.transport.get(url, self.headers)
 
     def get_repo(self, name: str) -> dict:
         name = normalize(name)
@@ -269,14 +273,13 @@ class GitHub:
             "text": base64.b64decode(row.get("content", "")).decode("utf-8", errors="replace"),
         }
 
-    def advisory_page(self, page: int, *, ecosystem: str) -> dict:
+    def advisory_page(self, next_url: str | None = None, *, ecosystem: str) -> dict:
         if ecosystem not in ECOSYSTEMS:
             raise ValueError("invalid_ecosystem")
         # Oldest first: newly published advisories do not shift already persisted pages.
         parameters = {
             "type": "reviewed",
             "per_page": 100,
-            "page": page,
             "sort": "published",
             "direction": "asc",
             "ecosystem": ecosystem,
@@ -290,25 +293,27 @@ class GitHub:
         # GitHub's advisories `cwes` filter expects bare numbers (89), not "CWE-89".
         if cwes and all(re.fullmatch(r"CWE-[1-9][0-9]*", cwe) for cwe in cwes):
             parameters["cwes"] = ",".join(sorted((cwe.removeprefix("CWE-") for cwe in cwes), key=int))
-        rows = self.get("/advisories?" + urlencode(parameters))
+        rows = self.get(next_url or "/advisories?" + urlencode(parameters))
         if not isinstance(rows, list):
             raise ValueError("invalid_advisory_page")
-        return {"rows": rows, "done": len(rows) < 100}
+        link = self.transport.response_headers.get("Link", "")
+        match = re.search(r'<([^>]+)>;\s*rel="next"', link)
+        return {"rows": rows, "next_url": match[1] if match else None}
 
     def advisories(self):
         """Enumerate the candidate population, deduplicating multi-ecosystem advisories."""
         seen = set()
         for ecosystem in ECOSYSTEMS:
-            page = 1
+            next_url = None
             while True:
-                result = self.advisory_page(page, ecosystem=ecosystem)
+                result = self.advisory_page(next_url, ecosystem=ecosystem)
                 for row in result["rows"]:
                     if row["ghsa_id"] not in seen:
                         seen.add(row["ghsa_id"])
                         yield row
-                if result["done"]:
+                next_url = result["next_url"]
+                if next_url is None:
                     break
-                page += 1
 
 
 class OSV:
