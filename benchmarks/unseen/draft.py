@@ -174,7 +174,7 @@ def prove_source(git, revision: str) -> dict:
 
 
 def advisory_index(rows: list[dict], github) -> dict[str, set[str]]:
-    """Include ALL enumerated fixes, even old, unmapped, multi-fix and other ecosystems.
+    """Include ALL fixes in the enumerated population, even from rejected candidates.
 
     Canonicalize link names as well, so an old advisory URL survives repository renames.
     A 404 is not treated as proof that an advisory is unrelated to a selected repository.
@@ -219,7 +219,7 @@ def inputs(used, seed, known_empty, clones):
         "used_set_digest": digest({label: sorted(names) for label, names in used.sources.items()}),
         "known_empty": sorted(known_empty),
         "clone_limit_bytes": getattr(clones, "limit_bytes", 500 * 1024 * 1024),
-        "journal_version": 2,
+        "journal_version": 3,
     }
     # Hardcoded design thresholds and algorithms are covered as well as taxonomy data.
     for name in ("draft", "source", "extract", "eligibility", "journal"):
@@ -229,18 +229,20 @@ def inputs(used, seed, known_empty, clones):
 
 
 def enumerate_advisories(github, journal):
-    page, records = 1, {}
-    while True:
-        key = str(page)
-        if key not in journal.rows["advisories"]:
-            journal.boundary()
-            result = github.advisory_page(page)
-            journal.put("advisories", key, {"rows": [source.reduce_advisory(row) for row in result["rows"]], "done": result["done"]})
-        result = journal.rows["advisories"][key]
-        records.update((row["ghsa_id"], row) for row in result["rows"])
-        if result["done"]:
-            break
-        page += 1
+    records = {}
+    for ecosystem in source.ECOSYSTEMS:
+        page = 1
+        while True:
+            key = f"{ecosystem}:{page}"
+            if key not in journal.rows["advisories"]:
+                journal.boundary()
+                result = github.advisory_page(page, ecosystem=ecosystem)
+                journal.put("advisories", key, {"rows": [source.reduce_advisory(row) for row in result["rows"]], "done": result["done"]})
+            result = journal.rows["advisories"][key]
+            records.update((row["ghsa_id"], row) for row in result["rows"])
+            if result["done"]:
+                break
+            page += 1
     if not records:
         raise InstrumentFailure("empty_advisories")
     return list(records.values())

@@ -118,6 +118,7 @@ class FakeAPI:
     def __init__(self, count=300):
         self.count = count
         self.licenses = []
+        self.advisory_pages = []
 
     def get_repo(self, name):
         self.calls += 1
@@ -138,9 +139,11 @@ class FakeAPI:
         # P is MIT but actual introducing head is GPL: public output must use V.
         return {"text": "", "spdx_id": "MIT" if ref == "b" * 40 else "GPL-3.0", "path": "LICENSE"}
 
-    def advisory_page(self, page):
+    def advisory_page(self, page, *, ecosystem):
         self.calls += 1
-        rows = list(self.advisories())[(page - 1) * 100 : page * 100]
+        self.advisory_pages.append((ecosystem, page))
+        population = list(self.advisories()) if ecosystem == "pip" else []
+        rows = population[(page - 1) * 100 : page * 100]
         return {"rows": rows, "done": len(rows) < 100}
 
     def advisories(self):
@@ -457,8 +460,8 @@ def test_max_hours_stops_after_completed_page(tmp_path):
     now = [0.0]
 
     class TimedAPI(FakeAPI):
-        def advisory_page(self, page):
-            result = super().advisory_page(page)
+        def advisory_page(self, page, *, ecosystem):
+            result = super().advisory_page(page, ecosystem=ecosystem)
             now[0] += 3601
             return result
 
@@ -541,8 +544,8 @@ def test_advisory_journal_reduces_nested_blobs_and_resumes_by_page(tmp_path):
     class Pages:
         calls = []
 
-        def advisory_page(self, page):
-            self.calls.append(page)
+        def advisory_page(self, page, *, ecosystem):
+            self.calls.append((ecosystem, page))
             return {"rows": [raw], "done": True, "unused": "raw page blob"}
 
     api, used = Pages(), e.UsedSet()
@@ -551,14 +554,15 @@ def test_advisory_journal_reduces_nested_blobs_and_resumes_by_page(tmp_path):
     with d.Journal(path).open(parameters) as journal:
         rows = d.enumerate_advisories(api, journal)
         assert rows == [expected]
-    saved = json.loads((path / "advisories.jsonl").read_bytes())
-    assert saved["value"] == {"rows": [expected], "done": True}
+    saved = [json.loads(line) for line in (path / "advisories.jsonl").read_bytes().splitlines()]
+    assert [row["id"] for row in saved] == [f"{eco}:1" for eco in s.ECOSYSTEMS]
+    assert all(row["value"] == {"rows": [expected], "done": True} for row in saved)
     assert b"unused" not in (path / "advisories.jsonl").read_bytes()
     assert b"raw advisory blob" not in (path / "advisories.jsonl").read_bytes()
     assert b"raw page blob" not in (path / "advisories.jsonl").read_bytes()
     with d.Journal(path).open(parameters) as journal:
         resumed = d.enumerate_advisories(api, journal)
-    assert api.calls == [1] and resumed == rows
+    assert api.calls == [(eco, 1) for eco in s.ECOSYSTEMS] and resumed == rows
 
     class Bracket(FakeOSV):
         def get(self, identifier):
@@ -599,15 +603,75 @@ def test_reduced_advisories_preserve_all_fix_exclusions_and_selection():
             s.candidate(s.reduce_advisory(raw), FakeAPI(), FakeOSV())
 
 
-def test_old_raw_advisory_journal_version_refused_before_calls(tmp_path):
+@pytest.mark.parametrize("old_version", [1, 2])
+def test_old_advisory_journal_version_refused_before_calls(tmp_path, old_version):
     used, api, osv, clones = e.UsedSet(), FakeAPI(1), FakeOSV(), FakeClones()
     path = tmp_path / "journal"
     parameters = d.inputs(used, 7, set(used.sources), clones)
-    assert parameters["journal_version"] == 2
-    with d.Journal(path).open({**parameters, "journal_version": 1}) as journal:
+    assert parameters["journal_version"] == 3
+    with d.Journal(path).open({**parameters, "journal_version": old_version}) as journal:
         journal.put("advisories", "1", {"rows": list(api.advisories()), "done": True})
     report = d.run(
         tmp_path / "repo", github=api, osv=osv, clones=clones, used=used, seed=7, known_empty=set(used.sources), journal_path=path
     )
     assert report["status"] == "resume_refused" and report["changed_parameters"] == ["journal_version"]
     assert api.calls == osv.calls == 0 and clones.counts == {}
+
+
+def test_enumerate_ecosystem_pages_dedupes_and_resumes_partial_stream(tmp_path):
+    rows = list(FakeAPI(3).advisories())
+    pages = {
+        ("pip", 1): {"rows": [rows[0]], "done": False},
+        ("pip", 2): {"rows": [rows[1]], "done": True},
+        ("npm", 1): {"rows": [rows[0], rows[2]], "done": True},
+        ("maven", 1): {"rows": [], "done": True},
+        ("composer", 1): {"rows": [], "done": True},
+    }
+    calls = []
+
+    class Pages:
+        def advisory_page(self, page, *, ecosystem):
+            calls.append((ecosystem, page))
+            return pages[ecosystem, page]
+
+    path = tmp_path / "journal"
+    with d.Journal(path).open({"journal_version": 3}) as journal:
+        journal.put("advisories", "pip:1", pages["pip", 1])
+    with d.Journal(path).open({"journal_version": 3}) as journal:
+        result = d.enumerate_advisories(Pages(), journal)
+        assert [row["ghsa_id"] for row in result] == [row["ghsa_id"] for row in rows]
+        assert list(journal.rows["advisories"]) == [f"{eco}:{page}" for eco, page in pages]
+    assert calls == list(pages)[1:]
+    with d.Journal(path).open({"journal_version": 3}) as journal:
+        assert d.enumerate_advisories(Pages(), journal) == result
+    assert calls == list(pages)[1:]
+
+
+def test_filtered_http_population_reaches_draft_floor_with_bounded_pages(tmp_path, monkeypatch):
+    from urllib.parse import parse_qs, urlsplit
+
+    population = list(FakeAPI(300).advisories())
+    pages = []
+
+    class FilteredTransport:
+        def get(self, url, headers):
+            query = parse_qs(urlsplit(url).query)
+            # An unfiltered request would enumerate the global database: fail immediately.
+            assert query["ecosystem"][0] in s.ECOSYSTEMS
+            assert query["published"] == [">=2019-01-01"]
+            assert "89" in query["cwes"][0].split(",")
+            eco, page = query["ecosystem"][0], int(query["page"][0])
+            pages.append((eco, page))
+            assert len(pages) <= 7
+            rows = population if eco == "pip" else []
+            return rows[(page - 1) * 100 : page * 100]
+
+    api, used = FakeAPI(), e.UsedSet()
+    http = s.GitHub("fake", FilteredTransport())
+    monkeypatch.setattr(api, "advisory_page", http.advisory_page)
+    changes = entries()[0]["changes"]
+    monkeypatch.setattr(d, "repository_changes", lambda *a, **kw: (changes, {}, {"bytes": 12, "files": 1}))
+    report = d.run(tmp_path, github=api, osv=FakeOSV(), clones=FakeClones(), used=used, seed=7, known_empty=set(used.sources))
+    assert report["status"] == "draft" and report["repositories"] == 300
+    assert report["advisories"] == 300
+    assert pages == [("pip", n) for n in range(1, 5)] + [(eco, 1) for eco in s.ECOSYSTEMS[1:]]

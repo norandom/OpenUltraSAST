@@ -122,7 +122,9 @@ def test_http_adapters_with_fake_transport():
             parsed = urlsplit(url)
             if parsed.path == "/advisories":
                 page = int(parse_qs(parsed.query)["page"][0])
-                return [advisory()] * (100 if page == 1 else 1)
+                return [
+                    {**advisory(), "ghsa_id": f"GHSA-test-test-{i:04d}"} for i in range(0 if page == 1 else 100, 100 if page == 1 else 101)
+                ]
             if "/license" in parsed.path:
                 assert parse_qs(parsed.query)["ref"] == ["b" * 40]
                 return {
@@ -271,3 +273,55 @@ def test_transport_decode_retry_respects_response_retry_after():
     transport = s.JSONTransport(opener=lambda *a, **kw: responses.pop(0), sleeper=waits.append)
     assert transport.get("https://example.invalid", {}) == {}
     assert waits == [9]
+
+
+@pytest.mark.parametrize("ecosystem", s.ECOSYSTEMS)
+def test_advisory_page_filters_match_candidate_population(ecosystem):
+    from urllib.parse import parse_qs, urlsplit
+
+    taxonomy = s.load_families()
+    expected = {c for f in taxonomy.families if f.id in s.FAMILIES for c in f.cwes}
+
+    class Transport:
+        def get(self, url, headers):
+            query = parse_qs(urlsplit(url).query)
+            assert query == {
+                "type": ["reviewed"],
+                "per_page": ["100"],
+                "page": ["2"],
+                "sort": ["published"],
+                "direction": ["asc"],
+                "ecosystem": [ecosystem],
+                "published": [">=2019-01-01"],
+                "cwes": [",".join(sorted((c.removeprefix("CWE-") for c in expected), key=int))],
+            }
+            return []
+
+    assert s.GitHub("fake", Transport()).advisory_page(2, ecosystem=ecosystem) == {"rows": [], "done": True}
+    # Every enumerated CWE is selectable at the inclusive date boundary.
+    for cwe in expected:
+        row = advisory()
+        row.update(published_at="2019-01-01T00:00:00Z", cwes=[{"cwe_id": cwe}])
+        row["vulnerabilities"][0]["package"]["ecosystem"] = ecosystem
+        assert s.candidate(row, API(), OSV()).family == taxonomy.family_of_cwe(cwe).id
+
+
+@pytest.mark.parametrize("token", ["CWE-89*", "CWE-", "89", "CWE-79..CWE-89"])
+def test_advisory_page_omits_entire_cwe_filter_for_non_exact_taxonomy(monkeypatch, token):
+    from dataclasses import replace
+    from urllib.parse import parse_qs, urlsplit
+
+    taxonomy = s.load_families()
+    family = taxonomy.by_id("injection")
+    taxonomy = replace(taxonomy, families=tuple(replace(f, cwes=f.cwes | {token}) if f == family else f for f in taxonomy.families))
+    monkeypatch.setattr(s, "load_families", lambda: taxonomy)
+
+    class Transport:
+        def get(self, url, headers):
+            query = parse_qs(urlsplit(url).query)
+            assert "cwes" not in query
+            assert query["published"] == [">=2019-01-01"]
+            assert query["ecosystem"] == ["pip"]
+            return []
+
+    s.GitHub("fake", Transport()).advisory_page(1, ecosystem="pip")

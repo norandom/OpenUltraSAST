@@ -269,24 +269,46 @@ class GitHub:
             "text": base64.b64decode(row.get("content", "")).decode("utf-8", errors="replace"),
         }
 
-    def advisory_page(self, page: int) -> dict:
+    def advisory_page(self, page: int, *, ecosystem: str) -> dict:
+        if ecosystem not in ECOSYSTEMS:
+            raise ValueError("invalid_ecosystem")
         # Oldest first: newly published advisories do not shift already persisted pages.
-        rows = self.get(
-            "/advisories?" + urlencode({"type": "reviewed", "per_page": 100, "page": page, "sort": "published", "direction": "asc"})
-        )
+        parameters = {
+            "type": "reviewed",
+            "per_page": 100,
+            "page": page,
+            "sort": "published",
+            "direction": "asc",
+            "ecosystem": ecosystem,
+            # Inclusive syntax used in benchmarks/independent/research-2026-09-30-php.md.
+            "published": ">=2019-01-01",
+        }
+        taxonomy = load_families()
+        cwes = {cwe for family in taxonomy.families if family.id in FAMILIES for cwe in family.cwes}
+        # family_of_cwe uses exact membership. If the taxonomy gains non-exact tokens,
+        # fetch broadly rather than risk excluding a client-selectable advisory.
+        # GitHub's advisories `cwes` filter expects bare numbers (89), not "CWE-89".
+        if cwes and all(re.fullmatch(r"CWE-[1-9][0-9]*", cwe) for cwe in cwes):
+            parameters["cwes"] = ",".join(sorted((cwe.removeprefix("CWE-") for cwe in cwes), key=int))
+        rows = self.get("/advisories?" + urlencode(parameters))
         if not isinstance(rows, list):
             raise ValueError("invalid_advisory_page")
         return {"rows": rows, "done": len(rows) < 100}
 
     def advisories(self):
-        # Enumerate every reviewed advisory, including non-candidate fixes.
-        page = 1
-        while True:
-            result = self.advisory_page(page)
-            yield from result["rows"]
-            if result["done"]:
-                break
-            page += 1
+        """Enumerate the candidate population, deduplicating multi-ecosystem advisories."""
+        seen = set()
+        for ecosystem in ECOSYSTEMS:
+            page = 1
+            while True:
+                result = self.advisory_page(page, ecosystem=ecosystem)
+                for row in result["rows"]:
+                    if row["ghsa_id"] not in seen:
+                        seen.add(row["ghsa_id"])
+                        yield row
+                if result["done"]:
+                    break
+                page += 1
 
 
 class OSV:
