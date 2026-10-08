@@ -312,3 +312,25 @@ def test_unbalanced_cells_remain_proportional_and_seed_changes_draw():
     draw, _ = e.draw_ordinary(rows, set(), set(), seed=1)
     assert len([r for r in draw if r["size_bucket"] == 0]) == 9
     assert draw != e.draw_ordinary(rows, set(), set(), seed=2)[0]
+
+
+def test_disk_bytes_skips_files_that_vanish_mid_walk(tmp_path):
+    # git churns .git/objects/pack (transient *.rev) during on-demand blob fetches,
+    # so a path rglob just listed can be gone by the time disk_bytes stat()s it.
+    git = e.Git(tmp_path, runner=subprocess.run)
+    (tmp_path / "a").write_bytes(b"x" * 10)
+    (tmp_path / "b").write_bytes(b"y" * 20)
+    real = [p for p in tmp_path.rglob("*")]
+
+    class Vanished:
+        def is_file(self):
+            return True
+
+        def is_symlink(self):
+            return False
+
+        def stat(self):
+            raise FileNotFoundError(2, "No such file or directory")
+
+    git.path = type("P", (), {"rglob": lambda self, pattern: iter([*real, Vanished()])})()
+    assert git.disk_bytes() == 30

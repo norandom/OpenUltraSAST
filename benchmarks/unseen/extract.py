@@ -57,7 +57,16 @@ class Git:
         return done.stdout.decode("utf-8", errors="replace")
 
     def disk_bytes(self) -> int:
-        return sum(p.stat().st_size for p in self.path.rglob("*") if p.is_file() and not p.is_symlink())
+        # git churns .git/objects/pack (incl. transient *.rev) during on-demand blob
+        # fetches, so a path rglob just listed can vanish before stat(): skip it.
+        total = 0
+        for p in self.path.rglob("*"):
+            try:
+                if p.is_file() and not p.is_symlink():
+                    total += p.stat().st_size
+            except OSError:
+                continue
+        return total
 
     def parents(self, sha: str) -> list[str]:
         return self.run("rev-list", "--parents", "-n", "1", sha).split()[1:]
