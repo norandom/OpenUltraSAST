@@ -14,6 +14,11 @@ A scan combines up to four parts:
 Every finding carries the evidence that earned its place. When a scan could not look at
 something, it records a degradation. It does not report a clean result.
 
+Where a repository's application can be built and run, an experimental proof arm goes further. It
+demonstrates a finding by executing it: the issue triggers on the vulnerable revision and not on
+the fixed one, so a demonstrated finding is a reproducible fact, not a score. This arm is in pilot
+and being qualified on repositories the tool has never seen; see [Status](#status).
+
 `ousast` is the interface. Model work over whole repositories runs on a separate agentic plane
 (google/ax). A learned decision engine is in development. A scan needs neither of them.
 
@@ -23,17 +28,30 @@ The site is published at <https://norandom.github.io/OpenUltraSAST/>. Its source
 
 ## Status
 
-**v2.0.0, state as of 2026-10-02.** The pre-push safety net is **NO-GO** against every M4 gate.
+**v2.0.1, state as of 2026-10-08.** The pre-push safety net is **not yet released**. Blocking on
+the static analyser by hand is **NO-GO** against every M4 gate, and the project no longer tries to
+reach them that way.
 
-- No hook capability is enabled.
-- Two independent populations (case sets frozen before any scan) have been spent so far. Engine
-  recall was 1 of 11 and then 0 of 17.
-- The learned decision engine ranks but may not block. BLOCK is offered for no family.
+- No blocking hook capability is enabled; the pre-push hook is advisory only.
+- Two independent populations (case sets frozen before any scan) have been spent on the static
+  engine: recall was 1 of 11, then 0 of 17. The learned decision engine ranks but blocks for no
+  family.
+- Why blocking is hard: static abstract interpretation could not prove the precision a block
+  needs. So the current work is a **dynamic proof arm**. It builds and runs a repository's app and
+  demonstrates a finding by a differential: the issue triggers on the vulnerable revision and not
+  on the fixed one. A demonstrated finding is ground truth by execution, so it can earn a block
+  without calibration. Pilot demonstrations exist, including one executed on the cluster; the arm
+  is being qualified, not shipped.
+- The release gate is a **measured** catch-rate and false-alarm number on repositories the tool
+  has never seen (the unseen-repo evaluation), produced rather than asserted. Until that number
+  exists, treat all output as advisory.
 
-The project has stopped trying to reach the gates by hand. Every detection change now has to win
-a controlled measurement on held-out repositories. One page states all of this, with the record
-behind each figure: [docs/where-we-stand.md](docs/where-we-stand.md). The release history is in
-[RELEASE_NOTES.md](RELEASE_NOTES.md).
+Every detection change has to win a controlled measurement on held-out repositories. One page
+states where things stand, with the record behind each figure:
+[docs/where-we-stand.md](docs/where-we-stand.md). For developers, the pre-push check and its
+honest limits: [docs/pre-push-for-developers.md](docs/pre-push-for-developers.md); the
+catch–prove–fix–re-verify loop: [docs/use-case-fix-and-reverify.md](docs/use-case-fix-and-reverify.md).
+The release history is in [RELEASE_NOTES.md](RELEASE_NOTES.md).
 
 ## Install and first scan
 
