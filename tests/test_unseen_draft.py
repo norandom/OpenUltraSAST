@@ -224,7 +224,10 @@ def test_zero_source_is_instrument_failure_not_rejection(tmp_path, monkeypatch):
     assert report["status"] == "instrument_failure" and not report["rejections"]
 
 
-def test_cli_uses_environment_and_injected_stores(tmp_path, monkeypatch, capsys):
+@pytest.mark.parametrize("deadline_args,deadline", [([], 240.0), (["--extract-deadline", "12.5"], 12.5)])
+def test_cli_uses_environment_and_injected_stores(tmp_path, monkeypatch, capsys, deadline_args, deadline):
+    import json
+
     from openultrasast import config
     from openultrasast.plane import memory
 
@@ -238,11 +241,79 @@ def test_cli_uses_environment_and_injected_stores(tmp_path, monkeypatch, capsys)
     args = ["--root", str(tmp_path), "--cache", str(tmp_path.parent / "clone-cache")]
     for label in e.SOURCES:
         args += ["--known-empty", label]
-    assert d.main(args) == 1
+    assert d.main(args + deadline_args) == 1
     output = capsys.readouterr().out
+    assert json.loads(output)["extract_deadline_seconds"] == deadline
     assert "instrument_failure" in output and "fake-secret" not in output and "fixture/" not in output
     assert seen[-1] == "fake-secret"
     assert all(kwargs == {"read_only": True} for _, kwargs in seen[:-1])
+
+
+@pytest.mark.parametrize("timeout_stage", ["clone", "fetch"])
+def test_timeout_skips_repository_and_draft_continues(tmp_path, monkeypatch, timeout_stage):
+    import subprocess
+
+    clone_count = 0
+
+    def runner(cmd, **kwargs):
+        nonlocal clone_count
+        if "clone" in cmd:
+            clone_count += 1
+        if clone_count == 1 and timeout_stage in cmd:
+            raise subprocess.TimeoutExpired(cmd, kwargs["timeout"])
+        return subprocess.CompletedProcess(cmd, 0, b"", b"")
+
+    monkeypatch.setattr(d, "repository_changes", lambda *a, **kw: (entries()[0]["changes"], {}, {"bytes": 1, "files": 1}))
+    clones = d.Clones(tmp_path / "repo", tmp_path / "cache", runner=runner, deadline_seconds=240.0)
+    used = e.UsedSet()
+    report = d.run(tmp_path / "repo", github=FakeAPI(2), osv=FakeOSV(), clones=clones, used=used, seed=1, known_empty=set(used.sources))
+    assert report["status"] == "insufficient_repositories"
+    assert report["rejections"] == {"extraction_timeout": 1}
+    assert report["repositories"] == 1 and clone_count == 2
+    assert not list(clones.cache.glob("clone-*"))
+
+
+def test_clone_time_counts_and_each_repository_gets_fresh_deadline(tmp_path, monkeypatch):
+    import subprocess
+
+    now, timeouts = [0.0], []
+    monkeypatch.setattr(d.time, "monotonic", lambda: now[0])
+
+    def runner(cmd, **kwargs):
+        timeouts.append(kwargs["timeout"])
+        now[0] += 7.0 if "clone" in cmd else 1.0
+        return subprocess.CompletedProcess(cmd, 0, b"", b"")
+
+    clones = d.Clones(tmp_path / "repo", tmp_path / "cache", runner=runner, deadline_seconds=10.0)
+    for _ in range(2):
+        with clones.open("https://github.com/fixture/project") as git:
+            git.run("log")
+            now[0] += 3.0
+            with pytest.raises(d.extract.ExtractionTimeout, match="^extraction_timeout$"):
+                git.run("log")
+    assert timeouts == [10.0, 3.0, 10.0, 3.0]
+
+
+def test_deadline_is_reported_without_changing_resume_inputs(tmp_path):
+    clones = d.Clones(tmp_path / "repo", tmp_path / "cache", deadline_seconds=240.0)
+    used = e.UsedSet()
+    before = d.inputs(used, 1, set(used.sources), clones)
+    kwargs = dict(
+        root=tmp_path / "repo",
+        github=FakeAPI(),
+        osv=FakeOSV(),
+        clones=clones,
+        used=used,
+        seed=1,
+        known_empty=set(used.sources),
+        max_hours=0,
+    )
+    assert d.run(**kwargs)["status"] == "stopped"
+    clones.deadline_seconds = 12.5
+    assert d.inputs(used, 1, set(used.sources), clones) == before
+    report = d.run(**kwargs)
+    assert report["status"] == "stopped"
+    assert report["extract_deadline_seconds"] == 12.5
 
 
 def test_repository_changes_excludes_all_advisory_sites(monkeypatch):

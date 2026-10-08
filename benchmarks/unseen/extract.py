@@ -11,6 +11,7 @@ import ast
 import json
 import re
 import subprocess
+import time
 from pathlib import Path
 
 from .source import Candidate, Rejected
@@ -28,8 +29,15 @@ class InstrumentFailure(ValueError):
     """A failed read or command must never masquerade as an empty history."""
 
 
+class ExtractionTimeout(Rejected):
+    """A slow repository is skipped without aborting the draft."""
+
+
 class Git:
-    def __init__(self, path: Path, *, runner=None, limit_bytes: int | None = None):
+    def __init__(self, path: Path, *, runner=None, limit_bytes: int | None = None, deadline_seconds: float | None = None, _now=None):
+        self._now = _now or time.monotonic
+        self.started = self._now()
+        self.deadline_seconds = deadline_seconds
         self.path = path
         self.runner = runner or subprocess.run
         self.bytes_read = 0
@@ -37,16 +45,27 @@ class Git:
         self.last_blob_bytes = 0
         self.limit_bytes = limit_bytes
 
+    def command_timeout(self) -> float:
+        if self.deadline_seconds is None:
+            return 180
+        remaining = self.deadline_seconds - (self._now() - self.started)
+        if remaining <= 0:
+            raise ExtractionTimeout("extraction_timeout")
+        return min(180, remaining)
+
     def run(self, *args: str, allowed=(0,)) -> str:
+        timeout = self.command_timeout()
         try:
             done = self.runner(
                 ["git", "-c", "core.quotePath=false", "-C", str(self.path), *args],
                 stdin=subprocess.DEVNULL,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                timeout=180,
+                timeout=timeout,
                 check=False,
             )
+        except subprocess.TimeoutExpired:
+            raise ExtractionTimeout("extraction_timeout") from None
         except Exception:
             raise InstrumentFailure("git_launch_failed") from None
         if done.returncode not in allowed:
