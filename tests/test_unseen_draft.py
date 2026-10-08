@@ -877,3 +877,37 @@ def test_filtered_http_population_reaches_draft_floor_with_bounded_pages(tmp_pat
     assert report["status"] == "draft" and report["repositories"] == 300
     assert report["advisories"] == 300
     assert pages == [("pip", n) for n in (0, 100, 200)] + [(eco, 0) for eco in s.ECOSYSTEMS[1:]]
+
+
+def test_decide_http_failure_skips_candidate_and_reaches_target(tmp_path, monkeypatch):
+    # A per-candidate transport failure in decide (e.g. get_commit on an unresolvable
+    # fix ref) is skipped as decide_http_failure; the draft still reaches its target.
+    class HTTPFailAPI(FakeAPI):
+        def __init__(self, count, bad):
+            super().__init__(count)
+            self.bad = bad
+
+        def get_commit(self, name, sha):
+            if name in self.bad:
+                raise ValueError("http_failure")
+            return super().get_commit(name, sha)
+
+    bad = {f"fixture/project{i:03d}" for i in range(3)}
+    api, used = HTTPFailAPI(303, bad), e.UsedSet()
+    changes = entries()[0]["changes"]
+    monkeypatch.setattr(d, "repository_changes", lambda *a, **kw: (changes, {}, {"bytes": 12, "files": 1}))
+    report = d.run(tmp_path, github=api, osv=FakeOSV(), clones=FakeClones(), used=used, seed=7, known_empty=set(used.sources))
+    assert report["status"] == "draft" and report["repositories"] == 300
+    assert report["rejections"].get("decide_http_failure") == 3
+
+
+def test_decide_http_failure_systemic_guard_aborts(tmp_path):
+    # Every candidate failing the commit lookup is a broken instrument, not an empty result.
+    class AllHTTPFailAPI(FakeAPI):
+        def get_commit(self, name, sha):
+            raise ValueError("http_failure")
+
+    api, used = AllHTTPFailAPI(30), e.UsedSet()
+    report = d.run(tmp_path, github=api, osv=FakeOSV(), clones=FakeClones(), used=used, seed=7, known_empty=set(used.sources))
+    assert report["status"] == "instrument_failure" and report["error_type"] == "InstrumentFailure"
+    assert report["rejections"].get("decide_http_failure") == 25

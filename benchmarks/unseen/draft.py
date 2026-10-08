@@ -271,6 +271,12 @@ def decide(row, github, osv, used, selected_networks):
         return {"rejected": str(exc)}
     except eligibility.RepositoryNotFound:
         return {"rejected": "repository_or_commit_not_found"}
+    except ValueError as exc:
+        # A per-candidate transport failure (e.g. get_commit on an unresolvable fix ref)
+        # skips this advisory; the run loop's systemic guard catches a broken instrument.
+        if str(exc) == "http_failure":
+            return {"rejected": "decide_http_failure"}
+        raise
 
 
 def extract_repository(candidate, github, clones, fixes, seed):
@@ -358,7 +364,7 @@ def run(
             report["advisories"] = len(rows)
             fixes_by_repo = advisory_index(rows, api)
             selected_networks, entries = set(), []
-            extract_failures = 0
+            instrument_failures = 0
             for row in source.ordered_advisories(rows, seed):
                 checkpoint.boundary()
                 key = row["ghsa_id"]
@@ -369,6 +375,9 @@ def run(
                 decision = checkpoint.rows["eligibility"][key]
                 if "rejected" in decision:
                     rejected[decision["rejected"]] += 1
+                    instrument_failures += int(decision["rejected"] == "decide_http_failure")
+                    if (instrument_failures >= 25 and not entries) or instrument_failures > 200:
+                        raise extract.InstrumentFailure("systemic_extraction_failure")
                     continue
                 candidate = source.Candidate(**decision["candidate"])
                 # Multiple advisories for one repository can have different fix/range inputs.
@@ -381,12 +390,13 @@ def run(
                 ordinary_counts.update(result["ordinary_exclusions"])
                 if "rejected" in result:
                     rejected[result["rejected"]] += 1
-                    extract_failures += int(result["rejected"].startswith("extract_"))
+                    instrument_failures += int(result["rejected"].startswith("extract_"))
                 else:
                     selected_networks.add(decision["network"])
                     entries.append(result["entry"])
-                # Include replayed extraction results, but never eligibility exclusions.
-                if (extract_failures >= 25 and not entries) or extract_failures > 200:
+                # Count per-candidate instrument failures (decide + extract, replay included),
+                # never ordinary eligibility exclusions.
+                if (instrument_failures >= 25 and not entries) or instrument_failures > 200:
                     raise extract.InstrumentFailure("systemic_extraction_failure")
                 if len(entries) == 300:
                     break
