@@ -118,6 +118,44 @@ def test_git_failures_are_sanitized_and_not_empty(tmp_path):
         e.Git(tmp_path, runner=failed).run("log")
 
 
+@pytest.mark.parametrize("deadline,timeout", [(None, 180), (240.0, 180), (12.5, 12.5)])
+def test_git_timeout_is_rejection(tmp_path, deadline, timeout):
+    def runner(cmd, **kwargs):
+        assert kwargs["timeout"] == timeout
+        raise subprocess.TimeoutExpired(cmd, kwargs["timeout"])
+
+    git = e.Git(tmp_path, runner=runner, deadline_seconds=deadline, _now=lambda: 0.0)
+    with pytest.raises(e.ExtractionTimeout, match="^extraction_timeout$") as caught:
+        git.run("log")
+    assert isinstance(caught.value, s.Rejected)
+    assert not isinstance(caught.value, e.InstrumentFailure)
+
+
+def test_git_cumulative_deadline_prevents_launch(tmp_path):
+    now, timeouts = [100.0], []
+
+    def runner(cmd, **kwargs):
+        timeouts.append(kwargs["timeout"])
+        now[0] += 4.0
+        return subprocess.CompletedProcess(cmd, 0, b"read", b"")
+
+    git = e.Git(tmp_path, runner=runner, deadline_seconds=10.0, _now=lambda: now[0])
+    assert git.run("log") == "read"
+    assert git.run("log") == "read"
+    now[0] += 3.0  # Time between commands counts as well.
+    with pytest.raises(e.ExtractionTimeout, match="^extraction_timeout$"):
+        git.run("log")
+    assert timeouts == [10.0, 6.0]
+
+
+def test_git_launch_failure_stays_fatal(tmp_path):
+    def runner(cmd, **kwargs):
+        raise FileNotFoundError("private executable path")
+
+    with pytest.raises(e.InstrumentFailure, match="^git_launch_failed$"):
+        e.Git(tmp_path, runner=runner, deadline_seconds=240.0).run("log")
+
+
 def test_walkback_is_bounded_and_file_cap_falls_back(history):
     git, _, candidate, _, _, parent, _ = history
 

@@ -123,10 +123,11 @@ def write_draft(root: Path, assigned: list[dict], *, seed: int) -> tuple[Path, P
 class Clones:
     """One disposable blobless clone at a time; no name in cache paths or subprocess output."""
 
-    def __init__(self, root: Path, cache: Path, *, runner=None, limit_bytes=500 * 1024 * 1024):
+    def __init__(self, root: Path, cache: Path, *, runner=None, limit_bytes=500 * 1024 * 1024, deadline_seconds: float | None = None):
         self.cache = external(root, cache)
         self.runner = runner or subprocess.run
         self.limit_bytes = limit_bytes
+        self.deadline_seconds = deadline_seconds
         self.counts = Counter()
 
     @contextmanager
@@ -135,7 +136,7 @@ class Clones:
         started = time.monotonic()
         with tempfile.TemporaryDirectory(prefix="clone-", dir=self.cache) as directory:
             path = Path(directory)
-            git = Git(path, runner=self.runner, limit_bytes=self.limit_bytes)
+            git = Git(path, runner=self.runner, limit_bytes=self.limit_bytes, deadline_seconds=self.deadline_seconds)
             try:
                 # Full commit graph is needed for temporal thirds and OSV brackets; blobs
                 # are fetched lazily. This is a partial clone, not a truncated history.
@@ -145,7 +146,7 @@ class Clones:
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
                     check=False,
-                    timeout=180,
+                    timeout=git.command_timeout(),
                     env={**os.environ, "GIT_TERMINAL_PROMPT": "0"},
                 )
                 if done.returncode:
@@ -154,6 +155,8 @@ class Clones:
                 if git.disk_bytes() > self.limit_bytes:
                     raise InstrumentFailure("clone_size_cap")
                 yield git
+            except subprocess.TimeoutExpired:
+                raise extract.ExtractionTimeout("extraction_timeout") from None
             finally:
                 size = git.disk_bytes()
                 self.counts["clone_bytes"] += size
@@ -331,6 +334,8 @@ def run(
 ) -> dict:
     started = time.monotonic()
     report = {"status": "sourcing", "seed": seed, "candidates": {}, "rejections": {}, "ordinary_exclusions": {}}
+    # Operational budget only: changing it must not invalidate journal resume inputs.
+    report["extract_deadline_seconds"] = getattr(clones, "deadline_seconds", None)
     counts, rejected, ordinary_counts = Counter(), Counter(), Counter()
     checkpoint = None
     try:
@@ -440,6 +445,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--root", type=Path, default=Path.cwd())
     parser.add_argument("--cache", type=Path)
     parser.add_argument("--max-hours", type=float, help="Stop between units after this many hours per invocation")
+    parser.add_argument("--extract-deadline", type=float, default=240.0, help="Extraction wall-clock budget per repository in seconds")
     parser.add_argument("--seed", type=int, default=20260601)
     parser.add_argument("--local-store")
     parser.add_argument("--s3-store", default="s3://")
@@ -451,7 +457,7 @@ def main(argv: list[str] | None = None) -> int:
         # Refuse an existing draft before doing any network work.
         if any((args.root / p).exists() for p in ("benchmarks/unseen/draft-p1.toml", "benchmarks/unseen/private/draft-p1.toml")):
             raise FileExistsError("draft_exists")
-        clones = Clones(args.root, args.cache or results_root() / "unseen-draft")
+        clones = Clones(args.root, args.cache or results_root() / "unseen-draft", deadline_seconds=args.extract_deadline)
         stores = {
             "local": memory.open_store(args.local_store or "file://" + str(results_root() / "memory"), read_only=True),
             "s3": memory.open_store(args.s3_store, read_only=True),
