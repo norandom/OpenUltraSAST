@@ -296,6 +296,8 @@ def extract_repository(candidate, github, clones, fixes, seed):
         result = {"rejected": str(exc), "ordinary_exclusions": getattr(exc, "counts", {})}
     except eligibility.RepositoryNotFound:
         result = {"rejected": "repository_or_commit_not_found", "ordinary_exclusions": {}}
+    except (extract.InstrumentFailure, OSError) as exc:
+        result = {"rejected": "extract_" + str(exc), "ordinary_exclusions": {}}
     result["counts"] = {key: value - before.get(key, 0) for key, value in clones.counts.items()}
     return result
 
@@ -356,6 +358,7 @@ def run(
             report["advisories"] = len(rows)
             fixes_by_repo = advisory_index(rows, api)
             selected_networks, entries = set(), []
+            extract_failures = 0
             for row in source.ordered_advisories(rows, seed):
                 checkpoint.boundary()
                 key = row["ghsa_id"]
@@ -378,9 +381,13 @@ def run(
                 ordinary_counts.update(result["ordinary_exclusions"])
                 if "rejected" in result:
                     rejected[result["rejected"]] += 1
-                    continue
-                selected_networks.add(decision["network"])
-                entries.append(result["entry"])
+                    extract_failures += int(result["rejected"].startswith("extract_"))
+                else:
+                    selected_networks.add(decision["network"])
+                    entries.append(result["entry"])
+                # Include replayed extraction results, but never eligibility exclusions.
+                if (extract_failures >= 25 and not entries) or extract_failures > 200:
+                    raise extract.InstrumentFailure("systemic_extraction_failure")
                 if len(entries) == 300:
                     break
             report.update(
