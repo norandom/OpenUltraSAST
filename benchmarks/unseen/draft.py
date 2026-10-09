@@ -16,7 +16,8 @@ import random
 import subprocess
 import tempfile
 import time
-from collections import Counter, defaultdict
+from collections import Counter, defaultdict, deque
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from dataclasses import asdict
 from pathlib import Path
@@ -121,9 +122,21 @@ def write_draft(root: Path, assigned: list[dict], *, seed: int) -> tuple[Path, P
 
 
 class Clones:
-    """One disposable blobless clone at a time; no name in cache paths or subprocess output."""
+    """Disposable blobless clones; each worker receives its own counter accumulator."""
 
-    def __init__(self, root: Path, cache: Path, *, runner=None, limit_bytes=500 * 1024 * 1024, deadline_seconds: float | None = None):
+    def __init__(
+        self,
+        root: Path,
+        cache: Path,
+        *,
+        runner=None,
+        limit_bytes=500 * 1024 * 1024,
+        deadline_seconds: float | None = None,
+        extract_workers: int = 6,
+    ):
+        if extract_workers < 1:
+            raise ValueError("invalid_extract_workers")
+        self.extract_workers = extract_workers
         self.cache = external(root, cache)
         self.runner = runner or subprocess.run
         self.limit_bytes = limit_bytes
@@ -138,8 +151,8 @@ class Clones:
             path = Path(directory)
             git = Git(path, runner=self.runner, limit_bytes=self.limit_bytes, deadline_seconds=self.deadline_seconds)
             try:
-                # Full commit graph is needed for temporal thirds and OSV brackets; blobs
-                # are fetched lazily. This is a partial clone, not a truncated history.
+                # Full commit graph is needed for temporal thirds and OSV brackets.
+                # repository_changes batches blobs before reading their content.
                 done = self.runner(
                     ["git", "-c", "credential.helper=", "clone", "--quiet", "--filter=blob:none", "--no-checkout", url, str(path)],
                     stdin=subprocess.DEVNULL,
@@ -195,18 +208,21 @@ def advisory_index(rows: list[dict], github) -> dict[str, set[str]]:
 
 
 def repository_changes(git, candidate, fixes: set[str], *, seed: int):
+    # Fetch detached fixes together, then materialize the histories before any diff,
+    # show or blame can trigger a per-file promisor fetch.
+    fixes = sorted(fixes | {candidate.fix})
+    # The candidate fetch in extract_repository retains the original tag behavior.
+    # Do not import other fixes' tags before introducing() checks its version bracket.
+    git.run("fetch", "--quiet", "--no-tags", "--filter=blob:none", "origin", *fixes)
+    git.materialize(["HEAD", *fixes])
     proof = prove_source(git, candidate.parent)
     change = extract.introducing(git, candidate)
     known = set()
     expanded = set()
-    for fix in sorted(fixes | {candidate.fix}):
-        # Explicitly fetch detached advisory commits unavailable on default-branch history.
-        # All git including this possible network call still goes through the injected client.
-        git.run("fetch", "--quiet", "--filter=blob:none", "origin", fix)
+    for fix in fixes:
         full = git.run("rev-parse", fix).strip()
         expanded.add(full)
-        parents = git.parents(full)
-        for parent in parents:
+        for parent in git.parents(full):
             sites = extract.fix_sites(git, full, parent, global_ok=True)
             known.update((site["path"], site["function"]) for site in sites)
     rows = extract.ordinary_history(git, "HEAD")
@@ -255,27 +271,30 @@ def enumerate_advisories(github, journal):
     return list(records.values())
 
 
-def decide(row, github, osv, used, selected_networks):
+def decide(row, github, osv, used, selected_networks=()):
+    # selected_networks is retained for callers; only ordered acceptance consults it.
+    network = {}
     try:
         links = source.fix_links(row)
         if len(links) != 1:
             raise source.Rejected("fix_links")
         name, _ = next(iter(links))
         resolved = eligibility.resolve(name, github)
-        rejected_by = eligibility.rejection(resolved, used, set(selected_networks))
+        rejected_by = eligibility.rejection(resolved, used, set())
         if rejected_by:
             raise source.Rejected("used_" + rejected_by)
+        network = {"network": resolved.network}
         candidate = source.candidate(row, github, osv)
         return {"candidate": asdict(candidate), "network": resolved.network}
     except source.Rejected as exc:
-        return {"rejected": str(exc)}
+        return {"rejected": str(exc), **network}
     except eligibility.RepositoryNotFound:
-        return {"rejected": "repository_or_commit_not_found"}
+        return {"rejected": "repository_or_commit_not_found", **network}
     except ValueError as exc:
         # A per-candidate transport failure (e.g. get_commit on an unresolvable fix ref)
         # skips this advisory; the run loop's systemic guard catches a broken instrument.
         if str(exc) == "http_failure":
-            return {"rejected": "decide_http_failure"}
+            return {"rejected": "decide_http_failure", **network}
         raise
 
 
@@ -285,18 +304,7 @@ def extract_repository(candidate, github, clones, fixes, seed):
         with clones.open(candidate.url) as git:
             git.run("fetch", "--quiet", "--filter=blob:none", "origin", candidate.fix)
             changes, exclusions, proof = repository_changes(git, candidate, fixes, seed=seed)
-            pinned = changes[0]["head"]
-            license_record = github.get_license(candidate.repository, pinned)
-            spdx, license_class = source.license_info(license_record)
-            entry = {
-                **asdict(candidate),
-                "license_spdx": spdx,
-                "license_class": license_class,
-                "license_ref": pinned,
-                "license_path": license_record.get("path", ""),
-                "changes": changes,
-                "instrument": proof,
-            }
+            entry = {**asdict(candidate), "changes": changes, "instrument": proof}
         result = {"entry": entry, "ordinary_exclusions": exclusions}
     except source.Rejected as exc:
         result = {"rejected": str(exc), "ordinary_exclusions": getattr(exc, "counts", {})}
@@ -305,7 +313,102 @@ def extract_repository(candidate, github, clones, fixes, seed):
     except (extract.InstrumentFailure, OSError) as exc:
         result = {"rejected": "extract_" + str(exc), "ordinary_exclusions": {}}
     result["counts"] = {key: value - before.get(key, 0) for key, value in clones.counts.items()}
+    return finish_license(result, github) if github is not None else result
+
+
+def finish_license(result, github):
+    """REST stays on the coordinator, including the license at the extracted pin."""
+    if "entry" not in result:
+        return result
+    try:
+        entry = result["entry"]
+        pinned = entry["changes"][0]["head"]
+        record = github.get_license(entry["repository"], pinned)
+        spdx, license_class = source.license_info(record)
+        entry.update(license_spdx=spdx, license_class=license_class, license_ref=pinned, license_path=record.get("path", ""))
+    except (source.Rejected, eligibility.RepositoryNotFound) as exc:
+        reason = "repository_or_commit_not_found" if isinstance(exc, eligibility.RepositoryNotFound) else str(exc)
+        return {"rejected": reason, "ordinary_exclusions": {}, "counts": result["counts"]}
+    except (extract.InstrumentFailure, OSError) as exc:
+        return {"rejected": "extract_" + str(exc), "ordinary_exclusions": {}, "counts": result["counts"]}
+    except ValueError as exc:
+        if str(exc) != "http_failure":
+            raise
+        return {"rejected": "extract_http_failure", "ordinary_exclusions": {}, "counts": result["counts"]}
     return result
+
+
+@contextmanager
+def ordered_extractions(rows, api, osv, used, clones, fixes, seed, checkpoint, entries, workers):
+    """Bounded speculation, ordered consumption, and coordinator-only durable writes.
+
+    At most `workers` candidates are ahead of the acceptance cursor. Counters are
+    private to each job, including clone cleanup, and merged exactly once here.
+    Graceful STOP/guard/target exits drain started work into the journal for resume;
+    a hard interrupt may lose unjournaled work but cannot change accepted order.
+    """
+    pending = deque()
+    pool = ThreadPoolExecutor(max_workers=workers)
+
+    def collect(item):
+        row, decision, key, future, local = item
+        if future is not None:
+            future.exception()  # Wait for cleanup before reading this job's counters.
+            for name, value in local.counts.items():
+                if name == "peak_clone_bytes":
+                    clones.counts[name] = max(clones.counts[name], value)
+                else:
+                    clones.counts[name] += value
+            result = finish_license(future.result(), api)
+            checkpoint.put("extraction", key, result)
+        return row, decision, checkpoint.rows["extraction"].get(key)
+
+    def iterate():
+        ordered = iter(rows)
+        exhausted = False
+        while pending or not exhausted:
+            while not exhausted and len(pending) < min(workers, 300 - len(entries)):
+                checkpoint.boundary()
+                row = next(ordered, None)
+                if row is None:
+                    exhausted = True
+                    break
+                key = row["ghsa_id"]
+                if key not in checkpoint.rows["eligibility"]:
+                    checkpoint.put("eligibility", key, decide(row, api, osv, used))
+                decision = checkpoint.rows["eligibility"][key]
+                extraction_key, future, local = None, None, None
+                if "candidate" in decision:
+                    candidate = source.Candidate(**decision["candidate"])
+                    extraction_key = digest({"repository": candidate.repository, "advisory": key, "fix": candidate.fix})
+                    if extraction_key not in checkpoint.rows["extraction"]:
+                        checkpoint.boundary()
+                        local = copy.copy(clones)
+                        local.counts = Counter()
+                        future = pool.submit(extract_repository, candidate, None, local, fixes.get(candidate.repository, set()), seed)
+                pending.append((row, decision, extraction_key, future, local))
+            if not pending:
+                return
+            checkpoint.boundary()
+            yield collect(pending.popleft())
+
+    interrupted = False
+    stopped = None
+    try:
+        yield iterate()
+    except BaseException as exc:
+        interrupted = not isinstance(exc, Exception)
+        stopped = str(exc) if isinstance(exc, Stopped) else None
+        raise
+    finally:
+        pool.shutdown(wait=True, cancel_futures=True)
+        if not interrupted:
+            for item in pending:
+                future = item[3]
+                if future is not None and not future.cancelled():
+                    collect(item)
+            if stopped is not None:
+                checkpoint.progress("stopped", reason=stopped)
 
 
 def publish(journal, assigned, seed):
@@ -339,10 +442,15 @@ def run(
     journal_path=None,
     max_hours=None,
     clock=None,
+    extract_workers=None,
 ) -> dict:
+    workers = extract_workers if extract_workers is not None else getattr(clones, "extract_workers", 6)
+    if workers < 1:
+        raise ValueError("invalid_extract_workers")
     started = time.monotonic()
     report = {"status": "sourcing", "seed": seed, "candidates": {}, "rejections": {}, "ordinary_exclusions": {}}
     # Operational budget only: changing it must not invalidate journal resume inputs.
+    report["extract_workers"] = workers
     report["extract_deadline_seconds"] = getattr(clones, "deadline_seconds", None)
     counts, rejected, ordinary_counts = Counter(), Counter(), Counter()
     checkpoint = None
@@ -365,41 +473,39 @@ def run(
             fixes_by_repo = advisory_index(rows, api)
             selected_networks, entries = set(), []
             instrument_failures = 0
-            for row in source.ordered_advisories(rows, seed):
-                checkpoint.boundary()
-                key = row["ghsa_id"]
-                counts[source.ecosystem(row)] += 1
-                if key not in checkpoint.rows["eligibility"]:
-                    decision = decide(row, api, osv, used, selected_networks)
-                    checkpoint.put("eligibility", key, decision)
-                decision = checkpoint.rows["eligibility"][key]
-                if "rejected" in decision:
-                    rejected[decision["rejected"]] += 1
-                    instrument_failures += int(decision["rejected"] == "decide_http_failure")
+            with ordered_extractions(
+                source.ordered_advisories(rows, seed),
+                api,
+                osv,
+                used,
+                clones,
+                fixes_by_repo,
+                seed,
+                checkpoint,
+                entries,
+                workers,
+            ) as outcomes:
+                for row, decision, result in outcomes:
+                    counts[source.ecosystem(row)] += 1
+                    if decision.get("network") in selected_networks:
+                        # Serial decide skipped this candidate entirely. Even a failed
+                        # speculative extraction must not affect the systemic guard.
+                        rejected["fork_network"] += 1
+                    elif "rejected" in decision:
+                        rejected[decision["rejected"]] += 1
+                        instrument_failures += int(decision["rejected"] == "decide_http_failure")
+                    else:
+                        ordinary_counts.update(result["ordinary_exclusions"])
+                        if "rejected" in result:
+                            rejected[result["rejected"]] += 1
+                            instrument_failures += int(result["rejected"].startswith("extract_"))
+                        else:
+                            selected_networks.add(decision["network"])
+                            entries.append(result["entry"])
                     if (instrument_failures >= 25 and not entries) or instrument_failures > 200:
                         raise extract.InstrumentFailure("systemic_extraction_failure")
-                    continue
-                candidate = source.Candidate(**decision["candidate"])
-                # Multiple advisories for one repository can have different fix/range inputs.
-                extraction_key = digest({"repository": candidate.repository, "advisory": key, "fix": candidate.fix})
-                if extraction_key not in checkpoint.rows["extraction"]:
-                    checkpoint.boundary()
-                    result = extract_repository(candidate, api, clones, fixes_by_repo.get(candidate.repository, set()), seed)
-                    checkpoint.put("extraction", extraction_key, result)
-                result = checkpoint.rows["extraction"][extraction_key]
-                ordinary_counts.update(result["ordinary_exclusions"])
-                if "rejected" in result:
-                    rejected[result["rejected"]] += 1
-                    instrument_failures += int(result["rejected"].startswith("extract_"))
-                else:
-                    selected_networks.add(decision["network"])
-                    entries.append(result["entry"])
-                # Count per-candidate instrument failures (decide + extract, replay included),
-                # never ordinary eligibility exclusions.
-                if (instrument_failures >= 25 and not entries) or instrument_failures > 200:
-                    raise extract.InstrumentFailure("systemic_extraction_failure")
-                if len(entries) == 300:
-                    break
+                    if len(entries) == 300:
+                        break
             report.update(
                 {
                     "repositories": len(entries),
@@ -463,18 +569,26 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--cache", type=Path)
     parser.add_argument("--max-hours", type=float, help="Stop between units after this many hours per invocation")
     parser.add_argument("--extract-deadline", type=float, default=240.0, help="Extraction wall-clock budget per repository in seconds")
+    parser.add_argument("--extract-workers", type=int, default=6, help="Maximum concurrent repository extractions (default: 6)")
     parser.add_argument("--seed", type=int, default=20260601)
     parser.add_argument("--local-store")
     parser.add_argument("--s3-store", default="s3://")
     parser.add_argument("--pointer-manifest", type=Path, action="append", default=[])
     parser.add_argument("--known-empty", choices=(*eligibility.SOURCES, "memory_local", "memory_s3"), action="append", default=[])
     args = parser.parse_args(argv)
+    if args.extract_workers < 1:
+        parser.error("--extract-workers must be at least 1")
     try:
         config.load_dotenv(args.root / ".env")
         # Refuse an existing draft before doing any network work.
         if any((args.root / p).exists() for p in ("benchmarks/unseen/draft-p1.toml", "benchmarks/unseen/private/draft-p1.toml")):
             raise FileExistsError("draft_exists")
-        clones = Clones(args.root, args.cache or results_root() / "unseen-draft", deadline_seconds=args.extract_deadline)
+        clones = Clones(
+            args.root,
+            args.cache or results_root() / "unseen-draft",
+            deadline_seconds=args.extract_deadline,
+            extract_workers=args.extract_workers,
+        )
         stores = {
             "local": memory.open_store(args.local_store or "file://" + str(results_root() / "memory"), read_only=True),
             "s3": memory.open_store(args.s3_store, read_only=True),
