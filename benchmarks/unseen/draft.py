@@ -11,13 +11,15 @@ import argparse
 import copy
 import hashlib
 import json
+import multiprocessing
 import os
 import random
 import subprocess
 import tempfile
 import time
 from collections import Counter, defaultdict, deque
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures.process import BrokenProcessPool
 from contextlib import contextmanager
 from dataclasses import asdict
 from pathlib import Path
@@ -348,22 +350,35 @@ def ordered_extractions(rows, api, osv, used, clones, fixes, seed, checkpoint, e
     a hard interrupt may lose unjournaled work but cannot change accepted order.
     """
     pending = deque()
-    pool = ThreadPoolExecutor(max_workers=workers)
+    # Fork shares the coordinator's memory copy-on-write. Jobs receive only the
+    # picklable extraction inputs, never the journal, REST clients or stores.
+    context = multiprocessing.get_context("fork")
+    pool = ProcessPoolExecutor(max_workers=workers, mp_context=context)
 
     def collect(item):
-        row, decision, key, future, local = item
+        row, decision, key, future = item
         if future is not None:
-            future.exception()  # Wait for cleanup before reading this job's counters.
-            for name, value in local.counts.items():
+            try:
+                result = future.result()
+            except BrokenProcessPool:
+                # A killed worker also fails unrelated outstanding futures. Do not
+                # mistake these collateral failures for a broken git instrument.
+                result = {"rejected": "worker_crash", "ordinary_exclusions": {}, "counts": {}}
+            except Exception:
+                # Includes task/result serialization failures. Keep diagnostics
+                # identity-free; repeated task errors still reach the normal guard.
+                result = {"rejected": "extract_worker_failure", "ordinary_exclusions": {}, "counts": {}}
+            for name, value in result["counts"].items():
                 if name == "peak_clone_bytes":
                     clones.counts[name] = max(clones.counts[name], value)
                 else:
                     clones.counts[name] += value
-            result = finish_license(future.result(), api)
+            result = finish_license(result, api)
             checkpoint.put("extraction", key, result)
         return row, decision, checkpoint.rows["extraction"].get(key)
 
     def iterate():
+        nonlocal pool
         ordered = iter(rows)
         exhausted = False
         while pending or not exhausted:
@@ -377,7 +392,7 @@ def ordered_extractions(rows, api, osv, used, clones, fixes, seed, checkpoint, e
                 if key not in checkpoint.rows["eligibility"]:
                     checkpoint.put("eligibility", key, decide(row, api, osv, used))
                 decision = checkpoint.rows["eligibility"][key]
-                extraction_key, future, local = None, None, None
+                extraction_key, future = None, None
                 if "candidate" in decision:
                     candidate = source.Candidate(**decision["candidate"])
                     extraction_key = digest({"repository": candidate.repository, "advisory": key, "fix": candidate.fix})
@@ -385,8 +400,16 @@ def ordered_extractions(rows, api, osv, used, clones, fixes, seed, checkpoint, e
                         checkpoint.boundary()
                         local = copy.copy(clones)
                         local.counts = Counter()
-                        future = pool.submit(extract_repository, candidate, None, local, fixes.get(candidate.repository, set()), seed)
-                pending.append((row, decision, extraction_key, future, local))
+                        args = (candidate, None, local, fixes.get(candidate.repository, set()), seed)
+                        try:
+                            future = pool.submit(extract_repository, *args)
+                        except BrokenProcessPool:
+                            # Already-submitted jobs retain their ordered crash
+                            # skips; only new jobs enter the replacement pool.
+                            pool.shutdown(wait=True, cancel_futures=True)
+                            pool = ProcessPoolExecutor(max_workers=workers, mp_context=context)
+                            future = pool.submit(extract_repository, *args)
+                pending.append((row, decision, extraction_key, future))
             if not pending:
                 return
             checkpoint.boundary()
@@ -447,6 +470,7 @@ def run(
     workers = extract_workers if extract_workers is not None else getattr(clones, "extract_workers", 6)
     if workers < 1:
         raise ValueError("invalid_extract_workers")
+    workers = min(workers, os.cpu_count() or 4)
     started = time.monotonic()
     report = {"status": "sourcing", "seed": seed, "candidates": {}, "rejections": {}, "ordinary_exclusions": {}}
     # Operational budget only: changing it must not invalidate journal resume inputs.
@@ -569,7 +593,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--cache", type=Path)
     parser.add_argument("--max-hours", type=float, help="Stop between units after this many hours per invocation")
     parser.add_argument("--extract-deadline", type=float, default=240.0, help="Extraction wall-clock budget per repository in seconds")
-    parser.add_argument("--extract-workers", type=int, default=6, help="Maximum concurrent repository extractions (default: 6)")
+    parser.add_argument("--extract-workers", type=int, default=6, help="Maximum extraction processes, capped to CPU cores (default: 6)")
     parser.add_argument("--seed", type=int, default=20260601)
     parser.add_argument("--local-store")
     parser.add_argument("--s3-store", default="s3://")
