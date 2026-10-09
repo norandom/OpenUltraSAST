@@ -272,14 +272,16 @@ def test_systemic_extraction_guard_boundaries(tmp_path, monkeypatch, successes, 
     expected_failures = min(failures, 201 if successes else 25)
     assert report["status"] == status
     assert report["rejections"] == {"extract_git_exit_128": expected_failures}
-    assert successes + expected_failures <= clones.counts["clones"] <= successes + min(failures, expected_failures + 5)
+    assert successes + expected_failures <= clones.counts["clones"] <= successes + failures
     assert not (journal_path / "draft-p1.toml").exists()
     if status == "instrument_failure":
         assert report["error_type"] == "InstrumentFailure"
-        # Replayed failures trip the same guard; only missing speculation may run.
+        # Completed speculation can run arbitrarily far ahead of a slow cursor.
+        # Replayed failures trip the same guard; cached results are not extracted again.
+        completed_clones = clones.counts["clones"]
         resumed = d.run(**kwargs)
         assert resumed["status"] == status and resumed["rejections"] == report["rejections"]
-        assert successes + expected_failures <= clones.counts["clones"] <= successes + min(failures, expected_failures + 5)
+        assert clones.counts["clones"] == completed_clones
 
 
 @pytest.mark.parametrize(
@@ -1121,6 +1123,75 @@ def test_parallel_pool_is_byte_identical_and_fork_selection_is_seed_ordered(tmp_
     expected = [name for i, name in enumerate(names) if i not in {0, 3, 5, 6, 7, 8}][:300]
     assert selected == [expected, expected]
     assert snapshots[0] == snapshots[1]
+
+
+@pytest.mark.parametrize("failures", [0, 25])
+def test_completion_journaling_refills_pool_while_seed_cursor_is_blocked(tmp_path, monkeypatch, failures):
+    monkeypatch.setattr(d.os, "fsync", lambda fd: None)
+    monkeypatch.setattr(d.os, "cpu_count", lambda: 2)
+    context = multiprocessing.get_context("fork")
+    release_first, first_finished = context.Event(), context.Event()
+    ordered = s.ordered_advisories(list(FakeAPI(310 + failures).advisories()), 7)
+    names = [row["references"][0].split("/commit/")[0].removeprefix("https://github.com/") for row in ordered]
+    ranks = {name: i for i, name in enumerate(names)}
+    key_ranks = {d.digest({"repository": name, "advisory": ordered[i]["ghsa_id"], "fix": "a" * 40}): i for i, name in enumerate(names)}
+    release_rank = max(6, failures)
+    expected = [0, *range(failures + 1, failures + 300)]
+    changes = entries()[0]["changes"]
+    coordinator = os.getpid()
+    journaled, accepted = [], []
+    original_put, original_assign = d.Journal.put, d.assign_slices
+
+    def extract_changes(git, candidate, fixes, *, seed):
+        assert os.getpid() != coordinator
+        if ranks[candidate.repository] == 0:
+            # The release rank is beyond the old bounded cursor window.
+            assert release_first.wait(10), "pool waited on the oldest future"
+            first_finished.set()
+        if 1 <= ranks[candidate.repository] <= failures:
+            raise d.InstrumentFailure("git_exit_128")
+        return copy.deepcopy(changes), {}, {"bytes": 12, "files": 1}
+
+    def put(self, stage, key, value):
+        assert os.getpid() == coordinator
+        original_put(self, stage, key, value)
+        if stage == "extraction":
+            rank = key_ranks[key]
+            if 1 <= rank <= failures:
+                assert value["rejected"] == "extract_git_exit_128"
+            else:
+                assert "entry" in value, value
+            journaled.append(rank)
+            if rank == release_rank:
+                assert not first_finished.is_set()
+                assert 0 not in journaled
+                assert set(range(1, release_rank + 1)) <= set(journaled)
+                release_first.set()
+
+    def assign(rows, *, seed):
+        accepted.append([ranks[row["repository"]] for row in rows])
+        return original_assign(rows, seed=seed)
+
+    monkeypatch.setattr(d, "repository_changes", extract_changes)
+    monkeypatch.setattr(d.Journal, "put", put)
+    monkeypatch.setattr(d, "assign_slices", assign)
+    used = e.UsedSet()
+    path = tmp_path / "journal"
+    kwargs = dict(root=tmp_path / "repo", osv=FakeOSV(), used=used, seed=7, known_empty=set(used.sources), journal_path=path)
+    result = d.run(**kwargs, github=FakeAPI(310 + failures), clones=FakeClones(), extract_workers=2)
+    assert result["status"] == "draft", result
+    assert journaled.index(release_rank) < journaled.index(0)
+    assert accepted == [expected]
+    # Even 25 completed instrument failures must wait for the earlier success:
+    # counting them at completion would incorrectly trip the zero-entry guard.
+    assert result["rejections"] == ({"extract_git_exit_128": failures} if failures else {})
+    snapshots = [(path / name).read_bytes() for name in ("draft-p1.toml", "private-draft-p1.toml")]
+    before = (path / "extraction.jsonl").read_bytes()
+    resumed = d.run(**kwargs, github=FakeAPI(310 + failures), clones=FakeClones(), extract_workers=1)
+    assert resumed["status"] == "draft" and resumed["instrument"] == {}
+    assert accepted == [expected] * 2
+    assert (path / "extraction.jsonl").read_bytes() == before
+    assert snapshots == [(path / name).read_bytes() for name in ("draft-p1.toml", "private-draft-p1.toml")]
 
 
 @pytest.mark.parametrize("workers", [0, -1])
