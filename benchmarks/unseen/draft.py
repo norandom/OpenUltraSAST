@@ -18,7 +18,7 @@ import subprocess
 import tempfile
 import time
 from collections import Counter, defaultdict, deque
-from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import FIRST_COMPLETED, ProcessPoolExecutor, wait
 from concurrent.futures.process import BrokenProcessPool
 from contextlib import contextmanager
 from dataclasses import asdict
@@ -342,47 +342,60 @@ def finish_license(result, github):
 
 @contextmanager
 def ordered_extractions(rows, api, osv, used, clones, fixes, seed, checkpoint, entries, workers):
-    """Bounded speculation, ordered consumption, and coordinator-only durable writes.
+    """Bounded in-flight work, completion journaling, and seed-order acceptance.
 
-    At most `workers` candidates are ahead of the acceptance cursor. Counters are
-    private to each job, including clone cleanup, and merged exactly once here.
+    Only running jobs count against `workers`; completed results wait in the
+    journal while the acceptance cursor is blocked. Counters are private to each
+    job, including clone cleanup, and merged exactly once on completion here.
     Graceful STOP/guard/target exits drain started work into the journal for resume;
     a hard interrupt may lose unjournaled work but cannot change accepted order.
     """
-    pending = deque()
+    pending = deque()  # Seed-order acceptance cursor; contains no futures/results.
+    in_flight = {}  # Future -> extraction key, independent of the cursor.
     # Fork shares the coordinator's memory copy-on-write. Jobs receive only the
     # picklable extraction inputs, never the journal, REST clients or stores.
     context = multiprocessing.get_context("fork")
     pool = ProcessPoolExecutor(max_workers=workers, mp_context=context)
 
-    def collect(item):
-        row, decision, key, future = item
-        if future is not None:
-            try:
-                result = future.result()
-            except BrokenProcessPool:
-                # A killed worker also fails unrelated outstanding futures. Do not
-                # mistake these collateral failures for a broken git instrument.
-                result = {"rejected": "worker_crash", "ordinary_exclusions": {}, "counts": {}}
-            except Exception:
-                # Includes task/result serialization failures. Keep diagnostics
-                # identity-free; repeated task errors still reach the normal guard.
-                result = {"rejected": "extract_worker_failure", "ordinary_exclusions": {}, "counts": {}}
-            for name, value in result["counts"].items():
-                if name == "peak_clone_bytes":
-                    clones.counts[name] = max(clones.counts[name], value)
-                else:
-                    clones.counts[name] += value
-            result = finish_license(result, api)
-            checkpoint.put("extraction", key, result)
-        return row, decision, checkpoint.rows["extraction"].get(key)
+    def collect(future):
+        key = in_flight[future]
+        try:
+            result = future.result()
+        except BrokenProcessPool:
+            # A killed worker also fails unrelated outstanding futures. Do not
+            # mistake these collateral failures for a broken git instrument.
+            result = {"rejected": "worker_crash", "ordinary_exclusions": {}, "counts": {}}
+        except Exception:
+            # Includes task/result serialization failures. Keep diagnostics
+            # identity-free; repeated task errors still reach the normal guard.
+            result = {"rejected": "extract_worker_failure", "ordinary_exclusions": {}, "counts": {}}
+        for name, value in result["counts"].items():
+            if name == "peak_clone_bytes":
+                clones.counts[name] = max(clones.counts[name], value)
+            else:
+                clones.counts[name] += value
+        result = finish_license(result, api)
+        checkpoint.put("extraction", key, result)
+        del in_flight[future]
 
     def iterate():
         nonlocal pool
         ordered = iter(rows)
         exhausted = False
-        while pending or not exhausted:
-            while not exhausted and len(pending) < min(workers, 300 - len(entries)):
+
+        def ready():
+            return pending and (pending[0][2] is None or pending[0][2] in checkpoint.rows["extraction"])
+
+        while (pending or not exhausted) and len(entries) < 300:
+            # Only this cursor feeds acceptance, fork deduplication and the guard.
+            # Replayed results follow the same path and need no worker submission.
+            while ready():
+                checkpoint.boundary()
+                row, decision, key = pending.popleft()
+                yield row, decision, checkpoint.rows["extraction"].get(key)
+                if len(entries) == 300:
+                    return
+            while not exhausted and len(in_flight) < workers:
                 checkpoint.boundary()
                 row = next(ordered, None)
                 if row is None:
@@ -409,11 +422,21 @@ def ordered_extractions(rows, api, osv, used, clones, fixes, seed, checkpoint, e
                             pool.shutdown(wait=True, cancel_futures=True)
                             pool = ProcessPoolExecutor(max_workers=workers, mp_context=context)
                             future = pool.submit(extract_repository, *args)
-                pending.append((row, decision, extraction_key, future))
-            if not pending:
-                return
-            checkpoint.boundary()
-            yield collect(pending.popleft())
+                        in_flight[future] = extraction_key
+                pending.append((row, decision, extraction_key))
+                # Finalize cached decisions promptly (especially on resume), and
+                # service completed jobs even during a long run of decide skips.
+                if ready() or any(future.done() for future in in_flight):
+                    break
+            if ready():
+                continue
+            if in_flight:
+                checkpoint.boundary()
+                done, _ = wait(in_flight, return_when=FIRST_COMPLETED)
+                for future in done:
+                    collect(future)
+                # Freed slots are refilled on the next pass even if the oldest
+                # candidate is still running. No result() waits on that cursor.
 
     interrupted = False
     stopped = None
@@ -426,10 +449,9 @@ def ordered_extractions(rows, api, osv, used, clones, fixes, seed, checkpoint, e
     finally:
         pool.shutdown(wait=True, cancel_futures=True)
         if not interrupted:
-            for item in pending:
-                future = item[3]
-                if future is not None and not future.cancelled():
-                    collect(item)
+            for future in list(in_flight):
+                if not future.cancelled():
+                    collect(future)
             if stopped is not None:
                 checkpoint.progress("stopped", reason=stopped)
 
