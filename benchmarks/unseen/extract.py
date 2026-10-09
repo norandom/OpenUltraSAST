@@ -53,12 +53,12 @@ class Git:
             raise ExtractionTimeout("extraction_timeout")
         return min(180, remaining)
 
-    def run(self, *args: str, allowed=(0,)) -> str:
+    def run(self, *args: str, allowed=(0,), input_data: bytes | None = None) -> str:
         timeout = self.command_timeout()
         try:
             done = self.runner(
                 ["git", "-c", "core.quotePath=false", "-C", str(self.path), *args],
-                stdin=subprocess.DEVNULL,
+                **({"stdin": subprocess.DEVNULL} if input_data is None else {"input": input_data}),
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 timeout=timeout,
@@ -74,6 +74,38 @@ class Git:
             raise InstrumentFailure("clone_size_cap")
         self.last_blob_bytes = len(done.stdout)
         return done.stdout.decode("utf-8", errors="replace")
+
+    def materialize(self, revisions: list[str]) -> None:
+        """Fetch missing historical blobs in one pack, without changing content reads.
+
+        ordinary_history inspects the complete first-parent history, including both
+        sides, attributes and non-source diffs. Blame -M/-C and log -L can walk all
+        ancestors and copy sources. Include the reachable trees, not only tip files,
+        so these commands keep exactly their original semantics. This is a safe
+        superset (merge-side trees included), still subject to the disk/deadline caps.
+        Missing-object enumeration itself does not trigger lazy blob fetches.
+        """
+        data = ("\n".join(revisions) + "\n").encode()
+        objects = self.run("rev-list", "--objects", "--missing=print", "--stdin", input_data=data)
+        missing = sorted({line[1:] for line in objects.splitlines() if line.startswith("?")})
+        if not all(SHA.fullmatch(oid) for oid in missing):
+            raise InstrumentFailure("invalid_missing_object")
+        if missing:
+            # stdin avoids argv limits; explicit object wants avoid one promisor
+            # request per show/blame. --no-filter overrides clone's stored filter.
+            self.run(
+                "fetch",
+                "--quiet",
+                "--no-tags",
+                "--no-write-fetch-head",
+                "--no-filter",
+                "--stdin",
+                "origin",
+                input_data=("\n".join(missing) + "\n").encode(),
+            )
+            remaining = self.run("rev-list", "--objects", "--missing=print", "--stdin", input_data=data)
+            if any(line.startswith("?") for line in remaining.splitlines()):
+                raise InstrumentFailure("missing_blobs_after_fetch")
 
     def disk_bytes(self) -> int:
         # git churns .git/objects/pack (incl. transient *.rev) during on-demand blob
