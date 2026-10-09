@@ -127,6 +127,39 @@ def test_mailbox_retry_is_idempotent(tmp_path):
     assert mailbox.writes >= 2
 
 
+@pytest.mark.parametrize("ready_after", [1, 20, 50])
+def test_command_uploaded_once_while_polling_result(monkeypatch, ready_after):
+    from openultrasast.search import executor as module
+
+    now = [0.0]
+    monkeypatch.setattr(module.time, "monotonic", lambda: now[0])
+    monkeypatch.setattr(module.time, "sleep", lambda delay: now.__setitem__(0, now[0] + delay))
+    command_url, result_url = "https://store.example/command", "https://store.example/result"
+    expected = {"seq": 1, "files": ["ready.txt"]}
+
+    class DelayedResult:
+        writes = 0
+        reads = 0
+
+        def put(self, url, data, timeout):
+            assert url == command_url
+            assert json.loads(data)["seq"] == 1
+            self.writes += 1
+
+        def get(self, url, timeout):
+            assert url == result_url
+            assert self.writes > 0
+            self.reads += 1
+            return json.dumps(expected).encode() if self.reads >= ready_after else None
+
+    transport = DelayedResult()
+    client = ObjectStoreExecutor(command_url, result_url, transport=transport)
+    assert client.submit("list_files", {}) == expected
+    assert transport.reads == ready_after
+    assert transport.writes == 1
+    assert client.seq == 1 and client.pending is None and not client.uncertain
+
+
 def test_mailbox_timeout():
     class Empty:
         def put(self, *args):
@@ -254,8 +287,11 @@ def test_entrypoint_rejects_initial_credentials(tmp_path, monkeypatch, key):
 
 def test_stale_result_is_polled_until_matching_sequence(tmp_path):
     class Stale(Mailbox):
+        reads = 0
+
         def get(self, url, timeout):
-            if self.writes == 1:
+            self.reads += 1
+            if self.reads == 1:
                 return b'{"seq": 0, "files": ["stale"]}'
             return self.result
 
@@ -266,7 +302,8 @@ def test_stale_result_is_polled_until_matching_sequence(tmp_path):
     transport = Stale(InProcessExecutor(tmp_path))
     client = ObjectStoreExecutor("https://store.example/command", "https://store.example/result", transport=transport, poll_seconds=0.001)
     assert client.submit("list_files", {})["files"] == []
-    assert transport.writes == 2
+    assert transport.reads == 2
+    assert transport.writes == 1
 
 
 def test_task_boundary_run_honors_shorter_argument_timeout(tmp_path, monkeypatch):
