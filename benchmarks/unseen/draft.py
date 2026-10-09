@@ -210,19 +210,25 @@ def advisory_index(rows: list[dict], github) -> dict[str, set[str]]:
 
 
 def repository_changes(git, candidate, fixes: set[str], *, seed: int):
-    # Fetch detached fixes together, then materialize the histories before any diff,
-    # show or blame can trigger a per-file promisor fetch.
-    fixes = sorted(fixes | {candidate.fix})
-    # The candidate fetch in extract_repository retains the original tag behavior.
-    # Do not import other fixes' tags before introducing() checks its version bracket.
-    git.run("fetch", "--quiet", "--no-tags", "--filter=blob:none", "origin", *fixes)
-    git.materialize(["HEAD", *fixes])
+    resolved = []
+    for fix in sorted(fixes | {candidate.fix}):
+        try:
+            if fix != candidate.fix:
+                # Extra advisory fixes are best-effort exclusions. The candidate
+                # was fetched strictly by extract_repository. Do not import extra
+                # tags before introducing() checks the candidate's version bracket.
+                git.run("fetch", "--quiet", "--no-tags", "--filter=blob:none", "origin", fix)
+            resolved.append(git.run("rev-parse", fix).strip())
+        except InstrumentFailure as exc:
+            if fix == candidate.fix or not str(exc).startswith("git_exit_"):
+                raise
+    # Batch only resolved histories before diff/show/blame can fetch per-file blobs.
+    git.materialize(["HEAD", *resolved])
     proof = prove_source(git, candidate.parent)
     change = extract.introducing(git, candidate)
     known = set()
     expanded = set()
-    for fix in fixes:
-        full = git.run("rev-parse", fix).strip()
+    for full in resolved:
         expanded.add(full)
         for parent in git.parents(full):
             sites = extract.fix_sites(git, full, parent, global_ok=True)
@@ -548,7 +554,9 @@ def run(
                         else:
                             selected_networks.add(decision["network"])
                             entries.append(result["entry"])
-                    if (instrument_failures >= 25 and not entries) or instrument_failures > 200:
+                    # A low-yield draw can accumulate unbounded candidate failures;
+                    # only zero accepted entries indicate a systemic failure.
+                    if instrument_failures >= 25 and not entries:
                         raise extract.InstrumentFailure("systemic_extraction_failure")
                     if len(entries) == 300:
                         break

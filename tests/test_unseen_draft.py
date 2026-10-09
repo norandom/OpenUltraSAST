@@ -246,12 +246,17 @@ def test_extraction_failures_skip_bad_repositories_and_reach_target(tmp_path, mo
     "successes,failures,status",
     [
         (0, 24, "insufficient_repositories"),
+        (0, 25, "instrument_failure"),
         (0, 26, "instrument_failure"),
         (1, 200, "insufficient_repositories"),
-        (1, 202, "instrument_failure"),
+        (1, 202, "insufficient_repositories"),
+        (1, 1000, "insufficient_repositories"),
     ],
 )
 def test_systemic_extraction_guard_boundaries(tmp_path, monkeypatch, successes, failures, status):
+    # Exercise large journals without per-record disk sync; durability has separate tests.
+    journal_module = importlib.import_module("benchmarks.unseen.journal")
+    monkeypatch.setattr(journal_module.os, "fsync", lambda fd: None)
     api, used = FakeAPI(successes + failures), e.UsedSet()
     ordered = s.ordered_advisories(list(api.advisories()), 7)
     clones = FailingClones({row["references"][0].split("/commit/")[0]: d.InstrumentFailure("git_exit_128") for row in ordered[successes:]})
@@ -269,19 +274,20 @@ def test_systemic_extraction_guard_boundaries(tmp_path, monkeypatch, successes, 
         journal_path=journal_path,
     )
     report = d.run(**kwargs)
-    expected_failures = min(failures, 201 if successes else 25)
+    expected_failures = failures if successes else min(failures, 25)
     assert report["status"] == status
     assert report["rejections"] == {"extract_git_exit_128": expected_failures}
     assert successes + expected_failures <= clones.counts["clones"] <= successes + failures
     assert not (journal_path / "draft-p1.toml").exists()
     if status == "instrument_failure":
         assert report["error_type"] == "InstrumentFailure"
-        # Completed speculation can run arbitrarily far ahead of a slow cursor.
-        # Replayed failures trip the same guard; cached results are not extracted again.
-        completed_clones = clones.counts["clones"]
-        resumed = d.run(**kwargs)
-        assert resumed["status"] == status and resumed["rejections"] == report["rejections"]
-        assert clones.counts["clones"] == completed_clones
+    # Replay a failure-heavy journal with successes without aborting or re-extracting.
+    # With no successes, replay must still trip the same systemic guard.
+    completed_clones = clones.counts["clones"]
+    resumed = d.run(**kwargs)
+    assert resumed["status"] == status and resumed["rejections"] == report["rejections"]
+    assert resumed.get("repositories") == report.get("repositories")
+    assert clones.counts["clones"] == completed_clones
 
 
 @pytest.mark.parametrize(
@@ -585,6 +591,76 @@ def test_repository_changes_excludes_all_advisory_sites(monkeypatch):
     assert proof["bytes"] > 0
     assert len([c for c in calls if c[0] == "fetch"]) == 1
     assert "--no-tags" in next(c for c in calls if c[0] == "fetch")
+
+
+@pytest.mark.parametrize("stage", ["extra_fetch", "extra_resolve", "candidate_fetch", "candidate_resolve", "extra_timeout", "extra_launch"])
+def test_repository_extra_fixes_are_best_effort(tmp_path, monkeypatch, stage):
+    candidate = s.candidate(next(FakeAPI(1).advisories()), FakeAPI(), FakeOSV())
+    missing, available = "c" * 40, "d" * 40
+    resolved = [candidate.fix, available]
+    commands = []
+
+    def runner(argv, **kwargs):
+        args = argv[5:]  # Exercise the real Git wrapper, with no subprocess or network.
+        commands.append((args, kwargs.get("input")))
+        operation, ref = args[0], args[-1]
+        if operation == "fetch" and ref == missing:
+            if stage == "extra_timeout":
+                raise subprocess.TimeoutExpired(argv, kwargs["timeout"])
+            if stage == "extra_launch":
+                raise OSError("cannot launch git")
+        fail_ref = candidate.fix if stage.startswith("candidate") else missing
+        fail_operation = "rev-parse" if stage.endswith("resolve") else "fetch"
+        if operation == fail_operation and ref == fail_ref:
+            return subprocess.CompletedProcess(argv, 1, b"", b"unavailable ref")
+        if operation == "rev-parse":
+            output = ref + "\n"
+        elif operation == "rev-list" and "--objects" in args:
+            assert kwargs["input"] == ("\n".join(["HEAD", *resolved]) + "\n").encode()
+            output = ""
+        elif operation == "rev-list":
+            assert ref in resolved
+            output = f"{ref} {candidate.parent}\n"
+        else:
+            assert operation == "fetch"
+            output = ""
+        return subprocess.CompletedProcess(argv, 0, output.encode(), b"")
+
+    git = d.Git(tmp_path, runner=runner, deadline_seconds=60)
+
+    class Clones(FakeClones):
+        @contextmanager
+        def open(self, url):
+            self.counts["clones"] += 1
+            yield git
+
+    changes = entries()[0]["changes"]
+    monkeypatch.setattr(d, "prove_source", lambda *a: {"bytes": 12, "files": 1})
+    monkeypatch.setattr(d.extract, "introducing", lambda *a: changes[0])
+    monkeypatch.setattr(d.extract, "fix_sites", lambda git, fix, parent, **kw: [{"path": "app.py", "function": fix}])
+    monkeypatch.setattr(d.extract, "ordinary_history", lambda *a: [])
+
+    def draw(rows, fixes, known, **kwargs):
+        assert fixes == set(resolved)
+        assert known == {("app.py", fix) for fix in resolved}
+        return changes[1:], {}
+
+    monkeypatch.setattr(d.extract, "draw_ordinary", draw)
+    result = d.extract_repository(candidate, FakeAPI(), Clones(), {missing, available, candidate.fix}, 7)
+    if stage.startswith("candidate"):
+        assert result["rejected"] == "extract_git_exit_1"
+    elif stage == "extra_timeout":
+        assert result["rejected"] == "extraction_timeout"
+    elif stage == "extra_launch":
+        assert result["rejected"] == "extract_git_launch_failed"
+    else:
+        assert "rejected" not in result and result["entry"]["changes"] == changes
+        fetches = [args for args, _ in commands if args[0] == "fetch"]
+        assert [args[-1] for args in fetches] == [candidate.fix, missing, available]
+        assert all("--no-tags" in args for args in fetches[1:])
+        assert sum("--objects" in args for args, _ in commands) == 1
+        if stage == "extra_fetch":
+            assert not any(args == ["rev-parse", missing] for args, _ in commands)
 
 
 def test_candidate_404_is_counted_but_service_failure_aborts(tmp_path):
