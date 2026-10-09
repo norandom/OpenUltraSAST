@@ -583,13 +583,16 @@ class ObjectStoreExecutor:
         retry_end = end + RETRY_SECONDS
         last_error = ""
         phase = "result upload"
+        uploaded = False
         while time.monotonic() < end:
             try:
-                # A lost PUT acknowledgement is retried with the exact same sequence.
-                phase = "command upload"
                 before = time.monotonic()
                 try:
-                    retry_mailbox(lambda timeout: self.transport.put(self.command_url, payload, timeout), deadline=retry_end)
+                    if not uploaded:
+                        # Retry lost acknowledgements internally; successful delivery needs no further PUTs.
+                        phase = "command upload"
+                        retry_mailbox(lambda timeout: self.transport.put(self.command_url, payload, timeout), deadline=retry_end)
+                        uploaded = True
                     phase = "result read"
                     raw = retry_mailbox(lambda timeout: self.transport.get(self.result_url, timeout), deadline=retry_end)
                 finally:
