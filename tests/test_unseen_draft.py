@@ -2,6 +2,10 @@
 
 import copy
 import importlib
+import multiprocessing
+import os
+import pickle
+import subprocess
 import sys
 import tomllib
 from collections import Counter
@@ -99,6 +103,17 @@ def test_cache_is_outside_repository_deleted_and_partial(tmp_path):
     assert clones.counts["clones"] == 1 and clones.counts["clone_bytes"] == 3
 
 
+def test_default_clone_job_is_picklable(tmp_path):
+    clones = d.Clones(tmp_path / "repo", tmp_path / "cache", deadline_seconds=12.5)
+    candidate = s.candidate(next(FakeAPI(1).advisories()), FakeAPI(), FakeOSV())
+    restored, github, local, fixes, seed = pickle.loads(pickle.dumps((candidate, None, clones, {candidate.fix}, 7)))
+    assert restored == candidate and github is None
+    assert local.runner is subprocess.run
+    assert local.cache == clones.cache and local.limit_bytes == clones.limit_bytes
+    assert local.deadline_seconds == 12.5 and local.extract_workers == 6
+    assert local.counts == {} and fixes == {candidate.fix} and seed == 7
+
+
 def test_clone_failure_sanitized_and_cleaned(tmp_path, capsys):
     import subprocess
 
@@ -180,6 +195,21 @@ class FakeClones:
     def run(self, *args):
         self.commands.append(args)
         return ""
+
+
+class TimeoutRunner:
+    """Picklable runner: fail one repository independently of scheduling order."""
+
+    def __init__(self, stage, bad_url):
+        self.stage, self.bad_url = stage, bad_url
+        self.fail = False
+
+    def __call__(self, cmd, **kwargs):
+        if "clone" in cmd:
+            self.fail = cmd[-2] == self.bad_url
+        if self.fail and self.stage in cmd:
+            raise subprocess.TimeoutExpired(cmd, kwargs["timeout"])
+        return subprocess.CompletedProcess(cmd, 0, b"", b"")
 
 
 class FailingClones(FakeClones):
@@ -273,15 +303,77 @@ def test_extraction_failure_preserves_rejection_shape_and_count_delta(exception,
     }
 
 
-def test_non_instrument_extraction_bug_propagates_and_aborts(tmp_path):
+def test_failed_child_future_is_a_resilient_skip(tmp_path):
     api, used = FakeAPI(2), e.UsedSet()
     candidate = s.candidate(next(api.advisories()), api, FakeOSV())
     clones = FailingClones({row["references"][0].split("/commit/")[0]: ValueError("code_bug") for row in api.advisories()})
     with pytest.raises(ValueError, match="code_bug"):
         d.extract_repository(candidate, api, clones, set(), 7)
     report = d.run(tmp_path, github=api, osv=FakeOSV(), clones=clones, used=used, seed=7, known_empty=set(used.sources))
-    assert report["status"] == "instrument_failure" and report["error_type"] == "ValueError"
-    assert report["rejections"] == {} and 2 <= clones.counts["clones"] <= 3
+    assert report["status"] == "insufficient_repositories"
+    assert report["rejections"] == {"extract_worker_failure": 2}
+    # Failed futures cannot return their child-local counters.
+    assert clones.counts == {"clones": 1}
+
+
+@pytest.mark.parametrize("workers,crashes", [(1, 26), (4, 1)])
+def test_hard_worker_crash_skips_pending_jobs_restarts_pool_and_resumes(tmp_path, monkeypatch, workers, crashes):
+    monkeypatch.setattr(d.os, "fsync", lambda fd: None)
+    monkeypatch.setattr(d.os, "cpu_count", lambda: 4)
+    ordered = s.ordered_advisories(list(FakeAPI(32).advisories()), 7)
+    bad = {row["references"][0].split("/commit/")[0] for row in ordered[:crashes]}
+    changes = entries()[0]["changes"]
+
+    def crash(git, candidate, fixes, *, seed):
+        if candidate.url in bad:
+            os._exit(17)
+        return copy.deepcopy(changes), {}, {"bytes": 12, "files": 1}
+
+    monkeypatch.setattr(d, "repository_changes", crash)
+    used, clones = e.UsedSet(), FakeClones()
+    path = tmp_path / "journal"
+    kwargs = dict(
+        root=tmp_path / "repo",
+        github=FakeAPI(32),
+        osv=FakeOSV(),
+        clones=clones,
+        used=used,
+        seed=7,
+        known_empty=set(used.sources),
+        journal_path=path,
+        extract_workers=workers,
+    )
+    report = d.run(**kwargs)
+    assert report["status"] == "insufficient_repositories", report
+    assert set(report["rejections"]) == {"worker_crash"}
+    skipped = report["rejections"]["worker_crash"]
+    assert crashes <= skipped <= crashes + workers - 1
+    assert report["repositories"] == 32 - skipped > 0
+    assert clones.counts["clones"] == 32 - skipped
+    journal = (path / "extraction.jsonl").read_bytes()
+    assert len(journal.splitlines()) == 32
+    resumed = d.run(**{**kwargs, "github": FakeAPI(32), "clones": FakeClones(), "extract_workers": 1})
+    assert resumed["status"] == report["status"] and resumed["rejections"] == report["rejections"]
+    assert resumed["repositories"] == report["repositories"] and resumed["instrument"] == {}
+    assert (path / "extraction.jsonl").read_bytes() == journal
+
+
+@pytest.mark.parametrize("cores,expected", [(2, 2), (None, 4), (12, 6)])
+def test_extract_workers_clamped_to_cores(tmp_path, monkeypatch, cores, expected):
+    monkeypatch.setattr(d.os, "cpu_count", lambda: cores)
+    used = e.UsedSet()
+    report = d.run(
+        tmp_path / "repo",
+        github=FakeAPI(),
+        osv=FakeOSV(),
+        clones=FakeClones(),
+        used=used,
+        seed=7,
+        known_empty=set(used.sources),
+        journal_path=tmp_path / "journal",
+        max_hours=0,
+    )
+    assert report["status"] == "stopped" and report["extract_workers"] == expected
 
 
 def test_ordinary_rejections_do_not_trip_extraction_guard(tmp_path, monkeypatch):
@@ -370,7 +462,7 @@ def test_cli_uses_environment_and_injected_stores(tmp_path, monkeypatch, capsys,
     assert d.main(args + deadline_args) == 1
     output = capsys.readouterr().out
     assert json.loads(output)["extract_deadline_seconds"] == deadline
-    assert json.loads(output)["extract_workers"] == workers
+    assert json.loads(output)["extract_workers"] == min(workers, os.cpu_count() or 4)
     assert "instrument_failure" in output and "fake-secret" not in output and "fixture/" not in output
     assert seen[-1] == "fake-secret"
     assert all(kwargs == {"read_only": True} for _, kwargs in seen[:-1])
@@ -378,19 +470,9 @@ def test_cli_uses_environment_and_injected_stores(tmp_path, monkeypatch, capsys,
 
 @pytest.mark.parametrize("timeout_stage", ["clone", "fetch"])
 def test_timeout_skips_repository_and_draft_continues(tmp_path, monkeypatch, timeout_stage):
-    import subprocess
-
-    clone_count = 0
-
-    def runner(cmd, **kwargs):
-        nonlocal clone_count
-        if "clone" in cmd:
-            clone_count += 1
-        if clone_count == 1 and timeout_stage in cmd:
-            raise subprocess.TimeoutExpired(cmd, kwargs["timeout"])
-        return subprocess.CompletedProcess(cmd, 0, b"", b"")
-
     monkeypatch.setattr(d, "repository_changes", lambda *a, **kw: (entries()[0]["changes"], {}, {"bytes": 1, "files": 1}))
+    first = s.ordered_advisories(list(FakeAPI(2).advisories()), 1)[0]
+    runner = TimeoutRunner(timeout_stage, first["references"][0].split("/commit/")[0])
     clones = d.Clones(tmp_path / "repo", tmp_path / "cache", runner=runner, deadline_seconds=240.0)
     used = e.UsedSet()
     report = d.run(
@@ -405,7 +487,8 @@ def test_timeout_skips_repository_and_draft_continues(tmp_path, monkeypatch, tim
     )
     assert report["status"] == "insufficient_repositories"
     assert report["rejections"] == {"extraction_timeout": 1}
-    assert report["repositories"] == 1 and clone_count == 2
+    assert report["repositories"] == 1
+    assert clones.counts["clones"] == (1 if timeout_stage == "clone" else 2)
     assert not list(clones.cache.glob("clone-*"))
 
 
@@ -930,42 +1013,44 @@ def test_decide_http_failure_systemic_guard_aborts(tmp_path):
 
 
 def test_parallel_pool_is_byte_identical_and_fork_selection_is_seed_ordered(tmp_path, monkeypatch):
-    import threading
-
     journal_module = importlib.import_module("benchmarks.unseen.journal")
     monkeypatch.setattr(journal_module.os, "fsync", lambda fd: None)
-    coordinator = threading.get_ident()
+    coordinator = os.getpid()
+    context = multiprocessing.get_context("fork")
+    monkeypatch.setattr(d.os, "cpu_count", lambda: 4)
     ordered = s.ordered_advisories(list(FakeAPI(310).advisories()), 7)
     names = [row["references"][0].split("/commit/")[0].removeprefix("https://github.com/") for row in ordered]
     ranks = {name: i for i, name in enumerate(names)}
     networks = {names[1]: names[0], names[3]: names[2], names[5]: names[4]}
-    extracted, selected, snapshots = [], [], []
+    selected, snapshots = [], []
+    extracted = context.Array("i", 310)
+    completed = context.Value("i", 0)
     worker_count = [1]
-    second_done = threading.Event()
-    active, peak = [0], [0]
-    lock = threading.Lock()
+    second_done = context.Event()
+    active, peak = context.Array("i", [0]), context.Array("i", [0])
+    lock = context.Lock()
     changes = entries()[0]["changes"]
 
     class API(FakeAPI):
         def get_repo(self, name):
-            assert threading.get_ident() == coordinator
+            assert os.getpid() == coordinator
             result = super().get_repo(name)
             if name in networks:
                 result["source"] = {"full_name": networks[name]}
             return result
 
         def get_commit(self, name, sha):
-            assert threading.get_ident() == coordinator
+            assert os.getpid() == coordinator
             if ranks.get(name) in {5, 8}:
                 raise ValueError("http_failure")
             return super().get_commit(name, sha)
 
         def get_license(self, name, ref):
-            assert threading.get_ident() == coordinator
+            assert os.getpid() == coordinator
             return super().get_license(name, ref)
 
     def extract_changes(git, candidate, fixes, *, seed):
-        assert threading.get_ident() != coordinator
+        assert os.getpid() != coordinator
         rank = ranks[candidate.repository]
         with lock:
             active[0] += 1
@@ -973,10 +1058,11 @@ def test_parallel_pool_is_byte_identical_and_fork_selection_is_seed_ordered(tmp_
         try:
             if rank == 0 and worker_count[0] > 1:
                 assert second_done.wait(10), "extraction did not overlap"
+            with lock:
+                extracted[completed.value] = rank
+                completed.value += 1
             if rank == 1:
                 second_done.set()
-            with lock:
-                extracted.append(rank)
             if rank in {0, 7}:
                 raise d.InstrumentFailure("git_exit_128")
             if rank == 6:
@@ -986,23 +1072,28 @@ def test_parallel_pool_is_byte_identical_and_fork_selection_is_seed_ordered(tmp_
             with lock:
                 active[0] -= 1
 
-    original_assign, original_put = d.assign_slices, d.Journal.put
+    original_assign, original_put, original_boundary = d.assign_slices, d.Journal.put, d.Journal.boundary
 
     def assign(rows, *, seed):
         selected.append([row["repository"] for row in rows])
         return original_assign(rows, seed=seed)
 
     def put(self, *args):
-        assert threading.get_ident() == coordinator
+        assert os.getpid() == coordinator
         return original_put(self, *args)
+
+    def boundary(self):
+        assert os.getpid() == coordinator
+        return original_boundary(self)
 
     monkeypatch.setattr(d, "repository_changes", extract_changes)
     monkeypatch.setattr(d, "assign_slices", assign)
     monkeypatch.setattr(d.Journal, "put", put)
+    monkeypatch.setattr(d.Journal, "boundary", boundary)
     for workers in (1, 6):
         worker_count[0] = workers
         second_done.clear()
-        extracted.clear()
+        completed.value = 0
         peak[0] = 0
         path = tmp_path / str(workers)
         used = e.UsedSet()
@@ -1019,9 +1110,10 @@ def test_parallel_pool_is_byte_identical_and_fork_selection_is_seed_ordered(tmp_
         )
         assert report["status"] == "draft", report
         assert report["rejections"] == {"fork_network": 2, "extract_git_exit_128": 2, "extraction_timeout": 1, "decide_http_failure": 1}
-        assert 1 <= peak[0] <= workers
+        assert report["extract_workers"] == min(workers, 4)
+        assert 1 <= peak[0] <= min(workers, 4)
         if workers == 6:
-            assert peak[0] > 1 and extracted.index(1) < extracted.index(0)
+            assert peak[0] > 1 and list(extracted[: completed.value]).index(1) < list(extracted[: completed.value]).index(0)
         snapshots.append(
             (report["manifest_sha256"], *(path.joinpath(name).read_bytes() for name in ("draft-p1.toml", "private-draft-p1.toml")))
         )
