@@ -130,14 +130,14 @@ Execution rules:
   - _Requirements: 2.1, 2.2_
 
 - [ ] 3. Freeze p1 (design 1.2, 6; increment 3)
-- [ ] 3.1 Guard bisection tool
+- [x] 3.1 Guard bisection tool
   - `benchmarks/unseen/bisect_guard.py`: rewrites the draft with a candidate subset, runs
     `.venv/bin/pytest -q -p no:cacheprovider tests/test_independent_population.py -k referenced` with stdout and
     stderr discarded, reads only the exit code, and bisects until green. Reports the dropped count only.
   - `tests/test_unseen_bisect.py` with an injected fake guard (a hidden set): finds and drops exactly the hidden
     members; never logs a candidate; an exit code other than 0 or 1 aborts (instrument failure).
   - _Requirements: 1.1_
-- [ ] 3.2 Freeze writer
+- [x] 3.2 Freeze writer
   - `benchmarks/unseen/freeze.py`: canonical `pool-p1.toml` (and the private counterpart) from the bisected draft;
     `freeze-p1.json` with used-set digest and per-source counts, guard result, dropped count, label-check counts
     and the freeze digest (sha256 of the canonical manifest). Refuses to write over a frozen pool; a correction
@@ -145,7 +145,7 @@ Execution rules:
   - Tests: digest stable under key order; overwrite refused; the guard's digest test (1.3) passes on a fixture
     pool.
   - _Requirements: 1.2_
-- [ ] 3.3 Protocol p1
+- [x] 3.3 Protocol p1
   - `benchmarks/unseen/protocol-p1.md`: the scoring rules of design section 4 (default flags, decision 4.0's
     long-deadline arm, catch and location rules, false alarm, coverage states), the statistics of section 3 and
     7, and the adoption gate of 7.3, stated before any replay.
