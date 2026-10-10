@@ -7,6 +7,7 @@ import os
 import pickle
 import subprocess
 import sys
+import time
 import tomllib
 from collections import Counter
 from contextlib import contextmanager
@@ -111,6 +112,7 @@ def test_default_clone_job_is_picklable(tmp_path):
     assert local.runner is subprocess.run
     assert local.cache == clones.cache and local.limit_bytes == clones.limit_bytes
     assert local.deadline_seconds == 12.5 and local.extract_workers == 6
+    assert local.parse_deadline_seconds == 120.0
     assert local.counts == {} and fixes == {candidate.fix} and seed == 7
 
 
@@ -449,11 +451,12 @@ def test_systemic_zero_source_is_instrument_failure_with_recorded_rejections(tmp
 
 
 @pytest.mark.parametrize(
-    "deadline_args,deadline,workers", [([], 240.0, 6), (["--extract-deadline", "12.5", "--extract-workers", "2"], 12.5, 2)]
+    "deadline_args,deadline,parse_deadline,workers",
+    [([], 240.0, 120.0, 6), (["--extract-deadline", "12.5", "--parse-deadline", "3.5", "--extract-workers", "2"], 12.5, 3.5, 2)],
 )
 @pytest.mark.parametrize("pool_args,pool_size,slices", [([], 300, 3), (["--pool-size", "100", "--slices", "1"], 100, 1)])
 def test_cli_uses_environment_and_injected_stores(
-    tmp_path, monkeypatch, capsys, deadline_args, deadline, workers, pool_args, pool_size, slices
+    tmp_path, monkeypatch, capsys, deadline_args, deadline, parse_deadline, workers, pool_args, pool_size, slices
 ):
     import json
 
@@ -480,6 +483,7 @@ def test_cli_uses_environment_and_injected_stores(
     assert d.main(args + deadline_args + pool_args) == 1
     output = capsys.readouterr().out
     assert json.loads(output)["extract_deadline_seconds"] == deadline
+    assert json.loads(output)["parse_deadline_seconds"] == parse_deadline
     assert json.loads(output)["extract_workers"] == min(workers, os.cpu_count() or 4)
     assert "instrument_failure" in output and "fake-secret" not in output and "fixture/" not in output
     assert seen[-1] == "fake-secret"
@@ -547,10 +551,78 @@ def test_deadline_is_reported_without_changing_resume_inputs(tmp_path):
     )
     assert d.run(**kwargs)["status"] == "stopped"
     clones.deadline_seconds = 12.5
+    clones.parse_deadline_seconds = 3.5
     assert d.inputs(used, 1, set(used.sources), clones) == before
     report = d.run(**kwargs)
     assert report["status"] == "stopped"
     assert report["extract_deadline_seconds"] == 12.5
+    assert report["parse_deadline_seconds"] == 3.5
+
+
+@pytest.mark.parametrize("workers", [1, 2])
+def test_python_parse_timeout_is_journaled_and_next_repository_finishes(tmp_path, monkeypatch, workers):
+    api, used, clones = FakeAPI(2), e.UsedSet(), FakeClones()
+    clones.deadline_seconds = 0.05
+    clones.parse_deadline_seconds = 0.15
+    ordered = s.ordered_advisories(list(api.advisories()), 1)
+    slow = ordered[0]["references"][0].split("/commit/")[0]
+    changes = entries()[0]["changes"]
+
+    def parse(git, candidate, fixes, *, seed):
+        # No further git command: only the process alarm can reject this work.
+        time.sleep(0.4 if candidate.url == slow else 0.1)
+        return changes, {}, {"bytes": 12, "files": 1}
+
+    monkeypatch.setattr(d, "repository_changes", parse)
+    journal = tmp_path / "journal"
+    report = d.run(
+        tmp_path / "repo",
+        github=api,
+        osv=FakeOSV(),
+        clones=clones,
+        used=used,
+        seed=1,
+        known_empty=set(used.sources),
+        journal_path=journal,
+        extract_workers=workers,
+    )
+    assert report["status"] == "insufficient_repositories"
+    assert report["rejections"] == {"wallclock_timeout": 1}
+    assert report["repositories"] == 1
+    assert clones.counts["clones"] == 2
+    checkpoint = d.Journal(journal)
+    with checkpoint.open(d.inputs(used, 1, set(used.sources), clones)):
+        results = list(checkpoint.rows["extraction"].values())
+    assert len(results) == 2
+    rejected = next(row for row in results if "rejected" in row)
+    assert rejected == {"rejected": "wallclock_timeout", "ordinary_exclusions": {}, "counts": {"clones": 1}}
+    accepted = next(row for row in results if "entry" in row)
+    assert accepted["entry"]["changes"] == changes
+    assert accepted["entry"]["instrument"] == {"bytes": 12, "files": 1}
+
+
+@pytest.mark.parametrize("deadline,parse_budget,total", [(None, 120, None), (0.1, 0.2, 0.3), (0.1, None, 0.1)])
+def test_repository_process_deadline_budget(monkeypatch, deadline, parse_budget, total):
+    clones = FakeClones()
+    clones.deadline_seconds, clones.parse_deadline_seconds = deadline, parse_budget
+    active = []
+
+    @contextmanager
+    def deadline_context(seconds):
+        assert seconds == pytest.approx(total) if total is not None else seconds is None
+        active.append(True)
+        yield
+        active.pop()
+
+    def parse(*args, **kwargs):
+        assert active == [True]
+        return [], {}, {}
+
+    monkeypatch.setattr(d.extract, "process_deadline", deadline_context)
+    monkeypatch.setattr(d, "repository_changes", parse)
+    candidate = s.candidate(next(FakeAPI(1).advisories()), FakeAPI(1), FakeOSV())
+    assert "entry" in d.extract_repository(candidate, None, clones, set(), 1)
+    assert not active
 
 
 def test_repository_changes_excludes_all_advisory_sites(monkeypatch):
