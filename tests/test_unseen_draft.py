@@ -1651,6 +1651,8 @@ def test_bank_crash_resume_and_durability_failure(tmp_path, monkeypatch, failure
         puts = 0
 
         def put(self, key, data, labels):
+            if "/decisions/" not in key:
+                return super().put(key, data, labels)
             self.puts += 1
             if failure == "persistent_put" and not self.interrupted:
                 raise OSError("offline simulated bank outage")
@@ -1687,7 +1689,7 @@ def test_bank_crash_resume_and_durability_failure(tmp_path, monkeypatch, failure
         report = run(tmp_path / "resume", bank)
         assert report["status"] == "instrument_failure"
         assert objects.puts == 2
-        assert not objects.objects
+        assert not bank.decided()
         assert not (tmp_path / "resume" / "draft-p1.toml").exists()
         objects.interrupted = True
     resumed = run(tmp_path / "resume", bank)
@@ -1817,3 +1819,218 @@ def test_bank_duplicate_advisory_cannot_overwrite_pair_decision(tmp_path, monkey
     assert all(report["status"] == "draft" for report in reports)
     assert reports[0]["manifest_sha256"] == reports[1]["manifest_sha256"]
     assert bank.decided()[bank.key_for(repository, fix)]["decision"] == "accept"
+
+
+@pytest.mark.parametrize("workers", [1, 4])
+def test_bank_enumeration_resolution_resume_and_contracts(tmp_path, monkeypatch, workers):
+    from benchmarks.unseen.bank import CorpusBank
+
+    monkeypatch.setattr(importlib.import_module("benchmarks.unseen.journal").os, "fsync", lambda fd: None)
+    rows = s.ordered_advisories(list(FakeAPI(8).advisories()), 7)
+    rows[0]["cwes"] = []  # Bank a rejected advisory as well as candidates.
+    names = [next(iter(s.fix_links(row)))[0] for row in rows]
+    changes = entries()[0]["changes"]
+    monkeypatch.setattr(d, "repository_changes", lambda *a, **kw: (copy.deepcopy(changes), {}, {"bytes": 12, "files": 1}))
+    calls = Counter()
+    original_enumerate, original_decide, original_candidate = d.enumerate_advisories, d.decide, s.candidate
+    original_resolve = e.resolve
+
+    def resolve(*args):
+        calls["resolve"] += 1
+        return original_resolve(*args)
+
+    monkeypatch.setattr(e, "resolve", resolve)
+
+    class API(FakeAPI):
+        def advisories(self):
+            return iter(copy.deepcopy(rows))
+
+        def get_repo(self, name):
+            calls["get_repo"] += 1
+            result = super().get_repo(name)
+            if name == names[2]:
+                result["source"] = {"full_name": names[1]}
+            return result
+
+    def enumerate_rows(*args):
+        calls["enumerate"] += 1
+        return original_enumerate(*args)
+
+    def decide(row, *args):
+        calls[row["ghsa_id"]] += 1
+        return original_decide(row, *args)
+
+    def candidate(*args):
+        calls["candidate"] += 1
+        return original_candidate(*args)
+
+    monkeypatch.setattr(d, "enumerate_advisories", enumerate_rows)
+    monkeypatch.setattr(d, "decide", decide)
+    monkeypatch.setattr(s, "candidate", candidate)
+
+    class Objects(CorpusFakeObjects):
+        def __init__(self):
+            super().__init__()
+            self.puts = Counter()
+
+        def put(self, key, data, labels):
+            self.puts[key] += 1
+            super().put(key, data, labels)
+
+    objects = Objects()
+    bank = CorpusBank(objects, seed=7)
+
+    def run(name, bank):
+        used = e.UsedSet()
+        return d.run(
+            tmp_path / "repo",
+            github=API(),
+            osv=FakeOSV(),
+            clones=FakeClones(),
+            used=used,
+            seed=7,
+            known_empty=set(used.sources),
+            journal_path=tmp_path / name,
+            extract_workers=workers,
+            pool_size=6,
+            slices=1,
+            bank=bank,
+        )
+
+    full = run("full", None)
+    assert full["status"] == "draft", full
+    calls.clear()
+    first = run("first", bank)
+    assert first["manifest_sha256"] == full["manifest_sha256"]
+    assert calls["enumerate"] == 1 and calls["candidate"] == 8
+    resolved = bank.resolved()
+    assert len(resolved) == 8
+    assert {body["decision"] for body in resolved.values()} == {"candidate", "reject"}
+    assert all(objects.puts[key] == 1 for key in objects.objects if "/resolved/" in key or "/advisories/" in key)
+    assert all(body["result"] == original_decide(row, API(), FakeOSV(), e.UsedSet()) for row in rows for body in [resolved[row["ghsa_id"]]])
+    calls.clear()
+    second = run("second", bank)
+    assert not calls  # No enumeration, decide, candidate, or upstream repository lookup.
+    assert second["manifest_sha256"] == first["manifest_sha256"]
+    for filename in ("draft-p1.toml", "private-draft-p1.toml"):
+        assert (tmp_path / "second" / filename).read_bytes() == (tmp_path / "full" / filename).read_bytes()
+
+    # A restart with resolution complete but extraction unfinished also uses
+    # the exact cached candidates, without re-running any prefix operation.
+    for key in list(objects.objects):
+        if "/decisions/" in key:
+            del objects.objects[key]
+    remaining = run("remaining-extraction", bank)
+    assert remaining["manifest_sha256"] == full["manifest_sha256"]
+    assert not calls
+
+    stale_id = rows[1]["ghsa_id"]
+    bank.bank_resolution(stale_id, {"rejected": "old"}, contract="old")
+    stale = run("stale-resolution", bank)
+    assert stale["manifest_sha256"] == full["manifest_sha256"]
+    assert calls == {stale_id: 1, "candidate": 1}
+    assert bank.resolved()[stale_id]["resolution_contract"] == d.RESOLUTION_CONTRACT
+    bank.cache_advisories([{"ghsa_id": "obsolete"}], contract="old")
+    calls.clear()
+    renewed = run("stale-advisories", bank)
+    assert renewed["manifest_sha256"] == full["manifest_sha256"]
+    assert calls == {"enumerate": 1}
+    assert s.ordered_advisories(bank.cached_advisories(contract=d.RESOLUTION_CONTRACT), 7) == s.ordered_advisories(
+        [s.reduce_advisory(row) for row in rows], 7
+    )
+
+
+@pytest.mark.parametrize("stage", ["advisories", "repositories", "resolved"])
+@pytest.mark.parametrize("failure", ["interrupt", "put_failure"])
+def test_prefix_streaming_failure_and_restart(tmp_path, monkeypatch, stage, failure):
+    from benchmarks.unseen.bank import CorpusBank
+
+    monkeypatch.setattr(importlib.import_module("benchmarks.unseen.journal").os, "fsync", lambda fd: None)
+    changes = entries()[0]["changes"]
+    monkeypatch.setattr(d, "repository_changes", lambda *a, **kw: (copy.deepcopy(changes), {}, {"bytes": 1, "files": 1}))
+    calls = Counter()
+    original = d.decide
+
+    def decide(row, *args):
+        calls[row["ghsa_id"]] += 1
+        return original(row, *args)
+
+    monkeypatch.setattr(d, "decide", decide)
+
+    class Objects(CorpusFakeObjects):
+        armed = True
+        attempts = 0
+
+        def put(self, key, data, labels):
+            if self.armed and f"/{stage}/" in key:
+                self.attempts += 1
+                if failure == "put_failure":
+                    raise OSError("offline outage")
+                super().put(key, data, labels)
+                raise KeyboardInterrupt
+            super().put(key, data, labels)
+
+    objects = Objects()
+    bank = CorpusBank(objects, seed=7)
+
+    def run(name, bank):
+        used = e.UsedSet()
+        return d.run(
+            tmp_path / "repo",
+            github=FakeAPI(4),
+            osv=FakeOSV(),
+            clones=FakeClones(),
+            used=used,
+            seed=7,
+            known_empty=set(used.sources),
+            journal_path=tmp_path / name,
+            pool_size=4,
+            slices=1,
+            extract_workers=1,
+            bank=bank,
+        )
+
+    if failure == "interrupt":
+        with pytest.raises(KeyboardInterrupt):
+            run("interrupted", bank)
+        assert objects.attempts == 1
+    else:
+        assert run("interrupted", bank)["status"] == "instrument_failure"
+        assert objects.attempts == 2
+    saved = bank.resolved()
+    objects.armed = False
+    calls.clear()
+    resumed = run("resumed", bank)
+    assert resumed["status"] == "draft", resumed
+    assert all(calls[key] == 0 for key in saved)
+    assert len(bank.resolved()) == 4
+    baseline = run("baseline", None)
+    assert resumed["manifest_sha256"] == baseline["manifest_sha256"]
+
+
+def test_banked_fix_index_preserves_renames_multiple_links_and_404s(tmp_path, monkeypatch):
+    from benchmarks.unseen.bank import CorpusBank
+
+    rows = list(FakeAPI(3).advisories())
+    rows[0]["references"] = ["https://github.com/fixture/old/commit/" + "a" * 40]
+    rows[1]["references"] = ["https://github.com/fixture/missing/commit/" + "b" * 40]
+    rows[2]["references"] += ["https://github.com/fixture/old/commit/" + "c" * 40]
+
+    class API(FakeAPI):
+        def get_repo(self, name):
+            if name == "fixture/missing":
+                raise e.RepositoryNotFound("not_found")
+            return super().get_repo(name)
+
+    bank = CorpusBank(CorpusFakeObjects(), seed=7)
+    with d.Journal(tmp_path / "fresh").open({}) as checkpoint:
+        fresh = d.advisory_index(rows, d.BankedGitHub(API(), checkpoint, bank))
+    assert fresh == {"fixture/project000": {"a" * 40, "c" * 40}, "fixture/missing": {"b" * 40}, "fixture/project002": {"a" * 40}}
+
+    def unexpected(*args):
+        pytest.fail("banked fix index must not repeat resolution")
+
+    monkeypatch.setattr(e, "resolve", unexpected)
+    monkeypatch.setattr(API, "get_repo", unexpected)
+    with d.Journal(tmp_path / "resumed").open({}) as checkpoint:
+        assert d.advisory_index(rows, d.BankedGitHub(API(), checkpoint, bank)) == fresh
