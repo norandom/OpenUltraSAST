@@ -1519,3 +1519,301 @@ def test_pool_configuration_change_refuses_resume_before_io(tmp_path, changed):
     )
     assert report["status"] == "resume_refused" and report["changed_parameters"] == list(changed)
     assert api.calls == 0 and not clones.counts
+
+
+class CorpusFakeObjects:
+    def __init__(self):
+        self.objects = {}
+        self.coordinator = os.getpid()
+
+    def get(self, key):
+        assert os.getpid() == self.coordinator
+        return (self.objects[key], "v1") if key in self.objects else None
+
+    def put(self, key, data, labels):
+        assert os.getpid() == self.coordinator
+        self.objects[key] = data
+
+    def keys(self, prefix):
+        assert os.getpid() == self.coordinator
+        return list(reversed([key for key in self.objects if key.startswith(prefix)]))
+
+
+@pytest.mark.parametrize("workers", [1, 4])
+@pytest.mark.parametrize("short_refs", [False, True])
+def test_bank_resume_stream_contract_seed_order_and_forks(tmp_path, monkeypatch, workers, short_refs):
+    from benchmarks.unseen.bank import CorpusBank
+
+    monkeypatch.setattr(importlib.import_module("benchmarks.unseen.journal").os, "fsync", lambda fd: None)
+    ordered = s.ordered_advisories(list(FakeAPI(10).advisories()), 7)
+    names = [next(iter(s.fix_links(row)))[0] for row in ordered]
+    ranks = {name: i for i, name in enumerate(names)}
+    called = multiprocessing.get_context("fork").Array("i", 10)
+    changes = entries()[0]["changes"]
+    selected = []
+    original_assign = d.assign_slices
+
+    class API(FakeAPI):
+        def advisories(self):
+            for row in super().advisories():
+                if short_refs:
+                    row["references"] = [row["references"][0][:-33]]
+                yield row
+
+        def get_commit(self, name, sha):
+            return super().get_commit(name, "a" * 40)
+
+        def get_repo(self, name):
+            result = super().get_repo(name)
+            if name == names[3]:
+                result["source"] = {"full_name": names[1]}
+            return result
+
+    def extract_changes(git, candidate, fixes, *, seed):
+        rank = ranks[candidate.repository]
+        called[rank] += 1
+        if rank == 0:
+            raise s.Rejected("no_ordinary")
+        return copy.deepcopy(changes), {"eligible": 40}, {"bytes": 12, "files": 1}
+
+    def assign(rows, **kwargs):
+        selected.append([row["repository"] for row in rows])
+        return original_assign(rows, **kwargs)
+
+    monkeypatch.setattr(d, "repository_changes", extract_changes)
+    monkeypatch.setattr(d, "assign_slices", assign)
+
+    def run(path, bank=None):
+        used = e.UsedSet()
+        return d.run(
+            tmp_path / "repo",
+            github=API(10),
+            osv=FakeOSV(),
+            clones=FakeClones(),
+            used=used,
+            seed=7,
+            known_empty=set(used.sources),
+            journal_path=path,
+            extract_workers=workers,
+            pool_size=4,
+            slices=1,
+            bank=bank,
+        )
+
+    full_objects = CorpusFakeObjects()
+    full_bank = CorpusBank(full_objects, seed=7)
+    full = run(tmp_path / "full", full_bank)
+    assert full["status"] == "draft", full
+    decisions = full_bank.decided()
+    assert len(decisions) == sum(called)
+    assert {obj["decision"] for obj in decisions.values()} == {"accept", "reject"}
+    resumed_objects = CorpusFakeObjects()
+    resumed_bank = CorpusBank(resumed_objects, seed=7)
+    # Partial completion can be out of seed order, including a fork that loses
+    # to an earlier fresh result. Rejections alone are contract sensitive.
+    for obj in decisions.values():
+        rank = ranks[obj["repository"]]
+        if rank in {0, 2, 3}:
+            result = {"entry": obj["entry"]} if obj["decision"] == "accept" else {"rejected": obj["reason"]}
+            result.update(ordinary_exclusions=obj["ordinary_exclusions"], counts=obj["counts"])
+            resumed_bank.bank(
+                obj["repository"], obj["fix"], result, contract=d.EXTRACTION_CONTRACT if rank == 0 else "old-accepted-contract"
+            )
+    resumed_bank.bank(names[1], "a" * 40, {"rejected": "old_failure"}, contract="old")
+    before = list(called)
+    resumed = run(tmp_path / "resume", resumed_bank)
+    assert resumed["status"] == "draft", resumed
+    assert selected == [[names[i] for i in (1, 2, 4, 5)]] * 2
+    assert resumed["manifest_sha256"] == full["manifest_sha256"]
+    assert all(called[i] == before[i] for i in (0, 2, 3))
+    assert called[1] == before[1] + 1
+    for filename in ("draft-p1.toml", "private-draft-p1.toml"):
+        assert (tmp_path / "resume" / filename).read_bytes() == (tmp_path / "full" / filename).read_bytes()
+    # A corrupt/stale local journal and code fingerprint must not be cross-run truth.
+    (tmp_path / "resume" / "inputs.json").write_text('{"design_draft":"old"}')
+    (tmp_path / "resume" / "extraction.jsonl").write_text("torn")
+    before = list(called)
+    again = run(tmp_path / "resume", resumed_bank)
+    assert again["manifest_sha256"] == full["manifest_sha256"]
+    assert list(called) == before
+
+
+@pytest.mark.parametrize("failure", ["crash", "persistent_put"])
+def test_bank_crash_resume_and_durability_failure(tmp_path, monkeypatch, failure):
+    from benchmarks.unseen.bank import CorpusBank
+
+    monkeypatch.setattr(importlib.import_module("benchmarks.unseen.journal").os, "fsync", lambda fd: None)
+    changes = entries()[0]["changes"]
+    monkeypatch.setattr(d, "repository_changes", lambda *a, **kw: (copy.deepcopy(changes), {}, {"bytes": 1, "files": 1}))
+
+    class Objects(CorpusFakeObjects):
+        interrupted = False
+        puts = 0
+
+        def put(self, key, data, labels):
+            self.puts += 1
+            if failure == "persistent_put" and not self.interrupted:
+                raise OSError("offline simulated bank outage")
+            super().put(key, data, labels)
+            if not self.interrupted:
+                self.interrupted = True
+                raise KeyboardInterrupt
+
+    objects = Objects()
+    bank = CorpusBank(objects, seed=7)
+
+    def run(path, bank):
+        used = e.UsedSet()
+        return d.run(
+            tmp_path / "repo",
+            github=FakeAPI(8),
+            osv=FakeOSV(),
+            clones=FakeClones(),
+            used=used,
+            seed=7,
+            known_empty=set(used.sources),
+            journal_path=path,
+            extract_workers=1,
+            pool_size=3,
+            slices=1,
+            bank=bank,
+        )
+
+    if failure == "crash":
+        with pytest.raises(KeyboardInterrupt):
+            run(tmp_path / "resume", bank)
+        assert len(bank.decided()) == 1
+    else:
+        report = run(tmp_path / "resume", bank)
+        assert report["status"] == "instrument_failure"
+        assert objects.puts == 2
+        assert not objects.objects
+        assert not (tmp_path / "resume" / "draft-p1.toml").exists()
+        objects.interrupted = True
+    resumed = run(tmp_path / "resume", bank)
+    full = run(tmp_path / "full", None)
+    assert resumed["status"] == full["status"] == "draft"
+    assert resumed["manifest_sha256"] == full["manifest_sha256"]
+
+
+@pytest.mark.parametrize("bank_args,prefix", [([], None), (["--bank"], "unseen"), (["--bank", "custom"], "custom")])
+def test_cli_corpus_bank_is_opt_in(tmp_path, monkeypatch, capsys, bank_args, prefix):
+    from openultrasast import config
+    from openultrasast.plane import memory
+
+    objects = CorpusFakeObjects()
+    monkeypatch.setattr(config, "load_dotenv", lambda *a: None)
+    monkeypatch.setattr(memory, "open_store", lambda *a, **kw: object())
+    monkeypatch.setattr(d.eligibility, "build_used", lambda *a, **kw: e.UsedSet())
+    monkeypatch.setattr(d.source, "GitHub", lambda *a: FakeAPI(0))
+    monkeypatch.setattr(d.source, "OSV", FakeOSV)
+    settings_calls = []
+    monkeypatch.setattr(d, "corpus_settings", lambda: settings_calls.append(True) or {"bucket": "ousast-corpus"})
+
+    def make_objects(**kwargs):
+        assert kwargs == {"bucket": "ousast-corpus"}
+        return objects
+
+    def run(*args, **kwargs):
+        bank = kwargs["bank"]
+        if prefix is None:
+            assert bank is None
+        else:
+            assert bank.client is objects and bank.decisions_prefix == f"{prefix}/7/decisions/"
+        return {"status": "draft"}
+
+    monkeypatch.setattr(d, "CorpusObjects", make_objects)
+    monkeypatch.setattr(d, "run", run)
+    assert d.main(["--root", str(tmp_path / "repo"), "--cache", str(tmp_path / "cache"), "--seed", "7", *bank_args]) == 0
+    assert settings_calls == ([] if prefix is None else [True])
+
+
+def test_bank_accepts_survive_missing_advisories_and_obey_used_networks(tmp_path, monkeypatch):
+    from benchmarks.unseen.bank import CorpusBank
+
+    objects = CorpusFakeObjects()
+    bank = CorpusBank(objects, seed=7)
+    rows = s.ordered_advisories(list(FakeAPI(4).advisories()), 7)
+    names = [next(iter(s.fix_links(row)))[0] for row in rows]
+    for row in rows:
+        candidate = s.candidate(row, FakeAPI(), FakeOSV())
+        entry = {**d.asdict(candidate), "changes": entries()[0]["changes"], "instrument": {"bytes": 12, "files": 1}}
+        bank.bank(candidate.repository, candidate.fix, {"entry": entry}, contract="older")
+
+    class API(FakeAPI):
+        def get_repo(self, name):
+            result = super().get_repo(name)
+            if name == names[2]:
+                result["source"] = {"full_name": names[1]}
+            return result
+
+        def get_commit(self, *args):
+            pytest.fail("banked accepts must not be re-decided")
+
+    used = e.UsedSet()
+    used.add("pairs", {names[0]}, size=len(names[0]))
+    selected = []
+    original = d.assign_slices
+
+    def assign(rows, **kwargs):
+        selected.extend(row["repository"] for row in rows)
+        return original(rows, **kwargs)
+
+    monkeypatch.setattr(d, "assign_slices", assign)
+    report = d.run(
+        tmp_path / "repo",
+        github=API(0),
+        osv=FakeOSV(),
+        clones=FakeClones(),
+        used=used,
+        seed=7,
+        known_empty={key for key, names in used.sources.items() if not names},
+        journal_path=tmp_path / "journal",
+        pool_size=2,
+        slices=1,
+        bank=bank,
+    )
+    assert report["status"] == "draft", report
+    assert selected == [names[1], names[3]]
+    assert report["rejections"]["fork_network"] == 1
+    assert len(bank.decided()) == 4
+
+
+@pytest.mark.parametrize("workers", [1, 4])
+def test_bank_duplicate_advisory_cannot_overwrite_pair_decision(tmp_path, monkeypatch, workers):
+    from benchmarks.unseen.bank import CorpusBank
+
+    rows = s.ordered_advisories(list(FakeAPI(6).advisories()), 7)
+    rows[1]["references"] = rows[0]["references"][:]
+    rows[1]["cwes"] = []  # Would reject if re-decided under this later advisory.
+    repository, fix = next(iter(s.fix_links(rows[0])))
+
+    class API(FakeAPI):
+        def advisories(self):
+            return iter(copy.deepcopy(rows))
+
+    changes = entries()[0]["changes"]
+    monkeypatch.setattr(d, "repository_changes", lambda *a, **kw: (copy.deepcopy(changes), {}, {"bytes": 12, "files": 1}))
+    bank = CorpusBank(CorpusFakeObjects(), seed=7)
+    reports = []
+    for name in ("first", "resumed"):
+        used = e.UsedSet()
+        reports.append(
+            d.run(
+                tmp_path / "repo",
+                github=API(),
+                osv=FakeOSV(),
+                clones=FakeClones(),
+                used=used,
+                known_empty=set(used.sources),
+                seed=7,
+                pool_size=3,
+                slices=1,
+                extract_workers=workers,
+                journal_path=tmp_path / name,
+                bank=bank,
+            )
+        )
+    assert all(report["status"] == "draft" for report in reports)
+    assert reports[0]["manifest_sha256"] == reports[1]["manifest_sha256"]
+    assert bank.decided()[bank.key_for(repository, fix)]["decision"] == "accept"
