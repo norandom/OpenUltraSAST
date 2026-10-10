@@ -37,8 +37,18 @@ def private_digest(row: dict) -> str:
     return hashlib.sha256(canonical({"url": row["url"], "commits": [[c["base"], c["head"]] for c in row["changes"]]})).hexdigest()
 
 
-def assign_slices(rows: list[dict], *, seed: int) -> list[dict]:
-    if len(rows) != 300 or len({r["repository"] for r in rows}) != 300:
+def validate_pool(pool_size: int, slices: int) -> None:
+    if pool_size < 1:
+        raise ValueError("--pool-size must be at least 1")
+    if slices < 1 or slices > pool_size:
+        raise ValueError("--slices must be between 1 and --pool-size")
+    if pool_size % slices:
+        raise ValueError("--pool-size must be divisible by --slices")
+
+
+def assign_slices(rows: list[dict], *, seed: int, pool_size: int = 300, slices: int = 3) -> list[dict]:
+    validate_pool(pool_size, slices)
+    if len(rows) != pool_size or len({r["repository"] for r in rows}) != pool_size:
         raise ValueError("pool_size")
     for row in rows:
         kinds = Counter(c["kind"] for c in row["changes"])
@@ -52,12 +62,12 @@ def assign_slices(rows: list[dict], *, seed: int) -> list[dict]:
     groups = defaultdict(list)
     for row in sorted(rows, key=lambda r: r["repository"]):
         groups[row["ecosystem"], row["post_cutoff"]].append(row)
-    sizes = Counter({1: 0, 2: 0, 3: 0})
+    sizes = Counter({i: 0 for i in range(1, slices + 1)})
     assigned = []
     for key in sorted(groups):
         group = groups[key]
         rng.shuffle(group)
-        quotient, remainder = divmod(len(group), 3)
+        quotient, remainder = divmod(len(group), slices)
         # Give each stratum its floor on all slices, then fill globally least-full slices.
         quotas = {i: quotient for i in sizes}
         order = list(sizes)
@@ -72,7 +82,7 @@ def assign_slices(rows: list[dict], *, seed: int) -> list[dict]:
                 assigned.append({**row, "id": "r-" + digest[:24], "slice": slice_id})
             sizes[slice_id] += quotas[slice_id]
             offset += quotas[slice_id]
-    if set(sizes.values()) != {100}:
+    if set(sizes.values()) != {pool_size // slices}:
         raise ValueError("slice_size")
     return sorted(assigned, key=lambda r: (r["slice"], r["id"]))
 
@@ -236,7 +246,7 @@ def repository_changes(git, candidate, fixes: set[str], *, seed: int):
     return [change, *ordinary], exclusions, proof
 
 
-def inputs(used, seed, known_empty, clones):
+def inputs(used, seed, known_empty, clones, *, pool_size=300, slices=3):
     from openultrasast.model.taxonomy import DEFAULT_FAMILIES_PATH
 
     parameters = {
@@ -245,6 +255,8 @@ def inputs(used, seed, known_empty, clones):
         "known_empty": sorted(known_empty),
         "clone_limit_bytes": getattr(clones, "limit_bytes", 500 * 1024 * 1024),
         "journal_version": 4,
+        "pool_size": pool_size,
+        "slices": slices,
     }
     # Hardcoded design thresholds and algorithms are covered as well as taxonomy data.
     for name in ("draft", "source", "extract", "eligibility", "journal"):
@@ -345,7 +357,7 @@ def finish_license(result, github):
 
 
 @contextmanager
-def ordered_extractions(rows, api, osv, used, clones, fixes, seed, checkpoint, entries, workers):
+def ordered_extractions(rows, api, osv, used, clones, fixes, seed, checkpoint, entries, workers, pool_size):
     """Bounded in-flight work, completion journaling, and seed-order acceptance.
 
     Only running jobs count against `workers`; completed results wait in the
@@ -390,16 +402,16 @@ def ordered_extractions(rows, api, osv, used, clones, fixes, seed, checkpoint, e
         def ready():
             return pending and (pending[0][2] is None or pending[0][2] in checkpoint.rows["extraction"])
 
-        while (pending or not exhausted) and len(entries) < 300:
+        while (pending or not exhausted) and len(entries) < pool_size:
             # Only this cursor feeds acceptance, fork deduplication and the guard.
             # Replayed results follow the same path and need no worker submission.
             while ready():
                 checkpoint.boundary()
                 row, decision, key = pending.popleft()
                 yield row, decision, checkpoint.rows["extraction"].get(key)
-                if len(entries) == 300:
+                if len(entries) == pool_size:
                     return
-            while not exhausted and len(in_flight) < workers:
+            while not exhausted and len(in_flight) < min(workers, pool_size - len(entries)):
                 checkpoint.boundary()
                 row = next(ordered, None)
                 if row is None:
@@ -492,7 +504,10 @@ def run(
     max_hours=None,
     clock=None,
     extract_workers=None,
+    pool_size=300,
+    slices=3,
 ) -> dict:
+    validate_pool(pool_size, slices)
     workers = extract_workers if extract_workers is not None else getattr(clones, "extract_workers", 6)
     if workers < 1:
         raise ValueError("invalid_extract_workers")
@@ -512,7 +527,7 @@ def run(
         checkpoint = Journal(
             path, max_hours=max_hours, clock=clock, rate_limit=lambda: getattr(getattr(github, "transport", None), "rate_limit", {})
         )
-        with checkpoint.open(inputs(used, seed, known_empty, clones)):
+        with checkpoint.open(inputs(used, seed, known_empty, clones, pool_size=pool_size, slices=slices)):
             checkpoint.boundary()
             api = ResolvedGitHub(github, checkpoint)
             used = copy.deepcopy(used)  # canonicalization must not mutate the resume input
@@ -534,6 +549,7 @@ def run(
                 checkpoint,
                 entries,
                 workers,
+                pool_size,
             ) as outcomes:
                 for row, decision, result in outcomes:
                     counts[source.ecosystem(row)] += 1
@@ -556,7 +572,7 @@ def run(
                     # only zero accepted entries indicate a systemic failure.
                     if instrument_failures >= 25 and not entries:
                         raise extract.InstrumentFailure("systemic_extraction_failure")
-                    if len(entries) == 300:
+                    if len(entries) == pool_size:
                         break
             report.update(
                 {
@@ -567,11 +583,11 @@ def run(
                 }
             )
             checkpoint.boundary()
-            if len(entries) != 300:
+            if len(entries) != pool_size:
                 report["status"] = "insufficient_repositories"
                 checkpoint.progress(report["status"])
                 return report
-            assigned = assign_slices(entries, seed=seed)
+            assigned = assign_slices(entries, seed=seed, pool_size=pool_size, slices=slices)
             completion = {"manifest_sha256": digest(assigned), "repositories": len(entries)}
             if "all" not in checkpoint.rows["completion"]:
                 checkpoint.put("completion", "all", completion)
@@ -582,8 +598,8 @@ def run(
             report.update(
                 {
                     "status": "draft",
-                    "changes": 3900,
-                    "slices": 3,
+                    "changes": pool_size * 13,
+                    "slices": slices,
                     "license_split": dict(Counter(e["license_class"] for e in entries)),
                     "methods": dict(Counter(e["changes"][0]["method"] for e in entries)),
                     "post_cutoff": sum(e["post_cutoff"] for e in entries),
@@ -622,12 +638,18 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--max-hours", type=float, help="Stop between units after this many hours per invocation")
     parser.add_argument("--extract-deadline", type=float, default=240.0, help="Extraction wall-clock budget per repository in seconds")
     parser.add_argument("--extract-workers", type=int, default=6, help="Maximum extraction processes, capped to CPU cores (default: 6)")
+    parser.add_argument("--pool-size", type=int, default=300, help="Repositories to accept (default: 300)")
+    parser.add_argument("--slices", type=int, default=3, help="Equal-sized slices (default: 3)")
     parser.add_argument("--seed", type=int, default=20260601)
     parser.add_argument("--local-store")
     parser.add_argument("--s3-store", default="s3://")
     parser.add_argument("--pointer-manifest", type=Path, action="append", default=[])
     parser.add_argument("--known-empty", choices=(*eligibility.SOURCES, "memory_local", "memory_s3"), action="append", default=[])
     args = parser.parse_args(argv)
+    try:
+        validate_pool(args.pool_size, args.slices)
+    except ValueError as exc:
+        parser.error(str(exc))
     if args.extract_workers < 1:
         parser.error("--extract-workers must be at least 1")
     try:
@@ -653,6 +675,8 @@ def main(argv: list[str] | None = None) -> int:
             clones=clones,
             used=used,
             seed=args.seed,
+            pool_size=args.pool_size,
+            slices=args.slices,
             known_empty=set(args.known_empty),
             journal_path=clones.cache / "journal",
             max_hours=args.max_hours,

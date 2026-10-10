@@ -50,8 +50,9 @@ def read_pair(public_path: Path, private_path: Path) -> tuple[dict, dict]:
             raise ValueError
         if set(hidden) != {r["id"] for r in rows if r.get("private")}:
             raise ValueError
+        # Slice IDs come from the draft; bisect may leave sparse slices.
         for row in rows:
-            if type(row["slice"]) is not int or row["slice"] not in (1, 2, 3):
+            if type(row["slice"]) is not int or row["slice"] < 1:
                 raise ValueError
             if row.get("private"):
                 full = hidden[row["id"]]

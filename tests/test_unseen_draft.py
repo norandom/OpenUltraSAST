@@ -451,7 +451,10 @@ def test_systemic_zero_source_is_instrument_failure_with_recorded_rejections(tmp
 @pytest.mark.parametrize(
     "deadline_args,deadline,workers", [([], 240.0, 6), (["--extract-deadline", "12.5", "--extract-workers", "2"], 12.5, 2)]
 )
-def test_cli_uses_environment_and_injected_stores(tmp_path, monkeypatch, capsys, deadline_args, deadline, workers):
+@pytest.mark.parametrize("pool_args,pool_size,slices", [([], 300, 3), (["--pool-size", "100", "--slices", "1"], 100, 1)])
+def test_cli_uses_environment_and_injected_stores(
+    tmp_path, monkeypatch, capsys, deadline_args, deadline, workers, pool_args, pool_size, slices
+):
     import json
 
     from openultrasast import config
@@ -464,10 +467,17 @@ def test_cli_uses_environment_and_injected_stores(tmp_path, monkeypatch, capsys,
     monkeypatch.setattr(d.eligibility, "build_used", lambda *a, **kw: e.UsedSet())
     monkeypatch.setattr(d.source, "GitHub", lambda token: seen.append(token) or FakeAPI(0))
     monkeypatch.setattr(d.source, "OSV", FakeOSV)
-    args = ["--root", str(tmp_path), "--cache", str(tmp_path.parent / "clone-cache")]
+    args = ["--root", str(tmp_path), "--cache", str(tmp_path.with_name(tmp_path.name + "-clone-cache"))]
     for label in e.SOURCES:
         args += ["--known-empty", label]
-    assert d.main(args + deadline_args) == 1
+    original_run = d.run
+
+    def run(*args, **kwargs):
+        assert kwargs["pool_size"] == pool_size and kwargs["slices"] == slices
+        return original_run(*args, **kwargs)
+
+    monkeypatch.setattr(d, "run", run)
+    assert d.main(args + deadline_args + pool_args) == 1
     output = capsys.readouterr().out
     assert json.loads(output)["extract_deadline_seconds"] == deadline
     assert json.loads(output)["extract_workers"] == min(workers, os.cpu_count() or 4)
@@ -789,7 +799,7 @@ def test_resume_refuses_changed_inputs_before_network(tmp_path, monkeypatch, par
         kwargs["clones"].limit_bytes = 12
     else:
         original = d.inputs
-        monkeypatch.setattr(d, "inputs", lambda *a: {**original(*a), "design_extract": "changed"})
+        monkeypatch.setattr(d, "inputs", lambda *a, **kw: {**original(*a, **kw), "design_extract": "changed"})
     report = d.run(**kwargs)
     assert report["status"] == "resume_refused"
     assert report["changed_parameters"] == [parameter]
@@ -1084,7 +1094,8 @@ def test_decide_http_failure_systemic_guard_aborts(tmp_path):
     assert report["rejections"].get("decide_http_failure") == 25
 
 
-def test_parallel_pool_is_byte_identical_and_fork_selection_is_seed_ordered(tmp_path, monkeypatch):
+@pytest.mark.parametrize("pool_size,slices", [(300, 3), (100, 1)])
+def test_parallel_pool_is_byte_identical_and_fork_selection_is_seed_ordered(tmp_path, monkeypatch, pool_size, slices):
     journal_module = importlib.import_module("benchmarks.unseen.journal")
     monkeypatch.setattr(journal_module.os, "fsync", lambda fd: None)
     coordinator = os.getpid()
@@ -1146,9 +1157,9 @@ def test_parallel_pool_is_byte_identical_and_fork_selection_is_seed_ordered(tmp_
 
     original_assign, original_put, original_boundary = d.assign_slices, d.Journal.put, d.Journal.boundary
 
-    def assign(rows, *, seed):
+    def assign(rows, *, seed, pool_size=300, slices=3):
         selected.append([row["repository"] for row in rows])
-        return original_assign(rows, seed=seed)
+        return original_assign(rows, seed=seed, pool_size=pool_size, slices=slices)
 
     def put(self, *args):
         assert os.getpid() == coordinator
@@ -1179,8 +1190,14 @@ def test_parallel_pool_is_byte_identical_and_fork_selection_is_seed_ordered(tmp_
             known_empty=set(used.sources),
             journal_path=path,
             extract_workers=workers,
+            pool_size=pool_size,
+            slices=slices,
         )
         assert report["status"] == "draft", report
+        assert report["repositories"] == pool_size
+        assert report["changes"] == pool_size * 13 and report["slices"] == slices
+        published = tomllib.loads((path / "draft-p1.toml").read_text())["repository"]
+        assert Counter(row["slice"] for row in published) == dict.fromkeys(range(1, slices + 1), pool_size // slices)
         assert report["rejections"] == {"fork_network": 2, "extract_git_exit_128": 2, "extraction_timeout": 1, "decide_http_failure": 1}
         assert report["extract_workers"] == min(workers, 4)
         assert 1 <= peak[0] <= min(workers, 4)
@@ -1190,7 +1207,7 @@ def test_parallel_pool_is_byte_identical_and_fork_selection_is_seed_ordered(tmp_
             (report["manifest_sha256"], *(path.joinpath(name).read_bytes() for name in ("draft-p1.toml", "private-draft-p1.toml")))
         )
     # Independent serial oracle: first successful repository wins each network.
-    expected = [name for i, name in enumerate(names) if i not in {0, 3, 5, 6, 7, 8}][:300]
+    expected = [name for i, name in enumerate(names) if i not in {0, 3, 5, 6, 7, 8}][:pool_size]
     assert selected == [expected, expected]
     assert snapshots[0] == snapshots[1]
 
@@ -1238,9 +1255,9 @@ def test_completion_journaling_refills_pool_while_seed_cursor_is_blocked(tmp_pat
                 assert set(range(1, release_rank + 1)) <= set(journaled)
                 release_first.set()
 
-    def assign(rows, *, seed):
+    def assign(rows, *, seed, pool_size=300, slices=3):
         accepted.append([ranks[row["repository"]] for row in rows])
-        return original_assign(rows, seed=seed)
+        return original_assign(rows, seed=seed, pool_size=pool_size, slices=slices)
 
     monkeypatch.setattr(d, "repository_changes", extract_changes)
     monkeypatch.setattr(d.Journal, "put", put)
@@ -1354,3 +1371,75 @@ def test_parallel_license_failure_is_a_resilient_skip(tmp_path, monkeypatch, fai
     )
     assert report["status"] == "insufficient_repositories"
     assert report["repositories"] == 1 and report["rejections"] == {reason: 1}
+
+
+@pytest.mark.parametrize("pool_size,slices", [(100, 1), (100, 4), (12, 12), (1, 1)])
+def test_configurable_slices_are_balanced_stratified_and_deterministic(pool_size, slices):
+    rows = entries()[:pool_size]
+    assigned = d.assign_slices(rows, seed=19, pool_size=pool_size, slices=slices)
+    assert assigned == d.assign_slices(list(reversed(rows)), seed=19, pool_size=pool_size, slices=slices)
+    assert Counter(row["slice"] for row in assigned) == dict.fromkeys(range(1, slices + 1), pool_size // slices)
+    assert assigned == sorted(assigned, key=lambda row: (row["slice"], row["id"]))
+    strata = Counter((row["ecosystem"], row["post_cutoff"]) for row in rows)
+    for slice_id in range(1, slices + 1):
+        counts = Counter((row["ecosystem"], row["post_cutoff"]) for row in assigned if row["slice"] == slice_id)
+        assert all(abs(counts[key] - total / slices) < 1 for key, total in strata.items())
+
+
+def test_default_assignment_matches_original_digest():
+    # Captured from HEAD's unparameterized algorithm on this synthetic fixture.
+    assert d.digest(d.assign_slices(entries(), seed=19)) == "811f0893c73ebb82a8d19948e6017b9a6f353f4de98c281f5861706d0f577b78"
+
+
+@pytest.mark.parametrize("count", [99, 101])
+def test_single_slice_requires_exact_pool_size(count):
+    with pytest.raises(ValueError, match="pool_size"):
+        d.assign_slices(entries()[:count], seed=19, pool_size=100, slices=1)
+
+
+def test_single_slice_rejects_duplicate_repositories():
+    rows = entries()[:100]
+    rows[-1] = rows[0]
+    with pytest.raises(ValueError, match="pool_size"):
+        d.assign_slices(rows, seed=19, pool_size=100, slices=1)
+
+
+@pytest.mark.parametrize("pool_size,slices", [(0, 1), (-1, 1), (100, 0), (100, -1), (100, 101), (100, 3)])
+def test_invalid_pool_configuration_rejected_before_io(tmp_path, monkeypatch, pool_size, slices):
+    from openultrasast import config
+
+    def unexpected(*args, **kwargs):
+        pytest.fail("invalid configuration performed I/O")
+
+    monkeypatch.setattr(config, "load_dotenv", unexpected)
+    with pytest.raises(SystemExit) as exc:
+        d.main(["--pool-size", str(pool_size), "--slices", str(slices)])
+    assert exc.value.code == 2
+    api, osv, clones = FakeAPI(), FakeOSV(), FakeClones()
+    with pytest.raises(ValueError):
+        d.run(tmp_path, github=api, osv=osv, clones=clones, used=e.UsedSet(), seed=7, pool_size=pool_size, slices=slices)
+    assert api.calls == osv.calls == 0 and not clones.counts
+    with pytest.raises(ValueError):
+        d.assign_slices([], seed=7, pool_size=pool_size, slices=slices)
+
+
+@pytest.mark.parametrize("changed", [{"pool_size": 200}, {"slices": 2}])
+def test_pool_configuration_change_refuses_resume_before_io(tmp_path, changed):
+    used, api, clones = e.UsedSet(), FakeAPI(), FakeClones()
+    path = tmp_path / "journal"
+    parameters = d.inputs(used, 7, set(used.sources), clones, pool_size=100, slices=1)
+    with d.Journal(path).open(parameters):
+        pass
+    report = d.run(
+        tmp_path / "repo",
+        github=api,
+        osv=FakeOSV(),
+        clones=clones,
+        used=used,
+        seed=7,
+        known_empty=set(used.sources),
+        journal_path=path,
+        **({"pool_size": 100, "slices": 1} | changed),
+    )
+    assert report["status"] == "resume_refused" and report["changed_parameters"] == list(changed)
+    assert api.calls == 0 and not clones.counts
