@@ -166,9 +166,14 @@ class Clones:
             git = Git(path, runner=self.runner, limit_bytes=self.limit_bytes, deadline_seconds=self.deadline_seconds)
             try:
                 # Full commit graph is needed for temporal thirds and OSV brackets.
-                # Content reads fetch blobs on demand through Git's promisor mechanism.
+                # A full-objects clone (no blob:none promisor) brings every blob in
+                # one pack, so blame/log/diff read locally instead of fetching each
+                # blob on demand (the old promisor path cost ~hundreds of round-trips
+                # per repo). --no-checkout still skips the working tree. With no
+                # promisor remote, a genuinely missing object errors loudly rather
+                # than silently round-tripping. Disk is bounded by limit_bytes below.
                 done = self.runner(
-                    ["git", "-c", "credential.helper=", "clone", "--quiet", "--filter=blob:none", "--no-checkout", url, str(path)],
+                    ["git", "-c", "credential.helper=", "clone", "--quiet", "--no-checkout", url, str(path)],
                     stdin=subprocess.DEVNULL,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
@@ -229,7 +234,7 @@ def repository_changes(git, candidate, fixes: set[str], *, seed: int):
                 # Extra advisory fixes are best-effort exclusions. The candidate
                 # was fetched strictly by extract_repository. Do not import extra
                 # tags before introducing() checks the candidate's version bracket.
-                git.run("fetch", "--quiet", "--no-tags", "--filter=blob:none", "origin", fix)
+                git.run("fetch", "--quiet", "--no-tags", "origin", fix)
             resolved.append(git.run("rev-parse", fix).strip())
         except InstrumentFailure as exc:
             if fix == candidate.fix or not str(exc).startswith("git_exit_"):
@@ -325,7 +330,7 @@ def extract_repository(candidate, github, clones, fixes, seed):
     try:
         with extract.process_deadline(total):
             with clones.open(candidate.url) as git:
-                git.run("fetch", "--quiet", "--filter=blob:none", "origin", candidate.fix)
+                git.run("fetch", "--quiet", "origin", candidate.fix)
                 changes, exclusions, proof = repository_changes(git, candidate, fixes, seed=seed)
                 entry = {**asdict(candidate), "changes": changes, "instrument": proof}
             result = {"entry": entry, "ordinary_exclusions": exclusions}
