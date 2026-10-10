@@ -374,7 +374,7 @@ def test_disk_bytes_skips_files_that_vanish_mid_walk(tmp_path):
     assert git.disk_bytes() == 30
 
 
-def test_partial_clone_batch_matches_lazy_bytes_without_per_file_fetches(history, tmp_path):
+def test_partial_clone_lazy_fetch_preserves_extraction_content(history, tmp_path):
     """Real promisor packs over file:// only: count lazy fetches via Git's trace."""
     import json
     import os
@@ -388,59 +388,23 @@ def test_partial_clone_batch_matches_lazy_bytes_without_per_file_fetches(history
     git.run("config", "uploadpack.allowFilter", "true")
     git.run("config", "uploadpack.allowAnySHA1InWant", "true")
     baseline = [e.introducing(git, candidate), e.ordinary_history(git, "HEAD")]
-    results, fetches = [], []
-    for batch in (False, True):
-        path = tmp_path / ("batch" if batch else "lazy")
-        trace = tmp_path / (path.name + ".trace")
-        # Local file transport only, no network. No checkout: all blobs start missing.
-        subprocess.run(
-            ["git", "clone", "--quiet", "--filter=blob:none", "--no-checkout", tmp_path.as_uri(), str(path)],
-            check=True,
-            capture_output=True,
-        )
-        commands = []
-
-        def runner(argv, commands=commands, trace=trace, **kwargs):
-            commands.append(argv)
-            return subprocess.run(argv, **kwargs, env={**os.environ, "GIT_TRACE": str(trace), "GIT_ALLOW_PROTOCOL": "file"})
-
-        partial = e.Git(path, runner=runner)
-        missing = partial.run("rev-list", "--objects", "--missing=print", "HEAD")
-        assert sum(line.startswith("?") for line in missing.splitlines()) >= 60
-        if batch:
-            partial.materialize(["HEAD", candidate.fix])
-        results.append([e.introducing(partial, candidate), e.ordinary_history(partial, "HEAD")])
-        assert partial.files_read > 0 and partial.bytes_read > 0
-        fetches.append(sum("built-in: git fetch " in line for line in trace.read_text().splitlines()))
-        if batch:
-            assert sum("fetch" in argv for argv in commands) == 1
-            partial.materialize(["HEAD", candidate.fix])  # Already hydrated: no second fetch.
-            assert sum("fetch" in argv for argv in commands) == 1
-    assert json.dumps(results[0], sort_keys=True).encode() == json.dumps(results[1], sort_keys=True).encode()
-    assert results[1] == baseline
-    assert fetches[0] >= 12 and fetches[1] == 1
-
-
-def test_materialize_timeout_uses_repository_deadline_and_checks_completeness(tmp_path):
-    oid = "a" * 40
-    calls = []
-    now = [0.0]
+    path = tmp_path / "lazy"
+    trace = tmp_path / "lazy.trace"
+    # Local file transport only, no network. No checkout: all blobs start missing.
+    subprocess.run(
+        ["git", "clone", "--quiet", "--filter=blob:none", "--no-checkout", tmp_path.as_uri(), str(path)],
+        check=True,
+        capture_output=True,
+        env={**os.environ, "GIT_ALLOW_PROTOCOL": "file"},
+    )
 
     def runner(argv, **kwargs):
-        calls.append((argv, kwargs))
-        if "fetch" in argv:
-            assert kwargs["timeout"] == 3
-            assert kwargs["input"] == (oid + "\n").encode()
-            raise subprocess.TimeoutExpired(argv, kwargs["timeout"])
-        now[0] += 7
-        return subprocess.CompletedProcess(argv, 0, ("?" + oid + "\n").encode(), b"")
+        return subprocess.run(argv, **kwargs, env={**os.environ, "GIT_TRACE": str(trace), "GIT_ALLOW_PROTOCOL": "file"})
 
-    with pytest.raises(e.ExtractionTimeout, match="extraction_timeout"):
-        e.Git(tmp_path, runner=runner, deadline_seconds=10, _now=lambda: now[0]).materialize(["HEAD"])
-    assert len(calls) == 2
-
-    def incomplete(argv, **kwargs):
-        return subprocess.CompletedProcess(argv, 0, ("?" + oid + "\n").encode(), b"")
-
-    with pytest.raises(e.InstrumentFailure, match="missing_blobs_after_fetch"):
-        e.Git(tmp_path, runner=incomplete).materialize(["HEAD"])
+    partial = e.Git(path, runner=runner)
+    missing = partial.run("rev-list", "--objects", "--missing=print", "HEAD")
+    assert sum(line.startswith("?") for line in missing.splitlines()) >= 60
+    result = [e.introducing(partial, candidate), e.ordinary_history(partial, "HEAD")]
+    assert partial.files_read > 0 and partial.bytes_read > 0
+    assert json.dumps(result, sort_keys=True).encode() == json.dumps(baseline, sort_keys=True).encode()
+    assert sum("built-in: git fetch " in line for line in trace.read_text().splitlines()) >= 12

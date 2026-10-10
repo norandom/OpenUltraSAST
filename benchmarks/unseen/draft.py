@@ -154,7 +154,7 @@ class Clones:
             git = Git(path, runner=self.runner, limit_bytes=self.limit_bytes, deadline_seconds=self.deadline_seconds)
             try:
                 # Full commit graph is needed for temporal thirds and OSV brackets.
-                # repository_changes batches blobs before reading their content.
+                # Content reads fetch blobs on demand through Git's promisor mechanism.
                 done = self.runner(
                     ["git", "-c", "credential.helper=", "clone", "--quiet", "--filter=blob:none", "--no-checkout", url, str(path)],
                     stdin=subprocess.DEVNULL,
@@ -222,8 +222,6 @@ def repository_changes(git, candidate, fixes: set[str], *, seed: int):
         except InstrumentFailure as exc:
             if fix == candidate.fix or not str(exc).startswith("git_exit_"):
                 raise
-    # Batch only resolved histories before diff/show/blame can fetch per-file blobs.
-    git.materialize(["HEAD", *resolved])
     proof = prove_source(git, candidate.parent)
     change = extract.introducing(git, candidate)
     known = set()
