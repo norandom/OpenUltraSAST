@@ -108,6 +108,9 @@ class CorpusBank:
         self.resolved_prefix = f"{prefix}/{seed}/resolved/"
         self.advisories_key = f"{prefix}/{seed}/advisories/list.json"
         self.repositories_prefix = f"{prefix}/{seed}/repositories/"
+        # get_repo metadata is seed-independent GitHub data: share it across seeds
+        # so the ~thousands of used-set canonicalization lookups are paid once ever.
+        self.repos_prefix = f"{prefix}/repos/"
 
     @staticmethod
     def advisory_key(advisory_id: str) -> str:
@@ -191,6 +194,24 @@ class CorpusBank:
             for name, body in self._listed(self.repositories_prefix, "repository").items()
             if body["resolution_contract"] == contract
         }
+
+    def cache_repo(self, name: str, metadata: dict | None, *, contract: str) -> None:
+        """Persist one get_repo result (metadata, or None for a 404) by normalized name."""
+        self._put(
+            self.repos_prefix + hashlib.sha256(name.encode()).hexdigest() + ".json",
+            {"name": name, "metadata": metadata, "resolution_contract": contract},
+            labels={"contract": contract},
+        )
+
+    def get_cached_repo(self, name: str, *, contract: str) -> tuple[bool, dict | None]:
+        """Return (found, metadata). found is True even when metadata is None (a cached 404)."""
+        stored = _retry(self.client.get, self.repos_prefix + hashlib.sha256(name.encode()).hexdigest() + ".json")
+        if stored is None:
+            return (False, None)
+        body = json.loads(stored[0])
+        if body.get("name") != name or body.get("resolution_contract") != contract:
+            return (False, None)
+        return (True, body["metadata"])
 
     @staticmethod
     def key_for(repository: str, fix: str) -> str:
