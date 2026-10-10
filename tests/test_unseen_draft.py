@@ -100,7 +100,11 @@ def test_cache_is_outside_repository_deleted_and_partial(tmp_path):
         assert git.path.exists()
         clone_path = git.path
     assert not clone_path.exists()
-    assert "--filter=blob:none" in calls[0] and "--no-checkout" in calls[0]
+    # Full-objects clone: no blob:none promisor (which caused per-blob lazy
+    # fetches), so every blob arrives in one pack and a missing object errors
+    # loudly. --no-checkout still skips the working tree.
+    assert "--filter=blob:none" not in calls[0] and "--no-checkout" in calls[0]
+    assert "clone" in calls[0]
     assert clones.counts["clones"] == 1 and clones.counts["clone_bytes"] == 3
 
 

@@ -101,11 +101,14 @@ passing implementation tests does not assert that 300 eligible repositories exis
 Clones and checkpoints default to `results_root()/unseen-draft` (normally
 `~/ousast-results/plane/unseen-draft`), overridable by `--cache /outside/path`.
 The cache cannot lie inside `--root`. One opaque, disposable clone exists at a time;
-it is removed on success, rejection, or failure. `--filter=blob:none --no-checkout`
-keeps the commit graph needed for temporal thirds, blame, and release-tag ancestry,
-and fetches source blobs on demand. This is a **partial clone**, not a shallow history.
-The 500 MiB disk cap is checked after Git commands, including lazy blob fetches;
-one in-flight command can transiently exceed it before rejection and cleanup.
+it is removed on success, rejection, or failure. A full-objects `--no-checkout` clone
+brings the whole commit graph and every blob in one pack, so temporal thirds, blame,
+and release-tag ancestry read locally; `--no-checkout` still skips the working tree.
+This is a full clone, not a shallow history, and has no blob:none promisor, so a
+genuinely missing object errors loudly instead of silently round-tripping (the old
+promisor path fetched blobs one at a time, hundreds of round-trips per repo). The
+500 MiB disk cap is checked after Git commands; one in-flight command can transiently
+exceed it before rejection and cleanup.
 Git output is captured, never forwarded. Each repository must read a nonempty source
 blob before extraction. Summary instrumentation includes source read operations and
 actual bytes, clone count, cumulative/peak disk bytes, wall time, and logical API calls
