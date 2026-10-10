@@ -1,8 +1,11 @@
 """Offline extraction: an injected local Git client over a synthetic temporary history."""
 
 import importlib
+import signal
 import subprocess
 import sys
+import time
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from pathlib import Path
 
@@ -11,6 +14,71 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 e = importlib.import_module("benchmarks.unseen.extract")
 s = importlib.import_module("benchmarks.unseen.source")
+
+
+@pytest.mark.parametrize("slow", [False, True])
+def test_process_deadline_restores_alarm(slow):
+    original = signal.getsignal(signal.SIGALRM)
+    assert signal.getitimer(signal.ITIMER_REAL) == (0, 0)
+    if slow:
+        with pytest.raises(e.ExtractionTimeout, match="^wallclock_timeout$"), e.process_deadline(0.05):
+            time.sleep(0.2)
+    else:
+        with e.process_deadline(0.2):
+            assert signal.getitimer(signal.ITIMER_REAL)[0] > 0
+    assert signal.getsignal(signal.SIGALRM) == original
+    assert signal.getitimer(signal.ITIMER_REAL) == (0, 0)
+
+
+@pytest.mark.parametrize("seconds", [None, 0, -1])
+def test_process_deadline_disabled(seconds, monkeypatch):
+    monkeypatch.setattr(signal, "signal", lambda *args: pytest.fail("disabled deadline installed a handler"))
+    monkeypatch.setattr(signal, "setitimer", lambda *args: pytest.fail("disabled deadline armed a timer"))
+    with e.process_deadline(seconds):
+        pass
+
+
+def test_process_deadline_off_main_thread(monkeypatch):
+    monkeypatch.setattr(signal, "signal", lambda *args: pytest.fail("thread installed a handler"))
+    monkeypatch.setattr(signal, "setitimer", lambda *args: pytest.fail("thread armed a timer"))
+
+    def work():
+        with e.process_deadline(0.01):
+            time.sleep(0.02)
+        return "finished"
+
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        assert pool.submit(work).result() == "finished"
+
+
+@pytest.mark.parametrize("operation", ["signal", "setitimer"])
+def test_process_deadline_unsupported_operation(operation, monkeypatch):
+    original = signal.getsignal(signal.SIGALRM)
+
+    def unsupported(*args):
+        raise ValueError("unsupported")
+
+    monkeypatch.setattr(signal, operation, unsupported)
+    with e.process_deadline(0.01):
+        time.sleep(0.02)
+    assert signal.getsignal(signal.SIGALRM) == original
+    assert signal.getitimer(signal.ITIMER_REAL) == (0, 0)
+
+
+def test_process_deadline_does_not_swallow_body_value_error():
+    original = signal.getsignal(signal.SIGALRM)
+    with pytest.raises(ValueError, match="body failure"), e.process_deadline(0.2):
+        raise ValueError("body failure")
+    assert signal.getsignal(signal.SIGALRM) == original
+    assert signal.getitimer(signal.ITIMER_REAL) == (0, 0)
+
+
+def test_process_deadline_inside_git_remains_rejection(tmp_path):
+    def runner(*args, **kwargs):
+        time.sleep(0.2)
+
+    with pytest.raises(e.ExtractionTimeout, match="^wallclock_timeout$"), e.process_deadline(0.05):
+        e.Git(tmp_path, runner=runner).run("log")
 
 
 @pytest.fixture

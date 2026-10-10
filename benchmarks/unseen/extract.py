@@ -10,8 +10,11 @@ from __future__ import annotations
 import ast
 import json
 import re
+import signal
 import subprocess
+import threading
 import time
+from contextlib import contextmanager
 from pathlib import Path
 
 from .source import Candidate, Rejected
@@ -31,6 +34,42 @@ class InstrumentFailure(ValueError):
 
 class ExtractionTimeout(Rejected):
     """A slow repository is skipped without aborting the draft."""
+
+
+@contextmanager
+def process_deadline(seconds: float | None):
+    """Bound Python work in a worker's main thread; cancel the alarm on exit."""
+    if (
+        seconds is None
+        or seconds <= 0
+        or threading.current_thread() is not threading.main_thread()
+        or not all(hasattr(signal, name) for name in ("SIGALRM", "ITIMER_REAL", "setitimer"))
+    ):
+        yield
+        return
+
+    def expired(signum, frame):
+        raise ExtractionTimeout("wallclock_timeout")
+
+    previous = signal.getsignal(signal.SIGALRM)
+    installed = False
+    try:
+        try:
+            signal.signal(signal.SIGALRM, expired)
+            installed = True
+            signal.setitimer(signal.ITIMER_REAL, seconds)
+        except ValueError:
+            # Unsupported signal operations must not prevent extraction.
+            if installed:
+                signal.signal(signal.SIGALRM, previous)
+                installed = False
+        yield
+    finally:
+        if installed:
+            try:
+                signal.setitimer(signal.ITIMER_REAL, 0)
+            finally:
+                signal.signal(signal.SIGALRM, previous)
 
 
 class Git:
@@ -66,6 +105,8 @@ class Git:
             )
         except subprocess.TimeoutExpired:
             raise ExtractionTimeout("extraction_timeout") from None
+        except ExtractionTimeout:
+            raise
         except Exception:
             raise InstrumentFailure("git_launch_failed") from None
         if done.returncode not in allowed:

@@ -144,6 +144,7 @@ class Clones:
         runner=None,
         limit_bytes=500 * 1024 * 1024,
         deadline_seconds: float | None = None,
+        parse_deadline_seconds: float | None = 120.0,
         extract_workers: int = 6,
     ):
         if extract_workers < 1:
@@ -153,6 +154,7 @@ class Clones:
         self.runner = runner or subprocess.run
         self.limit_bytes = limit_bytes
         self.deadline_seconds = deadline_seconds
+        self.parse_deadline_seconds = parse_deadline_seconds
         self.counts = Counter()
 
     @contextmanager
@@ -318,12 +320,15 @@ def decide(row, github, osv, used, selected_networks=()):
 
 def extract_repository(candidate, github, clones, fixes, seed):
     before = dict(clones.counts)
+    deadline = getattr(clones, "deadline_seconds", None)
+    total = (deadline or 0) + (getattr(clones, "parse_deadline_seconds", None) or 0) if deadline is not None else None
     try:
-        with clones.open(candidate.url) as git:
-            git.run("fetch", "--quiet", "--filter=blob:none", "origin", candidate.fix)
-            changes, exclusions, proof = repository_changes(git, candidate, fixes, seed=seed)
-            entry = {**asdict(candidate), "changes": changes, "instrument": proof}
-        result = {"entry": entry, "ordinary_exclusions": exclusions}
+        with extract.process_deadline(total):
+            with clones.open(candidate.url) as git:
+                git.run("fetch", "--quiet", "--filter=blob:none", "origin", candidate.fix)
+                changes, exclusions, proof = repository_changes(git, candidate, fixes, seed=seed)
+                entry = {**asdict(candidate), "changes": changes, "instrument": proof}
+            result = {"entry": entry, "ordinary_exclusions": exclusions}
     except source.Rejected as exc:
         result = {"rejected": str(exc), "ordinary_exclusions": getattr(exc, "counts", {})}
     except eligibility.RepositoryNotFound:
@@ -517,6 +522,7 @@ def run(
     # Operational budget only: changing it must not invalidate journal resume inputs.
     report["extract_workers"] = workers
     report["extract_deadline_seconds"] = getattr(clones, "deadline_seconds", None)
+    report["parse_deadline_seconds"] = getattr(clones, "parse_deadline_seconds", None)
     counts, rejected, ordinary_counts = Counter(), Counter(), Counter()
     checkpoint = None
     try:
@@ -637,6 +643,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--cache", type=Path)
     parser.add_argument("--max-hours", type=float, help="Stop between units after this many hours per invocation")
     parser.add_argument("--extract-deadline", type=float, default=240.0, help="Extraction wall-clock budget per repository in seconds")
+    parser.add_argument(
+        "--parse-deadline",
+        type=float,
+        default=120.0,
+        help="Extra wall-clock budget in seconds for the Python parse phase beyond --extract-deadline",
+    )
     parser.add_argument("--extract-workers", type=int, default=6, help="Maximum extraction processes, capped to CPU cores (default: 6)")
     parser.add_argument("--pool-size", type=int, default=300, help="Repositories to accept (default: 300)")
     parser.add_argument("--slices", type=int, default=3, help="Equal-sized slices (default: 3)")
@@ -661,6 +673,7 @@ def main(argv: list[str] | None = None) -> int:
             args.root,
             args.cache or results_root() / "unseen-draft",
             deadline_seconds=args.extract_deadline,
+            parse_deadline_seconds=args.parse_deadline,
             extract_workers=args.extract_workers,
         )
         stores = {
