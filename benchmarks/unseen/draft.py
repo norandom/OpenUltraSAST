@@ -2,7 +2,7 @@
 
 All network and git operations are injected at the run() boundary. Only counts,
 digests and fixed failure codes go to stdout; identity-bearing output stays in the
-private journal outside the repository. No population guard is run here.
+private journal or corpus bucket. No population guard is run here.
 """
 
 from __future__ import annotations
@@ -20,12 +20,13 @@ import time
 from collections import Counter, defaultdict, deque
 from concurrent.futures import FIRST_COMPLETED, ProcessPoolExecutor, wait
 from concurrent.futures.process import BrokenProcessPool
-from contextlib import contextmanager
+from contextlib import ExitStack, contextmanager
 from dataclasses import asdict
 from pathlib import Path
 
 from . import eligibility, extract, source
-from .extract import Git, InstrumentFailure
+from .bank import CorpusBank, CorpusObjects, corpus_settings, split_decided
+from .extract import EXTRACTION_CONTRACT, Git, InstrumentFailure
 from .journal import Journal, ResolvedGitHub, ResumeMismatch, Stopped, atomic, digest, external
 
 
@@ -367,7 +368,21 @@ def finish_license(result, github):
 
 
 @contextmanager
-def ordered_extractions(rows, api, osv, used, clones, fixes, seed, checkpoint, entries, workers, pool_size):
+def ordered_extractions(
+    rows,
+    api,
+    osv,
+    used,
+    clones,
+    fixes,
+    seed,
+    checkpoint,
+    entries,
+    workers,
+    pool_size,
+    bank: CorpusBank | None = None,
+    decided=None,
+):
     """Bounded in-flight work, completion journaling, and seed-order acceptance.
 
     Only running jobs count against `workers`; completed results wait in the
@@ -376,6 +391,8 @@ def ordered_extractions(rows, api, osv, used, clones, fixes, seed, checkpoint, e
     Graceful STOP/guard/target exits drain started work into the journal for resume;
     a hard interrupt may lose unjournaled work but cannot change accepted order.
     """
+    decided = dict(decided or {})
+    identities = {}
     pending = deque()  # Seed-order acceptance cursor; contains no futures/results.
     in_flight = {}  # Future -> extraction key, independent of the cursor.
     # Fork shares the coordinator's memory copy-on-write. Jobs receive only the
@@ -383,8 +400,22 @@ def ordered_extractions(rows, api, osv, used, clones, fixes, seed, checkpoint, e
     context = multiprocessing.get_context("fork")
     pool = ProcessPoolExecutor(max_workers=workers, mp_context=context)
 
+    def remember(repository, fix, result):
+        bank.bank(repository, fix, result, contract=EXTRACTION_CONTRACT)
+        # Reuse decisions made during this invocation too: another advisory for
+        # the same pair must not overwrite an earlier accept with a rejection.
+        decided[bank.key_for(repository, fix)] = {
+            "repository": repository,
+            "fix": fix,
+            "decision": "accept" if "entry" in result else "reject",
+            "entry": result.get("entry"),
+            "reason": result.get("rejected"),
+            "ordinary_exclusions": result.get("ordinary_exclusions", {}),
+            "counts": result.get("counts", {}),
+        }
+
     def collect(future):
-        key = in_flight[future]
+        key = in_flight.pop(future)
         try:
             result = future.result()
         except BrokenProcessPool:
@@ -401,8 +432,10 @@ def ordered_extractions(rows, api, osv, used, clones, fixes, seed, checkpoint, e
             else:
                 clones.counts[name] += value
         result = finish_license(result, api)
+        if bank is not None:
+            repository, fix = identities[key]
+            remember(repository, fix, result)
         checkpoint.put("extraction", key, result)
-        del in_flight[future]
 
     def iterate():
         nonlocal pool
@@ -428,6 +461,53 @@ def ordered_extractions(rows, api, osv, used, clones, fixes, seed, checkpoint, e
                     exhausted = True
                     break
                 key = row["ghsa_id"]
+                identity = None
+                if bank is not None:
+                    links = source.fix_links(row)
+                    if len(links) == 1:
+                        repository, fix = next(iter(links))
+                        try:
+                            resolved = eligibility.resolve(repository, api)
+                            repository = resolved.full_name
+                        except eligibility.RepositoryNotFound:
+                            resolved = None
+                        except ValueError as exc:
+                            if str(exc) != "http_failure":
+                                raise
+                            resolved = None  # decide() records this as a resilient skip.
+                        identity = (repository, fix)
+                        saved = decided.get(bank.key_for(*identity))
+                        if saved is None and len(fix) < 40:
+                            matches = [
+                                value for value in decided.values() if value["repository"] == repository and value["fix"].startswith(fix)
+                            ]
+                            if len(matches) == 1:
+                                saved = matches[0]
+                                identity = (repository, saved["fix"])
+                        if saved is None:
+                            # A duplicate advisory can arrive before its pair's
+                            # worker finishes. Share that pending result as well.
+                            matching = [key for key, pair in identities.items() if pair[0] == repository and pair[1].startswith(fix)]
+                            if len(matching) == 1:
+                                pending.append((row, {"network": resolved.network if resolved else repository}, matching[0]))
+                                break
+                        if saved is not None:
+                            decision = {"network": resolved.network if resolved is not None else repository}
+                            blocked = eligibility.rejection(resolved, used, set()) if resolved is not None else None
+                            if blocked:
+                                decision["rejected"] = "used_" + blocked
+                                pending.append((row, decision, None))
+                            else:
+                                result = {"ordinary_exclusions": saved["ordinary_exclusions"], "counts": saved["counts"]}
+                                if saved["decision"] == "accept":
+                                    result["entry"] = saved["entry"]
+                                else:
+                                    result["rejected"] = saved["reason"]
+                                extraction_key = bank.key_for(*identity)
+                                if extraction_key not in checkpoint.rows["extraction"]:
+                                    checkpoint.put("extraction", extraction_key, result)
+                                pending.append((row, decision, extraction_key))
+                            break
                 if key not in checkpoint.rows["eligibility"]:
                     checkpoint.put("eligibility", key, decide(row, api, osv, used))
                 decision = checkpoint.rows["eligibility"][key]
@@ -435,7 +515,10 @@ def ordered_extractions(rows, api, osv, used, clones, fixes, seed, checkpoint, e
                 if "candidate" in decision:
                     candidate = source.Candidate(**decision["candidate"])
                     extraction_key = digest({"repository": candidate.repository, "advisory": key, "fix": candidate.fix})
-                    if extraction_key not in checkpoint.rows["extraction"]:
+                    if bank is not None:
+                        extraction_key = bank.key_for(candidate.repository, candidate.fix)
+                        identities[extraction_key] = (candidate.repository, candidate.fix)
+                    if extraction_key not in checkpoint.rows["extraction"] and extraction_key not in in_flight.values():
                         checkpoint.boundary()
                         local = copy.copy(clones)
                         local.counts = Counter()
@@ -449,6 +532,8 @@ def ordered_extractions(rows, api, osv, used, clones, fixes, seed, checkpoint, e
                             pool = ProcessPoolExecutor(max_workers=workers, mp_context=context)
                             future = pool.submit(extract_repository, *args)
                         in_flight[future] = extraction_key
+                elif bank is not None and identity is not None:
+                    remember(*identity, decision)
                 pending.append((row, decision, extraction_key))
                 # Finalize cached decisions promptly (especially on resume), and
                 # service completed jobs even during a long run of decide skips.
@@ -482,7 +567,7 @@ def ordered_extractions(rows, api, osv, used, clones, fixes, seed, checkpoint, e
                 checkpoint.progress("stopped", reason=stopped)
 
 
-def publish(journal, assigned, seed):
+def publish(journal, assigned, seed, *, destination=None):
     """Idempotent publication from completed journal data, never inside the checkout."""
     public, private = [], []
     for row in assigned:
@@ -492,7 +577,7 @@ def publish(journal, assigned, seed):
             private.append(row)
             public.append({"id": row["id"], "sha256": private_digest(row), "slice": row["slice"], "private": True})
     for name, rows in (("private-draft-p1.toml", private), ("draft-p1.toml", public)):
-        path = journal.path / name
+        path = (destination or journal.path) / name
         data = manifest(rows, seed).encode()
         if path.exists():
             if path.read_bytes() != data:
@@ -516,6 +601,7 @@ def run(
     extract_workers=None,
     pool_size=300,
     slices=3,
+    bank: CorpusBank | None = None,
 ) -> dict:
     validate_pool(pool_size, slices)
     workers = extract_workers if extract_workers is not None else getattr(clones, "extract_workers", 6)
@@ -530,13 +616,25 @@ def run(
     report["parse_deadline_seconds"] = getattr(clones, "parse_deadline_seconds", None)
     counts, rejected, ordinary_counts = Counter(), Counter(), Counter()
     checkpoint = None
+    scratch = ExitStack()
     try:
+        decided = bank.decided() if bank is not None else {}
+        accepted, reusable = split_decided(decided, contract=EXTRACTION_CONTRACT)
+        decided = {key: value for key, value in decided.items() if key in reusable}
         known_empty = set(known_empty or ())
         used.report(known_empty)
         cache = getattr(clones, "cache", root.parent / (root.name + "-cache"))
         path = external(root, journal_path or cache / "journal")
+        journal_directory = path
+        if bank is not None:
+            # Local records are a disposable cursor, never a cross-run authority.
+            path.mkdir(parents=True, exist_ok=True, mode=0o700)
+            journal_directory = Path(scratch.enter_context(tempfile.TemporaryDirectory(prefix="cursor-", dir=path)))
         checkpoint = Journal(
-            path, max_hours=max_hours, clock=clock, rate_limit=lambda: getattr(getattr(github, "transport", None), "rate_limit", {})
+            journal_directory,
+            max_hours=max_hours,
+            clock=clock,
+            rate_limit=lambda: getattr(getattr(github, "transport", None), "rate_limit", {}),
         )
         with checkpoint.open(inputs(used, seed, known_empty, clones, pool_size=pool_size, slices=slices)):
             checkpoint.boundary()
@@ -544,7 +642,26 @@ def run(
             used = copy.deepcopy(used)  # canonicalization must not mutate the resume input
             eligibility.canonicalize_used(used, api)
             report["used_set"] = used.report(known_empty)
-            rows = enumerate_advisories(api, checkpoint)
+            try:
+                rows = enumerate_advisories(api, checkpoint)
+            except InstrumentFailure as exc:
+                if str(exc) != "empty_advisories" or not accepted:
+                    raise
+                rows = []
+            if bank is not None:
+                # Retain accepted entries even if their advisory disappeared upstream.
+                present = {row["ghsa_id"] for row in rows}
+                for entry in accepted:
+                    if entry["advisory"] not in present:
+                        rows.append(
+                            {
+                                "ghsa_id": entry["advisory"],
+                                "published_at": "2026-06-02" if entry["post_cutoff"] else "2026-06-01",
+                                "vulnerabilities": [{"package": {"ecosystem": entry["ecosystem"]}}],
+                                "references": [f"https://github.com/{entry['repository']}/commit/{entry['fix']}"],
+                            }
+                        )
+                        present.add(entry["advisory"])
             report["advisories"] = len(rows)
             fixes_by_repo = advisory_index(rows, api)
             selected_networks, entries = set(), []
@@ -561,6 +678,8 @@ def run(
                 entries,
                 workers,
                 pool_size,
+                bank=bank,
+                decided=decided,
             ) as outcomes:
                 for row, decision, result in outcomes:
                     counts[source.ecosystem(row)] += 1
@@ -575,7 +694,9 @@ def run(
                         ordinary_counts.update(result["ordinary_exclusions"])
                         if "rejected" in result:
                             rejected[result["rejected"]] += 1
-                            instrument_failures += int(result["rejected"].startswith("extract_"))
+                            instrument_failures += int(
+                                result["rejected"].startswith("extract_") or result["rejected"] == "decide_http_failure"
+                            )
                         else:
                             selected_networks.add(decision["network"])
                             entries.append(result["entry"])
@@ -605,7 +726,7 @@ def run(
             elif checkpoint.rows["completion"]["all"] != completion:
                 raise ValueError("journal_completion_mismatch")
             checkpoint.boundary()
-            publish(checkpoint, assigned, seed)
+            publish(checkpoint, assigned, seed, destination=path if bank is not None else None)
             report.update(
                 {
                     "status": "draft",
@@ -629,6 +750,7 @@ def run(
         report.update({"status": "instrument_failure", "error_type": type(exc).__name__})
         return report
     finally:
+        scratch.close()
         report.update({"candidates": dict(counts), "rejections": dict(rejected), "ordinary_exclusions": dict(ordinary_counts)})
         report["instrument"] = dict(clones.counts)
         report["wall_seconds"] = round(time.monotonic() - started, 3)
@@ -658,6 +780,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--pool-size", type=int, default=300, help="Repositories to accept (default: 300)")
     parser.add_argument("--slices", type=int, default=3, help="Equal-sized slices (default: 3)")
     parser.add_argument("--seed", type=int, default=20260601)
+    parser.add_argument("--bank", nargs="?", const="unseen", default="", help="Corpus bucket prefix; enables durable decisions")
     parser.add_argument("--local-store")
     parser.add_argument("--s3-store", default="s3://")
     parser.add_argument("--pointer-manifest", type=Path, action="append", default=[])
@@ -686,6 +809,7 @@ def main(argv: list[str] | None = None) -> int:
             "s3": memory.open_store(args.s3_store, read_only=True),
         }
         used = eligibility.build_used(args.root, stores=stores, pointer_manifests=args.pointer_manifest)
+        bank = CorpusBank(CorpusObjects(**corpus_settings()), seed=args.seed, prefix=args.bank) if args.bank else None
         report = run(
             args.root,
             github=source.GitHub(os.environ.get("GH_TOKEN", "")),
@@ -698,6 +822,7 @@ def main(argv: list[str] | None = None) -> int:
             known_empty=set(args.known_empty),
             journal_path=clones.cache / "journal",
             max_hours=args.max_hours,
+            bank=bank,
         )
     except Exception as exc:
         report = {"status": "instrument_failure", "error_type": type(exc).__name__}

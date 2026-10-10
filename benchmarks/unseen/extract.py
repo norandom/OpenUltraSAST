@@ -19,6 +19,9 @@ from pathlib import Path
 
 from .source import Candidate, Rejected
 
+# Bump only when accept/reject outcomes or accepted entry bytes change.
+EXTRACTION_CONTRACT = "v1"
+
 LANGUAGES = {".py", ".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".php", ".java"}
 HUNK = re.compile(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@", re.M)
 SHA = re.compile(r"[a-f0-9]{40}")
