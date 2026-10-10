@@ -214,3 +214,104 @@ def test_import_does_not_require_boto3(monkeypatch):
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     assert module.CorpusBank.key_for("a", "b") == CorpusBank.key_for("a", "b")
+
+
+@pytest.mark.parametrize(
+    "result",
+    [
+        {"candidate": {"repository": "org/é"}, "network": "org/root"},
+        {"rejected": "used_pairs"},
+        {"rejected": "family", "network": "org/root"},
+    ],
+)
+def test_resolution_roundtrip_idempotent_and_contract_replacement(result):
+    objects = FakeObjects()
+    bank = CorpusBank(objects, seed=42, prefix="custom")
+    advisory = "GHSA-test/advisory"
+    key = f"custom/42/resolved/{hashlib.sha256(advisory.encode()).hexdigest()}.json"
+    assert bank.advisory_key(advisory) == hashlib.sha256(advisory.encode()).hexdigest()
+    bank.bank_resolution(advisory, result, contract="old")
+    first = objects.objects.copy()
+    bank.bank_resolution(advisory, result, contract="old")
+    assert objects.objects == first and objects.calls.count("put") == 1
+    row = bank.resolved()[advisory]
+    assert row == {
+        "advisory": advisory,
+        "result": result,
+        "decision": "candidate" if "candidate" in result else "reject",
+        "reason": result.get("rejected"),
+        "resolution_contract": "old",
+        "seed": 42,
+        "ts": row["ts"],
+    }
+    assert list(objects.objects) == [key]
+    assert datetime.fromisoformat(row["ts"]).utcoffset().total_seconds() == 0
+    bank.bank_resolution(advisory, result, contract="v1")
+    assert bank.resolved()[advisory]["resolution_contract"] == "v1"
+    assert objects.calls.count("put") == 2
+
+
+def test_advisory_snapshot_written_once_per_contract():
+    objects = FakeObjects()
+    bank = CorpusBank(objects, seed=7)
+    rows = [{"ghsa_id": "GHSA-é", "references": ["a", "b"]}]
+    assert bank.cached_advisories(contract="v1") is None
+    bank.cache_advisories(rows, contract="v1")
+    original = objects.objects.copy()
+    assert bank.cached_advisories(contract="v1") == rows
+    assert bank.cached_advisories(contract="v2") is None
+    bank.cache_advisories([], contract="v1")
+    assert objects.objects == original and objects.calls.count("put") == 1
+    body = json.loads(objects.objects["unseen/7/advisories/list.json"])
+    assert body == {"advisories": rows, "advisories_contract": "v1", "seed": 7, "ts": body["ts"]}
+    bank.cache_advisories([], contract="v2")
+    assert bank.cached_advisories(contract="v2") == []
+    assert bank.cached_advisories(contract="v1") is None
+
+
+@pytest.mark.parametrize("method", ["resolution", "advisories", "repository"])
+@pytest.mark.parametrize("operation", ["get", "put"])
+@pytest.mark.parametrize("failures", [1, 2])
+def test_new_bank_writes_retry_once(method, operation, failures):
+    objects = FakeObjects()
+    bank = CorpusBank(objects, seed=7)
+    objects.failures[operation] = failures
+
+    def write():
+        if method == "resolution":
+            bank.bank_resolution("GHSA-a", {"rejected": "family"}, contract="v1")
+        elif method == "advisories":
+            bank.cache_advisories([], contract="v1")
+        else:
+            bank.bank_repository("org/repo", None, contract="v1")
+
+    if failures == 2:
+        with pytest.raises(OSError):
+            write()
+        assert objects.calls.count(operation) == 2
+    else:
+        write()
+        assert len(objects.objects) == 1
+        assert objects.failures[operation] == 0
+
+
+@pytest.mark.parametrize("method", ["resolved", "cached_advisories", "repositories"])
+@pytest.mark.parametrize("failures", [1, 2])
+def test_new_bank_reads_retry_once(method, failures):
+    objects = FakeObjects()
+    bank = CorpusBank(objects, seed=7)
+    bank.bank_resolution("GHSA-a", {"rejected": "family"}, contract="v1")
+    bank.cache_advisories([], contract="v1")
+    bank.bank_repository("org/old", {"full_name": "org/new"}, contract="v1")
+    bank.bank_repository("org/missing", None, contract="old")
+    objects.failures["get"] = failures
+    read = getattr(bank, method)
+    kwargs = {} if method == "resolved" else {"contract": "v1"}
+    if failures == 2:
+        with pytest.raises(OSError):
+            read(**kwargs)
+    else:
+        result = read(**kwargs)
+        assert result is not None
+        if method == "repositories":
+            assert result == {"org/old": {"full_name": "org/new"}}

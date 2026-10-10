@@ -26,7 +26,7 @@ from pathlib import Path
 
 from . import eligibility, extract, source
 from .bank import CorpusBank, CorpusObjects, corpus_settings, split_decided
-from .extract import EXTRACTION_CONTRACT, Git, InstrumentFailure
+from .extract import EXTRACTION_CONTRACT, RESOLUTION_CONTRACT, Git, InstrumentFailure
 from .journal import Journal, ResolvedGitHub, ResumeMismatch, Stopped, atomic, digest, external
 
 
@@ -209,6 +209,43 @@ def prove_source(git, revision: str) -> dict:
     raise InstrumentFailure("zero_source_bytes")
 
 
+class BankedGitHub(ResolvedGitHub):
+    """Stream the fix index's repository metadata before continuing the draw."""
+
+    def __init__(self, github, journal, bank):
+        super().__init__(github, journal)
+        self.bank = bank
+        self.resolutions = bank.repositories(contract=RESOLUTION_CONTRACT)
+        journal.rows["resolution"].update({name: body["metadata"] if body is not None else None for name, body in self.resolutions.items()})
+
+    def resolve(self, name):
+        key = eligibility.normalize(name)
+        if key not in self.resolutions:
+            try:
+                resolved = eligibility.resolve(name, self)
+            except eligibility.RepositoryNotFound:
+                body = None
+            else:
+                body = {
+                    "metadata": self.journal.rows["resolution"].get(key),
+                    "full_name": resolved.full_name,
+                    "names": sorted(resolved.names),
+                    "network": resolved.network,
+                }
+            self.bank.bank_repository(key, body, contract=RESOLUTION_CONTRACT)
+            self.resolutions[key] = body
+        body = self.resolutions[key]
+        if body is None:
+            raise eligibility.RepositoryNotFound("not_found")
+        return eligibility.Resolution(body["full_name"], frozenset(body["names"]), body["network"])
+
+
+def resolve_repository(name, github):
+    if isinstance(github, BankedGitHub):
+        return github.resolve(name)
+    return eligibility.resolve(name, github)
+
+
 def advisory_index(rows: list[dict], github) -> dict[str, set[str]]:
     """Include ALL fixes in the enumerated population, even from rejected candidates.
 
@@ -219,7 +256,7 @@ def advisory_index(rows: list[dict], github) -> dict[str, set[str]]:
     for row in rows:
         for name, sha in source.fix_links(row):
             try:
-                resolved = eligibility.resolve(name, github)
+                resolved = resolve_repository(name, github)
             except eligibility.RepositoryNotFound:
                 index[name].add(sha)
                 continue
@@ -305,7 +342,7 @@ def decide(row, github, osv, used, selected_networks=()):
         if len(links) != 1:
             raise source.Rejected("fix_links")
         name, _ = next(iter(links))
-        resolved = eligibility.resolve(name, github)
+        resolved = resolve_repository(name, github)
         rejected_by = eligibility.rejection(resolved, used, set())
         if rejected_by:
             raise source.Rejected("used_" + rejected_by)
@@ -382,6 +419,7 @@ def ordered_extractions(
     pool_size,
     bank: CorpusBank | None = None,
     decided=None,
+    stale_resolutions=(),
 ):
     """Bounded in-flight work, completion journaling, and seed-order acceptance.
 
@@ -399,6 +437,15 @@ def ordered_extractions(
     # picklable extraction inputs, never the journal, REST clients or stores.
     context = multiprocessing.get_context("fork")
     pool = ProcessPoolExecutor(max_workers=workers, mp_context=context)
+
+    def resolution(row):
+        key = row["ghsa_id"]
+        if key not in checkpoint.rows["eligibility"]:
+            result = decide(row, api, osv, used)
+            if bank is not None:
+                bank.bank_resolution(key, result, contract=RESOLUTION_CONTRACT)
+            checkpoint.put("eligibility", key, result)
+        return checkpoint.rows["eligibility"][key]
 
     def remember(repository, fix, result):
         bank.bank(repository, fix, result, contract=EXTRACTION_CONTRACT)
@@ -461,13 +508,15 @@ def ordered_extractions(
                     exhausted = True
                     break
                 key = row["ghsa_id"]
+                if key in stale_resolutions:
+                    resolution(row)
                 identity = None
                 if bank is not None:
                     links = source.fix_links(row)
                     if len(links) == 1:
                         repository, fix = next(iter(links))
                         try:
-                            resolved = eligibility.resolve(repository, api)
+                            resolved = resolve_repository(repository, api)
                             repository = resolved.full_name
                         except eligibility.RepositoryNotFound:
                             resolved = None
@@ -508,9 +557,7 @@ def ordered_extractions(
                                     checkpoint.put("extraction", extraction_key, result)
                                 pending.append((row, decision, extraction_key))
                             break
-                if key not in checkpoint.rows["eligibility"]:
-                    checkpoint.put("eligibility", key, decide(row, api, osv, used))
-                decision = checkpoint.rows["eligibility"][key]
+                decision = resolution(row)
                 extraction_key, future = None, None
                 if "candidate" in decision:
                     candidate = source.Candidate(**decision["candidate"])
@@ -619,6 +666,7 @@ def run(
     scratch = ExitStack()
     try:
         decided = bank.decided() if bank is not None else {}
+        banked = bank.resolved() if bank is not None else {}
         accepted, reusable = split_decided(decided, contract=EXTRACTION_CONTRACT)
         decided = {key: value for key, value in decided.items() if key in reusable}
         known_empty = set(known_empty or ())
@@ -638,16 +686,23 @@ def run(
         )
         with checkpoint.open(inputs(used, seed, known_empty, clones, pool_size=pool_size, slices=slices)):
             checkpoint.boundary()
-            api = ResolvedGitHub(github, checkpoint)
+            api = BankedGitHub(github, checkpoint, bank) if bank is not None else ResolvedGitHub(github, checkpoint)
+            checkpoint.rows["eligibility"].update(
+                {key: body["result"] for key, body in banked.items() if body["resolution_contract"] == RESOLUTION_CONTRACT}
+            )
             used = copy.deepcopy(used)  # canonicalization must not mutate the resume input
             eligibility.canonicalize_used(used, api)
             report["used_set"] = used.report(known_empty)
-            try:
-                rows = enumerate_advisories(api, checkpoint)
-            except InstrumentFailure as exc:
-                if str(exc) != "empty_advisories" or not accepted:
-                    raise
-                rows = []
+            rows = bank.cached_advisories(contract=RESOLUTION_CONTRACT) if bank is not None else None
+            if rows is None:
+                try:
+                    rows = enumerate_advisories(api, checkpoint)
+                except InstrumentFailure as exc:
+                    if str(exc) != "empty_advisories" or not accepted:
+                        raise
+                    rows = []
+                if bank is not None:
+                    bank.cache_advisories(rows, contract=RESOLUTION_CONTRACT)
             if bank is not None:
                 # Retain accepted entries even if their advisory disappeared upstream.
                 present = {row["ghsa_id"] for row in rows}
@@ -680,6 +735,7 @@ def run(
                 pool_size,
                 bank=bank,
                 decided=decided,
+                stale_resolutions={key for key, body in banked.items() if body["resolution_contract"] != RESOLUTION_CONTRACT},
             ) as outcomes:
                 for row, decision, result in outcomes:
                     counts[source.ecosystem(row)] += 1

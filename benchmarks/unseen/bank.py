@@ -105,6 +105,92 @@ class CorpusBank:
         self.client = client
         self.seed = seed
         self.decisions_prefix = f"{prefix}/{seed}/decisions/"
+        self.resolved_prefix = f"{prefix}/{seed}/resolved/"
+        self.advisories_key = f"{prefix}/{seed}/advisories/list.json"
+        self.repositories_prefix = f"{prefix}/{seed}/repositories/"
+
+    @staticmethod
+    def advisory_key(advisory_id: str) -> str:
+        return hashlib.sha256(advisory_id.encode()).hexdigest()
+
+    def _put(self, key: str, body: dict, *, labels: dict) -> None:
+        existing = _retry(self.client.get, key)
+        if existing is not None:
+            previous = json.loads(existing[0])
+            if {field: value for field, value in previous.items() if field != "ts"} == body:
+                return
+        body = {**body, "ts": datetime.now(UTC).isoformat()}
+        data = json.dumps(body, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
+        _retry(self.client.put, key, data, labels=labels)
+
+    def bank_resolution(self, advisory_id: str, result: dict, *, contract: str) -> None:
+        decision = "candidate" if "candidate" in result else "reject"
+        self._put(
+            self.resolved_prefix + self.advisory_key(advisory_id) + ".json",
+            {
+                "advisory": advisory_id,
+                "decision": decision,
+                "result": result,
+                "reason": result.get("rejected"),
+                "resolution_contract": contract,
+                "seed": self.seed,
+            },
+            labels={"decision": decision, "contract": contract},
+        )
+
+    def _listed(self, prefix: str, identity: str) -> dict[str, dict]:
+        results = {}
+        for key in sorted(self.client.keys(prefix)):
+            stored = _retry(self.client.get, key)
+            if stored is None:
+                raise ValueError("corpus_resolution_missing")
+            body = json.loads(stored[0])
+            name = body[identity]
+            if key != prefix + self.advisory_key(name) + ".json" or body["seed"] != self.seed:
+                raise ValueError("corpus_resolution_identity")
+            results[name] = body
+        return results
+
+    def resolved(self) -> dict[str, dict]:
+        results = self._listed(self.resolved_prefix, "advisory")
+        for body in results.values():
+            expected = "candidate" if "candidate" in body["result"] else "reject"
+            if body["decision"] != expected:
+                raise ValueError("corpus_resolution_invalid")
+        return results
+
+    def cache_advisories(self, rows: list, *, contract: str) -> None:
+        if self.cached_advisories(contract=contract) is not None:
+            return
+        self._put(
+            self.advisories_key,
+            {"advisories": rows, "advisories_contract": contract, "seed": self.seed},
+            labels={"contract": contract},
+        )
+
+    def cached_advisories(self, *, contract: str) -> list | None:
+        stored = _retry(self.client.get, self.advisories_key)
+        if stored is None:
+            return None
+        body = json.loads(stored[0])
+        if body["seed"] != self.seed:
+            raise ValueError("corpus_advisories_identity")
+        return body["advisories"] if body["advisories_contract"] == contract else None
+
+    def bank_repository(self, name: str, result: dict | None, *, contract: str) -> None:
+        """Retain redirects, fork identity and 404s needed by the all-fix index."""
+        self._put(
+            self.repositories_prefix + self.advisory_key(name) + ".json",
+            {"repository": name, "result": result, "resolution_contract": contract, "seed": self.seed},
+            labels={"contract": contract},
+        )
+
+    def repositories(self, *, contract: str) -> dict[str, dict | None]:
+        return {
+            name: body["result"]
+            for name, body in self._listed(self.repositories_prefix, "repository").items()
+            if body["resolution_contract"] == contract
+        }
 
     @staticmethod
     def key_for(repository: str, fix: str) -> str:
