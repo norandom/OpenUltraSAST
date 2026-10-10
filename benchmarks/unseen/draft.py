@@ -218,6 +218,26 @@ class BankedGitHub(ResolvedGitHub):
         self.resolutions = bank.repositories(contract=RESOLUTION_CONTRACT)
         journal.rows["resolution"].update({name: body["metadata"] if body is not None else None for name, body in self.resolutions.items()})
 
+    def get_repo(self, name):
+        # Bucket-cache get_repo (the universal resolution choke point) so the
+        # ~thousands of used-set canonicalization lookups and candidate resolves
+        # are not re-fetched from GitHub every run. 404s are cached as None too.
+        key = eligibility.normalize(name)
+        if key not in self.journal.rows["resolution"]:
+            found, value = self.bank.get_cached_repo(key, contract=RESOLUTION_CONTRACT)
+            if not found:
+                self.journal.boundary()
+                try:
+                    value = self.github.get_repo(key)
+                except eligibility.RepositoryNotFound:
+                    value = None
+                self.bank.cache_repo(key, value, contract=RESOLUTION_CONTRACT)
+            self.journal.put("resolution", key, value)
+        value = self.journal.rows["resolution"][key]
+        if value is None:
+            raise eligibility.RepositoryNotFound("not_found")
+        return value
+
     def resolve(self, name):
         key = eligibility.normalize(name)
         if key not in self.resolutions:

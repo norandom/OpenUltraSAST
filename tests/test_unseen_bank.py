@@ -38,6 +38,25 @@ class FakeObjects:
         return [key for key in reversed(self.objects) if key.startswith(prefix)]
 
 
+def test_cache_repo_roundtrip_404_and_shared_prefix():
+    objects = FakeObjects()
+    bank = CorpusBank(objects, seed=20260601, prefix="unseen")
+    # the get_repo cache is shared across seeds, not under the seed prefix
+    assert bank.repos_prefix == "unseen/repos/"
+    bank.cache_repo("org/repo", {"full_name": "org/repo", "size": 10}, contract="v1")
+    bank.cache_repo("org/gone", None, contract="v1")
+    assert bank.get_cached_repo("org/repo", contract="v1") == (True, {"full_name": "org/repo", "size": 10})
+    # a cached 404 is a hit (found True, metadata None): it must not re-hit GitHub
+    assert bank.get_cached_repo("org/gone", contract="v1") == (True, None)
+    assert bank.get_cached_repo("org/never", contract="v1") == (False, None)
+    # a stale contract is a miss so the lookup is refreshed
+    assert bank.get_cached_repo("org/repo", contract="v2") == (False, None)
+    # idempotent: re-caching the same metadata does not rewrite
+    puts = objects.calls.count("put")
+    bank.cache_repo("org/repo", {"full_name": "org/repo", "size": 10}, contract="v1")
+    assert objects.calls.count("put") == puts
+
+
 def settings_env():
     return {
         "CORPUS_S3_ENDPOINT": "https://objects.invalid",
