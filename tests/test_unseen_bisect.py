@@ -14,7 +14,7 @@ d = importlib.import_module("benchmarks.unseen.draft")
 b = importlib.import_module("benchmarks.unseen.bisect_guard")
 
 
-def draft_pair(tmp_path, count=9):
+def draft_pair(tmp_path, count=9, slices=3):
     root, cache = tmp_path / "tree", tmp_path / "cache"
     root.mkdir()
     cache.mkdir()
@@ -29,7 +29,7 @@ def draft_pair(tmp_path, count=9):
                 "url": "https://" + f"github.com/synthetic/candidate-{i}",
                 "license_class": "private" if i % 2 else "permissive",
                 "license_spdx": "GPL-3.0" if i % 2 else "MIT",
-                "slice": i % 3 + 1,
+                "slice": i % slices + 1,
                 "changes": changes,
             }
         )

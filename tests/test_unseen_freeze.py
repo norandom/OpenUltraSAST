@@ -195,3 +195,30 @@ def test_freeze_cli_redacts_failure_and_reports_only_record(tmp_path, capsys):
     report.write_text(rows[0]["url"])
     assert f.main(["--root", str(root), "--used-report", str(report)]) == 1
     assert capsys.readouterr() == ('{"status": "freeze_refused"}\n', "")
+
+
+@pytest.mark.parametrize("slices", [1, 4])
+def test_hundred_repository_draft_bisects_and_freezes(tmp_path, slices):
+    root, draft, rows = draft_pair(tmp_path, count=100, slices=slices)
+    from test_unseen_bisect import staged
+
+    seen = []
+
+    def guard(root):
+        current = staged(root)
+        seen.append(len(current))
+        return 0
+
+    receipt = b.run(root, draft, guard_runner=guard)
+    assert receipt["input_count"] == 100 and receipt["dropped_count"] == 0
+    assert 100 in seen and staged(root) == rows
+    directory = root / "benchmarks/unseen"
+    (directory / "protocol-p1.md").write_bytes(Path("benchmarks/unseen/protocol-p1.md").read_bytes())
+    record = f.run(root, used_report=used())
+    public = tomllib.loads((directory / "pool-p1.toml").read_text())
+    private = tomllib.loads((directory / "private/pool-p1.toml").read_text())
+    assert len(public["repository"]) == 100 and len(private["repository"]) == 50
+    assert {row["slice"] for row in public["repository"]} == set(range(1, slices + 1))
+    assert record["freeze_digest"] == hashlib.sha256(d.canonical(public)).hexdigest()
+    assert sum(record["label_check_counts"].values()) == 100
+    assert f.run(root, used_report=used()) == record
