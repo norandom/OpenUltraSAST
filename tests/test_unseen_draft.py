@@ -553,9 +553,6 @@ def test_repository_changes_excludes_all_advisory_sites(monkeypatch):
                 return "app.py\n"
             return args[-1] if args[0] == "rev-parse" else ""
 
-        def materialize(self, revisions):
-            assert revisions == ["HEAD", "a" * 40, "d" * 40]
-
         def blob(self, revision, path):
             return "def handler():\n    return 1\n"
 
@@ -615,9 +612,6 @@ def test_repository_extra_fixes_are_best_effort(tmp_path, monkeypatch, stage):
             return subprocess.CompletedProcess(argv, 1, b"", b"unavailable ref")
         if operation == "rev-parse":
             output = ref + "\n"
-        elif operation == "rev-list" and "--objects" in args:
-            assert kwargs["input"] == ("\n".join(["HEAD", *resolved]) + "\n").encode()
-            output = ""
         elif operation == "rev-list":
             assert ref in resolved
             output = f"{ref} {candidate.parent}\n"
@@ -658,7 +652,7 @@ def test_repository_extra_fixes_are_best_effort(tmp_path, monkeypatch, stage):
         fetches = [args for args, _ in commands if args[0] == "fetch"]
         assert [args[-1] for args in fetches] == [candidate.fix, missing, available]
         assert all("--no-tags" in args for args in fetches[1:])
-        assert sum("--objects" in args for args, _ in commands) == 1
+        assert not any("--objects" in args for args, _ in commands)
         if stage == "extra_fetch":
             assert not any(args == ["rev-parse", missing] for args, _ in commands)
 
