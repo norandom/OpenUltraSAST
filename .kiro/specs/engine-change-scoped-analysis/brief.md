@@ -44,8 +44,20 @@ detection is being lost, not in Joern's capability.
   the budget was spent before a single query ran. The CPG build is NOT the bottleneck; the over-broad candidate set
   is. Change-scoping is confirmed as the right lever, and because per-candidate prep includes the line-correspondence
   work, fewer candidates also cuts that cost (the two fixes compound).
-- [ ] **1. Locate the exact selection/budget code** in `rank.py`/`mapping.py` that marks candidates
-  `selected` vs `deferred:deadline_exhausted`.
+- [x] **1. Located (2026-10-11).** The over-enumeration is upstream of the scan, not inside it:
+  - `push/runner.py:345-348` — `head_regions = discovery(tip.root, …)` discovers regions across the **whole head
+    tree** (the ~4,095), independent of the change.
+  - `push/runner.py:397-407` — those regions are passed wholesale to `scan_repository(..., change_context=context)`;
+    `change_context` is threaded in but **never scopes the region set**.
+  - `model/scan.py:167` and `:364` — `[_identity(unit, r, f) for r in regions for f in r.families]` enumerates all
+    regions × families; with `order_by_evidence=True` (`runner.py:288/403`) the scan evidence-tiers **every** pair
+    before analysis — that pre-work is the ~236 s measured in increment 0, so the deadline hits at `query_seconds=0`.
+  - Primitive already present: `model/regions.py:279` computes the changed-path set from the context;
+    `compare_targeted_base` (`runner.py:411`) is a precedent for change-targeted work.
+  - **Fix locus (increment 2):** restrict the *analyzed* region set to the change's declarations + dataflow
+    neighbourhood (filter `head_regions` by `context.changed_paths` before the scan, or scope the enumeration inside
+    `scan_repository`). Keep the **CPG whole-repo** so taint queries can still trace sources from unchanged code into
+    the changed regions — only the question set is change-scoped.
 - [ ] **2. Seed analysis from the change.** Prioritize (or restrict first-pass to) the changed declarations plus
   their call/data neighborhood over repo-wide static rank, within budget.
 - [ ] **3. Soundness.** Keep cross-file dataflow INTO the changed function (don't scope to literal changed lines);
