@@ -68,12 +68,21 @@ detection is being lost, not in Joern's capability.
     summarise — NOT to shrink the tier population. A "changed files only" scope deletes the reach-into-unchanged
     behaviour. Any scope must keep changed regions **plus the regions they reach** (the affected/`relationships`
     neighbourhood), not changed files alone.
-  - **The 236 s is not yet split per phase.** Increment 0 measured `build_seconds=66.69`, `query_seconds=0.0`, total
-    303 s. The ~236 s middle covers the evidence-tier pass (`_evidence_pass`, `per_kind["evidence"]`), the context
-    resolution / `affected_context` graph queries, and the `_scope_work` fact enumeration over all pairs — it was
-    NOT measured which dominates. Increment 2 must first capture that split (`per_kind`, `other_seconds`,
-    `affected_context` timing) and cut the dominant phase while preserving reach-into-unchanged. Instrument before
-    fixing.
+  - **The 236 s is now split (2026-10-11, saved artifacts).** `total=291s build=52s query=0s arbitrate=238.75s`,
+    and `query_seconds_by_kind["evidence"]=238.54s` — the evidence-tier pass is **99.9 %** of the arbitrate phase;
+    `affected_context` + `_scope_work` are **0.21 s**. The pass tiered 1,015 pairs (`tier_counts 0:1009, 1:6`) at
+    **~235 ms/pair** (contended; ~120 ms uncontended) and that alone blew the budget — `selected=0`,
+    `deferred=1365` all `deadline_exhausted`. Secondary anomaly: the design assumes ~2.5 ms/pair
+    ("17,700 in 44 s"); here it is 50–100× that, i.e. the evidence query is pathologically slow on a cold large
+    CPG — a separate optimisation from cutting the pair count.
+  - **So increment 2's single target is the evidence pass** (`scan.py:338-359`, `_evidence_pass`). The fork is HOW
+    to cut it without deleting reach-into-unchanged:
+    - (i) **Scope + bound:** order the evidence candidates change-first and bound the pass to a fraction of the
+      budget so analysis queries still run; reached unchanged regions are tiered only while budget lasts.
+    - (ii) **Neighbourhood pass:** tier the changed regions, read the reached regions from the context rows the
+      pass already returns, tier those in a second small pass — exact reach-into-unchanged, more code.
+    - (iii) **Per-pair speedup:** attack the ~235 ms/pair (warm server / batching) rather than the pair count —
+      helps every scan but is a deeper engine change and does not by itself bound a huge repo.
 - [ ] **2. Seed analysis from the change.** Prioritize (or restrict first-pass to) the changed declarations plus
   their call/data neighborhood over repo-wide static rank, within budget.
 - [ ] **3. Soundness.** Keep cross-file dataflow INTO the changed function (don't scope to literal changed lines);
