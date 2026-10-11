@@ -83,6 +83,45 @@ detection is being lost, not in Joern's capability.
       pass already returns, tier those in a second small pass — exact reach-into-unchanged, more code.
     - (iii) **Per-pair speedup:** attack the ~235 ms/pair (warm server / batching) rather than the pair count —
       helps every scan but is a deeper engine change and does not by itself bound a huge repo.
+
+  **CORRECTION (2026-10-11, after implementing (i) + four live re-verifies — the cost model was wrong).**
+  Scope + bound was built and tested (change-first ordering, adaptive budget-fitted portioning, `_context_pass`
+  scoped to changed files, honest `evidence_pass_bounded` degradation; branch `engine-change-scoped-evidence-pass`).
+  It correctly cut the tiered pair count — but `query_seconds` stayed **0** every time. The live numbers show why:
+
+  | pairs tiered | run_batch calls | evidence s | build s |
+  |---|---|---|---|
+  | 1015 | 1 | 238 | 52 |
+  | 512 | 1 | 219 | 68 |
+  | 64 | 2 | 220 | 68 |
+  | 4 (probe) | 1 | 160 | 127 |
+
+  Evidence time is **flat regardless of pair count** → the cost is **per-*call* fixed** (~150–220 s: loading the CPG
+  into the query engine + the census the evidenceOnly batch computes), ~85 ms/pair on top. Pair-count scoping
+  therefore cannot free budget, and portioning re-pays the fixed cost per call (so (i) can be counterproductive).
+  Build is also large and swings 52→127 s — two engines thrashing the 7 GB host (the record-07 baseline shares it).
+  The real levers are now (iii)-shaped, not (i): **warm/persistent query engine or a cached census** to kill the
+  ~150 s per-call fixed cost, and/or a **bigger engine-arm budget** than 300 s; plus a **clean (uncontended)
+  measurement**, because contention alone may be inflating build + fixed cost 2–3×. Scope+bound is NOT merged.
+
+  **UNCONTENDED measurement (2026-10-11, baseline paused via SIGSTOP + container kill, then resumed).** Shipped
+  engine, one evidence call over 1,015 pairs: `build=48 s`, `evidence=243.79 s`, `query=0`. The evidence pass is
+  **the same ~244 s uncontended as ~238 s contended** → the cost is **INTRINSIC, not contention**; contention only
+  inflated `build` (48 → 127 s) and added run-to-run noise. The model is `evidence ≈ 150 s fixed (CPG load into the
+  query engine + the census the evidenceOnly batch computes) + ~93 ms/pair` (244 = 150 + 1015×0.093). Consequences:
+  - **~200 s of fixed overhead** (`build` + evidence-load) precedes any analysis, so a 300 s budget leaves only
+    ~100 s for everything else. This is why `query=0` even on a clean host.
+  - **Change-scoping still helps, but only by cutting the per-pair tail** (~1,015×93 ms ≈ 95 s): one evidence call
+    over ~30 changed pairs is ~150 s + 3 s instead of 244 s, which would free ~90 s — possibly enough for analysis,
+    but marginal.
+  - **It must be ONE call, not portioned.** The ~150 s is a first-call load, so the adaptive probe attributed it to
+    its 4 probe pairs (per-pair≈37 s), concluded the budget fit ~0 more, and tiered only 4 — the implemented
+    scope+bound is doubly wrong for this cost model. The correct shape: change-first candidates, count-capped, ONE
+    evidence call, `deadline=None`.
+  - **Pre-push viability:** the ~200 s fixed floor means the engine arm cannot be a fast (≤30 s) pre-push check on a
+    repo this size without a warm/persistent session or a cached census. A larger budget (e.g. 600 s) makes the
+    benchmark arm run but is not a realistic pre-push deadline. The lever that matters for the product is killing
+    the ~150 s fixed cost, not scoping pairs.
 - [ ] **2. Seed analysis from the change.** Prioritize (or restrict first-pass to) the changed declarations plus
   their call/data neighborhood over repo-wide static rank, within budget.
 - [ ] **3. Soundness.** Keep cross-file dataflow INTO the changed function (don't scope to literal changed lines);
