@@ -37,10 +37,13 @@ detection is being lost, not in Joern's capability.
 
 ## Increments (progress tracking)
 
-- [ ] **0. Confirm the cost split.** Instrument one replay (bedrock) to measure CPG-build vs rank vs analysis time
-  within the 300 s budget. If the **CPG build** alone exhausts it, scoping the analysis won't help (needs a build-time
-  or budget fix instead); if **ranking the whole repo** is the overspend (candidates got ranked, so the build likely
-  finished), change-scoping is the right lever. Decides the whole approach — do this first (instrument rule).
+- [x] **0. Cost split confirmed (2026-10-11, timed live replay).** `build_seconds=66.69` (CPG build is cheap),
+  `query_seconds=0.0` (no query ever executed), total 303 s (hit the deadline), **4,095** candidate questions all
+  `analysis_not_started=deadline_exhausted`, `selected: []`, `regions_scanned=0`. So of the 303 s, ~67 s built the
+  CPG and ~236 s went to enumerating/ranking/preparing 4,095 repo-wide candidate questions for a **3-file** change —
+  the budget was spent before a single query ran. The CPG build is NOT the bottleneck; the over-broad candidate set
+  is. Change-scoping is confirmed as the right lever, and because per-candidate prep includes the line-correspondence
+  work, fewer candidates also cuts that cost (the two fixes compound).
 - [ ] **1. Locate the exact selection/budget code** in `rank.py`/`mapping.py` that marks candidates
   `selected` vs `deferred:deadline_exhausted`.
 - [ ] **2. Seed analysis from the change.** Prioritize (or restrict first-pass to) the changed declarations plus
