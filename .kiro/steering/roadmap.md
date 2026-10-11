@@ -97,18 +97,24 @@ Candidates, each admitted only if it improves the pool metric on a fresh slice: 
 (approved plan, now one arm, not the spine), engine coverage and TypeScript, decision-engine prompt and retrieval
 changes, more labelled pairs from more distinct repositories.
 
-Active G2 workstreams (2026-10-11, opened while driving G0; progress tracked in their briefs):
+Active G2 workstreams (2026-10-11; progress tracked in `.kiro/specs/engine-change-scoped-analysis/brief.md`):
 
-- **Change-scoped engine analysis** (`.kiro/specs/engine-change-scoped-analysis/brief.md`). Live diagnosis on the
-  frozen pool showed the engine's "no finding" on unseen changes is usually *analysis-never-runs*: the engine ranks
-  repo-wide candidates and `deferred: deadline_exhausted` before analyzing anything (even at 300 s), and the ranked
-  sites are unrelated to the pushed change. Lever: seed analysis from the change's declarations + dataflow
-  neighbourhood (`rank.py`/`mapping.py`) so it runs within budget. Increment 0 (confirm CPG-build-vs-analysis cost
-  split) gates the rest. Scale measurement needs the kube lane.
-- **Line-correspondence (done, necessary-not-sufficient).** `snapshot.py` discarded base↔head anchors on
-  non-globally-unique lines → `comparison_unknown` → suppressed findings; fixed to run-aware anchoring
-  (commit c39fbb8, 163 tests). Removes one cause; coverage still needs change-scoped analysis + the capability
-  registry (Task 8.3).
+**#1 priority after record 07: get real (semantic) detection under the pre-push budget.** The record-07 baseline
+is **regex only** — verified: the push arms hardcode `model="disabled"`, `max_model_calls=0`, and the engine never
+ran (`engine_covered=0`); measured `catch≈2.5%`. Pattern rules alone will never be enough (else `grep` would do).
+The two tiers that carry detection both sat out: the **engine** (Joern dataflow, blocked by ~200 s fixed overhead)
+and the **LLM adjudication** (disabled in the push path). The workstream is an **efficiency barrier analysis** — a
+per-tier budget ledger against a realistic pre-push window (≤120 s target, 300 s hard):
+  - Engine: E1 split the ~150 s evidence-fixed (JVM/graph-load/census); E2 does a warm session with the graph
+    preloaded at build kill it (decisive); E3 analysis per-pair cost; E4 build vs repo size. Levers: warm session +
+    preload → cached census → change-scope the per-pair tail.
+  - LLM: L1 model latency and calls per push; L2 the recall LIFT of the LLM tier over regex+dataflow on the pool.
+  - Deliverable: a barrier table (budget × tier combo → fits? measured recall/FP) → the minimal releasable config.
+  Each measured on a **clean host** (the session times out contended). Sequence E1/E2 first.
+
+- **Change-scoped engine analysis (late add-on, not the lever).** Branch `engine-change-scoped-evidence-pass`
+  (unmerged): trims only the ~86 s per-pair tier tail; does NOT cross the fixed-cost barrier. Reconsider after E1/E2.
+- **Line-correspondence (done, necessary-not-sufficient).** `snapshot.py` run-aware anchoring (commit c39fbb8).
 
 **G3. Decide BLOCK per family** on the pool's false-alarm rate and the pooled precision bound (Req 6.4).
 

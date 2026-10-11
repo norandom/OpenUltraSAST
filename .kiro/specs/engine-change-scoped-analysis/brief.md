@@ -137,4 +137,39 @@ detection is being lost, not in Joern's capability.
   here is findings moving from `comparison_unknown`/deferred to a decided novelty → advisory engine finding.
 - Implement directly and verify on the LIVE instrument (a fake-client/unit pass is not evidence the live engine
   changed); the kube-lane and store endpoints are operator-owned infra, not assumptions to make here.
-</content>
+
+## Efficiency barrier analysis (post-record-07 priority)
+
+**What the record-07 baseline actually measured (verified on the records): regex only.** The default and
+long_deadline replay arms both hardcode `model="disabled"`, `max_model_calls=0`, `cost_usd=0` — **no LLM is
+called** — and the engine never completed (`engine_covered=0`, the ~200 s wall). So the measured `catch≈2.5%` is
+the **quick pattern-rule tier alone**: essentially grep-with-structure. This is the FLOOR, not the product, and it
+confirms the maintainer's point — pattern rules alone will never be enough, or `grep` would do. The product's
+detection lives in two tiers that did NOT run:
+
+| Tier | Mechanism | Measured cost (uncontended, mid-size repo) | Ran? | Catch |
+|---|---|---|---|---|
+| 1 quick rules | regex/pattern over changed lines | ~seconds | yes | 2.5% (floor) |
+| 2 engine (Joern) | CPG build + taint/dataflow | build 48 s + evidence (150 s fixed + 93 ms/pair) + analysis (unmeasured) | no (walled) | unknown |
+| 3 LLM adjudication | model judgment / search-with-proof (hunter, fusion, decision engine) | model latency + $/call (unmeasured in the push path) | no (disabled) | unknown |
+
+**The barrier:** a releasable net needs tier 2 and/or tier 3 to run and catch within a realistic pre-push window —
+target **≤60–120 s** (developer patience), hard ceiling 300 s. The analysis is a budget ledger per tier against
+that window, and the measurements each needs:
+
+- **Engine barrier (tier 2).** Fixed floor `build(48) + evidence_fixed(~150) ≈ 198 s` precedes any dataflow answer.
+  Measure (clean host): **E1** split the ~150 s into JVM-start / graph-load / census; **E2** does a warm session
+  with the graph **preloaded at build** eliminate `evidence_fixed` on the first query (the decisive architectural
+  test)?; **E3** analysis (`reachableByFlows`) per-pair cost + warm reuse; **E4** build cost vs repo size.
+  Levers in priority order: warm session + graph preload → cached census → change-scope the per-pair tail.
+- **LLM barrier (tier 3).** Unmeasured in the push path. Measure: **L1** model round-trip latency per call
+  (DeepSeek) and calls needed per push for the decision/proof stage; **L2** the recall LIFT of tier 3 over tiers
+  1+2 on the pool — does the LLM catch what regex and dataflow miss, and at what $ and latency per push?
+- **Deliverable:** a **barrier table** — for budget ∈ {60, 120, 300, 600} s × each tier combination, does it FIT
+  and what is the MEASURED recall/false-alarm on the pool — identifying the minimal viable config for a releasable
+  net. 600 s unblocks the benchmark arm but is not a pre-push deadline; the product target is tiers 2+3 under ~120 s.
+
+Sequence: finish G0 (record 07) → **E1/E2 first** (they decide whether the warm session alone crosses the engine
+barrier) → E3/E4 → L1/L2. Each on a clean host (the session times out contended). The change-scoped branch
+(`engine-change-scoped-evidence-pass`, unmerged) only trims the tier-2 per-pair tail and is a late add-on, not the
+lever.
