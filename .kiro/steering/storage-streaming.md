@@ -48,8 +48,33 @@ buckets rather than inventing a new transport. New buckets and their grants are 
 admin** action — the store credentials cannot create buckets or set lifecycle (confirmed by the
 `AccessDenied` on the 2026-10-09 lifecycle apply).
 
-## Status
+## Default: RustFS over local disk
 
-Direction recorded; planned as a follow-up spec, not retrofitted into an in-flight run. The current
-unseen draw finishes to its local journal and then archives its result to `sast-pools` once that
-bucket exists.
+Local disk on the VM is the scarce resource (it runs near full; the draw stops itself under 2 GB free).
+RustFS/S3 has far more room. So the default for any run's durable state and large artifacts is the bucket,
+not local disk. Local files are a rebuildable scratch cache only (the live git clone, a within-process
+journal). A long run must be resumable purely from the bucket, and its outputs — including replay result
+records — are written to RustFS, not `~/ousast-results` on local disk.
+
+## Status (implemented 2026-10-10/11)
+
+Bucket-first persistence is live, not a future spec. The unseen draw streams every stage to the
+`ousast-corpus` bucket (`http://10.0.0.54:9001`, creds in `.env` as `CORPUS_S3_*`; boto3 needs path-style +
+SigV4) and resumes from it:
+
+- `unseen/<seed>/decisions/<sha256(repo+fix)>.json` — accept/reject per repository (idempotent; content dedup).
+- `unseen/<seed>/resolved/<sha256(ghsa)>.json` — per-advisory resolution.
+- `unseen/<seed>/advisories/list.json` — the enumerated advisory list.
+- `unseen/repos/<sha256(name)>.json` — get_repo cache, **not** seed-scoped (shared across seeds/runs), so the
+  thousands of used-set canonicalization lookups are paid once ever.
+- `unseen/<seed>/pool/` — the frozen pool and its provenance (`pool-p1.toml`, `private-pool-p1.toml`,
+  `freeze-p1.json`, `bisect-p1.json`, `protocol-p1.md`): the durable "don't redo the sourcing" archive.
+
+Implementation: `benchmarks/unseen/bank.py` (`CorpusBank`, `corpus_settings`). The old local journal is a
+within-process cursor only; the bucket is the cross-run source of truth, so a restart (even after a code
+change) resumes cheaply. Still to do and consistent with the default above: replay result records
+(`replay.py --out`) currently default to `~/ousast-results/unseen/...` on local disk — point them at RustFS
+for the slice-1 baseline and after. The AX (kube) lane already uses presigned object transfer, which is the
+same principle. One in-repo code fact: `benchmarks/ax/batch.py` currently expects a public-HTTPS DNS,
+presign-capable endpoint. How the store endpoint and the cluster's access to it are provided is operator/AX-owned
+infra, not something this doc should presume.

@@ -41,6 +41,36 @@ Correction recorded 2026-10-04: the previous two days went mostly into infrastru
 not move a generalisation number. From here, infrastructure and engine work is done only when it removes a
 bottleneck for the measurements below.
 
+### Where we are (2026-10-11)
+
+The G0 measurement is now runnable: the unseen pool is **frozen** and the whole pipeline is hardened and
+**bucket-first**. The baseline replay is the one remaining step, to run on kube.
+
+| Area | State | Evidence |
+| --- | --- | --- |
+| Unseen pool (G0.1) | **Frozen.** `pool-p1.toml` = 100 repos (slice 1); `freeze-p1.json` guard=0, dropped=0; deterministic (manifest `6bd2fa5d`). License 49 permissive / 51 private; methods 81 introducing / 19 last_touch. | `benchmarks/unseen/pool-p1.toml`; archived `ousast-corpus/unseen/20260601/pool/` |
+| Labels | 100 machine-derived (SZZ), **unchecked**. Record 07 is a **machine-label baseline** (caveat stated); a human label pass is a later refinement, before any published claim. | `freeze-p1.json` label_check_counts |
+| Harvest | Rebuilt to converge. Pure GitHub-API harvesting is a dead end for this benchmark (it needs the SZZ introducing commit + 12 stratified history negatives, not one commit). The fix: a full-objects clone (drop `--filter=blob:none`, which caused ~600 per-blob lazy fetches) + bucket-first durability + a get_repo cache that paid the 4,499-name used-set canonicalization once. Yield ~2.2%; **GitHub-rate-limit bound, not CPU**. | 95bed70, 857263d, 21aebe8, 7b711a6 |
+| Persistence | **Bucket-first, not local disk.** `ousast-corpus` is the source of truth: enumeration, resolution, get_repo, and accept/reject decisions all stream to and resume from it. The host disk (~9-13 GB free) is the scarce resource; RustFS/S3 has the room, so run artifacts and **replay outputs go to RustFS too**, not `~/ousast-results` on local disk. | `storage-streaming.md`, `bank.py` |
+| Replay image | Provenance pinned. CI `engine-image.yml` builds `ousast-replay-task` (harness with `/app/benchmarks/unseen/replay_entry.py`) + `ousast-engine-task` (Joern hook), publicly pullable by digest. The old `ousast-runner:dev` (248 MB ax-runner, no `/app/benchmarks`, no Joern) is the **wrong** image for replay. | CI run 38116281676 |
+| Baseline (G0.2) | **Not yet.** Replay reads the frozen pool cleanly (dry-run = 1,300 changes, `freeze_digest` verified). Remaining: mirror CI's passing `replay` job wiring, and stand up the kube lane (`ax` binary + a public-HTTPS presign-capable store endpoint; GHCR pull already public). | CI `replay` job (passed) |
+
+Lesson, recorded so it is not re-paid: sourcing and engine-image work cost real time. The durable takeaway now lives
+in the pipeline and these docs — bucket-first persistence, pinned image provenance, a measured yield — so the next
+pool or arm is cheap, not a rediscovery.
+
+### Readiness plan (to G0 exit = record 07)
+
+1. **Kube replay lane (infra, operator-owned):** install the `ax` binary; provide the store endpoint the AX lane
+   needs. The only thing settled in-repo is a code fact: `benchmarks/ax/batch.py` currently expects a public-HTTPS
+   DNS, presign-capable S3 endpoint. How that endpoint and the cluster's access to the store are provided is an
+   operator/AX decision, not an assumption to make here. GHCR pull of the images is verified public.
+2. **Unblock the replay** by mirroring CI's passing `replay` job (replay-task + engine-task wired, store + network).
+3. **Run slice-1 baseline on kube:** `--lane ax --arm default`, 1,300 changes, no model cost, resumable; outputs to
+   RustFS.
+4. **Adjudicate (7.3) -> record 07 (7.4)** = the measured machine-label unseen baseline = **G0 exit**.
+5. Then **G1 arms** (DeepSeek decision engine) on the frozen pool.
+
 ### Phases
 
 **G0. The unseen-repository pool and the push-level metric** (new spec `unseen-repo-evaluation`)

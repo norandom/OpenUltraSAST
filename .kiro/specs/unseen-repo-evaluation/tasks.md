@@ -7,6 +7,24 @@ on the unseen slice (Req 5.4 as amended, design 7.3, tasks 6.4 and 8.2); only pe
 are published by name, everything else goes to the gitignored private manifest under a digest (Req 1.4, design
 1.4); concurrency stays at two AX lanes plus the VM lane (design 5.3).
 
+**2026-10-11 amendments folded in** (see design.md "Amendments (2026-10-11)"):
+
+- **Pool p1 is frozen.** `benchmarks/unseen/pool-p1.toml` = 100 repos, slice 1; `freeze-p1.json` guard=0,
+  dropped=0, deterministic (manifest `6bd2fa5d`); archived to `ousast-corpus/unseen/20260601/pool/`. Groups 1-3 are
+  effectively done (the draw, draft and freeze ran end to end); formal records 02/03 were not written as separate
+  `record.json` files — the freeze was run directly (`bisect_guard` then `freeze`). Freeze recipe: `bisect_guard
+  --root $PWD --draft $CACHE/journal/draft-p1.toml` then `freeze --root $PWD --used-report <FILE>` where the file
+  is the draw report's `used_set` object (not the whole report).
+- **Persistence is bucket-first** (`ousast-corpus`, `benchmarks/unseen/bank.py`); the local journal is a
+  within-process cursor only. Raw per-change replay records go to **RustFS**, not `~/ousast-results/` on local disk
+  — amend tasks 5.3/7.2's `--out` accordingly.
+- **Group 5 image note:** the replay image is the CI-built `ghcr.io/norandom/ousast-replay-task` (+ engine-task),
+  publicly pullable by digest — not a local export-HEAD build and not `ousast-runner`. Task 7.1's "build and push
+  the replay image" is satisfied by the CI `engine-image.yml` run; use that digest.
+- **Record 07 is a machine-label baseline** (labels SZZ-derived, 100 unchecked); state the caveat in the record.
+- **Baseline lane (7.2):** run on kube (`--lane ax`). The `ax` binary and the AX-lane store endpoint are
+  operator-owned infra to stand up before 7.2; do not assume the cluster/network state.
+
 Execution rules:
 
 - **Who does what.** Codex implements every coding task offline: no network, no model, no store, no cluster. The
