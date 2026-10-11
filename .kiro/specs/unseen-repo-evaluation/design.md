@@ -460,6 +460,47 @@ where reality differed.
   presign-capable endpoint; how that and the cluster's store access are provided is operator-owned infra, not
   assumed here.
 
+- **AX lane blocker (2026-10-11) — kube is the target lane, so this is tracked, not dismissed.** The replay
+  *dispatches* correctly but tasks do not *complete*: `pins_done` stayed 0 for both the 5-change proof and the
+  1,300-change slice 1. Sub-issues resolved along the way: (a) the replay image is `ousast-replay-task` (public);
+  (b) the ax CLI must be `~/go/bin/ax` — the `~/.local/ax-v0.3.1/ax` build calls an `UpdateTask` RPC the deployed
+  ax-server answers `Unimplemented` (client/server version mismatch); (c) the store endpoint
+  `files.because-security.com` / `sast-memory` passes the egress check. **Remaining blocker (AX/cluster-internal,
+  operator-owned):** dispatched tasks reach the `ousast-pool` workers and the replay actors execute and checkpoint,
+  but the result never returns to the coordinator and no completion is recorded. `ousast-pool` logs show a gVisor
+  cleanup failure: `runsc delete ... connecting to control server at PID NNN: connection refused` and `failed to
+  terminate workload after checkpoint ... runsc delete: exit status 128`. Until the completion / checkpoint-cleanup
+  path is fixed, the ax lane cannot produce results; the G0 baseline (7.2) was taken on the **docker lane**
+  instead. The ax lane must be restored before it is the baseline/G1 lane (the stated target).
+
+- **Engine coverage gap is comparison, not deadline (2026-10-11, preliminary n=1).** The cold-cache default arm
+  (30s) times out the Joern CPG build → `quick_only`. But a long-deadline sample (`--arm long_deadline`, 300s) on a
+  vulnerability change ran **206s with no timeout and still did not cover** (`coverage_status: incomplete`,
+  `quick_only`): the reasons were `ambiguous_line_correspondence`, `unmatched_added_deleted_path_correspondence`,
+  `eligibility_provenance_mismatch`, `witness_unresolved`, `comparison_unknown` — i.e. the engine could not
+  correspond the replayed diff's lines between base and head. So **calibration / a longer deadline alone will not
+  give engine coverage**; the blocker is the engine's base↔head comparison on real replayed diffs (consistent with
+  the earlier "engine near-blind to fixes" slice-leak audit). This is G2 engine-fix territory (comparison /
+  line-correspondence), not a G0 deadline knob. To confirm beyond n=1, the long-deadline arm must run at scale
+  (needs the kube lane). Implication: the record-07 baseline is measured on the **quick-rule tier** (the default
+  arm), and the engine arm's value is gated on fixing the comparison path, not on calibration.
+
+- **Line-correspondence fix made, but it is necessary-not-sufficient (2026-10-11).** Root cause confirmed in
+  `src/openultrasast/push/snapshot.py`: equal-region base↔head line pairs were mapped only when the line content
+  was *globally unique in the file*, so common lines (`}`, blanks, imports) tripped `ambiguous_line_correspondence`
+  and the finding's anchor was discarded → `comparison_unknown` → finding suppressed. Fixed to **run-aware
+  positional anchoring**: a pair maps when its content occupies exactly one contiguous equal run per side (intra-run
+  duplicates are forced/safe; cross-run duplicates stay withheld — soundness preserved, `test_push_snapshot.py`
+  moved-operation guard still passes). 163 push tests pass. BUT live-testing the fix (mounted over the installed
+  package, 300s) on a real messy change (a 14-file Java diff) did **not** flip coverage: it stayed `incomplete`
+  because the binding constraints are elsewhere — `capability_unavailable` (empty capability registry always blocks
+  `coverage_status=complete` until Task 8.3), the engine produced **no actionable defect at all**
+  (`actionable_defect_ids: []`, a detection gap, not correspondence), plus `eligibility_provenance_mismatch` and
+  `contributor-scan ... projection_unavailable`. So "near-blind to fixes" is **multi-causal**; the correspondence
+  fix removes one real cause but engine coverage on unseen diffs also needs the capability registry (Task 8.3), the
+  engine's actual vuln detection, and the eligibility/projection paths. Validating the correspondence fix's benefit
+  needs a change where correspondence is the sole blocker (a small single-file diff), or the engine arm at scale.
+
 ## Open Questions
 
 Maintainer decisions of 2026-10-04 resolve questions 1, 2, 4 and 5; question 3 stays open for G3.

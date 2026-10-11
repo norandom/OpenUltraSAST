@@ -553,9 +553,12 @@ def test_change_context_unknown_base_binary_and_ambiguous_lines_are_unresolved(r
     assert "comparison_base_unavailable" in missing.unresolved_boundaries
     result = SnapshotAdapter(repo).compare(comparison(base, head))
     assert "declaration_paths_unavailable" in result.unresolved_boundaries
-    assert any("ambiguous_line_correspondence" in b for b in result.unresolved_boundaries)
+    # The two unchanged `sink();` lines form one contiguous equal run, so they anchor
+    # positionally (intra-run duplicates are forced) and are no longer ambiguous.
+    assert not any("ambiguous_line_correspondence" in b for b in result.unresolved_boundaries)
+    assert {(m.base_start_line, m.head_start_line) for m in result.line_correspondences} >= {(2, 2), (3, 3)}
+    # The binary file still cannot be line-corresponded.
     assert any("binary_line_correspondence_unavailable" in b for b in result.unresolved_boundaries)
-    assert not result.line_correspondences
 
 
 def test_change_context_is_bounded_and_never_executes_diff_helpers(repo: Path) -> None:
@@ -582,6 +585,36 @@ def test_change_context_moved_repeated_operations_do_not_claim_identity(repo: Pa
     assert any("ambiguous_line_correspondence" in b for b in result.unresolved_boundaries)
     assert not any(m.base_start_line in (2, 5) for m in result.line_correspondences)
     assert result.decode_path(result.changed_paths[0]) == "api.js"
+
+
+def test_change_context_repeated_lines_in_one_run_map_positionally(repo: Path) -> None:
+    # Three blank lines and a sink form one contiguous equal run (only line 1 changed);
+    # intra-run duplicates are forced, so they all anchor without ambiguity.
+    base = binary_commit(repo, [(b"100644", b"a.py", b"old()\n\n\n\nsink()\n")])
+    head = binary_commit(repo, [(b"100644", b"a.py", b"new()\n\n\n\nsink()\n")])
+    result = SnapshotAdapter(repo).compare(comparison(base, head), declaration_paths=())
+    assert not any("ambiguous_line_correspondence" in b for b in result.unresolved_boundaries)
+    assert {m.base_start_line for m in result.line_correspondences} >= {2, 3, 4, 5}
+
+
+def test_change_context_repeated_lines_split_across_hunks_are_withheld(repo: Path) -> None:
+    # 'dup()' appears in two equal runs split by the changed a/b/c lines; git's alignment
+    # of cross-run repeats is arbitrary, so those pairs are withheld and flagged.
+    base = binary_commit(repo, [(b"100644", b"a.py", b"a()\ndup()\nb()\ndup()\nc()\n")])
+    head = binary_commit(repo, [(b"100644", b"a.py", b"A()\ndup()\nB()\ndup()\nC()\n")])
+    result = SnapshotAdapter(repo).compare(comparison(base, head), declaration_paths=())
+    assert any("ambiguous_line_correspondence" in b for b in result.unresolved_boundaries)
+    assert not any(m.base_start_line in (2, 4) for m in result.line_correspondences)
+
+
+def test_change_context_distinctive_line_anchors_despite_recurring_braces(repo: Path) -> None:
+    # '}' recurs across two runs (ambiguous), but the distinctive sink line is a single-run
+    # anchor and must still map -- this is the real "fix touches surrounding code" case.
+    base = binary_commit(repo, [(b"100644", b"a.js", b"f() {\n  old();\n}\ng() {\n  distinctive(x);\n}\n")])
+    head = binary_commit(repo, [(b"100644", b"a.js", b"f() {\n  new();\n}\nh() {\n  distinctive(x);\n}\n")])
+    result = SnapshotAdapter(repo).compare(comparison(base, head), declaration_paths=())
+    assert any("ambiguous_line_correspondence" in b for b in result.unresolved_boundaries)
+    assert any(m.base_start_line == 5 and m.head_start_line == 5 for m in result.line_correspondences)
 
 
 @pytest.mark.parametrize("limit", ["max_total_bytes", "max_diff_bytes", "max_mapping_lines", "max_files"])

@@ -404,12 +404,31 @@ class SnapshotAdapter:
                             spans.append(ChangedSpan(path_head.hex(), new_start, new_start + new_count - 1, "head"))
                         old_cursor, new_cursor = old_index + old_count, new_index + new_count
                     pairs.extend(_equal_line_pairs(old_lines, new_lines, old_cursor, len(old_lines), new_cursor, len(new_lines)))
-                    old_counts, new_counts = Counter(old_lines), Counter(new_lines)
+                    # Equal-region pairs are positionally 1:1 within a contiguous run
+                    # (strictly +1/+1 from _equal_line_pairs). A line's content is a
+                    # trustworthy positional anchor when it occupies exactly one old and
+                    # one new run; content repeated across runs split by an edit is aligned
+                    # arbitrarily by git and is withheld as ambiguous. Duplicates within one
+                    # run stay forced and safe.
+                    anchor_pairs = () if ambiguous_rename else pairs
+                    anchor_runs: list[list[tuple[int, int]]] = []
+                    for pair in anchor_pairs:
+                        last = anchor_runs[-1][-1] if anchor_runs else None
+                        if last is not None and pair[0] == last[0] + 1 and pair[1] == last[1] + 1:
+                            anchor_runs[-1].append(pair)
+                        else:
+                            anchor_runs.append([pair])
+                    old_runs: dict[bytes, set[int]] = {}
+                    new_runs: dict[bytes, set[int]] = {}
+                    for run_index, run in enumerate(anchor_runs):
+                        for old_index, new_index in run:
+                            old_runs.setdefault(old_lines[old_index], set()).add(run_index)
+                            new_runs.setdefault(new_lines[new_index], set()).add(run_index)
                     ambiguous = False
-                    for old_index, new_index in () if ambiguous_rename else pairs:
+                    for old_index, new_index in anchor_pairs:
                         _check_budget(budget, cancelled)
                         content = old_lines[old_index]
-                        if old_counts[content] != 1 or new_counts[content] != 1:
+                        if len(old_runs.get(content, ())) != 1 or len(new_runs.get(content, ())) != 1:
                             ambiguous = True
                             continue
                         mappings.append(LineCorrespondence(path_base.hex(), path_head.hex(), old_index + 1, old_index + 1, new_index + 1))
