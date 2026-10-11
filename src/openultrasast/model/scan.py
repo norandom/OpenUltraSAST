@@ -341,19 +341,38 @@ def _scan_repository_impl(
             if limits.order_by_evidence
             else ordered_regions[: limits.max_regions]
         )
+        changed_scope = _changed_files(change_context) if change_context is not None else None
+        evidence_deadline: float | None = None
+        evidence_portion = EVIDENCE_PORTION
+        if changed_scope is not None and execution_budget is not None:
+            # Change-scoped evidence pass (see EVIDENCE_BUDGET_FRACTION): tier the changed regions first and stop
+            # once the pass has taken its share of the remaining budget, so the flow queries get the rest. A flow
+            # into a changed region from unchanged code is still traced -- the CPG is whole-repo and every changed
+            # region is tiered; only the unchanged tail, tiered while the sub-budget lasts, may be cut (recorded).
+            changed_set = set(changed_scope)
+            evidence_candidates = sorted(evidence_candidates, key=lambda region: region.path not in changed_set)
+            now = time.monotonic()
+            evidence_deadline = now + EVIDENCE_BUDGET_FRACTION * max(0.0, execution_budget.deadline_monotonic - now)
+            evidence_portion = BOUNDED_EVIDENCE_PORTION
         tier_started = time.monotonic()
-        evidence_by_pair, failed = _evidence_pass(
+        evidence_by_pair, failed, bounded = _evidence_pass(
             cpg,
             _collect(evidence_candidates, execution_budget=execution_budget),
             hooks,
             degradations=degradations,
             context_rows=context_rows if change_context is not None else None,
-            context_files=_changed_files(change_context) if change_context is not None else None,
+            context_files=changed_scope,
             unit=unit,
+            deadline=evidence_deadline,
+            portion=evidence_portion,
         )
         per_kind["evidence"] = round(time.monotonic() - tier_started, 2)
         if failed:
             degradations.append({"stage": "model", "reason": "query_failed", "kind": "evidence", "requests": failed})
+        if bounded:
+            # The budget, not a failure, left these pairs untiered. Named so a change-scoped scan's silence over
+            # the unchanged tail is legible rather than read as a clean bill of health for the whole repository.
+            degradations.append({"stage": "model", "reason": "evidence_pass_bounded", "tiered_pairs": len(evidence_by_pair), "skipped_requests": bounded})
         tiers = [(path, function, family, evidence.tier) for (path, function, family), evidence in evidence_by_pair.items()]
         if limits.order_by_evidence and evidence_by_pair:
             ordered_regions = order_by_evidence(ordered_regions, evidence_by_pair)
@@ -1248,20 +1267,43 @@ def _collect(
 
 EVIDENCE_PORTION = 4000  # requests per evidence invocation; roughly ten seconds of work behind one JVM start
 
+# A push scan's whole cost is the evidence-tier pass -- measured 238 s of a 291 s run, 99.9 % of everything that
+# is not the CPG build or the flow queries -- because it tiers every region of the repository to rank them, and
+# a cold large CPG answers each pair far slower than the design's few milliseconds. When the push carries a change
+# context the pass is therefore spent CHANGE-FIRST (the regions the push touched are tiered before the rest) and
+# BOUNDED: it stops once it has taken this fraction of the remaining budget, leaving the rest for the flow queries
+# that actually find the defect. The CPG is still whole-repo, so a flow INTO a changed region from unchanged code is
+# traced as before; only the long tail of unchanged regions goes untiered, and that is recorded. A smaller portion
+# makes the stop granular -- 4000 is one atomic batch that could never stop before the deadline.
+EVIDENCE_BUDGET_FRACTION = 0.5
+BOUNDED_EVIDENCE_PORTION = 256
 
-def _portioned_evidence(cpg: Any, requests: Mapping[str, Mapping[str, object]]) -> dict[str, Any] | None:
-    """The evidence pass in portions, merged. ``None`` only when no portion answered.
 
-    Typed as the batch returns it -- rows are the engine's mappings, and the caller reads them as such.
+def _portioned_evidence(
+    cpg: Any, requests: Mapping[str, Mapping[str, object]], *, deadline: float | None = None, portion: int = EVIDENCE_PORTION
+) -> tuple[dict[str, Any] | None, int]:
+    """The evidence pass in portions, merged, with the number of requests ATTEMPTED.
+
+    ``None`` only when no attempted portion answered. ``deadline`` (a monotonic time) bounds the pass: the loop
+    checks it before each portion after the first and stops, so the requests in the portions it reached are
+    tiered and the tail is left untiered. The attempted count lets the caller tell a bounded skip (budget ran
+    out) from a query failure (the engine was asked and did not answer). Typed as the batch returns it.
     """
     ids = list(requests)
-    if len(ids) <= EVIDENCE_PORTION:
+    if deadline is None and len(ids) <= portion:
         answered: dict[str, Any] | None = cpg.run_batch("taint", requests)
-        return answered
+        # Attempted counts what was SENT, not what came back: a None here is the engine failing on requests it
+        # was asked, which is a failure to record -- never a budget skip (that is only the deadline-bounded tail).
+        return answered, len(ids)
     merged: dict[str, Any] = {}
     answered_any = False
-    for start in range(0, len(ids), EVIDENCE_PORTION):
-        part = cpg.run_batch("taint", {rid: requests[rid] for rid in ids[start : start + EVIDENCE_PORTION]})
+    attempted = 0
+    for start in range(0, len(ids), portion):
+        if deadline is not None and start > 0 and time.monotonic() >= deadline:
+            break
+        chunk = ids[start : start + portion]
+        attempted += len(chunk)
+        part = cpg.run_batch("taint", {rid: requests[rid] for rid in chunk})
         if part is None:
             continue
         answered_any = True
@@ -1269,7 +1311,7 @@ def _portioned_evidence(cpg: Any, requests: Mapping[str, Mapping[str, object]]) 
         if census is not None and "__census__" not in merged:
             merged["__census__"] = census
         merged.update(part)
-    return merged if answered_any else None
+    return (merged if answered_any else None), attempted
 
 
 def _evidence_pass(
@@ -1281,15 +1323,18 @@ def _evidence_pass(
     context_rows: dict[QuestionIdentity, list[Mapping[str, object]]] | None = None,
     context_files: tuple[str, ...] | None = None,
     unit: str = "repository",
-) -> tuple[dict[tuple[str, str, str], Evidence], int]:
+    deadline: float | None = None,
+    portion: int = EVIDENCE_PORTION,
+) -> tuple[dict[tuple[str, str, str], Evidence], int, int]:
     """The evidence vector of every taint pair in ``work``, keyed by (path, function, family).
 
-    Returns the vectors and the number of requests the engine did not answer (0 when it answered), so a
-    failed pass is recorded rather than read as "no evidence anywhere".
+    Returns the vectors, the number of ATTEMPTED requests the engine did not answer (a genuine failure), and
+    the number left untiered because ``deadline`` bounded the pass (a budget skip, not a failure) -- so each is
+    recorded as what it is rather than both read as "no evidence anywhere".
     """
     grouped_taint = _grouped(list(work), hook_callbacks=hooks).get("taint", {})
     if not grouped_taint:
-        return {}, 0
+        return {}, 0, 0
     # With change context, the engine itemises locations only in the files the change touched and summarises
     # the rest, because those are the only locations `affected_context` can attach. `None` means the change's
     # files cannot be named safely, and then every location is itemised as before.
@@ -1302,9 +1347,9 @@ def _evidence_pass(
     # batch: a 22,125-request evidence pass on a plugin's push transaction exceeded its ceiling under load and
     # cost the whole scan. Streaming keeps what finished when a portion is killed; portioning keeps a single
     # kill from being the whole pass.
-    answered = _portioned_evidence(cpg, requests)
+    answered, attempted = _portioned_evidence(cpg, requests, deadline=deadline, portion=portion)
     if answered is None:
-        return {}, len(requests)
+        return {}, attempted, len(requests) - attempted
     census = answered.pop("__census__", None)
     if census and degradations is not None:
         entry = census[0] if isinstance(census[0], Mapping) else {}
@@ -1358,7 +1403,7 @@ def _evidence_pass(
             out.pop(key, None)
     if context_rows is not None:
         _context_pass(cpg, work, context_rows, unit=unit)
-    return out, len(requests) - len(out)
+    return out, max(0, attempted - len(out)), len(requests) - attempted
 
 
 def _context_pass(

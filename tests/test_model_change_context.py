@@ -73,6 +73,97 @@ def test_change_does_not_replace_ranker_selection(tmp_path):
     assert [q.score for q in baseline.scope.selected] == [q.score for q in changed.scope.selected]
 
 
+# -- change-scoped evidence pass (the G0/G2 bottleneck fix) -------------------------------------------------
+# The evidence-tier pass is the whole cost of a push scan (measured 238s of 291s), so when the push carries a
+# change context it is spent change-first and bounded to a fraction of the budget, leaving time for the flow
+# queries. These pin the mechanism (bounds at the deadline, keeps the first portion), the wiring (scan sets a
+# sub-deadline, the bounded portion, and orders the changed regions first), and the honesty (a bounded tail is
+# recorded, never read as a clean repository).
+
+
+def test_portioned_evidence_stops_at_deadline_keeping_the_first_portion():
+    import time as _t
+
+    from openultrasast.model import scan as scanmod
+
+    seen: list[int] = []
+
+    class Cpg:
+        def run_batch(self, kind, reqs):
+            seen.append(len(reqs))
+            return {rid: [] for rid in reqs}
+
+    reqs = {str(i): {"file": "f"} for i in range(2 * scanmod.BOUNDED_EVIDENCE_PORTION + 5)}
+    answered, attempted = scanmod._portioned_evidence(Cpg(), reqs, deadline=_t.monotonic() - 1, portion=scanmod.BOUNDED_EVIDENCE_PORTION)
+    assert seen == [scanmod.BOUNDED_EVIDENCE_PORTION]  # only the first portion ran before the (past) deadline
+    assert attempted == scanmod.BOUNDED_EVIDENCE_PORTION
+    assert answered is not None and len(answered) == scanmod.BOUNDED_EVIDENCE_PORTION
+    seen.clear()
+    _, attempted_full = scanmod._portioned_evidence(Cpg(), reqs, deadline=None, portion=scanmod.BOUNDED_EVIDENCE_PORTION)
+    assert attempted_full == len(reqs) and sum(seen) == len(reqs)  # no deadline -> the whole population tiers
+
+
+def test_change_scoped_scan_bounds_and_orders_the_evidence_pass_change_first(tmp_path, monkeypatch):
+    import time as _t
+
+    from openultrasast.model import scan as scanmod
+    from openultrasast.model.contracts import ExecutionBudget
+
+    changed, other = "z_changed.py", "a_other.py"  # path sort puts a_other first; change-first must flip it
+    (tmp_path / changed).write_text("sink(input)\n")
+    (tmp_path / other).write_text("sink(input)\n")
+    captured: dict = {}
+
+    def fake(cpg, requests, *, deadline=None, portion=scanmod.EVIDENCE_PORTION):
+        captured["deadline"] = deadline
+        captured["portion"] = portion
+        captured["files"] = [p.get("file") for p in requests.values()]
+        return {rid: vector() for rid in requests}, len(requests)
+
+    monkeypatch.setattr(scanmod, "_portioned_evidence", fake)
+    regions = [region(other, "python"), region(changed, "python")]
+    backend = Backend({changed: vector(), other: vector()})
+    budget = ScanBudget(order_by_evidence=True)
+    execution_budget = ExecutionBudget(_t.monotonic() + 100, 0.5)
+    scan_repository(tmp_path, regions, backend=backend, budget=budget, change_context=context(changed), execution_budget=execution_budget)
+    assert captured["deadline"] is not None  # a sub-deadline bounds the pass
+    assert captured["portion"] == scanmod.BOUNDED_EVIDENCE_PORTION
+    assert captured["files"][0] == changed  # the changed region is tiered FIRST despite sorting last by path
+
+    # No execution budget -> no change-scoping: the whole population tiers in one unbounded portion, as before.
+    captured.clear()
+    scan_repository(tmp_path, regions, backend=backend, budget=budget, change_context=context(changed))
+    assert captured["deadline"] is None and captured["portion"] == scanmod.EVIDENCE_PORTION
+
+
+def test_change_scoped_bounded_tail_is_recorded_not_read_as_clean(tmp_path, monkeypatch):
+    import time as _t
+
+    from openultrasast.model import scan as scanmod
+    from openultrasast.model.contracts import ExecutionBudget
+
+    (tmp_path / "changed.py").write_text("sink(input)\n")
+    (tmp_path / "other.py").write_text("sink(input)\n")
+
+    def fake(cpg, requests, *, deadline=None, portion=scanmod.EVIDENCE_PORTION):
+        first = list(requests)[0]  # simulate a bound: one pair tiered, the rest cut by the deadline
+        return {first: vector()}, 1
+
+    monkeypatch.setattr(scanmod, "_portioned_evidence", fake)
+    regions = [region("changed.py", "python"), region("other.py", "python")]
+    result = scan_repository(
+        tmp_path,
+        regions,
+        backend=Backend({"changed.py": vector(), "other.py": vector()}),
+        budget=ScanBudget(order_by_evidence=True),
+        change_context=context("changed.py"),
+        execution_budget=ExecutionBudget(_t.monotonic() + 100, 0.5),
+    )
+    bounded = [d for d in result.degradations if d.get("reason") == "evidence_pass_bounded"]
+    assert bounded and bounded[0]["skipped_requests"] >= 1  # the untiered tail is named
+    assert not any(d.get("reason") == "query_failed" and d.get("kind") == "evidence" for d in result.degradations)  # a bound is not a failure
+
+
 def test_global_boundary_survives_answer(tmp_path):
     (tmp_path / "sink.php").write_text("readable\n")
     ctx = replace(context(), unresolved_boundaries=("external summary missing",))
