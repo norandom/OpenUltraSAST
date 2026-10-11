@@ -93,14 +93,15 @@ def test_portioned_evidence_stops_at_deadline_keeping_the_first_portion():
             seen.append(len(reqs))
             return {rid: [] for rid in reqs}
 
-    reqs = {str(i): {"file": "f"} for i in range(2 * scanmod.BOUNDED_EVIDENCE_PORTION + 5)}
+    reqs = {str(i): {"file": "f"} for i in range(50 * scanmod.BOUNDED_EVIDENCE_PORTION)}
     answered, attempted = scanmod._portioned_evidence(Cpg(), reqs, deadline=_t.monotonic() - 1, portion=scanmod.BOUNDED_EVIDENCE_PORTION)
-    assert seen == [scanmod.BOUNDED_EVIDENCE_PORTION]  # only the first portion ran before the (past) deadline
-    assert attempted == scanmod.BOUNDED_EVIDENCE_PORTION
-    assert answered is not None and len(answered) == scanmod.BOUNDED_EVIDENCE_PORTION
+    assert seen == [scanmod.EVIDENCE_PROBE]  # a past deadline stops after only the opening probe chunk
+    assert attempted == scanmod.EVIDENCE_PROBE
+    assert answered is not None and len(answered) == scanmod.EVIDENCE_PROBE
     seen.clear()
     _, attempted_full = scanmod._portioned_evidence(Cpg(), reqs, deadline=None, portion=scanmod.BOUNDED_EVIDENCE_PORTION)
     assert attempted_full == len(reqs) and sum(seen) == len(reqs)  # no deadline -> the whole population tiers
+    assert all(s <= scanmod.BOUNDED_EVIDENCE_PORTION for s in seen)  # in capped chunks
 
 
 def test_change_scoped_scan_bounds_and_orders_the_evidence_pass_change_first(tmp_path, monkeypatch):

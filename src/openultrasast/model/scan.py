@@ -1276,7 +1276,15 @@ EVIDENCE_PORTION = 4000  # requests per evidence invocation; roughly ten seconds
 # traced as before; only the long tail of unchanged regions goes untiered, and that is recorded. A smaller portion
 # makes the stop granular -- 4000 is one atomic batch that could never stop before the deadline.
 EVIDENCE_BUDGET_FRACTION = 0.5
-BOUNDED_EVIDENCE_PORTION = 256
+# The deadline is only checked BETWEEN portions and a run_batch cannot be interrupted, so a portion's duration is
+# the overshoot. A cold large CPG answered a changed-region evidenceOnly pair in SECONDS (measured ~3-5 s under
+# load, 50-100x the warm few ms), so even a fixed 32-pair portion overshot a ~115 s sub-budget by a whole ~150 s
+# batch and left nothing for the flow queries. So the bounded pass sizes ADAPTIVELY: a small probe first, then each
+# next chunk sized from the measured per-pair rate to fit the budget left -- overshoot is one probe, at any rate.
+EVIDENCE_PROBE = 4  # the opening chunk, before the per-pair rate is known
+# The cap on any one chunk under bounding: the adaptive rate estimate assumes a uniform per-pair cost, so a cap
+# keeps a chunk from overshooting badly if the regions after the probe turn out slower than it did.
+BOUNDED_EVIDENCE_PORTION = 16
 
 
 def _portioned_evidence(
@@ -1284,10 +1292,14 @@ def _portioned_evidence(
 ) -> tuple[dict[str, Any] | None, int]:
     """The evidence pass in portions, merged, with the number of requests ATTEMPTED.
 
-    ``None`` only when no attempted portion answered. ``deadline`` (a monotonic time) bounds the pass: the loop
-    checks it before each portion after the first and stops, so the requests in the portions it reached are
-    tiered and the tail is left untiered. The attempted count lets the caller tell a bounded skip (budget ran
-    out) from a query failure (the engine was asked and did not answer). Typed as the batch returns it.
+    ``None`` only when no attempted portion answered. The attempted count lets the caller tell a bounded skip
+    (budget ran out) from a query failure (the engine was asked and did not answer).
+
+    Without a ``deadline`` the pass runs the whole population in fixed ``portion`` chunks, as before. WITH one (a
+    monotonic time), it is bounded ADAPTIVELY: a small probe chunk first, then each next chunk sized from the
+    measured per-pair rate to fit the budget that is left, capped at ``portion``. A run_batch cannot be
+    interrupted, so sizing to the remaining budget -- rather than a fixed count -- keeps the overshoot to one probe
+    whether a pair costs milliseconds or seconds. Typed as the batch returns it.
     """
     ids = list(requests)
     if deadline is None and len(ids) <= portion:
@@ -1298,12 +1310,25 @@ def _portioned_evidence(
     merged: dict[str, Any] = {}
     answered_any = False
     attempted = 0
-    for start in range(0, len(ids), portion):
-        if deadline is not None and start > 0 and time.monotonic() >= deadline:
+    start = 0
+    per_pair = 0.0
+    while start < len(ids):
+        now = time.monotonic()
+        if deadline is not None and start > 0 and now >= deadline:
             break
-        chunk = ids[start : start + portion]
+        if deadline is None:
+            step = portion
+        elif per_pair <= 0.0:
+            step = min(EVIDENCE_PROBE, portion)  # probe first, before the rate is known
+        else:
+            step = max(1, min(portion, int((deadline - now) / per_pair)))  # fit the budget that is left
+        chunk = ids[start : start + step]
+        batch_started = time.monotonic()
         attempted += len(chunk)
         part = cpg.run_batch("taint", {rid: requests[rid] for rid in chunk})
+        if deadline is not None and chunk:
+            per_pair = (time.monotonic() - batch_started) / len(chunk)
+        start += len(chunk)
         if part is None:
             continue
         answered_any = True
@@ -1402,7 +1427,7 @@ def _evidence_pass(
         if len(languages) > 1:
             out.pop(key, None)
     if context_rows is not None:
-        _context_pass(cpg, work, context_rows, unit=unit)
+        _context_pass(cpg, work, context_rows, unit=unit, context_files=context_files)
     return out, max(0, attempted - len(out)), len(requests) - attempted
 
 
@@ -1412,6 +1437,7 @@ def _context_pass(
     context_rows: dict[QuestionIdentity, list[Mapping[str, object]]],
     *,
     unit: str,
+    context_files: tuple[str, ...] | None = None,
 ) -> None:
     """Collect change context for the families the evidence pass does not ask.
 
@@ -1422,7 +1448,16 @@ def _context_pass(
 
     Each family's own query supplies its own scope. A failure here leaves the family's context
     absent, which the caller already treats as unresolved, so it degrades exactly as before.
+
+    ``context_files`` scopes the pass to the regions a change TOUCHED. This pass is change context, so on a push
+    only the changed regions need it -- and over a whole repository it is otherwise as costly as the tier pass
+    (measured ~200 s on one push, every bit of it unchanged-region context nothing would consult). A changed
+    region's own dominance/config context is what `affected_context` reads to establish what the change reaches;
+    the unchanged tail is left to the same `context_projection_unavailable` it would hit under a spent budget.
     """
+    if context_files is not None:
+        allowed = set(context_files)
+        work = [item for item in work if item[1].path in allowed]
     grouped = _grouped(list(work))
     by_rid = {rid: (region, spec) for rid, region, spec in work}
     for kind in ("dominance", "config"):
