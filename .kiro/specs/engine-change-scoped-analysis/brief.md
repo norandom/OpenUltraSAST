@@ -58,6 +58,22 @@ detection is being lost, not in Joern's capability.
     neighbourhood (filter `head_regions` by `context.changed_paths` before the scan, or scope the enumeration inside
     `scan_repository`). Keep the **CPG whole-repo** so taint queries can still trace sources from unchanged code into
     the changed regions — only the question set is change-scoped.
+
+  **Correction (2026-10-11), after a reverted first attempt — two things the naive filter got wrong:**
+  - **The engine already reaches into unchanged code by design, and it is tested.** A changed `source` that reaches
+    an unchanged `sink` must still select the unchanged sink's question
+    (`tests/test_model_change_context.py::test_changed_dependency_reaches_unchanged_ranked_question`;
+    `test_change_does_not_replace_ranker_selection` pins that change context must NOT alter the ranker's selection).
+    `_changed_files` feeds `_evidence_pass` only as `contextFilter`/`contextPaths` — which locations to itemise vs
+    summarise — NOT to shrink the tier population. A "changed files only" scope deletes the reach-into-unchanged
+    behaviour. Any scope must keep changed regions **plus the regions they reach** (the affected/`relationships`
+    neighbourhood), not changed files alone.
+  - **The 236 s is not yet split per phase.** Increment 0 measured `build_seconds=66.69`, `query_seconds=0.0`, total
+    303 s. The ~236 s middle covers the evidence-tier pass (`_evidence_pass`, `per_kind["evidence"]`), the context
+    resolution / `affected_context` graph queries, and the `_scope_work` fact enumeration over all pairs — it was
+    NOT measured which dominates. Increment 2 must first capture that split (`per_kind`, `other_seconds`,
+    `affected_context` timing) and cut the dominant phase while preserving reach-into-unchanged. Instrument before
+    fixing.
 - [ ] **2. Seed analysis from the change.** Prioritize (or restrict first-pass to) the changed declarations plus
   their call/data neighborhood over repo-wide static rank, within budget.
 - [ ] **3. Soundness.** Keep cross-file dataflow INTO the changed function (don't scope to literal changed lines);
