@@ -430,6 +430,36 @@ and dispatcher resume and fallback with a fake lane. Guard tests run in CI; clus
 | 5.3 experiments report unseen next to folds | 7.2 |
 | 5.4 adoption needs no significant unseen regression | 7.3 |
 
+## Amendments (2026-10-11)
+
+Folded in after the G0 pool was frozen; the original sections above stay as the design of record, these refine it
+where reality differed.
+
+- **Persistence is bucket-first, not local disk.** The draw streams every stage to the `ousast-corpus` RustFS
+  bucket and resumes from it, so a restart (even after a code change) is cheap. Layout: `unseen/<seed>/decisions/`
+  (accept/reject per repo, key `sha256(repo+fix)`, idempotent), `unseen/<seed>/resolved/` (per-advisory
+  resolution), `unseen/<seed>/advisories/list.json`, `unseen/repos/` (get_repo cache, **not** seed-scoped, shared
+  across seeds), and `unseen/<seed>/pool/` (the frozen pool + provenance — the "don't redo sourcing" archive). The
+  local journal is a within-process cursor only. Implementation: `benchmarks/unseen/bank.py` (`CorpusBank`). The
+  VM's local disk is the scarce resource; run artifacts and replay outputs belong on RustFS (see steering
+  `storage-streaming.md`). Credentials: `.env` `CORPUS_S3_*`; boto3 needs path-style + SigV4.
+- **Harvest cost is GitHub-rate-limit bound, measured yield ~2.2%.** Through the strict change criteria (1 vuln +
+  12 stratified ordinary, >=40 eligible commits) ~2.2% of candidates are accepted, so "100 repos" is ~4,500
+  candidate attempts at ~4 GitHub calls each — the bottleneck is the 5,000/hr API limit, not CPU or cores. Pure
+  GitHub-API harvesting cannot replace the clone: the positive is the SZZ introducing commit and the negatives are
+  stratified over full history, both needing repo history. The convergence fix was a full-objects clone (dropping
+  `--filter=blob:none`, which caused ~600 per-blob lazy fetches) plus the bucket caches above.
+- **Record 07 is a machine-label baseline.** The pool's 100 vulnerability labels are SZZ-derived and unchecked
+  (`freeze-p1.json` `label_check_counts`: 100 unchecked). The G0 baseline is reported as a machine-label number
+  with that caveat; a human label pass is a later quality refinement, required before any published precision
+  claim, not before record 07.
+- **Replay image provenance is pinned.** CI `engine-image.yml` builds `ghcr.io/norandom/ousast-replay-task` (the
+  replay harness, which `COPY`s `/app/benchmarks/unseen/replay_entry.py`) and `ousast-engine-task` (the Joern
+  hook), publicly pullable by digest. `ousast-runner` (the 248 MB ax-task-runner, no `/app/benchmarks`, no Joern)
+  is **not** the replay image. The AX lane's store check (`benchmarks/ax/batch.py`) requires a public-HTTPS DNS
+  presign-capable endpoint; how that and the cluster's store access are provided is operator-owned infra, not
+  assumed here.
+
 ## Open Questions
 
 Maintainer decisions of 2026-10-04 resolve questions 1, 2, 4 and 5; question 3 stays open for G3.
