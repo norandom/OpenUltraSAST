@@ -97,6 +97,19 @@ Candidates, each admitted only if it improves the pool metric on a fresh slice: 
 (approved plan, now one arm, not the spine), engine coverage and TypeScript, decision-engine prompt and retrieval
 changes, more labelled pairs from more distinct repositories.
 
+Active G2 workstreams (2026-10-11, opened while driving G0; progress tracked in their briefs):
+
+- **Change-scoped engine analysis** (`.kiro/specs/engine-change-scoped-analysis/brief.md`). Live diagnosis on the
+  frozen pool showed the engine's "no finding" on unseen changes is usually *analysis-never-runs*: the engine ranks
+  repo-wide candidates and `deferred: deadline_exhausted` before analyzing anything (even at 300 s), and the ranked
+  sites are unrelated to the pushed change. Lever: seed analysis from the change's declarations + dataflow
+  neighbourhood (`rank.py`/`mapping.py`) so it runs within budget. Increment 0 (confirm CPG-build-vs-analysis cost
+  split) gates the rest. Scale measurement needs the kube lane.
+- **Line-correspondence (done, necessary-not-sufficient).** `snapshot.py` discarded base↔head anchors on
+  non-globally-unique lines → `comparison_unknown` → suppressed findings; fixed to run-aware anchoring
+  (commit c39fbb8, 163 tests). Removes one cause; coverage still needs change-scoped analysis + the capability
+  registry (Task 8.3).
+
 **G3. Decide BLOCK per family** on the pool's false-alarm rate and the pooled precision bound (Req 6.4).
 
 **G4. Detection on push for any repository** (`plane-on-kubernetes` P4 work: `ousast plane scan --base --head`,
