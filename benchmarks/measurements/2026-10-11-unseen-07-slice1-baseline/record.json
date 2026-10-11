@@ -1,0 +1,704 @@
+{
+  "alerts_only": {
+    "count": 0,
+    "n": 1154,
+    "rate": 0.0,
+    "wilson95": [
+      0,
+      0.003317897715887907
+    ]
+  },
+  "breakdowns": {
+    "coverage": {
+      "engine_covered": {
+        "alerts_only": {
+          "count": 0,
+          "n": 0,
+          "rate": null,
+          "wilson95": [
+            null,
+            null
+          ]
+        },
+        "catch": {
+          "count": 0,
+          "n": 0,
+          "rate": null,
+          "wilson95": [
+            null,
+            null
+          ]
+        },
+        "false_alarm": {
+          "cluster95": [
+            null,
+            null
+          ],
+          "count": 0,
+          "icc": null,
+          "n": 0,
+          "rate": null,
+          "wilson95": [
+            null,
+            null
+          ]
+        }
+      },
+      "quick_only": {
+        "alerts_only": {
+          "count": 0,
+          "n": 1154,
+          "rate": 0.0,
+          "wilson95": [
+            0,
+            0.003317897715887907
+          ]
+        },
+        "catch": {
+          "count": 3,
+          "n": 92,
+          "rate": 0.03260869565217391,
+          "wilson95": [
+            0.011150975342623229,
+            0.09153512338694722
+          ]
+        },
+        "false_alarm": {
+          "cluster95": [
+            0.015638575152041704,
+            0.05426356589147287
+          ],
+          "count": 36,
+          "icc": 0.2454308804673944,
+          "n": 1154,
+          "rate": 0.03119584055459272,
+          "wilson95": [
+            0.022617425634090606,
+            0.042885143974740164
+          ]
+        }
+      },
+      "unanalysable": {
+        "alerts_only": {
+          "count": 0,
+          "n": 0,
+          "rate": null,
+          "wilson95": [
+            null,
+            null
+          ]
+        },
+        "catch": {
+          "count": 0,
+          "n": 0,
+          "rate": null,
+          "wilson95": [
+            null,
+            null
+          ]
+        },
+        "false_alarm": {
+          "cluster95": [
+            null,
+            null
+          ],
+          "count": 0,
+          "icc": null,
+          "n": 0,
+          "rate": null,
+          "wilson95": [
+            null,
+            null
+          ]
+        }
+      }
+    },
+    "family": {
+      "access_control": {
+        "alerts_only": {
+          "count": 0,
+          "n": 0,
+          "rate": null,
+          "wilson95": [
+            null,
+            null
+          ]
+        },
+        "catch": {
+          "count": 0,
+          "n": 16,
+          "rate": 0.0,
+          "wilson95": [
+            0,
+            0.19361341827271994
+          ]
+        },
+        "false_alarm": {
+          "cluster95": [
+            null,
+            null
+          ],
+          "count": 0,
+          "icc": null,
+          "n": 0,
+          "rate": null,
+          "wilson95": [
+            null,
+            null
+          ]
+        }
+      },
+      "config_secrets": {
+        "alerts_only": {
+          "count": 0,
+          "n": 0,
+          "rate": null,
+          "wilson95": [
+            null,
+            null
+          ]
+        },
+        "catch": {
+          "count": 0,
+          "n": 10,
+          "rate": 0.0,
+          "wilson95": [
+            0,
+            0.2775401687666166
+          ]
+        },
+        "false_alarm": {
+          "cluster95": [
+            null,
+            null
+          ],
+          "count": 0,
+          "icc": null,
+          "n": 0,
+          "rate": null,
+          "wilson95": [
+            null,
+            null
+          ]
+        }
+      },
+      "deserialization": {
+        "alerts_only": {
+          "count": 0,
+          "n": 0,
+          "rate": null,
+          "wilson95": [
+            null,
+            null
+          ]
+        },
+        "catch": {
+          "count": 1,
+          "n": 4,
+          "rate": 0.25,
+          "wilson95": [
+            0.045586062644636216,
+            0.6993639475573634
+          ]
+        },
+        "false_alarm": {
+          "cluster95": [
+            null,
+            null
+          ],
+          "count": 0,
+          "icc": null,
+          "n": 0,
+          "rate": null,
+          "wilson95": [
+            null,
+            null
+          ]
+        }
+      },
+      "injection": {
+        "alerts_only": {
+          "count": 0,
+          "n": 0,
+          "rate": null,
+          "wilson95": [
+            null,
+            null
+          ]
+        },
+        "catch": {
+          "count": 2,
+          "n": 20,
+          "rate": 0.1,
+          "wilson95": [
+            0.027865893984153206,
+            0.30103820641179335
+          ]
+        },
+        "false_alarm": {
+          "cluster95": [
+            null,
+            null
+          ],
+          "count": 0,
+          "icc": null,
+          "n": 0,
+          "rate": null,
+          "wilson95": [
+            null,
+            null
+          ]
+        }
+      },
+      "output_encoding": {
+        "alerts_only": {
+          "count": 0,
+          "n": 0,
+          "rate": null,
+          "wilson95": [
+            null,
+            null
+          ]
+        },
+        "catch": {
+          "count": 0,
+          "n": 16,
+          "rate": 0.0,
+          "wilson95": [
+            0,
+            0.19361341827271994
+          ]
+        },
+        "false_alarm": {
+          "cluster95": [
+            null,
+            null
+          ],
+          "count": 0,
+          "icc": null,
+          "n": 0,
+          "rate": null,
+          "wilson95": [
+            null,
+            null
+          ]
+        }
+      },
+      "path": {
+        "alerts_only": {
+          "count": 0,
+          "n": 0,
+          "rate": null,
+          "wilson95": [
+            null,
+            null
+          ]
+        },
+        "catch": {
+          "count": 0,
+          "n": 13,
+          "rate": 0.0,
+          "wilson95": [
+            0,
+            0.22810184305529166
+          ]
+        },
+        "false_alarm": {
+          "cluster95": [
+            null,
+            null
+          ],
+          "count": 0,
+          "icc": null,
+          "n": 0,
+          "rate": null,
+          "wilson95": [
+            null,
+            null
+          ]
+        }
+      },
+      "unknown": {
+        "alerts_only": {
+          "count": 0,
+          "n": 1154,
+          "rate": 0.0,
+          "wilson95": [
+            0,
+            0.003317897715887907
+          ]
+        },
+        "catch": {
+          "count": 0,
+          "n": 0,
+          "rate": null,
+          "wilson95": [
+            null,
+            null
+          ]
+        },
+        "false_alarm": {
+          "cluster95": [
+            0.015638575152041704,
+            0.05426356589147287
+          ],
+          "count": 36,
+          "icc": 0.2454308804673944,
+          "n": 1154,
+          "rate": 0.03119584055459272,
+          "wilson95": [
+            0.022617425634090606,
+            0.042885143974740164
+          ]
+        }
+      },
+      "untrusted_destination": {
+        "alerts_only": {
+          "count": 0,
+          "n": 0,
+          "rate": null,
+          "wilson95": [
+            null,
+            null
+          ]
+        },
+        "catch": {
+          "count": 0,
+          "n": 13,
+          "rate": 0.0,
+          "wilson95": [
+            0,
+            0.22810184305529166
+          ]
+        },
+        "false_alarm": {
+          "cluster95": [
+            null,
+            null
+          ],
+          "count": 0,
+          "icc": null,
+          "n": 0,
+          "rate": null,
+          "wilson95": [
+            null,
+            null
+          ]
+        }
+      }
+    },
+    "method": {
+      "first_parent": {
+        "alerts_only": {
+          "count": 0,
+          "n": 1154,
+          "rate": 0.0,
+          "wilson95": [
+            0,
+            0.003317897715887907
+          ]
+        },
+        "catch": {
+          "count": 0,
+          "n": 0,
+          "rate": null,
+          "wilson95": [
+            null,
+            null
+          ]
+        },
+        "false_alarm": {
+          "cluster95": [
+            0.015638575152041704,
+            0.05426356589147287
+          ],
+          "count": 36,
+          "icc": 0.2454308804673944,
+          "n": 1154,
+          "rate": 0.03119584055459272,
+          "wilson95": [
+            0.022617425634090606,
+            0.042885143974740164
+          ]
+        }
+      },
+      "introducing": {
+        "alerts_only": {
+          "count": 0,
+          "n": 0,
+          "rate": null,
+          "wilson95": [
+            null,
+            null
+          ]
+        },
+        "catch": {
+          "count": 3,
+          "n": 81,
+          "rate": 0.037037037037037035,
+          "wilson95": [
+            0.012674884458548488,
+            0.10332481380268184
+          ]
+        },
+        "false_alarm": {
+          "cluster95": [
+            null,
+            null
+          ],
+          "count": 0,
+          "icc": null,
+          "n": 0,
+          "rate": null,
+          "wilson95": [
+            null,
+            null
+          ]
+        }
+      },
+      "last_touch": {
+        "alerts_only": {
+          "count": 0,
+          "n": 0,
+          "rate": null,
+          "wilson95": [
+            null,
+            null
+          ]
+        },
+        "catch": {
+          "count": 0,
+          "n": 11,
+          "rate": 0.0,
+          "wilson95": [
+            2.7755575615628914e-17,
+            0.2588400172488141
+          ]
+        },
+        "false_alarm": {
+          "cluster95": [
+            null,
+            null
+          ],
+          "count": 0,
+          "icc": null,
+          "n": 0,
+          "rate": null,
+          "wilson95": [
+            null,
+            null
+          ]
+        }
+      }
+    },
+    "post_cutoff": {
+      "False": {
+        "alerts_only": {
+          "count": 0,
+          "n": 0,
+          "rate": null,
+          "wilson95": [
+            null,
+            null
+          ]
+        },
+        "catch": {
+          "count": 3,
+          "n": 75,
+          "rate": 0.04,
+          "wilson95": [
+            0.013695816001486477,
+            0.11113168623083756
+          ]
+        },
+        "false_alarm": {
+          "cluster95": [
+            null,
+            null
+          ],
+          "count": 0,
+          "icc": null,
+          "n": 0,
+          "rate": null,
+          "wilson95": [
+            null,
+            null
+          ]
+        }
+      },
+      "True": {
+        "alerts_only": {
+          "count": 0,
+          "n": 0,
+          "rate": null,
+          "wilson95": [
+            null,
+            null
+          ]
+        },
+        "catch": {
+          "count": 0,
+          "n": 17,
+          "rate": 0.0,
+          "wilson95": [
+            0,
+            0.18432366037156456
+          ]
+        },
+        "false_alarm": {
+          "cluster95": [
+            null,
+            null
+          ],
+          "count": 0,
+          "icc": null,
+          "n": 0,
+          "rate": null,
+          "wilson95": [
+            null,
+            null
+          ]
+        }
+      },
+      "unknown": {
+        "alerts_only": {
+          "count": 0,
+          "n": 1154,
+          "rate": 0.0,
+          "wilson95": [
+            0,
+            0.003317897715887907
+          ]
+        },
+        "catch": {
+          "count": 0,
+          "n": 0,
+          "rate": null,
+          "wilson95": [
+            null,
+            null
+          ]
+        },
+        "false_alarm": {
+          "cluster95": [
+            0.015638575152041704,
+            0.05426356589147287
+          ],
+          "count": 36,
+          "icc": 0.2454308804673944,
+          "n": 1154,
+          "rate": 0.03119584055459272,
+          "wilson95": [
+            0.022617425634090606,
+            0.042885143974740164
+          ]
+        }
+      }
+    },
+    "stream": {
+      "advisory": {
+        "count": 0,
+        "n": 92,
+        "rate": 0.0,
+        "wilson95": [
+          0,
+          0.04008280329209862
+        ]
+      },
+      "alerts": {
+        "count": 0,
+        "n": 92,
+        "rate": 0.0,
+        "wilson95": [
+          0,
+          0.04008280329209862
+        ]
+      },
+      "quick": {
+        "count": 3,
+        "n": 92,
+        "rate": 0.03260869565217391,
+        "wilson95": [
+          0.011150975342623229,
+          0.09153512338694722
+        ]
+      }
+    }
+  },
+  "catch": {
+    "count": 3,
+    "n": 92,
+    "rate": 0.03260869565217391,
+    "wilson95": [
+      0.011150975342623229,
+      0.09153512338694722
+    ]
+  },
+  "confirmed": {
+    "alerts_only": {
+      "count": 0,
+      "n": 0,
+      "rate": null,
+      "wilson95": [
+        null,
+        null
+      ]
+    },
+    "catch": {
+      "count": 0,
+      "n": 0,
+      "rate": null,
+      "wilson95": [
+        null,
+        null
+      ]
+    },
+    "false_alarm": {
+      "cluster95": [
+        null,
+        null
+      ],
+      "count": 0,
+      "icc": null,
+      "n": 0,
+      "rate": null,
+      "wilson95": [
+        null,
+        null
+      ]
+    }
+  },
+  "coverage": {
+    "engine_covered": 0,
+    "instrument_failure": 54,
+    "quick_only": 1246,
+    "unanalysable": 0
+  },
+  "deadlines": [
+    {
+      "applied_deadline_scale": 1.0,
+      "count": 1300,
+      "deadline_scale": 1.0,
+      "deadline_seconds": 30,
+      "lane": "docker"
+    }
+  ],
+  "false_alarm": {
+    "cluster95": [
+      0.015638575152041704,
+      0.05426356589147287
+    ],
+    "count": 36,
+    "icc": 0.2454308804673944,
+    "n": 1154,
+    "rate": 0.03119584055459272,
+    "wilson95": [
+      0.022617425634090606,
+      0.042885143974740164
+    ]
+  },
+  "total": 1300,
+  "unseen": {
+    "gate": "not_run"
+  }
+}
