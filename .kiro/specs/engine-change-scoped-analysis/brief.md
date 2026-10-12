@@ -396,3 +396,24 @@ bedrock + graphiti, the two sound pilot targets the static engine missed. Artifa
 Next: (a) measure the proof arm (can it elevate graphiti's suspicion to proven?); (b) stand up the DSPy hint loop
 and re-run bedrock; (c) widen the hunter to the 23 sound targets for a catch rate; (d) then a change-scoped + proven
 run for the release-relevant shape.
+
+## STRATEGIC PIVOT: core problem = unprovable reachability; FIX THE EVALUATION TARGET FIRST (2026-10-12)
+
+**Core problem (named with the maintainer):** the tool can SPOT dangerous ops but cannot prove they are
+ATTACKER-REACHABLE — the trust boundary lives outside the changed library code, in the caller/application a
+change-scoped scan does not see; and the project rightly won't emit unproven alarms. Recall → ~0 from unprovable
+reachability, not blindness. Cost/latency/engine-wall/corpus-labels were all downstream noise.
+
+**Chosen bet (of three — fix-target / advisory-with-conditions / build-prover): FIX THE EVALUATION TARGET FIRST.**
+A pre-push hook runs inside a developer's APPLICATION (entry points present, request→sink in-repo), but the pool is
+library-heavy, so we measured the hardest/wrong case.
+
+**Shape classification (LLM, 49 public vulns, $0.033 — `benchmarks/measurements/2026-10-12-pool-p1-shape-classification/`):**
+reachability_in_repo True only 12/49 (24%); 37/49 are pure libraries. A legitimate catch needs sound label AND
+reachability in-repo → **5/49 (~10%)**: graphiti, desktopcommandermcp, malla, document-merge-service, mcp-remote.
+**Shape predicted the hunter result** (graphiti app-shaped→caught; bedrock library→missed). So record-07's 3/92 is
+scored against a ~90%-illegitimate denominator — the near-zero catch is largely a TARGET MISMATCH.
+
+**Next:** deep scan (regex/engine/hunter) on the 5 fair targets → per-tier catch rate on the corrected set; then
+stand up an app-shaped eval set from known-vulnerable apps (VAmPI/NodeGoat/DjanGoat/vibe-py) and recompute the
+floor. Deferred bets (advisory-with-conditions, reachability prover) revisited once the fair-target numbers land.
