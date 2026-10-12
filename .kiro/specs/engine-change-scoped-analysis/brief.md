@@ -173,3 +173,46 @@ Sequence: finish G0 (record 07) → **E1/E2 first** (they decide whether the war
 barrier) → E3/E4 → L1/L2. Each on a clean host (the session times out contended). The change-scoped branch
 (`engine-change-scoped-evidence-pass`, unmerged) only trims the tier-2 per-pair tail and is a late add-on, not the
 lever.
+
+## E1/E2 RESULTS (measured 2026-10-12, CLEAN host, bedrock-agentcore, 3-file change, 300 s budget, head side)
+
+Four clean-host replays settle the engine barrier and **correct the earlier "~200 s graph-load wall"**, which was
+conflated with host contention from the running baseline replay:
+
+| Run | build | evidence (taint batch) | dominance | query_s | selected | deferred |
+|---|---|---|---|---|---|---|
+| contended (prior) | 48–127 | 243.8 | — | **0** | **0** | 1365 |
+| disposable (shipped, clean) | 27.9 | 225.1 | 34.8 | 34.8 | **356** | 1009 |
+| warm session `SESSION=1` (clean) | 32.9 | 228.6 | 25.9 | 25.9 | **356** | 1009 |
+| session + graph preload (clean) | 30.4 | 223.2 | 32.5 | 32.5 | **356** | 1009 |
+
+**Findings (each traced to a measured cause, not assumed):**
+
+1. **The engine arm was walled by CONTENTION, not an intrinsic floor.** The prior `query=0 / selected=0 / all
+   1365 deferred` was measured while the slice-1 baseline replay contended for the 7 GB host. On a clean host the
+   **shipped (disposable) engine already runs dataflow**: `query_seconds` 0 → ~35 s, `selected` 0 → **356 regions**,
+   dominance flow queries complete. This is the first time the engine arm produced analysis on this change.
+2. **The evidence/taint batch (~225 s) is INVARIANT to session and to graph preload** (225.1 / 228.6 / 223.2 across
+   the three clean runs). Warm session and preload-at-build do **not** reduce it. So the dominant cost is intrinsic
+   to the taint batch, not graph I/O.
+3. **Graph-load is cheap — it is NOT the wall.** The `dominance` query is a full cold query *including*
+   `importCpg`, and it costs only ~35 s. So `importCpg` is tens of seconds, not ~150 s. **This corrects the earlier
+   note** that attributed the ~150 s fixed to "first query JVM-start + graph-load + census." The ~160 s fixed lives
+   inside `taint.sc`'s own per-batch flow work (seed/sink memo fill over the distinct `(family, file)` combinations
+   it walks), paid lazily as the first pairs process — independent of the raw pair count.
+4. **The warm session is not the lever.** It starts fine on a clean host (the contended `session_startup_timeout`
+   was contention-only), but gives ~no benefit here: subsequent queries (dominance) are already cheap disposable,
+   and the evidence pass is a single batch call, so there is nothing for the session to amortise.
+5. **The barrier, restated:** `build(~30) + evidence(~225) ≈ 255 s` of a 300 s budget, so 1009/1365 regions defer
+   as `deadline_exhausted`; only 356 are analysed. The lever is **reducing the taint batch's work** — change-scope
+   the pair/family set so the batch fits budget — NOT session, preload, or a bigger JVM. The parked branch
+   (`engine-change-scoped-evidence-pass`) is therefore **relevant after all, on a clean host**, provided it scopes
+   the family/file set `taint.sc` walks (not merely the pair list); its adaptive portioning still needs replacing
+   with a fixed cap (per-call-fixed cost, not per-pair).
+6. **Side note:** the `base`-side CPG build failed (`cpg_build_failed`, 0.9 s) in the preload run — a separate
+   intermittent base-revision build issue; the `head` side built and analysed normally. Track separately.
+
+**What E1/E2 did NOT answer (the real G2 question):** on a clean host the engine selects 356 regions — *does it
+CATCH vulns regex misses?* That needs an **engine-on unseen pilot** (a handful of pool repos replayed with the
+engine arm enabled on a clean host) scored against record 07's regex-only floor (catch 3/92). That is the decisive
+next experiment, ahead of E3/E4/L1/L2.

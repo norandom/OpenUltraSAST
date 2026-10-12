@@ -102,18 +102,26 @@ Active G2 workstreams (2026-10-11; progress tracked in `.kiro/specs/engine-chang
 **#1 priority after record 07: get real (semantic) detection under the pre-push budget.** The record-07 baseline
 is **regex only** — verified: the push arms hardcode `model="disabled"`, `max_model_calls=0`, and the engine never
 ran (`engine_covered=0`); measured `catch≈2.5%`. Pattern rules alone will never be enough (else `grep` would do).
-The two tiers that carry detection both sat out: the **engine** (Joern dataflow, blocked by ~200 s fixed overhead)
-and the **LLM adjudication** (disabled in the push path). The workstream is an **efficiency barrier analysis** — a
-per-tier budget ledger against a realistic pre-push window (≤120 s target, 300 s hard):
-  - Engine: E1 split the ~150 s evidence-fixed (JVM/graph-load/census); E2 does a warm session with the graph
-    preloaded at build kill it (decisive); E3 analysis per-pair cost; E4 build vs repo size. Levers: warm session +
-    preload → cached census → change-scope the per-pair tail.
+The two tiers that carry detection both sat out: the **engine** (Joern dataflow) and the **LLM adjudication**
+(disabled in the push path). The workstream is an **efficiency barrier analysis** — a per-tier budget ledger
+against a realistic pre-push window (≤120 s target, 300 s hard):
+  - **Engine: E1/E2 DONE (2026-10-12, clean host) — see brief "E1/E2 RESULTS".** CORRECTION: the engine's
+    `query=0` wall was **host contention** (the baseline replay), not an intrinsic floor. On a clean host the
+    shipped engine **runs dataflow** (query 0→35 s, selected 0→**356 regions**). The evidence/taint batch (~225 s)
+    is **invariant to session and preload**; graph-load is cheap (~35 s incl `importCpg`). The real barrier is
+    `taint.sc`'s ~160 s per-batch flow work, so `build(~30)+evidence(~225)≈255 s` of 300 s defers 1009/1365
+    regions. Lever = **change-scope the family/file set** the taint batch walks (NOT session/preload). E3 analysis
+    per-pair cost; E4 build vs repo size remain.
+  - **DECISIVE next experiment (ahead of E3/E4/L1/L2): engine-on unseen PILOT.** Clean host selects 356 regions —
+    does it CATCH what regex misses? Replay a handful of pool repos with the engine arm enabled, clean host, score
+    vs record-07's regex-only floor (catch 3/92). This is the G2 payoff measurement.
   - LLM: L1 model latency and calls per push; L2 the recall LIFT of the LLM tier over regex+dataflow on the pool.
   - Deliverable: a barrier table (budget × tier combo → fits? measured recall/FP) → the minimal releasable config.
-  Each measured on a **clean host** (the session times out contended). Sequence E1/E2 first.
 
-- **Change-scoped engine analysis (late add-on, not the lever).** Branch `engine-change-scoped-evidence-pass`
-  (unmerged): trims only the ~86 s per-pair tier tail; does NOT cross the fixed-cost barrier. Reconsider after E1/E2.
+- **Change-scoped engine analysis — RECONSIDERED: relevant after all, on a clean host.** Branch
+  `engine-change-scoped-evidence-pass` (unmerged). E1/E2 show the barrier is the taint batch's per-batch work, so
+  scoping the **family/file set** it walks (not merely the pair list) is the lever; replace the adaptive portioning
+  with a fixed cap (cost is per-batch-fixed, not per-pair). Pair up with the engine-on pilot.
 - **Line-correspondence (done, necessary-not-sufficient).** `snapshot.py` run-aware anchoring (commit c39fbb8).
 
 **G3. Decide BLOCK per family** on the pool's false-alarm rate and the pooled precision bound (Req 6.4).
