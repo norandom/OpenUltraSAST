@@ -497,3 +497,39 @@ def test_combine_without_hunter_index_keeps_replay(fixture, tmp_path, directory_
     combined = tmp_path / "combined.json"
     hunter_arm.combine(replay_out, hunter_out, combined)
     assert score.load_records(combined) == [{**change, **a, "arms": {"a": "quick_only", "b": "missing"}}]
+
+
+def test_build_caller_classifies_through_the_real_deepseek_wrapper(tmp_path, monkeypatch):
+    """Regression: a bare DeepSeekChatClient keeps `usage` as a list, which made Caller.ask raise
+    ValueError on every live classification. build_caller must meter the client first."""
+    from types import SimpleNamespace
+
+    from openultrasast.model.endpoint import DeepSeekChatClient
+
+    answer = {
+        "verdict": "vulnerable",
+        "family": "access_control",
+        "confidence": 0.9,
+        "rationale": "The guard is skipped on line 2.",
+        "cited_lines": [2],
+    }
+
+    class Raw:
+        def complete_chat_raw(self, **kw):
+            return {"choices": [{"message": {"content": json.dumps(answer)}}], "usage": {"prompt_tokens": 3}}
+
+    (tmp_path / "app.py").write_text("def view(user):\n    return secret()\n")
+    finding = SimpleNamespace(
+        path="app.py", line=2, title="guard skipped", rationale="no check", tags=["tool-hunter", "family:views"], function_name="view"
+    )
+    # The module-wide fixture stubs classify; this test must run the real parser and Caller.
+    monkeypatch.setattr(hunter_arm, "classify", program.classify)
+    caller = hunter_arm.build_caller(DeepSeekChatClient(Raw()), "test-model")
+    assert isinstance(caller.client, hunter_arm.MeteredClient)
+    # A scripted client has no usage list and must pass through unwrapped.
+    assert hunter_arm.build_caller(tool_hunter.scripted_hunter_client(), "m").client is not None
+    assert not isinstance(hunter_arm.build_caller(tool_hunter.scripted_hunter_client(), "m").client, hunter_arm.MeteredClient)
+    families = tuple(family for family in hunter_arm.FAMILY_IDS if family != "unknown")
+    result = hunter_arm.classify_family(finding, tmp_path, caller=caller, families=families)
+    assert result["family"] == "access_control" and "error" not in result
+    assert result["verdict"] == "vulnerable" and result["cited_lines"] == [2]

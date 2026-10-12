@@ -18,6 +18,7 @@ from openultrasast.hunter_tools import clamp_repo_path
 from openultrasast.learn.program import ANSWER_FORMAT, Caller, Prompt, classify
 from openultrasast.model.endpoint import resolve_models
 from openultrasast.model.taxonomy import FAMILY_IDS, load_families
+from openultrasast.plane.budget import MeteredClient
 
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
@@ -49,6 +50,20 @@ _WEAKNESSES = (
 
 def _hunter_family(finding):
     return next((tag.split(":", 1)[1].strip() for tag in finding.tags if tag.startswith("family:")), "")
+
+
+def build_caller(client, model):
+    """The classifier's Caller over a metered client.
+
+    Caller.ask reads `client.usage` as a dict (the learn CLI always hands it a
+    MeteredClient). A bare DeepSeekChatClient keeps `usage` as a list of rows, which
+    made every live classification fail with ValueError while stubbed tests passed.
+    """
+    # Only the provider client keeps `usage` as a list of rows; scripted and metered clients
+    # already have the shape Caller.ask reads, so they pass through unchanged.
+    if isinstance(getattr(client, "usage", None), list):
+        return Caller(client=MeteredClient(client), model=model)
+    return Caller(client=client, model=model)
 
 
 def classify_family(finding, root, *, caller, families, context_lines=20):
@@ -99,6 +114,7 @@ def classify_family(finding, root, *, caller, families, context_lines=20):
         }
     except Exception as error:  # noqa: BLE001
         # Provider messages can contain credentials. Keep a short error type.
+        # Type only: an exception message can carry a model key or a URL, so it is never recorded.
         return {"family": "unknown", "error": type(error).__name__}
 
 
@@ -227,7 +243,7 @@ def _hunt_change(change, repos, *, client, model, max_steps, no_classify=False):
                 if not hotspots:
                     raise InstrumentFailure("no_readable_hotspots")
                 found = tool_hunter.run_tool_hunter(root, hotspots, client=client, model=model, max_steps=max_steps)
-                caller = Caller(client=client, model=model)
+                caller = build_caller(client, model)
                 families = tuple(family for family in FAMILY_IDS if family != "unknown")
                 stats = record["classifier"]
                 for finding in found:
