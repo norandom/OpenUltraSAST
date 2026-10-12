@@ -438,7 +438,9 @@ def test_multi_function_fix_is_one_push_with_all_case_ids(pair, tmp_path, monkey
         tmp_path / "multi", cases=cases, verifications=[accepted(case) for case in cases], repos={original["repo"]: git}, used=set()
     )
     loaded = replay.load_slice(tmp_path / "multi/pool-valid.toml", 1)
-    assert len(loaded) == 41 and len({row["id"] for row in loaded}) == 41
+    # One fix commit is one positive change, so the 20x negative ratio is 20, not 20 per
+    # accepted function. Two accepted functions still collapse to a single vulnerability push.
+    assert len(loaded) == 21 and len({row["id"] for row in loaded}) == 21
     (positive,) = [row for row in loaded if row["kind"] == "vulnerability"]
     assert set(positive["case_ids"]) == {case["id"] for case in cases}
     target = positive["targets"][1]

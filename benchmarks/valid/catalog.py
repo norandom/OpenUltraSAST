@@ -103,7 +103,13 @@ def build_cases(git, source, *, cwe: str | None = None, advisory_text: str = "")
             function=site["function"],
             method="fix_site",
         )
-        sides = read_functions(git, case)
+        try:
+            sides = read_functions(git, case)
+        except extract.InstrumentFailure:
+            # The fix renamed, moved, or removed the function, so there is no clean
+            # pre/post pair at this site. Skip it during enumeration. Verification
+            # stays strict: a verdict on an unread case is still rejected there.
+            continue
         if extract.normalized(sides["pre_fix"]) == extract.normalized(sides["post_fix"]):
             continue
         case["function_lines"] = [sides["pre_fix_lines"]]

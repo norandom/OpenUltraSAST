@@ -1,0 +1,165 @@
+{
+  "catalog_digest": "3f641f15619a54351ae5032fb06cc97f37d5876697f3b71bb966a3c1f539d3e4",
+  "dropped_count": 0,
+  "freeze_digest": "c866c0e812c0b54476c7168fdb0e4a20652de0d30485270afecbe51e5c35e424",
+  "guard_result": 0,
+  "history_heads": {
+    "bytebase/dbhub": "f7b31468be4ff0c70b1c662b3e535fe36f4dad06",
+    "contentful/contentful-mcp-server": "edb981b6e2a75173ff57e62ca344bc76a5eec766",
+    "fastapi-users/fastapi-users": "e9c57ff7ff2fd385bb0f6f795b524e9736b64290",
+    "i18next/i18next-http-middleware": "824bdfb49e777a499a13ea19fa70a07f8fe68ad2",
+    "imzbf/md-editor-v3": "1a6f4c61ebf38a836cc985b786f39a126441a835",
+    "jupyter-lsp/jupyterlab-lsp": "e2e569321bc45702718030fabfe7dd38d0457f25",
+    "matrix-org/matrix-appservice-bridge": "6392ab0550e23fffa9f014411148c667ba2e77da",
+    "nvbn/thefuck": "c7e7e1d884d3bb241ea6448f72a989434c2a35ec",
+    "ondata/ckan-mcp-server": "d7a24143699c64c4dcea0ca7041a19fc875f8cef",
+    "webpack/webpack-bundle-analyzer": "6046503c6e183cc2bcf069a7d58dcf87f4870f85",
+    "zenitram/malla": "97d141888677008e856a833b68199169efa6c828",
+    "zereight/gitlab-mcp": "3a5dff69ed7df5a0d1c3af388714f188ff2dc4af"
+  },
+  "label_check_counts": {
+    "confirmed": 31,
+    "refactor": 0,
+    "unchecked": 0,
+    "unclear": 0
+  },
+  "negative_ratio": 20,
+  "ordinary_exclusions": {
+    "bytebase/dbhub": {
+      "advisory_fix": 1,
+      "dependency": 13,
+      "eligible": 273,
+      "manifest_only": 54,
+      "merge_or_root": 19,
+      "no_source": 210,
+      "revert": 3,
+      "security": 26,
+      "size_cap": 12,
+      "vulnerable_function": 3
+    },
+    "contentful/contentful-mcp-server": {
+      "advisory_fix": 1,
+      "dependency": 202,
+      "eligible": 53,
+      "manifest_only": 1,
+      "merge_or_root": 14,
+      "no_source": 41,
+      "revert": 2,
+      "security": 12,
+      "size_cap": 10,
+      "vulnerable_function": 10
+    },
+    "fastapi-users/fastapi-users": {
+      "advisory_fix": 1,
+      "dependency": 346,
+      "eligible": 171,
+      "manifest_only": 18,
+      "merge_or_root": 19,
+      "no_source": 154,
+      "revert": 4,
+      "security": 17,
+      "size_cap": 2,
+      "vulnerable_function": 31
+    },
+    "i18next/i18next-http-middleware": {
+      "advisory_fix": 1,
+      "dependency": 47,
+      "eligible": 70,
+      "manifest_only": 74,
+      "merge_or_root": 4,
+      "no_source": 43,
+      "security": 8,
+      "vulnerable_function": 15
+    },
+    "imzbf/md-editor-v3": {
+      "advisory_fix": 1,
+      "dependency": 7,
+      "eligible": 576,
+      "manifest_only": 226,
+      "merge_or_root": 100,
+      "no_source": 161,
+      "revert": 7,
+      "security": 12,
+      "size_cap": 6,
+      "vulnerable_function": 51
+    },
+    "jupyter-lsp/jupyterlab-lsp": {
+      "advisory_fix": 1,
+      "dependency": 36,
+      "eligible": 131,
+      "manifest_only": 19,
+      "merge_or_root": 383,
+      "no_source": 90,
+      "size_cap": 5,
+      "vulnerable_function": 2
+    },
+    "matrix-org/matrix-appservice-bridge": {
+      "dependency": 18,
+      "eligible": 172,
+      "manifest_only": 10,
+      "merge_or_root": 235,
+      "no_source": 141,
+      "security": 4,
+      "size_cap": 3
+    },
+    "nvbn/thefuck": {
+      "advisory_fix": 1,
+      "dependency": 76,
+      "eligible": 429,
+      "manifest_only": 10,
+      "merge_or_root": 299,
+      "no_source": 114,
+      "revert": 3,
+      "security": 4,
+      "vulnerable_function": 1
+    },
+    "ondata/ckan-mcp-server": {
+      "advisory_fix": 1,
+      "dependency": 681,
+      "eligible": 72,
+      "manifest_only": 4,
+      "merge_or_root": 10,
+      "no_source": 310,
+      "revert": 2,
+      "security": 39,
+      "size_cap": 5,
+      "vulnerable_function": 71
+    },
+    "webpack/webpack-bundle-analyzer": {
+      "dependency": 43,
+      "eligible": 82,
+      "manifest_only": 18,
+      "merge_or_root": 104,
+      "no_source": 131,
+      "revert": 2,
+      "security": 4,
+      "size_cap": 1,
+      "vulnerable_function": 18
+    },
+    "zenitram/malla": {
+      "advisory_fix": 1,
+      "dependency": 5,
+      "eligible": 76,
+      "manifest_only": 1,
+      "merge_or_root": 1,
+      "no_source": 25,
+      "security": 8,
+      "size_cap": 3,
+      "vulnerable_function": 7
+    },
+    "zereight/gitlab-mcp": {
+      "advisory_fix": 1,
+      "dependency": 77,
+      "eligible": 170,
+      "manifest_only": 41,
+      "merge_or_root": 280,
+      "no_source": 211,
+      "revert": 3,
+      "security": 16,
+      "size_cap": 7,
+      "vulnerable_function": 8
+    }
+  },
+  "used_set_digest": "fb7b0cc1f38bc2fb513123d8b4a0e16afd5501b42ef1a49ad7ecedd8eba55885",
+  "verification_digest": "9363de4b7466953ad72cb29f3e91a01b3cfc8411b35310e0fa270f967836b41b"
+}

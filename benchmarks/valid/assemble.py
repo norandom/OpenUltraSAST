@@ -77,7 +77,11 @@ def freeze(
         head = (history_heads or {}).get(repo) or git.run("rev-parse", "HEAD").strip()
         heads[repo] = head
         history = sorted(extract.ordinary_history(git, head), key=lambda row: row["head"])
-        ordinary, exclusions = negatives(history, fixes, functions, count=ratio * len(positives), seed=seed)
+        # Ratio is per positive CHANGE (a fix commit), not per accepted function. Several
+        # accepted functions in one fix collapse to one vulnerability change below, so the
+        # negative count must track distinct (commit, parent) pairs.
+        change_count = len({(case["commit"], case["parent"]) for case in positives})
+        ordinary, exclusions = negatives(history, fixes, functions, count=ratio * change_count, seed=seed)
         draws[repo] = exclusions
         changes = []
         pairs = defaultdict(list)
