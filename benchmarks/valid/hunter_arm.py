@@ -15,6 +15,7 @@ from openultrasast import tool_hunter
 from openultrasast.complexity.map import Hotspot
 from openultrasast.config import load_config
 from openultrasast.hunter_tools import clamp_repo_path
+from openultrasast.learn.program import ANSWER_FORMAT, Caller, Prompt, classify
 from openultrasast.model.endpoint import resolve_models
 from openultrasast.model.taxonomy import FAMILY_IDS, load_families
 
@@ -46,18 +47,82 @@ _WEAKNESSES = (
 )
 
 
-def finding_defect(finding):
-    """Translate the hunter's own CWE, family tag or weakness title to a defect."""
+def _hunter_family(finding):
+    return next((tag.split(":", 1)[1].strip() for tag in finding.tags if tag.startswith("family:")), "")
+
+
+def classify_family(finding, root, *, caller, families, context_lines=20):
+    """Classify one suspicion from its code, without access to benchmark labels."""
+    try:
+        data = clamp_repo_path(root, finding.path).read_bytes()
+        print(f"{finding.path}:{finding.line}: {len(data)} bytes read for classification", flush=True)
+        lines = data.decode("utf-8").splitlines()
+        line = finding.line if finding.line is not None else 1
+        valid_lines = range(max(1, line - context_lines), min(len(lines), line + context_lines) + 1)
+        excerpt = "\n".join(f"{number}  {lines[number - 1]}" for number in valid_lines)
+        if not excerpt or not any(lines[number - 1].strip() for number in valid_lines):
+            return {"family": "unknown", "error": "empty_excerpt"}
+        taxonomy = load_families()
+        descriptions = "\n".join(f"{family}: {' '.join(taxonomy.by_id(family).description.splitlines())}" for family in families)
+        prompt = Prompt(
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You are a security reviewer classifying ONE suspected weakness into exactly one family from the given list."
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": (
+                        f"Families:\n{descriptions}\n\nTitle: {finding.title}\nRationale: {finding.rationale}\n"
+                        f"Hunter family: {_hunter_family(finding)}\nLocation: {finding.path}:{finding.line}\n\n"
+                        f"Code:\n{excerpt}\n\n{ANSWER_FORMAT}"
+                    ),
+                },
+            ],
+            example_ids=(),
+            demo_ids=(),
+            valid_lines=frozenset(valid_lines),
+        )
+    except Exception as error:  # noqa: BLE001
+        return {"family": "unknown", "error": f"input_error:{type(error).__name__}"}
+    try:
+        decision = classify(prompt, caller, k=1, families=families)
+        return {
+            "family": decision.family if decision.family in FAMILY_IDS else "unknown",
+            "verdict": decision.verdict,
+            "confidence": decision.s,
+            "rationale": decision.rationale,
+            "cited_lines": list(decision.cited_lines),
+            "parse_failed": decision.parse_failed,
+        }
+    except Exception as error:  # noqa: BLE001
+        # Provider messages can contain credentials. Keep a short error type.
+        return {"family": "unknown", "error": type(error).__name__}
+
+
+def finding_defect(finding, classification=None):
+    """Use the classifier's family, or the hunter heuristic when classification is off."""
     taxonomy = load_families()
-    raw_family = next((tag.split(":", 1)[1].strip() for tag in finding.tags if tag.startswith("family:")), "")
-    evidence = " ".join([*finding.tags, finding.title])
-    explicit = re.search(r"\bCWE-\d+\b", evidence, re.I)
-    cwe = explicit.group().upper() if explicit else next((cwe for pattern, cwe in _WEAKNESSES if re.search(pattern, evidence, re.I)), None)
-    mapped = taxonomy.family_of_cwe(cwe or "")
-    mechanism = taxonomy.family_of_mechanism(raw_family)
-    family = raw_family if raw_family in FAMILY_IDS else mechanism.id if mechanism else mapped.id if mapped else "unknown"
-    if mapped and mapped.id != family:
-        cwe = None
+    raw_family = _hunter_family(finding)
+    if classification is None:
+        evidence = " ".join([*finding.tags, finding.title])
+        explicit = re.search(r"\bCWE-\d+\b", evidence, re.I)
+        cwe = (
+            explicit.group().upper()
+            if explicit
+            else next((cwe for pattern, cwe in _WEAKNESSES if re.search(pattern, evidence, re.I)), None)
+        )
+        mapped = taxonomy.family_of_cwe(cwe or "")
+        mechanism = taxonomy.family_of_mechanism(raw_family)
+        family = raw_family if raw_family in FAMILY_IDS else mechanism.id if mechanism else mapped.id if mapped else "unknown"
+        if mapped and mapped.id != family:
+            cwe = None
+    else:
+        family = classification["family"]
+        # Taxonomy CWE sets have no order. Choose the first numeric CWE stably.
+        cwe = min(taxonomy.by_id(family).cwes, key=lambda token: int(token.split("-", 1)[1]), default=None) if family != "unknown" else None
     return {
         "defect_id": finding.finding_id,
         "family": family,
@@ -65,6 +130,10 @@ def finding_defect(finding):
         "function": finding.function_name,
         "locations": [[finding.path, finding.line if finding.line is not None else 0]],
         "source": "hunter",
+        "hunter_family": raw_family,
+        "title": finding.title,
+        "rationale": finding.rationale,
+        "classifier": classification,
     }
 
 
@@ -88,7 +157,7 @@ def _inputs(out):
     return entries
 
 
-def _hunt_change(change, repos, *, client, model, max_steps):
+def _hunt_change(change, repos, *, client, model, max_steps, no_classify=False):
     instrument = {
         "hook_exit": 0,
         "hook_bytes_read": 0,
@@ -105,6 +174,7 @@ def _hunt_change(change, repos, *, client, model, max_steps):
         "instrument": instrument,
         "push": {"admission": {"defects": [], "dispositions": []}, "quick_tier": []},
         "skipped": [],
+        "classifier": {"calls": 0, "parse_failed": 0, "families": {}},
     }
     try:
         if not all(SHA.fullmatch(change[side]) for side in ("base", "head")):
@@ -157,7 +227,21 @@ def _hunt_change(change, repos, *, client, model, max_steps):
                 if not hotspots:
                     raise InstrumentFailure("no_readable_hotspots")
                 found = tool_hunter.run_tool_hunter(root, hotspots, client=client, model=model, max_steps=max_steps)
-                record["push"]["admission"]["defects"] = [finding_defect(finding) for finding in found]
+                caller = Caller(client=client, model=model)
+                families = tuple(family for family in FAMILY_IDS if family != "unknown")
+                stats = record["classifier"]
+                for finding in found:
+                    classification = None
+                    if not no_classify:
+                        classification = classify_family(finding, root, caller=caller, families=families)
+                        error = classification.get("error", "")
+                        if error != "empty_excerpt" and not error.startswith("input_error:"):
+                            stats["calls"] += 1
+                        stats["parse_failed"] += classification.get("parse_failed", 0)
+                    defect = finding_defect(finding, classification)
+                    record["push"]["admission"]["defects"].append(defect)
+                    family = defect["family"]
+                    stats["families"][family] = stats["families"].get(family, 0) + 1
             finally:
                 if added:
                     git.run("worktree", "remove", "--force", str(root))
@@ -172,7 +256,9 @@ def _hunt_change(change, repos, *, client, model, max_steps):
     return record
 
 
-def run(manifest, repos_path, out, *, slice_id="1", max_steps=tool_hunter.DEFAULT_MAX_STEPS, only="all", client_mode=None):
+def run(
+    manifest, repos_path, out, *, slice_id="1", max_steps=tool_hunter.DEFAULT_MAX_STEPS, only="all", client_mode=None, no_classify=False
+):
     if max_steps < 1:
         raise ValueError("max_steps must be positive")
     changes = load_slice(manifest, slice_id)
@@ -217,7 +303,7 @@ def run(manifest, repos_path, out, *, slice_id="1", max_steps=tool_hunter.DEFAUL
         # sequence. Live clients remain shared and are resolved only once.
         if client_mode == "scripted":
             client = tool_hunter.scripted_hunter_client()
-        record = _hunt_change(entry["change"], repos, client=client, model=model, max_steps=max_steps)
+        record = _hunt_change(entry["change"], repos, client=client, model=model, max_steps=max_steps, no_classify=no_classify)
         record["input_digest"] = entry["input_digest"]
         _write_json(_record_path(out, entry["item_id"]), record)
         failed |= record["status"] == "instrument_failure"
@@ -284,6 +370,7 @@ def main(argv=None):
     hunt.add_argument("--max-steps", type=int, default=tool_hunter.DEFAULT_MAX_STEPS)
     hunt.add_argument("--only", choices=("vulnerability", "ordinary", "all"), default="all")
     hunt.add_argument("--client", choices=("scripted",))
+    hunt.add_argument("--no-classify", action="store_true", help="Use the hunter family heuristic without classifier calls")
     join = commands.add_parser("combine")
     join.add_argument("replay_out", type=Path)
     join.add_argument("hunter_out", type=Path)
@@ -292,7 +379,16 @@ def main(argv=None):
     if args.command == "combine":
         combine(args.replay_out, args.hunter_out, args.out)
         return 0
-    return run(args.manifest, args.repos, args.out, slice_id=args.slice, max_steps=args.max_steps, only=args.only, client_mode=args.client)
+    return run(
+        args.manifest,
+        args.repos,
+        args.out,
+        slice_id=args.slice,
+        max_steps=args.max_steps,
+        only=args.only,
+        client_mode=args.client,
+        no_classify=args.no_classify,
+    )
 
 
 if __name__ == "__main__":

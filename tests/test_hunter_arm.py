@@ -13,7 +13,10 @@ import pytest
 from openultrasast import tool_hunter
 from openultrasast.complexity.map import Hotspot
 from openultrasast.config import load_config
+from openultrasast.learn import program
+from openultrasast.learn.program import ANSWER_FORMAT, PARSE_FAILED, Caller, Decision, aggregate
 from openultrasast.model.endpoint import resolve_models
+from openultrasast.model.taxonomy import FAMILY_IDS, load_families
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 hunter_arm = importlib.import_module("benchmarks.valid.hunter_arm")
@@ -31,6 +34,7 @@ def offline(monkeypatch):
     for name in ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_OBJECT_DIRECTORY", "GIT_ALTERNATE_OBJECT_DIRECTORIES"):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setattr(tool_hunter, "resolve_hunter_client", lambda: tool_hunter.scripted_hunter_client())
+    monkeypatch.setattr(hunter_arm, "classify", lambda *args, **kwargs: decision("injection"))
 
 
 @pytest.fixture
@@ -95,6 +99,29 @@ def record_path(out, item_id):
     return out / (hashlib.sha256(item_id.encode()).hexdigest() + ".json")
 
 
+def decision(family):
+    return Decision("vulnerable", family, 0.9, {"vulnerable": 1}, "Protected operation has no guard at line 2", (2,), 0, ())
+
+
+def raw_finding(*, line=2):
+    (finding,) = tool_hunter._findings_from_content(
+        Path("/tmp"),
+        [],
+        json.dumps(
+            [
+                {
+                    "path": "app.py",
+                    "line": line,
+                    "title": "Read-only mode bypass",
+                    "rationale": "A protected write is allowed",
+                    "family": "sql-parser",
+                }
+            ]
+        ),
+    )
+    return finding
+
+
 def test_positive_is_scoreable_and_checkout_is_removed(fixture, monkeypatch, capsys):
     git, change, manifest, repos, out = fixture
     client = flagged_client()
@@ -103,7 +130,7 @@ def test_positive_is_scoreable_and_checkout_is_removed(fixture, monkeypatch, cap
     (row,) = score.load_records(out)
     (defect,) = row["push"]["admission"]["defects"]
     assert score.catches(row) == ["alerts"]
-    assert defect["family"] == "injection" and defect["cwe"] == "CWE-89"
+    assert defect["family"] == "injection" and defect["cwe"] == "CWE-77"
     assert defect["locations"] == [["app.py", 2]] and defect["function"] == "search"
     assert defect["source"] == "hunter"
     assert row["status"] == "hunter_covered" and row["done"]
@@ -221,6 +248,172 @@ def test_classification_does_not_borrow_change_label(fixture):
     assert not score.catches(row)
     unknown = hunter_arm.finding_defect(replace(finding, tags=[], title="Unclassified concern", rationale=""))
     assert unknown["family"] == "unknown" and unknown["cwe"] is None
+
+
+def test_free_text_family_is_classified_and_scoreable(fixture, monkeypatch):
+    _, change, manifest, repos, out = fixture
+    change["family"] = "access_control"
+    change["cwe"] = "CWE-284"
+    monkeypatch.setattr(hunter_arm, "load_slice", lambda *args: [change])
+    finding = raw_finding()
+    monkeypatch.setattr(tool_hunter, "run_tool_hunter", lambda *args, **kwargs: [finding, replace(finding, finding_id="second")])
+    client = tool_hunter.scripted_hunter_client()
+    monkeypatch.setattr(tool_hunter, "resolve_hunter_client", lambda: client)
+    prompts = []
+
+    def classify(prompt, caller, k, *, families):
+        assert isinstance(caller, Caller) and caller.client is client
+        assert caller.model == resolve_models(load_config(dotenv=False))[0]
+        assert k == 1 and tuple(families) == tuple(f for f in FAMILY_IDS if f != "unknown")
+        assert prompt.example_ids == prompt.demo_ids == ()
+        assert prompt.valid_lines == frozenset({1, 2})
+        system, user = prompt.messages
+        assert system["role"] == "system" and user["role"] == "user"
+        content = user["content"]
+        for family in families:
+            assert load_families().by_id(family).description in content
+        assert "sql-parser" in content and finding.title in content and finding.rationale in content
+        assert "app.py:2" in content and "1  def search(q):" in content and "2      return db.execute" in content
+        assert content.endswith(ANSWER_FORMAT)
+        assert change["id"] not in content and change["cwe"] not in content
+        prompts.append(prompt)
+        return decision("access_control")
+
+    monkeypatch.setattr(hunter_arm, "classify", classify)
+    assert hunter_arm.main(["run", str(manifest), "--repos", str(repos), "--out", str(out)]) == 0
+    (row,) = score.load_records(out)
+    assert score.catches(row) == ["alerts"]
+    assert len(prompts) == 2
+    assert row["classifier"] == {"calls": 2, "parse_failed": 0, "families": {"access_control": 2}}
+    for defect in row["push"]["admission"]["defects"]:
+        assert defect["family"] == "access_control" and defect["cwe"] == "CWE-284"
+        assert defect["hunter_family"] == "sql-parser" and defect["title"] == finding.title
+        assert defect["rationale"] == finding.rationale
+        assert defect["classifier"] == {
+            "family": "access_control",
+            "verdict": "vulnerable",
+            "confidence": 0.9,
+            "rationale": decision("access_control").rationale,
+            "cited_lines": [2],
+            "parse_failed": 0,
+        }
+
+
+@pytest.mark.parametrize("result", [decision("none"), aggregate([PARSE_FAILED])])
+def test_classifier_abstention_is_unknown_and_done(fixture, monkeypatch, result):
+    _, _, manifest, repos, out = fixture
+    monkeypatch.setattr(tool_hunter, "run_tool_hunter", lambda *args, **kwargs: [raw_finding()])
+    monkeypatch.setattr(hunter_arm, "classify", lambda *args, **kwargs: result)
+    assert hunter_arm.main(["run", str(manifest), "--repos", str(repos), "--out", str(out)]) == 0
+    (row,) = score.load_records(out)
+    (defect,) = row["push"]["admission"]["defects"]
+    assert defect["family"] == "unknown" and defect["cwe"] is None
+    assert defect["classifier"]["parse_failed"] == result.parse_failed
+    assert row["classifier"] == {"calls": 1, "parse_failed": result.parse_failed, "families": {"unknown": 1}}
+    assert row["done"] and row["status"] == "hunter_covered"
+    assert score.coverage(row) != "instrument_failure" and score.catches(row) == []
+
+
+def test_classifier_exception_is_a_scoreable_miss(fixture, monkeypatch):
+    _, _, manifest, repos, out = fixture
+    monkeypatch.setattr(tool_hunter, "run_tool_hunter", lambda *args, **kwargs: [raw_finding()])
+
+    def classify(*args, **kwargs):
+        raise RuntimeError("private model key must not be logged")
+
+    monkeypatch.setattr(hunter_arm, "classify", classify)
+    assert hunter_arm.main(["run", str(manifest), "--repos", str(repos), "--out", str(out)]) == 0
+    (row,) = score.load_records(out)
+    (defect,) = row["push"]["admission"]["defects"]
+    assert defect["family"] == "unknown" and defect["classifier"]["error"] == "RuntimeError"
+    assert row["done"] and row["status"] == "hunter_covered"
+    assert score.coverage(row) != "instrument_failure" and score.catches(row) == []
+    assert row["classifier"] == {"calls": 1, "parse_failed": 0, "families": {"unknown": 1}}
+    assert "private model key" not in json.dumps(row)
+
+
+def test_no_classify_retains_heuristic_and_audit(fixture, monkeypatch):
+    _, _, manifest, repos, out = fixture
+    finding = replace(raw_finding(), title="SQL injection (CWE-89)")
+    monkeypatch.setattr(tool_hunter, "run_tool_hunter", lambda *args, **kwargs: [finding])
+
+    def forbidden(*args, **kwargs):
+        pytest.fail("classifier called with --no-classify")
+
+    monkeypatch.setattr(hunter_arm, "classify", forbidden)
+    assert hunter_arm.main(["run", str(manifest), "--repos", str(repos), "--out", str(out), "--no-classify"]) == 0
+    (row,) = score.load_records(out)
+    (defect,) = row["push"]["admission"]["defects"]
+    assert defect["family"] == "injection" and defect["cwe"] == "CWE-89"
+    assert score.catches(row) == ["alerts"]
+    assert defect["hunter_family"] == "sql-parser" and defect["title"] == finding.title
+    assert defect["rationale"] == finding.rationale and defect["classifier"] is None
+    assert row["classifier"] == {"calls": 0, "parse_failed": 0, "families": {"injection": 1}}
+
+
+@pytest.mark.parametrize("line, expected", [(1, range(1, 22)), (30, range(10, 51)), (60, range(40, 61))])
+def test_classify_family_excerpt_is_numbered_and_clamped(tmp_path, monkeypatch, line, expected, capsys):
+    text = "".join(f"source_{n}\n" for n in range(1, 61))
+    (tmp_path / "app.py").write_text(text)
+
+    def classify(prompt, caller, k, *, families):
+        assert prompt.valid_lines == frozenset(expected)
+        content = prompt.messages[1]["content"]
+        for n in expected:
+            assert f"{n}  source_{n}\n" in content
+        return decision("access_control")
+
+    monkeypatch.setattr(hunter_arm, "classify", classify)
+    result = hunter_arm.classify_family(raw_finding(line=line), tmp_path, caller=Caller(None, "offline"), families=("access_control",))
+    assert result["family"] == "access_control"
+    assert f"{len(text.encode())} bytes read" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("failure", ["empty", "unreadable", "out_of_range"])
+def test_missing_excerpt_is_unknown_without_classifying(fixture, monkeypatch, failure):
+    _, _, manifest, repos, out = fixture
+
+    def hunter(root, *args, **kwargs):
+        if failure == "empty":
+            (root / "app.py").write_text("")
+        if failure == "unreadable":
+            (root / "app.py").unlink()
+        return [raw_finding(line=200 if failure == "out_of_range" else 2)]
+
+    def forbidden(*args, **kwargs):
+        pytest.fail("classifier called without a readable excerpt")
+
+    monkeypatch.setattr(tool_hunter, "run_tool_hunter", hunter)
+    monkeypatch.setattr(hunter_arm, "classify", forbidden)
+    assert hunter_arm.main(["run", str(manifest), "--repos", str(repos), "--out", str(out)]) == 0
+    (row,) = score.load_records(out)
+    (defect,) = row["push"]["admission"]["defects"]
+    assert defect["family"] == "unknown"
+    assert defect["classifier"]["error"] == ("input_error:FileNotFoundError" if failure == "unreadable" else "empty_excerpt")
+    assert row["classifier"] == {"calls": 0, "parse_failed": 0, "families": {"unknown": 1}}
+    assert row["done"] and row["status"] == "hunter_covered" and score.catches(row) == []
+
+
+@pytest.mark.parametrize("failure", ["off_list", "bad_citation", "retry_success"])
+def test_classify_family_reuses_parser_and_retry(tmp_path, monkeypatch, failure):
+    (tmp_path / "app.py").write_text("def search(q):\n    write(q)\n")
+    good = {
+        "verdict": "vulnerable",
+        "family": "access_control",
+        "confidence": 0.9,
+        "rationale": "Missing guard at line 2",
+        "cited_lines": [2],
+    }
+    bad = {**good, "family": "sql-parser"} if failure == "off_list" else {**good, "cited_lines": [1000]}
+    contents = [bad] if failure == "off_list" else [bad, good if failure == "retry_success" else bad]
+    client = tool_hunter.ScriptedChatClient([tool_hunter.ChatResponse(content=json.dumps(answer)) for answer in contents])
+    monkeypatch.setattr(hunter_arm, "classify", program.classify)
+    result = hunter_arm.classify_family(
+        raw_finding(), tmp_path, caller=Caller(client, "offline"), families=tuple(f for f in FAMILY_IDS if f != "unknown")
+    )
+    assert len(client.calls) == len(contents)
+    assert result["family"] == ("access_control" if failure == "retry_success" else "unknown")
+    assert result["parse_failed"] == (1 if failure == "bad_citation" else 0)
 
 
 def write_arm(out, entries, records):
