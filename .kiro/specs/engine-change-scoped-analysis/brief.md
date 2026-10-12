@@ -298,3 +298,41 @@ attacker-reachable (intent, not pattern). So:
 false-alarm cost on the ordinary changes. Stage it (5–10 sizing → ~10–20 → full on lift). This makes "#2 guided by
 #1" the concrete G2 detection workstream; budget/change-scoping and change-anchoring stay deprioritised until it
 yields findings.
+
+## BANKS SIZING + "2 guided by 1" validated (2026-10-12, budget-approved, DeepSeek)
+
+Sized the LLM tier on banks (the clearest pilot miss) with the project's own DeepSeek client (`deepseek-flash`).
+
+**Infra + cost (sizing answer):** DeepSeek reachable, model id `deepseek-flash` valid. **~$0.00016–0.00025 per
+call, ~1.1 s latency.** Sub-cent per push even at 8 candidates × a few regions. The GLM/abliteration fallback
+(`ABLITERATION_*`) currently errors `HTTP 422` on the `thinking` request param — a client fix (don't send
+`thinking` to that endpoint) is needed before it can be used; DeepSeek works today so it is not blocking.
+
+**"2 guided by 1" validated as a mechanism — the LLM gives the correct verdict WHEN given the real sink + source
+context:**
+- Asked about `_load` (the pool's SZZ-labelled site, 135–141): `vulnerable=false` — *correct*, `_load` reconstructs
+  paths from its own index, not the sink.
+- Asked about the REAL sink `from_prompt_path`/`set()` line 44 (`path / f"{prompt.name}…"; write_text`) with the
+  context that `prompt.name` can be request-derived: **`vulnerable=true`** — *"prompt.name is joined into a
+  filesystem path and written without sanitization… path traversal or arbitrary file write."* A correct catch.
+
+**Two blockers to realising it in the live pipeline (both now concrete):**
+1. **Context, not single-shot.** The model only catches with the real sink + caller/source context. A single-shot
+   question on the ranker's region (which pointed at `_load`, and at the benign local-glob `_scan`) does not. This
+   requires the **agentic search-with-proof hunter** (explores callers/entry points to establish the trust
+   boundary), not the single CANDIDATE_QUESTION path. That is more calls → the real cost driver to size next.
+2. **Corpus-label soundness.** The pool's banks label is **mislocated**: `head_lines=[[30],[104],[138–141]]`,
+   `function=_load` — the real sink is line **44**, outside head_lines±10 and a different function. So (a) even a
+   correct finding at line 44 would NOT score as a catch under `location_match`, and (b) the sink pre-exists in base
+   (the change did not touch it), so a change-scoped pre-push hook **correctly stays quiet** — the pool even
+   annotates this bias ("delta hook can correctly stay quiet"). **Part of the pilot's engine 0/5 is this SZZ
+   mislocation, not a detection failure.**
+
+**Revised next steps (budget approved, stay staged):**
+- **Validate the 5 pilot labels first** (cheap, LLM-assisted corpus audit): for each, is the real sink inside the
+  changed lines, and is it change-introduced vs pre-existing-in-base? Only sound, change-located vulns are fair
+  targets. This separates true detection gaps from SZZ artifacts before spending on detection runs.
+- **Then run the AGENTIC hunter** (search-with-proof) on the sound targets and size its per-vuln call count/cost;
+  measure catch + false-alarm (on ordinary changes) vs regex 1/5. The single-shot path is insufficient; the hunter
+  is the real "#1".
+- Feed confirmed source shapes (e.g. library param → path join) back as guarded static facts (#2).
