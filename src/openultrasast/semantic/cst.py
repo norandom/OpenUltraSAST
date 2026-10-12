@@ -43,6 +43,14 @@ _KIND = {
 _KIND["cpp"] = _KIND["c"]
 _KIND["typescript"] = _KIND["javascript"]
 _KIND["tsx"] = _KIND["javascript"]
+_KIND["php"] = {
+    "function": frozenset({"function_definition", "method_declaration"}),
+    "assign": frozenset({"assignment_expression", "augmented_assignment_expression"}),
+    "call": frozenset({"function_call_expression", "member_call_expression", "scoped_call_expression"}),
+    "args": frozenset({"arguments"}),
+    "string": frozenset({"string", "encapsed_string"}),
+    "params": frozenset({"formal_parameters"}),
+}
 
 _CONST = frozenset(
     {
@@ -183,6 +191,11 @@ def _call(node: Any, kinds: dict[str, frozenset[str]]) -> CallSite:
 
 
 def _callee_name(node: Any, args_node: Any) -> str:
+    if node.type in {"member_call_expression", "scoped_call_expression"}:
+        receiver = node.child_by_field_name("object") or node.child_by_field_name("scope")
+        name = node.child_by_field_name("name")
+        if receiver is not None and name is not None:
+            return f"{_text(receiver)}->{_text(name)}"
     idents = [
         _text(child)
         for child in getattr(node, "named_children", ()) or ()
@@ -207,7 +220,7 @@ def _call_name(node: Any, kinds: dict[str, frozenset[str]]) -> str | None:
 
 def _function_name(node: Any) -> str:
     for child in getattr(node, "named_children", ()) or ():
-        if child.type == "identifier":
+        if child.type in {"identifier", "name"}:
             return _text(child)
         if child.type == "function_declarator":
             for grandchild in getattr(child, "named_children", ()) or ():
@@ -240,7 +253,7 @@ def _left_name(node: Any) -> str:
 def _identifiers(node: Any) -> tuple[str, ...]:
     names: list[str] = []
     for child in _walk(node):
-        if child.type == "identifier":
+        if child.type in {"identifier", "variable_name"}:
             names.append(_text(child))
     return tuple(names)
 

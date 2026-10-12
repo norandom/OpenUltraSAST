@@ -15,6 +15,14 @@ from typing import Any
 
 
 def add_commands(learn_sub: Any) -> None:
+    mechanisms = learn_sub.add_parser("mechanisms", help="deterministic candidate discharge facts (no admission)")
+    mechanisms_sub = mechanisms.add_subparsers(dest="mechanisms_command", required=True)
+    mine = mechanisms_sub.add_parser("mine", help="mine fix pairs; no model or fact-table writes")
+    mine.add_argument("--memory", help="the example store (default OUSAST_MEMORY)")
+    mine.add_argument("--out", type=Path, required=True, help="candidate JSONL under the results root, outside this repository")
+    mine.add_argument("--profile", choices=("static", "plane"), default="static")
+    mine.add_argument("--spec", type=Path, help="decision engine compile spec defining the fold seed/split")
+    mine.add_argument("--root", type=Path, default=Path("."), help="repository root for the counts-only measurement")
     memory = learn_sub.add_parser("memory", help="the decision engine's local memory of labelled examples")
     memory_sub = memory.add_subparsers(dest="memory_command", required=True)
     build = memory_sub.add_parser("build", help="label + feature record + excerpt -> example rows (no model)")
@@ -97,6 +105,8 @@ def add_commands(learn_sub: Any) -> None:
 
 
 def run(args: argparse.Namespace) -> int:
+    if args.learn_command == "mechanisms":
+        return _mechanisms_mine(args)
     if args.learn_command == "audit-leaks":
         return _audit_leaks(args)
     if args.learn_command == "memory" and args.memory_command == "build":
@@ -109,6 +119,25 @@ def run(args: argparse.Namespace) -> int:
         return _experiment(args)
     print(f"learn: unknown command {args.learn_command}", file=sys.stderr)
     return 2
+
+
+def _mechanisms_mine(args: argparse.Namespace) -> int:
+    from ..plane.memory import MemoryStoreError, open_store
+    from ..plane.reconciler import results_root
+    from .mechanisms import mine_store, write_result
+
+    try:
+        root = args.root.resolve()
+        out = args.out.resolve()
+        if out.is_relative_to(root) or not out.is_relative_to(results_root().resolve()):
+            raise ValueError("--out must be under the results root and outside the repository")
+        result = mine_store(open_store(args.memory), profile=args.profile, spec_path=args.spec)
+        write_result(result, out, root=root, results=results_root())
+    except (ValueError, OSError, MemoryStoreError) as exc:
+        print(f"learn mechanisms mine: {exc}", file=sys.stderr)
+        return 2
+    print(json.dumps(result.record, sort_keys=True))
+    return 0 if result.record["pairs_mined"] else 2
 
 
 def _experiment(args: argparse.Namespace) -> int:
