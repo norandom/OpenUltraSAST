@@ -62,6 +62,8 @@ nav:
       - Token ergonomics: token-ergonomics.md
   - Evaluation: evaluation.md
   - Using it:
+      - Pre-push security for developers: pre-push-for-developers.md
+      - 'Use case: catch, prove, fix, re-verify': use-case-fix-and-reverify.md
       - Examples: examples.md
       - Threat model: threat-model.md
   - Operations (maintainers):
