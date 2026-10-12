@@ -5,7 +5,7 @@
 ## Introduction
 
 The detector's instability is structural, not statistical. Measured on 2026-09-06 over twelve injection pairs at
-temperature 0 with thinking disabled, **120 runs produced 120 distinct tool-call trajectories** — not one repeat —
+temperature 0 with thinking disabled, **120 runs produced 120 distinct tool-call trajectories**, not one repeat,
 and outcome disagreement tracks trajectory divergence (30.9% at low similarity against 4.2% at mid). The model
 spends its budget searching: 555 `grep_repo` calls against 71 `entry_points`, guessing where sinks are while the
 semantic IR already knows. So `learning-harness`'s K runs are an ensemble of distinct search procedures rather than
@@ -20,22 +20,22 @@ ruleset caps recall at 12.1%, below the 64.9% the unconstrained loop already rea
 at 96.6% with a median of ten sites per labeled function.
 
 Baseline to beat, `deepseek-v4-flash`, K = 5, 57 scorable web pairs: **detection 64.9%, leak 12.3%, pair-correct
-52.6%** — and 83.3% detection on hand-written vibe-py against 44.4% on agent-written agent-vfc, which is the gap
+52.6%**, and 83.3% detection on hand-written vibe-py against 44.4% on agent-written agent-vfc, which is the gap
 this feature must close rather than widen. Context and measurements: `brief.md`,
 `benchmarks/measurements/2026-09-06-trajectory-divergence.json`, `2026-09-06-candidate-ceiling.json`.
 
 ## Boundary Context
 
-- **In scope**: candidate enumeration from the semantic IR, per family shape; the typed, toolless judgment step;
+- In scope: candidate enumeration from the semantic IR, per family shape; the typed, toolless judgment step;
   constraint predicates enforced at generation time with a bounded retry; the evidence that decides whether the
   K-run and noise-floor machinery still earns its place; per-slice reporting that keeps real-world code in front.
-- **Out of scope**: the family taxonomy, the classifier, the pair scorer's outcome rules, the split, the verifier
-  boundary and write roots, redaction, the three gates, and the publication machinery — all of which stand and are
+- Out of scope: the family taxonomy, the classifier, the pair scorer's outcome rules, the split, the verifier
+  boundary and write roots, redaction, the three gates, and the publication machinery, all of which stand and are
   what made this feature's measurements possible. Also out: prompt optimisation, reflective evolution and any
   optimiser (deferred to a later spec, on this feature's evidence); finding bugs in JavaScript interpreters, WebGL
   renderers or browser engines; memory-safety fuzzing for C and C++; fine-tuning model weights; adopting DSPy as a
   dependency.
-- **Adjacent expectations**: `learning-harness` keeps owning the taxonomy, the scorer, the split and publication;
+- Adjacent expectations: `learning-harness` keeps owning the taxonomy, the scorer, the split and publication;
   its Req 3.5 (K runs), 8.2 (noise floor) and 9.5 (acceptance) are amended by this feature only on evidence it
   produces, never on argument. The pair corpus keeps owning labels, tiers and splits. The unconstrained tool hunter
   stays as the generalist and as the baseline this feature is measured against.
@@ -49,8 +49,8 @@ model stops searching and the limit of what it can possibly find is a number rat
 
 #### Acceptance Criteria
 
-1. The Constrained Detector shall enumerate candidate sites for a region from the semantic IR — call sites and
-   bindings — and shall not use the pattern ruleset as its candidate generator.
+1. The Constrained Detector shall enumerate candidate sites for a region from the semantic IR (call sites and
+   bindings), and shall not use the pattern ruleset as its candidate generator.
 2. The Constrained Detector shall shape candidates by family: a call site for injection, path, deserialization,
    untrusted destination and prototype; an operation on a protected resource with the guards in scope for access
    control; a configuration assignment or literal for permissive configuration and secrets.
@@ -90,13 +90,13 @@ teaching examples, so that the tool is not tuned for cases nobody has.
 
 1. The Constrained Detector shall report every number per slice and shall never publish an aggregate across slices
    without the per-slice numbers beside it.
-2. The Constrained Detector shall designate the slices harvested from real projects — agent-vfc, vfc-js, vfc and
-   github — as the deciding slices, and the hand-written vibe-py slice as a development slice that cannot on its
+2. The Constrained Detector shall designate the slices harvested from real projects (agent-vfc, vfc-js, vfc and
+   github) as the deciding slices, and the hand-written vibe-py slice as a development slice that cannot on its
    own justify accepting a change.
 3. If a change improves the development slice and regresses any deciding slice, then the Constrained Detector shall
    reject it, and the rejection shall name the slice that regressed.
-4. The Constrained Detector shall publish the **overfitting gap** — development-slice detection minus deciding-slice
-   detection — beside every headline number, and shall state that the baseline gap is 83.3% against 44.4%.
+4. The Constrained Detector shall publish the **overfitting gap** (development-slice detection minus deciding-slice
+   detection) beside every headline number, and shall state that the baseline gap is 83.3% against 44.4%.
 5. The Constrained Detector shall measure and publish the candidate ceiling separately for the real-world slices,
    because the functions there are larger than the teaching corpus's and the enumerator's behaviour on them is not
    implied by its behaviour on vibe-py.

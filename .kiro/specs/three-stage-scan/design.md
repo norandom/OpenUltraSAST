@@ -32,13 +32,13 @@
 
 ### This Spec Owns
 
-- **Stage plan**: which stages a mode runs, skip/degrade accounting, `stages_requested` / `stages_completed` in the manifest.
-- **Complexity map**: `Hotspot` records, signals, test-gap hints, `complexity_map.json`.
-- **Complexity ledger**: overlay of hotspot scores from regression verdicts.
-- **Sandbox**: capability probe and Docker CLI runner that never mounts the host Docker socket.
-- **Regression / worth-fixing**: candidate selection, language recipes, verdicts, `--fail-on worth-fixing`.
-- **Tool hunter**: repo-bound read / grep / callers loop for stages 2–3, evidence honesty.
-- **Split-sink evaluation**: corpora and the "beats pattern-hit ranking" gate.
+- Stage plan: which stages a mode runs, skip/degrade accounting, `stages_requested` / `stages_completed` in the manifest.
+- Complexity map: `Hotspot` records, signals, test-gap hints, `complexity_map.json`.
+- Complexity ledger: overlay of hotspot scores from regression verdicts.
+- Sandbox: capability probe and Docker CLI runner that never mounts the host Docker socket.
+- Regression / worth-fixing: candidate selection, language recipes, verdicts, `--fail-on worth-fixing`.
+- Tool hunter: repo-bound read / grep / callers loop for stages 2–3, evidence honesty.
+- Split-sink evaluation: corpora and the "beats pattern-hit ranking" gate.
 
 ### Out of Boundary
 
@@ -167,14 +167,14 @@ benchmarks/manifests/split-sink-*.toml
 
 ### Modified Files
 
-- `cli.py` — run stage 2/3; stop exiting on `deep`; `--fail-on worth-fixing`; write new artifacts.
-- `reports.py` — `scan_exit_code` grows `worth-fixing`; report sections for inventory, map, and worth-fixing.
-- `config.py` — `ComplexityConfig` (top_k, max_hunter_hotspots) and `RegressConfig` (max_candidates, image pins); **consume** existing `SandboxConfig` (do not add a second sandbox TOML).
-- `hunter.py` — schedule remains; execution delegates to `tool_hunter` when a model is set, else inventory-only.
-- `verification.py` / reports — inventory vs worth-fixing labeling; hunter findings stay `suspicion`.
-- `gate.py` — stage-1 smoke gate unchanged; add split-sink map gate.
-- `reports.py` — map and verdict sections in markdown/manifest.
-- `.github/workflows/ci.yml` — PR stays quick; optional nightly deep when Docker is available.
+- `cli.py`, run stage 2/3; stop exiting on `deep`; `--fail-on worth-fixing`; write new artifacts.
+- `reports.py`, `scan_exit_code` grows `worth-fixing`; report sections for inventory, map, and worth-fixing.
+- `config.py`, `ComplexityConfig` (top_k, max_hunter_hotspots) and `RegressConfig` (max_candidates, image pins); **consume** existing `SandboxConfig` (do not add a second sandbox TOML).
+- `hunter.py`, schedule remains; execution delegates to `tool_hunter` when a model is set, else inventory-only.
+- `verification.py` / reports, inventory vs worth-fixing labeling; hunter findings stay `suspicion`.
+- `gate.py`, stage-1 smoke gate unchanged; add split-sink map gate.
+- `reports.py`, map and verdict sections in markdown/manifest.
+- `.github/workflows/ci.yml`, PR stays quick; optional nightly deep when Docker is available.
 
 ## System Flows
 
@@ -468,7 +468,7 @@ Degradations reuse the existing list: `{ "stage": "regress", "reason": "sandbox_
 
 - Mode→stage mapping and skip accounting.
 - Path clamp rejects `../`.
-- Map order on a fixture where regex hits a trivial helper and the real bug is a split-sink parser — parser ranks higher.
+- Map order on a fixture where regex hits a trivial helper and the real bug is a split-sink parser, parser ranks higher.
 - Covered hotspot yields `gap=covered` and no test kind.
 - Safety check rejects docker.sock and network snippets.
 - Ledger boost/demote; sev-5 reachable remains a candidate.

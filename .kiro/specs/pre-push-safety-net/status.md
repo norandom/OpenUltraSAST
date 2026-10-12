@@ -1,4 +1,4 @@
-# Pre-push safety net status — v1.2.0-alpha.1
+# Pre-push safety net status, v1.2.0-alpha.1
 
 Updated 2026-09-16. Phase: **implementation**. Requirements, design and tasks are
 approved. **28/29 executable tasks complete; task 8.3 remains blocked.**
@@ -141,7 +141,7 @@ Four of seven declared families establish findings on the two development subjec
 injection, access_control, config_secrets and untrusted_destination. Output encoding, path,
 prototype and deserialization have established nothing anywhere. Every question completed on
 both subjects, 299 of 299 on NodeGoat and 35 of 35 on VAmPI, so the silences are answers
-rather than failures — but three of them are diagnosed gaps rather than clean code:
+rather than failures, but three of them are diagnosed gaps rather than clean code:
 NodeGoat's documented SSRF is invisible because `needle.get` is not in the sink vocabulary,
 its XSS is invisible because output encoding declares only DOM sinks, and its two
 access-control defects raise no obligation because the modelled data operations live in DAO

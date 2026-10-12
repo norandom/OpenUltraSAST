@@ -12,7 +12,7 @@ Fixed via **option 1** (filter params to the declared signature) in `src/openult
 - `JoernBackend.query()` now drops any param the script does not declare before building the `--param` list
   (disposable route) and the in-session named-arg call (session route). This is faithful, not lossy: the
   single-request branch of `taint.sc` (line 1542) calls `rowsFor(...)` with top-level params only and lets
-  `fixedOrigin`/`originAnchors`/`quotedSanitizers`/`guards`/`fieldParameterSources` default — it never could
+  `fixedOrigin`/`originAnchors`/`quotedSanitizers`/`guards`/`fieldParameterSources` default; it never could
   consume them. The batch path keeps carrying them as JSON the script parses itself.
 - No-op for `config`/`dominance`: their own `request_params` emit only params their `.sc` declares (verified),
   so nothing is dropped. Only `taint` sheds the 5 extras.
@@ -21,12 +21,12 @@ Fixed via **option 1** (filter params to the declared signature) in `src/openult
 queries now RUN (no `cpg query taint failed`); baseline = 0 findings, fixed search (annotation) = 2 scored
 `path`/`model_entailed` findings (`from_prompt_path` → `prompt_file.write_text(prompt.raw)` L45; `_scan` →
 `self._index_path.write_text(...)` L155). Regression test:
-`tests/test_cpg_backend.py::test_a_single_query_passes_only_params_the_script_declares` (fake runner, no Joern
-— asserts the 5 undeclared params never reach the command line and the query parses).
+`tests/test_cpg_backend.py::test_a_single_query_passes_only_params_the_script_declares` (fake runner, no Joern;
+asserts the 5 undeclared params never reach the command line and the query parses).
 
 ## Summary
 
-Any call on the **single-query** taint path — `cpg.run("taint", request_params(...))` — fails on **both**
+Any call on the **single-query** taint path (`cpg.run("taint", request_params(...))`) fails on **both**
 of its sub-routes, returns `None`, and is read upstream as "no flows / clean". `request_params()` emits five
 keys that `taint.sc`'s `@main def exec(...)` does not declare, and the single-query dispatch passes every
 param straight to the script. The **batch** path (`run_batch` → `requestsFile` JSON) is unaffected, which is
@@ -53,10 +53,10 @@ contextFilter, contextPaths, requests, requestsFile, trace`.
 `backend.query()` (`src/openultrasast/cpg/backend.py:1266`) dispatches a single query two ways, **both** of
 which choke on the undeclared keys:
 
-- **Disposable / CLI route** (lines 1276–1278): appends `--param {key}={value}` for every param. joern errors
+- Disposable / CLI route (lines 1276–1278): appends `--param {key}={value}` for every param. joern errors
   `Unknown arguments: --fixedOrigin --guards --quotedSanitizers --originAnchors --fieldParameterSources`
   (and, as a knock-on, `Missing argument: --cpgFile`). Observed verbatim via `banks_debug.py` on 2026-10-12.
-- **Session route** (lines 1321–1326): defines `def ousast_taint(...)` by renaming `@main def exec(` and then
+- Session route (lines 1321–1326): defines `def ousast_taint(...)` by renaming `@main def exec(` and then
   calls `ousast_taint(key = value, ...)` with named args. The same five keys are not parameters of that
   method → the Scala named-arg call fails to compile. (By construction; the rename preserves the exact
   `exec` parameter list.)
@@ -77,14 +77,14 @@ Unaffected:
 
 - The push/scan **batch** path: `scan.py` uses `run_batch("taint", …)` (scan.py:1259, 1264, 1387). This is
   why the engine-on pilot produced results.
-- `config` and `dominance` single-queries (`config_value.py:46`, `dominance.py:54`) — their `.sc` signatures
+- `config` and `dominance` single-queries (`config_value.py:46`, `dominance.py:54`): their `.sc` signatures
   are presumed to match what their specs emit (confirm separately; not exercised here).
 
-Open question — **CLOSED by call-graph trace (2026-10-12).** No shipped product path and no in-repo
+Open question: **CLOSED by call-graph trace (2026-10-12).** No shipped product path and no in-repo
 benchmark/test reached the real single-query `JoernBackend.query("taint")`; the bug was latent but unreached
 by the product. Traced:
 
-- **Shipped push/scan/replay** (`cli.py:1334` → `scan_repository` → `_scan_repository_impl`) is DOUBLE
+- Shipped push/scan/replay (`cli.py:1334` → `scan_repository` → `_scan_repository_impl`) is DOUBLE
   shielded: Phase 2 fetches taint via the **batch route** (`run_batch`, always wired by `build()`), and
   Phase 3's `scan_region` (scan.py:559) runs against a **`_prefetched` CpgResult** whose `run` ignores the
   query and returns the already-fetched batch rows (scan.py:1472). So `scan_region → taint_verdict →
@@ -105,7 +105,7 @@ The fix restores the single-query path for pair/direct use without altering push
 
 ## Evidence
 
-- `benchmarks/measurements/2026-10-12-banks-fixed-search-mvp/` — the batch path works (11 flow rows,
+- `benchmarks/measurements/2026-10-12-banks-fixed-search-mvp/`: the batch path works (11 flow rows,
   `write_text` sinks); the v1 single-query attempt returned 0/0 on `cpg query taint failed`.
 - Raw joern error captured by `banks_debug.py` (scratchpad): `Missing argument: --cpgFile; Unknown
   arguments: --fixedOrigin --guards --quotedSanitizers --originAnchors --fieldParameterSources`.

@@ -9,24 +9,24 @@ production entry point (a delta Run for a push) is added. Context: `brief.md`, `
 
 ## Boundary Context
 
-- **In scope**: two profiles of one code base, `kind` (local, kept) and `k3s` (production); a remote execution mode of the CLI; artifacts delivered to the store; configurable
+- In scope: two profiles of one code base, `kind` (local, kept) and `k3s` (production); a remote execution mode of the CLI; artifacts delivered to the store; configurable
   cluster context, registry and image pins; our own snapshot and memory buckets; the Joern engine as a plane task
   on a larger worker pool; worker pool sizing and autoscaling; a delta Run command and Workspaces from URL +
   commit; a deployment runbook with a proof on kind and a checklist for the target cluster.
-- **Out of scope**: provisioning or operating the target cluster; modifying Agent Substrate or ax; any change to
+- Out of scope: provisioning or operating the target cluster; modifying Agent Substrate or ax; any change to
   detection, scoring, populations or the decision engine; replacing the `ax` CLI with a bespoke client beyond what
   remote submission needs.
-- **Adjacent expectations**: `ai-service-plane` requirements (one Model + budget per task, attribution,
+- Adjacent expectations: `ai-service-plane` requirements (one Model + budget per task, attribution,
   credentials only in the start request, egress policies, verify-at-startup memory store) keep holding;
   `harnessx-removal` Req 6 (memory on the S3 store) keeps holding; nothing is deleted before its replacement
   passes its test (the `harnessx-removal` sequencing rule).
 
 ## Target Environment (maintainer, 2026-10-02)
 
-- **Cluster: k3s.** Consequences: containerd (no Docker socket; the engine's host-Docker path does not exist there),
+- Cluster: k3s. Consequences: containerd (no Docker socket; the engine's host-Docker path does not exist there),
   gVisor needs `runsc` and a `RuntimeClass` installed on the nodes Substrate's workers run on, k3s ships Traefik
   and local-path storage, and single-node k3s is close enough to kind that the kind proof transfers.
-- **Images and source: GitHub.** Images are published to GitHub Container Registry (`ghcr.io/norandom/...`),
+- Images and source: GitHub. Images are published to GitHub Container Registry (`ghcr.io/norandom/...`),
   built by GitHub Actions from tagged commits, digest-pinned in the manifests; private packages need an
   `imagePullSecret` on the worker ServiceAccounts and the CI principal. Substrate's and ax's own images are built with
   `ko` from their checkouts and pushed to the same registry.

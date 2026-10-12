@@ -89,7 +89,7 @@ feasibility gate. [Official CPG slicing documentation](https://docs.joern.io/cpg
 2. **Separate claim from interruption.** Existing rungs describe analysis evidence. Hook admission
    additionally requires evaluated capability, change attribution and actionability. This meets the
    user's low-noise requirement without pretending an LLM confidence score proves a bug.
-3. **Compare evidence, not just finding lists.** A missing base finding can mean truncated analysis.
+3. **Compare evidence as well as finding lists.** A missing base finding can mean truncated analysis.
    Targeted comparable base checks are required for novelty, including removed-guard cases.
 4. **Adopt Git and the existing engine.** Build only the push transaction, cache and admission adapters.
    Do not add an IR, database or service merely to describe future scale.

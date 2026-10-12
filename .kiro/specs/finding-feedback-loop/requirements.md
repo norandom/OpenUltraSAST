@@ -5,22 +5,22 @@
 ## Introduction
 
 Nine engine defects were found in one session against two repositories. **Three were the same bug in three
-matchers** — a spec token matched as a substring rather than a word: `resolve` inside `resolveUrl` in the
+matchers**: a spec token matched as a substring rather than a word: `resolve` inside `resolveUrl` in the
 sanitizer matcher, `user` inside `users` in the discharger matcher, `gets` inside `fgets` in the sink matcher.
 Each was found by a measurement, fixed locally, and left no trace; the third survived until an 89k-line C
 library made it visible as 26 identical false positives.
 
 Nothing in the system remembers that a finding was wrong. There is no artifact saying *this site, at this
-rung, is not a defect, and here is why* — so a class recurs, and each recurrence costs another measurement.
+rung, is not a defect, and here is why*, so a class recurs, and each recurrence costs another measurement.
 
 Two audiences want that artifact for different reasons. A maintainer wants the *propagation* automated: two of
 the three matcher bugs needed no judgement at all, only the fix carried across. A developer wants to dismiss a
-finding in their own repository, have it stay dismissed, and have the reason reviewable beside the code — a
+finding in their own repository, have it stay dismissed, and have the reason reviewable beside the code; a
 tool that cannot be told it is wrong is one they stop running.
 
 This feature is bounded by a rule the project has held from the start and a leak that shows why. An optimiser
-may evolve **the question** — the judge and residual prompts, which are how we ask. It may never author **the
-facts** — tables, rulesets, the declared policy file, which are what we claim. On 2026-09-05 the improve lever
+may evolve **the question**: the judge and residual prompts, which are how we ask. It may never author **the
+facts**: tables, rulesets, the declared policy file, which are what we claim. On 2026-09-05 the improve lever
 admitted candidate shapes because they "recover a currently missed holdout pair"; five of eleven were taught by
 the holdout pairs they then recovered, and a holdout Youden of **−0.059 was reported as +0.059**.
 
@@ -38,11 +38,11 @@ recorded and my colleagues can see why.
 #### Acceptance Criteria
 
 1. The system shall read dismissals from a declarative file in the **target** repository, and shall never
-   write to it — the same rule the declared policy file already follows.
+   write to it, the same rule the declared policy file already follows.
 2. A dismissal shall carry the site it concerns, the rung it was dismissed at, a reason, and an author.
 3. The system shall reject a dismissal that carries no reason, because a suppression list without reasons is
    a graveyard nobody can audit.
-4. The system shall report a dismissed finding as dismissed, with its reason, rather than omitting it — so a
+4. The system shall report a dismissed finding as dismissed, with its reason, rather than omitting it, so a
    stale dismissal is visible rather than silent.
 5. When a dismissal no longer matches any finding, the system shall say so, because a dismissal that has
    stopped applying is either a fixed bug or a moved target and both are worth knowing.
@@ -54,20 +54,20 @@ cause is visible as a cause rather than as five separate bugs.
 
 #### Acceptance Criteria
 
-1. When a finding is contradicted — by a dismissal, by the judge with coverage, or by a declared contract —
+1. When a finding is contradicted (by a dismissal, by the judge with coverage, or by a declared contract)
    the system shall record the site, the rung, the witness, the spec tokens that produced it, and the commit.
 2. Each ledger entry shall be runnable as a regression case: this site, at this commit, shall not be reported
    at that rung.
 3. The ledger's regression cases shall run offline in CI, so that re-introducing a fixed cause fails a test
    rather than a repository scan four weeks later.
-4. The system shall group ledger entries by what they share — spec token, matcher clause, family, witness
-   shape — and report the groups by size.
+4. The system shall group ledger entries by what they share (spec token, matcher clause, family, witness
+   shape) and report the groups by size.
 5. The ledger shall be committed evidence, not a local artifact.
 
 ### Requirement 3: A model may propose a cause, and only propose it
 
-**Objective:** As a maintainer, I want the model to do the part that needs judgement — naming what a group of
-counter-examples has in common — without it deciding anything.
+**Objective:** As a maintainer, I want the model to do the part that needs judgement (naming what a group of
+counter-examples has in common) without it deciding anything.
 
 #### Acceptance Criteria
 
@@ -132,7 +132,7 @@ quietly loses recall is worse than none.
 
 1. The evaluation set shall include whole repositories, not pairs alone: the pair corpus could not see any of
    the nine defects that motivate this feature, and the gates stayed byte-identical through every fix.
-2. The system shall state how many repositories its evidence base contains, because two — one of which has
-   never produced a true positive — is very little to tune against.
+2. The system shall state how many repositories its evidence base contains, because two (one of which has
+   never produced a true positive) is very little to tune against.
 3. Where an adoption is measured on one repository only, the system shall label it as such rather than
    reporting it as a general improvement.

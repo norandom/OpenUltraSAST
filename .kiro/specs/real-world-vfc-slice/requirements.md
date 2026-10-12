@@ -8,9 +8,9 @@ AppSec engineers cannot tell whether OpenUltraSAST improved on real product code
 
 ## Boundary Context
 
-- **In scope**: A new pair slice of reviewed isolated function pairs from OpenSSL, Firefox (gecko-dev / mozilla-central / mozilla-firefox/firefox), and Chromium; provenance on every vendored file; overlay-versus-inventory scoreboard on that slice; a harvest procedure that does not clone megarepos; offline runnable catalog; testability of catalog load and slice evaluation.
-- **Out of scope**: Cloning mozilla-central or Chromium into the repository or CI; FixFox (embargoed until 2030); live Bugzilla scraping; making overlay or vfc Youden a merge or smoke gate; buffer-size / CWE-121 semantics; inter-file taint; parser packaging; changing pattern inventory rules so the seed pairs pass.
-- **Adjacent expectations**: Existing pair evaluation still scores `local` as the 100% CI gate and `github` / `sast` as honesty dashboards. Overlay dispositions, taint, and the stage-1 detection gate stay owned by their current specs. Dataset pointers may list Firefox/Chromium/OpenSSL sources; the dumps themselves are not vendored.
+- In scope: A new pair slice of reviewed isolated function pairs from OpenSSL, Firefox (gecko-dev / mozilla-central / mozilla-firefox/firefox), and Chromium; provenance on every vendored file; overlay-versus-inventory scoreboard on that slice; a harvest procedure that does not clone megarepos; offline runnable catalog; testability of catalog load and slice evaluation.
+- Out of scope: Cloning mozilla-central or Chromium into the repository or CI; FixFox (embargoed until 2030); live Bugzilla scraping; making overlay or vfc Youden a merge or smoke gate; buffer-size / CWE-121 semantics; inter-file taint; parser packaging; changing pattern inventory rules so the seed pairs pass.
+- Adjacent expectations: Existing pair evaluation still scores `local` as the 100% CI gate and `github` / `sast` as honesty dashboards. Overlay dispositions, taint, and the stage-1 detection gate stay owned by their current specs. Dataset pointers may list Firefox/Chromium/OpenSSL sources; the dumps themselves are not vendored.
 
 ## Requirements
 

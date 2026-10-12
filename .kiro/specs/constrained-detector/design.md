@@ -29,10 +29,10 @@ already reaches, while the **semantic IR caps it at 96.6%** with a median of ten
 
 ### This Spec Owns
 
-- `learning/candidates.py` — what a candidate is, how the IR enumerates one per family shape, and the ceiling report.
-- `learning/judgments.py` — the typed answer, and the toolless call that produces it.
-- `learning/predicates.py` — the checks that constrain a claim at generation time and score it afterwards, defined once.
-- `learning/slices.py` — deciding versus development slices, the overfitting gap, and the cross-slice rejection rule.
+- `learning/candidates.py`, what a candidate is, how the IR enumerates one per family shape, and the ceiling report.
+- `learning/judgments.py`, the typed answer, and the toolless call that produces it.
+- `learning/predicates.py`, the checks that constrain a claim at generation time and score it afterwards, defined once.
+- `learning/slices.py`, deciding versus development slices, the overfitting gap, and the cross-slice rejection rule.
 - `run_constrained_detector` in `learning/detectors.py`, beside the existing `run_family_detector`.
 - `ousast learning candidates`, and a detector selector on `score` and `baseline`.
 
@@ -113,16 +113,16 @@ src/openultrasast/learning/
 
 ### Modified Files
 
-- `src/openultrasast/learning/detectors.py` — `run_constrained_detector(root, region, config, *, client, model,
+- `src/openultrasast/learning/detectors.py`, `run_constrained_detector(root, region, config, *, client, model,
   taxonomy, ranges)`; `FamilyConfig` gains nothing, because a constrained detector is configured by the same
   prompt/checklist/limits and reads no tools.
-- `src/openultrasast/learning/scoring.py` — `_hits`, `_others` and `_fabricated` delegate to `predicates`; the
+- `src/openultrasast/learning/scoring.py`, `_hits`, `_others` and `_fabricated` delegate to `predicates`; the
   family metrics gain nothing. A test asserts the recorded baseline numbers are reproduced exactly.
-- `src/openultrasast/learning/publish.py` — the overfitting gap and the per-slice table (Req 3.1, 3.4).
-- `src/openultrasast/config.py` — `[learning] detector = "hunter" | "constrained"`, default `hunter` until the
+- `src/openultrasast/learning/publish.py`, the overfitting gap and the per-slice table (Req 3.1, 3.4).
+- `src/openultrasast/config.py`, `[learning] detector = "hunter" | "constrained"`, default `hunter` until the
   comparison says otherwise.
-- `src/openultrasast/cli.py` — `learning candidates`; `--detector` on `score` and `baseline`.
-- `pyproject.toml` — unchanged.
+- `src/openultrasast/cli.py`, `learning candidates`; `--detector` on `score` and `baseline`.
+- `pyproject.toml`, unchanged.
 
 ## System Flows
 
@@ -282,13 +282,13 @@ def teachable(slice_name: str, cases) -> bool       # False while every row of a
 
 ## Migration and Phases
 
-1. **Candidates and the ceiling, offline.** `candidates.py`, `learning candidates`, the per-slice ceiling artifact
+1. Candidates and the ceiling, offline. `candidates.py`, `learning candidates`, the per-slice ceiling artifact
    including the real-world slices (Req 3.5). No model call, so the phase is free and its result can still cancel
-   the design — if the ceiling on a deciding slice is below that slice's current detection rate, stop here.
-2. **Predicates extracted.** `predicates.py`, `scoring.py` delegating, the baseline-reproduction test.
-3. **Judgment and the constrained detector.** `judgments.py`, `run_constrained_detector`, the determinism test.
-4. **Slices and reporting.** `slices.py`, the overfitting gap, `publish` per slice.
-5. **The comparison.** Constrained against unconstrained on every slice, the re-measured trajectory count and noise
+   the design. If the ceiling on a deciding slice is below that slice's current detection rate, stop here.
+2. Predicates extracted. `predicates.py`, `scoring.py` delegating, the baseline-reproduction test.
+3. Judgment and the constrained detector. `judgments.py`, `run_constrained_detector`, the determinism test.
+4. Slices and reporting. `slices.py`, the overfitting gap, `publish` per slice.
+5. The comparison. Constrained against unconstrained on every slice, the re-measured trajectory count and noise
    floor, and the named `learning-harness` amendments if the floor collapses.
 
 Phase 1 is deliberately able to kill the design before any money is spent on it.

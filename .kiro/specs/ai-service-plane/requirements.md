@@ -14,19 +14,19 @@ a DeepSeek provider -- is carried by our thin `Run` layer and dissolves into ax 
 
 ## Boundary Context
 
-- **In scope**: the manifest kinds and a `Run` kind for dependencies, artifacts and budgets; bring-up of ax on
+- In scope: the manifest kinds and a `Run` kind for dependencies, artifacts and budgets; bring-up of ax on
   this host (kind + Agent Substrate + ax controller) with a doctor command; an ax-backed reconciler that
   submits Tasks to ax (one engine-bearing task at a time) and is the only executor; the runner contract and a
   runner image; the first two tasks, `repo-facts` and
   `verify`, with the existing scripts as reference behaviour; measurement on the 46-candidate validation set.
-- **Out of scope**: a remote or multi-node cluster; contributing providers or budgets to ax upstream (a
+- Out of scope: a remote or multi-node cluster; contributing providers or budgets to ax upstream (a
   follow-on once the increment is measured); changing what the model is asked (prompts, families, pass rules)
   except as required to consume `repo-facts`; the judge stage, the config-family question and population v3
   (they become tasks later, under their own specs); any change to `evaluate.py`'s protocol scoring.
-- **Adjacent expectations**: the independent-population protocols and records stay as they are; `finding_dump`
+- Adjacent expectations: the independent-population protocols and records stay as they are; `finding_dump`
   and the engine path are untouched; `vulnerabilities-over-plumbing` applies -- this is plumbing that must pay
   for itself in measured tokens and unchanged or better recall.
-- **Target state (maintainer, 2026-09-29)**: this plane replaces HarnessX as the agentic plane; HarnessX is
+- Target state (maintainer, 2026-09-29): this plane replaces HarnessX as the agentic plane; HarnessX is
   removed by its own spec (`harnessx-removal`) once Requirement 6's measurement shows value; the `Run` layer
   shrinks as ax gains dependencies, budgets and artifacts. No new HarnessX feature is added meanwhile.
 

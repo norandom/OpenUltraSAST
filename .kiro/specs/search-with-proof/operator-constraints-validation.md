@@ -73,7 +73,7 @@ Other files already modified/untracked at session start remain uncommitted.
 
 - Requested suite, with `-rs` for skip reasons:
   `/home/mc/Source/OpenUltraSAST/.venv/bin/pytest -q tests/test_search_*.py tests/test_ax_batch.py tests/test_plane_literals.py -rs`
-  — **181 passed, 3 skipped, exit 0**, 24.94 seconds.
+  Result: **181 passed, 3 skipped, exit 0**, 24.94 seconds.
 - Final executor/storage regression and module audit tests after tightening stderr
   truncation: **34 passed, exit 0**, including all **6 module audit tests**.
 - Shared dispatcher consumer `tests/test_unseen_calibrate.py`: **10 passed, exit 0**.

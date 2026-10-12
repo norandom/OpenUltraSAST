@@ -8,9 +8,9 @@ Engineers evolving OpenUltraSAST's overlay cannot trust the pair scoreboard: cov
 
 ## Boundary Context
 
-- **In scope**: pair scorer fidelity; catalog label schema (function, mechanism, provenance, known limits, held-out split); harvest anchoring and extraction modes; sast corpus hygiene; `vibe-py`, `vfc-js`, `agent-vfc` slices; dataset pointers; deterministic provenance fingerprint at scan time; per-profile and per-mechanism dashboard; per-profile acceptance in the improve loop; offline tests.
-- **Out of scope**: taint, facts, CST walker, dispositions, or tolerance of parser ERROR nodes (engine specs); BaxBench generation slices; profile-specific fact tables or thresholds; any new merge gate; vendoring files without a stated license; LLM-based classification.
-- **Adjacent expectations**: `local` stays the 100% pair gate; the stage-1 smoke gate stays inventory-only; `OverlayRecord` may gain one optional additive field; the improve loop's existing accept gate (recall floor, FP ceiling, score, no matched regression) stays and grows one clause; ledger file formats do not change.
+- In scope: pair scorer fidelity; catalog label schema (function, mechanism, provenance, known limits, held-out split); harvest anchoring and extraction modes; sast corpus hygiene; `vibe-py`, `vfc-js`, `agent-vfc` slices; dataset pointers; deterministic provenance fingerprint at scan time; per-profile and per-mechanism dashboard; per-profile acceptance in the improve loop; offline tests.
+- Out of scope: taint, facts, CST walker, dispositions, or tolerance of parser ERROR nodes (engine specs); BaxBench generation slices; profile-specific fact tables or thresholds; any new merge gate; vendoring files without a stated license; LLM-based classification.
+- Adjacent expectations: `local` stays the 100% pair gate; the stage-1 smoke gate stays inventory-only; `OverlayRecord` may gain one optional additive field; the improve loop's existing accept gate (recall floor, FP ceiling, score, no matched regression) stays and grows one clause; ledger file formats do not change.
 
 ## Requirements
 
@@ -23,7 +23,7 @@ Engineers evolving OpenUltraSAST's overlay cannot trust the pair scoreboard: cov
 1. When an overlay slice pair is scored, the system shall count a `coverage` record that carries a source-to-sink flow as a detection on the vulnerable side and as a leak on the fixed side, symmetrically with `promote`.
 2. When an expected row names a function, the system shall match a promotion or coverage record only if the record lies inside that function's line range.
 3. When an expected row names neither a rule id nor a sink nor a function, the system shall not count a CWE-only match as a detection and shall flag the row as `weak_label` in the payload.
-4. When any overlay slice is evaluated, the system shall report inventory and overlay metrics side by side for that slice, not only for `vfc`.
+4. When any overlay slice is evaluated, the system shall report inventory and overlay metrics side by side for that slice as well as for `vfc`.
 5. When a pair is evaluated, the system shall report how many files on each side were `parse_failed` and how many proposals were `unadjudicated`, so parser loss is visible on the dashboard.
 6. The system shall keep `local` as the only slice whose result can fail CI.
 7. Where a hunter model is configured, the system shall report a third scorer, `hunter`, that runs the tool hunter on each isolated pair function and scores it with the same pair rules, so the LLM plane is measured on the same corpus; absence of a model shall skip the scorer with a recorded degradation.

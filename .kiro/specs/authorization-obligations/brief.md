@@ -8,9 +8,9 @@ Nothing in the pipeline can represent "this operation should have been guarded" 
 
 ## Desired Outcome
 
-Absence bugs become first-class, measured, and honest. An obligated operation (protected data access, privileged action, security configuration) reached from an entry point without a discharger (a dominating auth guard, an identity constraint bound from the authenticated context, a non-permissive value) is reported as an obligation violation, with the missing discharger kind, the evidence for why the obligation exists (sibling handlers that discharge it, or a declared policy clause), and the known fix shape the corpus taught. Leave-one-out on the absence pairs is the objective, per obligation kind and per provenance profile, so the number rises as the corpus grows. `agent-vfc` and `vibe-py` absence pairs move from 0 detected to a measured baseline that the engine specs can raise.
+Absence bugs become first-class and are measured without overstating results. An obligated operation (protected data access, privileged action, security configuration) reached from an entry point without a discharger (a dominating auth guard, an identity constraint bound from the authenticated context, a non-permissive value) is reported as an obligation violation, with the missing discharger kind, the evidence for why the obligation exists (sibling handlers that discharge it, or a declared policy clause), and the known fix shape the corpus taught. Leave-one-out on the absence pairs is the objective, per obligation kind and per provenance profile, so the number rises as the corpus grows. `agent-vfc` and `vibe-py` absence pairs move from 0 detected to a measured baseline that the engine specs can raise.
 
-Principle written into the roadmap: **an operation carries obligations, not only data; the application's own consistency and its declared policy say which, and the tool reports the missing discharger rather than a phantom flow.**
+Principle written into the roadmap: **an operation carries data and obligations; the application's own consistency and its declared policy say which, and the tool reports the missing discharger rather than a phantom flow.**
 
 ## Approach
 
@@ -18,8 +18,8 @@ Obligated operations and discharger kinds are closed facts data, like sinks and 
 
 ## Scope
 
-- **In**: obligated-operation and discharger facts; obligation shapes derived from pairs; consistency detection across sibling handlers; optional declared policy file with a closed schema; path-aware violation evaluation with a function-local degraded mode; new evidence rungs and report wording for obligations; worth-fixing weighting by resource sensitivity; corpus recipe shape for absence pairs (handler plus registration context); leave-one-out per obligation kind; `obligations` improve lever; offline tests.
-- **Out**: taint or facts changes for flow bugs; the call graph and path records themselves (reachability spec); guard-dominance IR (guard-dominance-regime); LLM-authored policy or shapes; any merge gate; vendoring unlicensed code; sandbox proof of absence bugs (they do not crash).
+- In: obligated-operation and discharger facts; obligation shapes derived from pairs; consistency detection across sibling handlers; optional declared policy file with a closed schema; path-aware violation evaluation with a function-local degraded mode; new evidence rungs and report wording for obligations; worth-fixing weighting by resource sensitivity; corpus recipe shape for absence pairs (handler plus registration context); leave-one-out per obligation kind; `obligations` improve lever; offline tests.
+- Out: taint or facts changes for flow bugs; the call graph and path records themselves (reachability spec); guard-dominance IR (guard-dominance-regime); LLM-authored policy or shapes; any merge gate; vendoring unlicensed code; sandbox proof of absence bugs (they do not crash).
 
 ## Boundary Candidates
 
@@ -40,13 +40,13 @@ Obligated operations and discharger kinds are closed facts data, like sinks and 
 
 ## Upstream / Downstream
 
-- **Upstream**: `EntryPointRecord` (route, access level, decorators, conditions); `FileIR`; path records and dominance from the two engine specs; `PairCase` with `review_tier`; `MechanismStore` and the lever machinery; facts loader.
-- **Downstream**: reports and SARIF; worth-fixing ranking; the roadmap's leave-one-out table gains obligation kinds; `guard-dominance-regime` consumes obligation discharger kinds as guard candidates for web code.
+- Upstream: `EntryPointRecord` (route, access level, decorators, conditions); `FileIR`; path records and dominance from the two engine specs; `PairCase` with `review_tier`; `MechanismStore` and the lever machinery; facts loader.
+- Downstream: reports and SARIF; worth-fixing ranking; the roadmap's leave-one-out table gains obligation kinds; `guard-dominance-regime` consumes obligation discharger kinds as guard candidates for web code.
 
 ## Existing Spec Touchpoints
 
-- **Extends**: `corpus-seeded-mechanisms` (second shape family, same store, same lever contract), `pair-corpus-honesty` (registration-context excerpt mode, obligation label), `three-stage-scan` (one more proposer in MAP, new rungs below proof).
-- **Depends**: `reachability-flow-model` (entry point to operation paths); `guard-dominance-regime` (a guard dominates the path). Reachability is now on the critical path for two consumers.
+- Extends: `corpus-seeded-mechanisms` (second shape family, same store, same lever contract), `pair-corpus-honesty` (registration-context excerpt mode, obligation label), `three-stage-scan` (one more proposer in MAP, new rungs below proof).
+- Depends: `reachability-flow-model` (entry point to operation paths); `guard-dominance-regime` (a guard dominates the path). Reachability is now on the critical path for two consumers.
 
 ## Constraints
 

@@ -1,4 +1,4 @@
-# Brief: contributor-scan — make the model layer a tool someone runs
+# Brief: contributor-scan, make the model layer a tool someone runs
 
 **Status:** brief only, unapproved. Successor to `model-grounded-detection`, which is complete (16/16 tasks)
 and is not reopened by this.
@@ -22,7 +22,7 @@ is wired. The spec is complete and the feature is unshipped, both at once.
 
 > "a real world tool that helps developers when they want to contribute"
 
-That reframes the work. A contributor does not have a labelled function and a known weakness class — they
+That reframes the work. A contributor does not have a labelled function and a known weakness class; they
 have a repository they are about to touch and a question about what is risky in it. Everything measured so
 far is function-level pairs: a labelled function, a declared family, a known target. None of it exercises the
 questions a whole repository asks.
@@ -33,11 +33,11 @@ questions a whole repository asks.
    Without this nothing else matters.
 2. **Whole-repo scanning.** Region selection from entry points instead of a labelled function; ranking across
    thousands of candidates rather than one; a budget policy (the enumerator caps at 8 candidates per region,
-   which is meaningless at repo scale); and the performance envelope — a CPG build on a 100k-line tree, not a
+   which is meaningless at repo scale); and the performance envelope: a CPG build on a 100k-line tree, not a
    40-line excerpt. **This has never been run.**
 3. **A known-vulnerable repository as the target.** The 176 real-world CVE pairs already in the corpus are
-   single-function excerpts and do not exercise any of the above. Running against a real checkout — curl,
-   libpng, a WordPress plugin — is the only way to find what breaks at scale.
+   single-function excerpts and do not exercise any of the above. Running against a real checkout (curl,
+   libpng, a WordPress plugin) is the only way to find what breaks at scale.
 4. **The memory decision.** 173 of those 176 pairs are `memory` family, routed to a deferred execution tier
    that is a stub. Either adopt Clearwing for them or scope C memory-safety out explicitly. Right now it is
    neither, and a sixth of the corpus sits idle.
@@ -49,12 +49,12 @@ questions a whole repository asks.
 These were delivered during `model-grounded-detection` without being in any spec. They belong here so the
 record is not scattered:
 
-- **The pipeline itself** (`model/pipeline.py`) — Req 8 existed, task 3.2 built `judge()`, and nothing ever
+- The pipeline itself (`model/pipeline.py`): Req 8 existed, task 3.2 built `judge()`, and nothing ever
   said to connect an enumerator to it. Built, tested, measured, unspecified.
-- **Ops** — a single image carrying tool and engine, a compose file with read-only target and tmpfs scratch,
+- Ops: a single image carrying tool and engine, a compose file with read-only target and tmpfs scratch,
   bash/zsh/PowerShell wrappers that make the container invisible, and a pyinfra deploy for host installs.
   The Docker path is written and syntax-validated but **the image has never been built**.
-- **Corpus** — the `owasp` slice (40 validated xss pairs; `output_encoding` went from 1 pair to 41) and
+- Corpus: the `owasp` slice (40 validated xss pairs; `output_encoding` went from 1 pair to 41) and
   authored sink/sanitizer facts for Java and JavaScript.
 
 ## Known limits to carry forward
@@ -63,7 +63,7 @@ record is not scattered:
   `debug=True` is dangerous where `httponly=True` is safe and the model cannot tell them apart.
 - Interprocedural resolution is the most repeated miss cause across every experiment: OWASP's helper classes,
   `angular-http-server`'s `resolveUrl`. Joern supports it; our queries may not be configured for it.
-- Five bugs in `model-grounded-detection` shared one shape — a taint-specific assumption applied to every
+- Five bugs in `model-grounded-detection` shared one shape: a taint-specific assumption applied to every
   family, each found by a measurement rather than a check. Any new family-specific path should be audited for
   siblings before it is measured, not after.
 

@@ -9,13 +9,13 @@ numbers"), gated on the pool metric; it is not part of the G0 record-07 baseline
 The engine produces **no finding** on real unseen vulnerability changes. Live 300 s long-deadline replays show
 that the cause is usually not a detection-capability gap:
 
-- **Clean Python injection change** (`aws/bedrock-agentcore-sdk-python`, `install_packages`, introducing, 3-file
+- Clean Python injection change (`aws/bedrock-agentcore-sdk-python`, `install_packages`, introducing, 3-file
   diff): `wall=303 s`, hit the deadline. The ranker found candidates (`static_rank=1.0`) but **`selected: []`** and
   every candidate `deferred` with `reason: deadline_exhausted`, `analysis_not_started=deadline_exhausted`,
   `change_context_incomplete`. No analyses ran. The ranked candidates were **repo-wide and unrelated to
   the push** (`auth.py` access_control/config_secrets), not the changed `install_packages`. The engine is trying to
   re-audit the whole repo and runs out of budget before analyzing the change.
-- **Noisy last_touch config_secrets change** (`jenkinsci/metrics-plugin`, 14-file diff): finished in 206 s but
+- Noisy last_touch config_secrets change (`jenkinsci/metrics-plugin`, 14-file diff): finished in 206 s but
   `comparison_unknown` + `capability_unavailable` + `eligibility_provenance_mismatch` +
   `contributor-scan ... projection_unavailable`. This has several causes. Correspondence was one (fixed separately,
   commit c39fbb8); the capability registry is Task 8.3.
@@ -157,12 +157,12 @@ To be releasable, the net needs tier 2 and/or tier 3 to run and catch within a r
 The target is **≤60–120 s** (developer patience), hard ceiling 300 s. The analysis records each tier's budget against
 that window and identifies the measurements needed:
 
-- **Engine barrier (tier 2).** Fixed floor `build(48) + evidence_fixed(~150) ≈ 198 s` precedes any dataflow answer.
+- Engine barrier (tier 2). Fixed floor `build(48) + evidence_fixed(~150) ≈ 198 s` precedes any dataflow answer.
   Measure (clean host): **E1** split the ~150 s into JVM-start / graph-load / census; **E2** does a warm session
   with the graph **preloaded at build** eliminate `evidence_fixed` on the first query (the architectural
   test)?; **E3** analysis (`reachableByFlows`) per-pair cost + warm reuse; **E4** build cost vs repo size.
   Levers in priority order: warm session + graph preload → cached census → change-scope the per-pair tail.
-- **LLM barrier (tier 3).** Unmeasured in the push path. Measure: **L1** model round-trip latency per call
+- LLM barrier (tier 3). Unmeasured in the push path. Measure: **L1** model round-trip latency per call
   (DeepSeek) and calls needed per push for the decision/proof stage; **L2** the recall lift of tier 3 over tiers
   1+2 on the pool, does the LLM catch what regex and dataflow miss, and at what $ and latency per push?
 - Produce a **barrier table** for budget ∈ {60, 120, 300, 600} s × each tier combination. Record whether it fits
@@ -258,7 +258,7 @@ Reprioritised engine levers (corrected, anchoring is not the lever):
   ([[search-with-proof]]) is that the LLM tier catches what regex+dataflow miss. The pilot supports
   testing it: **L1** model latency + calls/push, **L2** recall lift on the same 5 (and beyond). These calls cost money, so stage
   them (5–10 sizing → ~10–20 pilot → full only on lift).
-- **#2 taint source/sink coverage + region ranking** so the dataflow recognises these vuln sources and promotes the
+- #2 taint source/sink coverage + region ranking so the dataflow recognises these vuln sources and promotes the
   vuln region (banks path: sink found, source unrecognised; graphiti injection: score 0).
 - #3 change-anchoring robustness matters only after the static/LLM tiers produce vuln-family
   findings to anchor. Deprioritised until (1)/(2) yield findings.
@@ -329,10 +329,10 @@ Two blockers to realising it in the live pipeline (both now concrete):
    mislocation, not a detection failure.**
 
 The budget is approved. Keep the revised next steps staged:
-- **Validate the 5 pilot labels first** (cheap, LLM-assisted corpus audit): for each, is the real sink inside the
+- Validate the 5 pilot labels first (cheap, LLM-assisted corpus audit): for each, is the real sink inside the
   changed lines, and is it change-introduced vs pre-existing-in-base? Only sound, change-located vulns are fair
   targets. This separates true detection gaps from SZZ artifacts before spending on detection runs.
-- **Then run the agentic hunter** (search-with-proof) on the sound targets and size its per-vuln call count/cost;
+- Then run the agentic hunter (search-with-proof) on the sound targets and size its per-vuln call count/cost;
   measure catch + false-alarm (on ordinary changes) vs regex 1/5. The single-shot path is insufficient; the hunter
   is the real "#1".
 - Feed confirmed source shapes (e.g. library param → path join) back as guarded static facts (#2).
@@ -362,7 +362,7 @@ which becomes a fact after repeated confirmation (the #2 feedback loop). No new 
 user. This is now part of the "#2 guided by #1" workstream and must not be deferred. (DeepSeek
 `deepseek-flash` is the working default; GLM 5.3 "cyber" model is future-spec.)
 
-## POOL-P1 LABEL AUDIT (LLM, 2026-10-12) — 47% of labels are sound
+## POOL-P1 LABEL AUDIT (LLM, 2026-10-12): 47% of labels are sound
 
 The banks label-location check was extended to all **49 public** pool vulns via DeepSeek (advisory + head code +
 pool label → sound/unsound). Full artifact: `benchmarks/measurements/2026-10-12-pool-p1-label-audit/`.
@@ -378,7 +378,7 @@ pool label → sound/unsound). Full artifact: `benchmarks/measurements/2026-10-1
 - Next: run the agentic search-with-proof hunter on the sound targets (start bedrock + graphiti), size its
   per-vuln call count/cost, measure catch + false-alarm. Then recompute record 07 on the sound subset.
 
-## MODEL HUNTER on the 2 sound targets (2026-10-12) — first LLM catch the static tiers missed
+## MODEL HUNTER on the 2 sound targets (2026-10-12): first LLM catch the static tiers missed
 
 Ran `ousast scan --mode deep` (DeepSeek `deepseek-flash`, model layer + tool_hunter, 60-call/8-hotspot bound) on
 bedrock + graphiti, the two sound pilot targets the static engine missed. Artifact:
@@ -417,7 +417,7 @@ Next: deep scan (regex/engine/hunter) on the 5 fair targets → per-tier catch r
 stand up an app-shaped eval set from known-vulnerable apps (VAmPI/NodeGoat/DjanGoat/vibe-py) and recompute the
 floor. Revisit the deferred bets (advisory-with-conditions, reachability prover) once the fair-target results are available.
 
-## FAIR-TARGET RESULT: detection 3/5 on app-shaped+sound (vs ~0 library-heavy) — target-fix validated (2026-10-12)
+## FAIR-TARGET RESULT: detection 3/5 on app-shaped+sound (vs ~0 library-heavy), target-fix validated (2026-10-12)
 
 Deep scan on the 5 app-shaped+sound targets (`benchmarks/measurements/2026-10-12-hunter-fair-targets/`):
 - 3/5 detected: graphiti (hunter, Cypher injection), mcp-remote (hunter, url-scheme injection), dcmcp (ENGINE
@@ -433,7 +433,7 @@ Detection appears on fair targets; release-grade BLOCK still needs (a) proof-arm
 (b) family coverage (template XSS/SSTI) + the DSPy hint loop for misses. Next: recompute a floor on an app-shaped
 sound subset / real app corpus (VAmPI, NodeGoat, DjanGoat, vibe-py), and measure the proof arm's suspicion→proven lift.
 
-## PROOF-ARM MEASUREMENT on the 3 fair-target hits (2026-10-12) — push-time lift 0/3, structural
+## PROOF-ARM MEASUREMENT on the 3 fair-target hits (2026-10-12): push-time lift 0/3, structural
 
 Measured whether the proof arm can elevate the 3 fair-target suspicions (graphiti, mcp-remote, dcmcp) to
 `exploit_demonstrated`.
@@ -448,7 +448,7 @@ Measured whether the proof arm can elevate the 3 fair-target suspicions (graphit
   (`isolation_mode: userns`); the plane supplies a task-boundary dispatcher.
 - The scan/push path reaches only `suspicion`/`static_corroboration` (verification.py levels). There is no code
   path from a scan suspicion to `exploit_demonstrated`, and no caller wires the search Coordinator from the push
-  flow. So proof-arm lift at push time = 0/3: not because the vulns are unreal, but because proving is a
+  flow. The vulns are real, but proof-arm lift at push time = 0/3 because proving is a
   runtime differential operation with an offline build for each target that cannot run inside a pre-push hook. (Prior
   per-pair demo attempts were mostly inconclusive on this exact wiring, app startup, offline deps, oracle plumbing.)
 
@@ -462,7 +462,7 @@ suspicion:
   proving, with authored (eventually DSPy-authored) demos. Run a bounded, separate test on one tractable target
   (mcp-remote) to confirm that the arm demonstrates a real unseen vuln.
 
-## BANKS FIXED-SEARCH MVP (2026-10-12) — "no wrong targets, only wrong searching" demonstrated
+## BANKS FIXED-SEARCH MVP (2026-10-12): "no wrong targets, only wrong searching" demonstrated
 
 Record: `benchmarks/measurements/2026-10-12-banks-fixed-search-mvp/`. Target: banks (the "library" that gave
 no engine path findings in the pilot). The target and CPG are unchanged; only the search changes.

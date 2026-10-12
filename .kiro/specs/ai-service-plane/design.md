@@ -141,7 +141,7 @@ before `ax apply`, and a task without a Model gets none. The value is never rend
 Every actor connection except DNS goes through Agent Substrate's egress gateway (`atenet-egress`), which denies
 an actor without an `EgressPolicy`. Three pieces make the plane work under that rule:
 
-- **Receiver by name.** `ops/ax/receiver-service.yaml.tmpl` (applied by `up.sh`) is a selector-less Service
+- Receiver by name. `ops/ax/receiver-service.yaml.tmpl` (applied by `up.sh`) is a selector-less Service
   `ousast-receiver` in `ax-system`, port 80, with an EndpointSlice on the kind gateway at `OUSAST_ARTIFACT_PORT`
   (fixed, 18090), where the reconciler binds its receiver. Tasks get
   `OUSAST_ARTIFACT_URL=http://ousast-receiver.ax-system.svc.cluster.local/` plus `OUSAST_ARTIFACT_DIAL=<the
@@ -150,12 +150,12 @@ an actor without an `EgressPolicy`. Three pieces make the plane work under that 
   `Host` but connects to the address the actor dialled (measured: dialling the kind gateway on port 80 was allowed
   and then refused upstream), so the dial address is the ClusterIP, which kube-proxy maps to the host.
   `OUSAST_ARTIFACT_HOST` set keeps the old direct URL (tests).
-- **Per-task policy.** `policy_for` grants `http` on port 80 to the receiver name, and `tls_passthrough` on 443
+- Per-task policy. `policy_for` grants `http` on port 80 to the receiver name, and `tls_passthrough` on 443
   to the Git hosts of the bound Workspaces' `https` repos and to the bound Model's
   `openultrasast.io/egress-hosts` (`api.deepseek.com` for `deepseek-flash`, validated as a plain DNS name).
   Nothing else: no IP address or wildcard, and passthrough only -- an `https` rule intercepts TLS and the actor
   would need the gateway CA, which ax templates do not mount.
-- **Order.** `ax apply` creates the actor; the reconciler writes the policy with `kubectl ate create
+- Order. `ax apply` creates the actor; the reconciler writes the policy with `kubectl ate create
   egress-policy` (update when one exists), reads it back, waits `OUSAST_EGRESS_SETTLE` (11 s: the gateway caches a
   missing policy as deny for 10 s), then resumes. kubectl-ate has no delete verb; Substrate's store deletes the
   policy with its actor, so after `ax delete task` the reconciler confirms it is gone.

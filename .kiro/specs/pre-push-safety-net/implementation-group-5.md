@@ -1,6 +1,6 @@
 # Implementation verification: group 5
 
-Group 5 was authorized by the maintainer's “approved” after group 4 completion.
+Group 5 was authorized by the maintainer's "approved" after group 4 completion.
 Tasks 5.1–5.2 are implemented and verified (16/27 total); the measured feasibility decision is NO-GO.
 Real capability eligibility and rollout readiness remain unproven.
 
@@ -8,7 +8,7 @@ Real capability eligibility and rollout readiness remain unproven.
 
 Fresh implementer dispatch for 5.1 returned `agent thread limit reached`.
 The [Kiro implementation skill](../../../.agents/skills/kiro-impl/SKILL.md) explicitly
-states: “If multi-agent is not available, fall back to manual mode execution for all tasks.”
+states: "If multi-agent is not available, fall back to manual mode execution for all tasks."
 Its manual review rule permits review in the main context when a fresh reviewer is unavailable.
 This run therefore uses manual implementation and adversarial review, not independent review.
 

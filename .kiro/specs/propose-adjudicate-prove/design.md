@@ -10,10 +10,10 @@
 
 ### Goals
 
-- Map every current scan module onto propose, adjudicate, budget, or prove — rank/embed is not a verdict.
+- Map every current scan module onto propose, adjudicate, budget, or prove (rank/embed is not a verdict).
 - Treat messy unlabeled trees as the default; labeled corpora as calibration.
 - Fail closed: cannot parse or cannot follow flow → `unadjudicated`, not demote.
-- **Prioritize the semantic engine now**: tree-sitter IR for in-scope languages; Joern optional CPG sidecar; stdlib Python parse only as last resort.
+- Prioritize the semantic engine now: tree-sitter IR for in-scope languages; Joern optional CPG sidecar; stdlib Python parse only as last resort.
 - Tunable embeddings + existing ranker order **prove** candidates.
 - SAST pair slice scores the overlay; smoke gate stays inventory-only.
 
@@ -51,11 +51,11 @@
 - Preprocess, mapping, rank (`heuristic_rank` 0.5/0.2/0.3), `quick_scan_findings`, complexity map, `ousast index` / json-local vectorstore, tool hunter, sandbox runner, pair eval, reports.
 - Host binaries when present: `tree-sitter`, `joern` / `joern-parse` (probed, never required for inventory).
 - Optional embedding model from existing `[embeddings]` config.
-- Clearwing as an **oracle** for tree-sitter callgraph + taint-pattern tables + mechanism retrieval — not a dependency.
+- Clearwing as an **oracle** for tree-sitter callgraph + taint-pattern tables + mechanism retrieval, not a dependency.
 
 ### Revalidation Triggers
 
-- Adding a fourth disposition that implies “safe.”
+- Adding a fourth disposition that implies "safe."
 - Demoting when flow is incomplete.
 - Stamping overlay above `static_corroboration`.
 - Selecting sandbox candidates from demoted or unadjudicated sets.
@@ -84,7 +84,7 @@ Concrete mapping of **what exists today** onto the three roles:
 | Prove | REGRESS / `deep` | `regress` + sandbox | Recipes on ranked findings | Recipes on **promoted then budgeted** findings |
 | Calibrate | CI | `gate.py` / `pairs` | Cheat-sheet vs Youden | Inventory vs overlay, unchanged split |
 
-**Selected pattern.** Propose → adjudicate → **budget** → prove. Clearwing’s tree-sitter callgraph + taint tables + mechanism memory are the oracle, not a library import. Embeddings never demote.
+**Selected pattern.** Propose → adjudicate → **budget** → prove. Clearwing's tree-sitter callgraph + taint tables + mechanism memory are the oracle, not a library import. Embeddings never demote.
 
 ```mermaid
 flowchart TB
@@ -161,13 +161,13 @@ src/openultrasast/ruleset/semantic/
 
 ### Modified Files
 
-- `stages.py` / `cli.py` — overlay in MAP; prove-budget before regress.
-- `findings.py` — inventory unchanged.
-- `regress/candidate.py` — `promote` only, then budget order.
-- `rank.py` / `index.py` / `vectorstore.py` — reuse; do not invent a second store.
-- `reports.py` — disposition columns.
-- `pairs.py` — sast slice uses overlay.
-- `mcp.py` — still no `deep`.
+- `stages.py` / `cli.py`, overlay in MAP; prove-budget before regress.
+- `findings.py`, inventory unchanged.
+- `regress/candidate.py`, `promote` only, then budget order.
+- `rank.py` / `index.py` / `vectorstore.py`, reuse; do not invent a second store.
+- `reports.py`, disposition columns.
+- `pairs.py`, sast slice uses overlay.
+- `mcp.py`, still no `deep`.
 
 ## System Flows
 
@@ -301,11 +301,11 @@ Identity is the *pattern*, not a file slice:
 | what_made_it_exploitable | why a near-miss became a bug |
 | source_finding_id, source_repo | provenance only |
 
-Persistence: append-only JSONL (portable). Recall is **not** Clearwing’s TF-IDF ladder.
+Persistence: append-only JSONL (portable). Recall is **not** Clearwing's TF-IDF ladder.
 
-1. **Filter** — language, CWE, tags (exact overlap). This is a hard prefilter, not a ranker.  
-2. **Rank** — OpenRouter `/embeddings` (`OpenRouterEmbeddingClient`, existing `[embeddings].model`) over `summary + what_made_it_exploitable + tags`. Cosine against the promotion’s overlay text. Cache vectors in json-local `mechanisms` namespace, keyed by mechanism id + model id.  
-3. **Degrade** — no key / no model / embed failure → heuristic ranker only, degradation recorded. Never bag-of-words cosine.
+1. **Filter**, language, CWE, tags (exact overlap). This is a hard prefilter, not a ranker.  
+2. **Rank**, OpenRouter `/embeddings` (`OpenRouterEmbeddingClient`, existing `[embeddings].model`) over `summary + what_made_it_exploitable + tags`. Cosine against the promotion's overlay text. Cache vectors in json-local `mechanisms` namespace, keyed by mechanism id + model id.  
+3. **Degrade**, no key / no model / embed failure → heuristic ranker only, degradation recorded. Never bag-of-words cosine.
 
 Query for a promotion: embed the overlay rationale (sources, sink, CWE). Result is a **boost to prove order**, never a demote.
 
@@ -327,7 +327,7 @@ Repo-code chunks (`ousast index` 80-line slices) stay for hunter/verifier retrie
 
 - Unit: parse fail → unadjudicated; constant `exec("ls")` → demote; `eval(request.args)` → promote; `sql = f"…{x}"; execute(sql)` → coverage or promote.
 - Pair: `--slice sast` uses overlay; `juliet-c-cwe134-printf` stays PASS; `owasp-python-deser` stays PASS; Juliet `goodG2B` exec/strcpy must **demote or unadjudicated**, not inventory-leak counted as pair fail for overlay.
-- Unlabeled: tmp tree with a syntax-error file next to a clean `eval(request.args)` — error file unadjudicated, clean file promoted; no expected.toml required.
+- Unlabeled: tmp tree with a syntax-error file next to a clean `eval(request.args)`. Error file unadjudicated, clean file promoted; no expected.toml required.
 - Gate: `python -m openultrasast.gate` still inventory-only.
 - Deep: candidate list excludes demoted.
 
@@ -346,4 +346,4 @@ Repo-code chunks (`ousast index` 80-line slices) stay for hunter/verifier retrie
 
 - Default `standard` runs overlay when facts load; if facts missing, degrade as Requirement 7.5.
 - Existing `quick` CI unchanged.
-- Pair gate local 100% remains inventory-or-overlay-equivalent on fixture counterparts (those files are still “nice”; unlabeled tests are additional).
+- Pair gate local 100% remains inventory-or-overlay-equivalent on fixture counterparts (those files are still "nice"; unlabeled tests are additional).

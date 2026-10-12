@@ -9,13 +9,13 @@ Maintainer direction and context: `brief.md`.
 
 ## Boundary Context
 
-- **In scope**: a feature record per candidate built from every instrument and the memory store; a labelled
+- In scope: a feature record per candidate built from every instrument and the memory store; a labelled
   dataset with provenance; training, calibration and versioning of the decision engine; A/B experiments as plane
   Runs; learning curves and leave-one-population-out estimates; the engine's use in `ousast scan`, `ousast
   pre-push` and plane Runs; a final one-time check on frozen population v3.
-- **Out of scope**: new instruments (they plug in as signal producers later); deep or large models; any change to
+- Out of scope: new instruments (they plug in as signal producers later); deep or large models; any change to
   population v3 or its protocol; publishing results (licences still gate that).
-- **Adjacent expectations**: instruments keep working standalone; the memory store (harnessx-removal Req 6) is
+- Adjacent expectations: instruments keep working standalone; the memory store (harnessx-removal Req 6) is
   the system of record; the plane attributes every experiment's token spend per task.
 
 ## Requirements
@@ -121,7 +121,7 @@ rule hits.
    reported unless the engine's decision changes.
 4. *(Amended 2026-10-03, maintainer decision; refines the BLOCK rule of 7.3 and 7.4. Tested by exp-004.)* BLOCK
    precision is demonstrated pooled across families, not per family:
-   - **Normalisation**, declared before any run: each family's raw score is put on one scale by a per-family Platt
+   - Normalisation, declared before any run: each family's raw score is put on one scale by a per-family Platt
      map (`learn.calibrate.fit_map` with its floors) fitted on training folds only. A family the training folds
      cannot map does not block on that fold.
    - **t_block**: one threshold on the normalised score for all families, chosen on training folds as the lowest

@@ -196,6 +196,6 @@ failures without lowering the bar after inspecting holdout results.
 - >= 95% observed actionable-alert precision with counts and confidence interval; zero known false
   alerts on the fixed/benign regression suite. Small samples do not establish broad precision.
 - >= 90% recall on the predeclared supported security-change suite; unsupported classes remain in
-  coverage reporting, not reclassified after a miss. Publish per-capability results, not only an aggregate.
+  coverage reporting, not reclassified after a miss. Publish per-capability results; an aggregate alone is insufficient.
 - No capability is admitted with zero positive controls, zero reviewed emitted alerts, or no untouched
   evaluation repository. Failed profiles remain experimental and silent in the normal hook.

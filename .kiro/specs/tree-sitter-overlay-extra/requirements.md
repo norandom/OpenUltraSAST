@@ -8,9 +8,9 @@ AppSec engineers scanning mixed working trees need overlay adjudication on Pytho
 
 ## Boundary Context
 
-- **In scope**: Optional extra install; overlay using a structured parse for Python, JavaScript, C/C++, and Java when that extra provides a grammar; fail-closed `unadjudicated` when the extra or grammar is missing; `quick` unchanged and extra-free; existing overlay dispositions unchanged.
-- **Out of scope**: New pair corpora or Firefox/VFC harvest (`real-world-vfc-slice`); Joern CPG queries; inter-file or whole-program taint; buffer-size / CWE-121 semantics; language-model parse or taint; replacing pattern inventory.
-- **Adjacent expectations**: `propose-adjudicate-prove` still owns dispositions, facts, taint rules, and prove-budget. `three-stage-scan` still owns `quick` / `standard` / `deep` and the sandbox. This spec only supplies the structured parse those stages already asked for.
+- In scope: Optional extra install; overlay using a structured parse for Python, JavaScript, C/C++, and Java when that extra provides a grammar; fail-closed `unadjudicated` when the extra or grammar is missing; `quick` unchanged and extra-free; existing overlay dispositions unchanged.
+- Out of scope: New pair corpora or Firefox/VFC harvest (`real-world-vfc-slice`); Joern CPG queries; inter-file or whole-program taint; buffer-size / CWE-121 semantics; language-model parse or taint; replacing pattern inventory.
+- Adjacent expectations: `propose-adjudicate-prove` still owns dispositions, facts, taint rules, and prove-budget. `three-stage-scan` still owns `quick` / `standard` / `deep` and the sandbox. This spec only supplies the structured parse those stages already asked for.
 
 ## Requirements
 
@@ -21,7 +21,7 @@ AppSec engineers scanning mixed working trees need overlay adjudication on Pytho
 #### Acceptance Criteria
 
 1. When OpenUltraSAST runs a `quick` scan, the system shall emit inventory proposals without requiring the semantic extra.
-2. The system shall not require the semantic extra to be installed in order to import or run the default OpenUltraSAST command.
+2. The system shall not require the semantic extra to be installed to import or run the default OpenUltraSAST command.
 3. If the semantic extra is absent, then a `quick` scan shall still complete and shall not abort because a parser package is missing.
 
 ### Requirement 2: Extra enables structured parse on in-scope languages
@@ -30,7 +30,7 @@ AppSec engineers scanning mixed working trees need overlay adjudication on Pytho
 
 #### Acceptance Criteria
 
-1. Where the semantic extra is installed and a grammar for the file’s language is available, when OpenUltraSAST runs a `standard` or `deep` scan, the system shall use that structured parse as the primary intra-file input to overlay adjudication for Python, JavaScript, C, C++, and Java.
+1. Where the semantic extra is installed and a grammar for the file's language is available, when OpenUltraSAST runs a `standard` or `deep` scan, the system shall use that structured parse as the primary intra-file input to overlay adjudication for Python, JavaScript, C, C++, and Java.
 2. When a JavaScript file contains `eval` of a request query (or the language-equivalent untrusted source to a known sink) and the extra provides a JavaScript grammar, the system shall be able to emit a `promote` overlay disposition for that proposal.
 3. When a C or Java file contains a sink fed only by a constant or a dominating sanitizer (for example a literal format string to `printf`) and the extra provides a grammar for that language, the system shall `demote` that proposal rather than leave it `language_unsupported`.
 4. The system shall feed the structured parse into the existing overlay dispositions (`promote`, `demote`, `unadjudicated`, `coverage`) and shall not introduce a new disposition.
@@ -42,7 +42,7 @@ AppSec engineers scanning mixed working trees need overlay adjudication on Pytho
 #### Acceptance Criteria
 
 1. If the semantic extra is not installed, then when OpenUltraSAST adjudicates a JavaScript, C, C++, or Java file, the system shall leave matching inventory proposals `unadjudicated` with `language_unsupported` or `parse_failed`.
-2. If the extra is installed but no grammar is available for that file’s language, then the system shall leave those proposals `unadjudicated` with `language_unsupported` or `parse_failed` and shall not crash the scan.
+2. If the extra is installed but no grammar is available for that file's language, then the system shall leave those proposals `unadjudicated` with `language_unsupported` or `parse_failed` and shall not crash the scan.
 3. When the extra is absent, the system shall still try a stdlib parse only for Python and shall otherwise follow the fail-closed rule in criterion 1.
 4. If a file cannot be parsed even with a grammar present (syntax error or incomplete source), then the system shall leave matching proposals `unadjudicated` with `parse_failed`.
 5. The system shall not treat a missing extra as a failed `standard` scan by itself.
@@ -55,7 +55,7 @@ AppSec engineers scanning mixed working trees need overlay adjudication on Pytho
 
 1. When the extra supplies grammars for more than one in-scope language, the system shall extract overlay parse facts (assignments, calls, constants) through one shared structured-parse path rather than a separate visitor per language.
 2. The system shall not add a new language-specific stdlib or regex AST as the product parse engine for JavaScript, C, C++, or Java.
-3. Where a host parser CLI is present but the semantic extra is not, the system shall not claim a successful structured parse for overlay unless the extra’s grammar actually produced one.
+3. Where a host parser CLI is present but the semantic extra is not, the system shall not claim a successful structured parse for overlay unless the extra's grammar actually produced one.
 
 ### Requirement 5: Overlay and stages stay in their existing contracts
 

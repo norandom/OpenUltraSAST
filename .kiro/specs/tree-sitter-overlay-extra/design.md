@@ -116,13 +116,13 @@ tests/test_semantic_cst.py
 
 ### Modified Files
 
-- `pyproject.toml` — extra `semantic`; pytest marker; mypy overrides.
-- `src/openultrasast/semantic/ir.py` — dispatch; delete `parse_tree_sitter_cli` as success path.
-- `src/openultrasast/semantic/engines.py` — `tree_sitter_available` must not mean CLI-only; extra/grammar helpers live in `extra.py`.
-- `src/openultrasast/semantic/__init__.py` — export `has_semantic_extra` only if needed; do not import cst at package load.
-- `tests/test_semantic_overlay.py` — extra-free JS stays `language_unsupported` without monkeypatching a fake IR as “tree-sitter success”.
-- `.github/workflows/ci.yml` — second job with `--extra semantic` running `@pytest.mark.semantic`.
-- `dagger/ci.py` — keep extra-free unless the same extra-on command is cheap to add; default is GHA second job only.
+- `pyproject.toml`: extra `semantic`; pytest marker; mypy overrides.
+- `src/openultrasast/semantic/ir.py`: dispatch; delete `parse_tree_sitter_cli` as success path.
+- `src/openultrasast/semantic/engines.py`: `tree_sitter_available` must not mean CLI-only; extra/grammar helpers live in `extra.py`.
+- `src/openultrasast/semantic/__init__.py`: export `has_semantic_extra` only if needed; do not import cst at package load.
+- `tests/test_semantic_overlay.py`: extra-free JS stays `language_unsupported` without monkeypatching a fake IR as "tree-sitter success".
+- `.github/workflows/ci.yml`: second job with `--extra semantic` running `@pytest.mark.semantic`.
+- `dagger/ci.py`: keep extra-free unless the same extra-on command is cheap to add; default is GHA second job only.
 
 Do not modify `taint.py`, `overlay.py`, `facts.py`, `gate.py`, `pairs.py`.
 

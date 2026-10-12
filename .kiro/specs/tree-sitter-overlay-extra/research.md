@@ -26,12 +26,12 @@ Steering `product.md` / `tech.md` / `structure.md` are absent. Context is the ov
 - Optional native/heavy deps stay off the default install; capability probe must not import at module load (`harness_ext`, Docker sandbox probe).
 - mypy `ignore_missing_imports` for extras (`harnessx.*`).
 - pytest marker already exists for `docker`; extra-enabled tests would follow that skip pattern.
-- CI `checks` job: `uv sync --group dev` then pytest — **no optional extras**.
+- CI `checks` job: `uv sync --group dev` then pytest, **no optional extras**.
 
 ### Integration surfaces
 
 - `parse_file(path, text, language) -> FileIR` is the only seam taint/overlay need.
-- `tree_sitter_available()` is a **presence** probe, not “grammar produced IR”. Host CLI on PATH makes it True even with no PyPI wheels (this environment has `/home/linuxbrew/.../tree-sitter` and **no languages**).
+- `tree_sitter_available()` is a **presence** probe, not "grammar produced IR". Host CLI on PATH makes it True even with no PyPI wheels (this environment has `/home/linuxbrew/.../tree-sitter` and **no languages**).
 - Pair eval already falls back to inventory when a language never promotes/demotes.
 
 ## 2. Requirements Feasibility
@@ -60,23 +60,23 @@ Steering `product.md` / `tech.md` / `structure.md` are absent. Context is the ov
 
 Put extra pins in `pyproject.toml`, implement API parse + CST walk inside `ir.py`, tighten `tree_sitter_available()`.
 
-- **Pros:** Few files; `parse_file` stays the seam.
-- **Cons:** `ir.py` is already ~277 lines (Python ast + dead CLI). A walker + language table will bloat it and mix packaging probe with extract.
+- Pros: Few files; `parse_file` stays the seam.
+- Cons: `ir.py` is already ~277 lines (Python ast + dead CLI). A walker + language table will bloat it and mix packaging probe with extract.
 
 ### Option B: New components only
 
 New `semantic/cst.py` + `semantic/extra.py`; leave `ir.py` as Python ast; overlay calls a new entrypoint.
 
-- **Pros:** Clean extra guard.
-- **Cons:** Two parse entrypoints; easy to fork `parse_file` consumers.
+- Pros: Clean extra guard.
+- Cons: Two parse entrypoints; easy to fork `parse_file` consumers.
 
 ### Option C: Hybrid (recommended for design)
 
-- **New:** `semantic/cst.py` — one walker: tree-sitter `Node` → `Bind` / `CallSite` / `FunctionIR` using a node-kind map.
-- **New or thin:** extra guard modeled on `harness_ext` (`has_semantic_extra`, lazy grammar load, never import wheels at module load).
-- **Extend:** `pyproject.toml` `[project.optional-dependencies] semantic = [...]`; mypy override `tree_sitter*`; pytest marker `semantic`; CI extra-free job unchanged; optional second job or skip.
-- **Extend:** `parse_file` prefers extra CST when a grammar loads; else Python ast; else `language_unsupported`. **Delete or stop calling** `parse_tree_sitter_cli` as a success path (Req 4.3).
-- **Do not extend:** `taint.py`, `overlay.py`, facts, gate, pair catalog.
+- New: `semantic/cst.py`: one walker: tree-sitter `Node` → `Bind` / `CallSite` / `FunctionIR` using a node-kind map.
+- New or thin: extra guard modeled on `harness_ext` (`has_semantic_extra`, lazy grammar load, never import wheels at module load).
+- Extend: `pyproject.toml` `[project.optional-dependencies] semantic = [...]`; mypy override `tree_sitter*`; pytest marker `semantic`; CI extra-free job unchanged; optional second job or skip.
+- Extend: `parse_file` prefers extra CST when a grammar loads; else Python ast; else `language_unsupported`. **Delete or stop calling** `parse_tree_sitter_cli` as a success path (Req 4.3).
+- Do not extend: `taint.py`, `overlay.py`, facts, gate, pair catalog.
 
 **Trade-offs:** Extra files, but `ir.py` shrinks (drop dead CLI), taint stays language-agnostic, extra follows an existing packaging seam.
 
@@ -89,7 +89,7 @@ New `semantic/cst.py` + `semantic/extra.py`; leave `ir.py` as Python ast; overla
 
 - Prefer **Option C**.
 - Treat `FileIR` as frozen contract; do not add dispositions.
-- Decide probe semantics: `tree_sitter_available` should mean “can produce FileIR for this language”, not “CLI binary exists”.
+- Decide probe semantics: `tree_sitter_available` should mean "can produce FileIR for this language", not "CLI binary exists".
 - Carry research items 1–4 into design (ABI pins, node-kind map, cpp package, CI job vs skip).
 - Do not pull Joern, pair harvest, or CWE-121 into this spec.
 
@@ -97,9 +97,9 @@ New `semantic/cst.py` + `semantic/extra.py`; leave `ir.py` as Python ast; overla
 
 ## Summary (design discovery)
 
-- **Feature**: tree-sitter-overlay-extra
-- **Discovery Scope**: Extension of `parse_file` / overlay IR; optional extra packaging
-- **Key Findings**:
+- Feature: tree-sitter-overlay-extra
+- Discovery Scope: Extension of `parse_file` / overlay IR; optional extra packaging
+- Key Findings:
   - Official PyPI wheels: `tree-sitter` (0.26), `tree-sitter-python`, `tree-sitter-javascript` (0.25), `tree-sitter-c` (0.24.x), `tree-sitter-cpp` (0.23.4), `tree-sitter-java`. API is `Parser(Language(mod.language()))`; `build_library` is gone.
   - `FileIR` is the only overlay seam; taint does not need language visitors.
   - Host CLI presence must not count as a successful overlay parse (Req 4.3).
@@ -108,16 +108,16 @@ New `semantic/cst.py` + `semantic/extra.py`; leave `ir.py` as Python ast; overla
 
 ### PyPI ABI and load API
 
-- **Context**: Pin wheels that work on Python 3.11+ without compiling grammars in CI.
-- **Sources Consulted**: https://pypi.org/project/tree-sitter/ ; https://pypi.org/project/tree-sitter-javascript/ ; https://pypi.org/project/tree-sitter-cpp/ ; py-tree-sitter 0.23 release notes (Language capsule, Parser constructor).
-- **Findings**: Grammars ship abi3 wheels. Load with `Language(tree_sitter_<lang>.language())` then `Parser(language)`. Do not use `Language.build_library`.
-- **Implications**: Extra lists core + five grammar packages. mypy ignores `tree_sitter*`.
+- Context: Pin wheels that work on Python 3.11+ without compiling grammars in CI.
+- Sources Consulted: https://pypi.org/project/tree-sitter/ ; https://pypi.org/project/tree-sitter-javascript/ ; https://pypi.org/project/tree-sitter-cpp/ ; py-tree-sitter 0.23 release notes (Language capsule, Parser constructor).
+- Findings: Grammars ship abi3 wheels. Load with `Language(tree_sitter_<lang>.language())` then `Parser(language)`. Do not use `Language.build_library`.
+- Implications: Extra lists core + five grammar packages. mypy ignores `tree_sitter*`.
 
 ### Probe vs grammar
 
-- **Context**: `tree_sitter_available()` is true when CLI is on PATH with zero grammars.
-- **Findings**: CLI parse cannot populate `FileIR` without a walker. Extra Python API is the product parse.
-- **Implications**: Split `has_semantic_extra()` from per-language `grammar_for`. Remove CLI as a success path.
+- Context: `tree_sitter_available()` is true when CLI is on PATH with zero grammars.
+- Findings: CLI parse cannot populate `FileIR` without a walker. Extra Python API is the product parse.
+- Implications: Split `has_semantic_extra()` from per-language `grammar_for`. Remove CLI as a success path.
 
 ## Architecture Pattern Evaluation
 
@@ -131,37 +131,37 @@ New `semantic/cst.py` + `semantic/extra.py`; leave `ir.py` as Python ast; overla
 
 ### Decision: Adopt official grammar wheels, build one walker
 
-- **Context**: Avoid per-language AST visitors (Req 4).
-- **Alternatives**: tree-sitter CLI sexp; py-tree-sitter-languages (unmaintained); hand-rolled JS/C parsers.
-- **Selected**: `openultrasast[semantic]` = `tree-sitter` plus python/javascript/c/cpp/java grammar packages. One CST walk keyed by a node-kind map.
-- **Rationale**: Wheels are MIT, maintained, match in-scope languages. Taint stays language-agnostic.
-- **Trade-offs**: Native wheels in the extra; ABI pins. Core install stays empty.
-- **Follow-up**: Verify Parser constructor against the pinned `tree-sitter` minor at implement time.
+- Context: Avoid per-language AST visitors (Req 4).
+- Alternatives: tree-sitter CLI sexp; py-tree-sitter-languages (unmaintained); hand-rolled JS/C parsers.
+- Selected: `openultrasast[semantic]` = `tree-sitter` plus python/javascript/c/cpp/java grammar packages. One CST walk keyed by a node-kind map.
+- Rationale: Wheels are MIT, maintained, match in-scope languages. Taint stays language-agnostic.
+- Trade-offs: Native wheels in the extra; ABI pins. Core install stays empty.
+- Follow-up: Verify Parser constructor against the pinned `tree-sitter` minor at implement time.
 
 ### Decision: Extra-free CI stays default; extra-on is a second job plus skip marker
 
-- **Context**: Req 6 dual matrix.
-- **Selected**: pytest `semantic` marker skips when extra absent. GitHub Actions adds a job `uv sync --extra semantic --group dev` that runs marked tests. Default `checks` job unchanged.
-- **Rationale**: Default CI must not fail without wheels. Extra-on tests must actually run somewhere.
-- **Trade-offs**: Two pytest invocations in CI.
+- Context: Req 6 dual matrix.
+- Selected: pytest `semantic` marker skips when extra absent. GitHub Actions adds a job `uv sync --extra semantic --group dev` that runs marked tests. Default `checks` job unchanged.
+- Rationale: Default CI must not fail without wheels. Extra-on tests must actually run somewhere.
+- Trade-offs: Two pytest invocations in CI.
 
 ### Decision: has_error implies parse_failed
 
-- **Context**: tree-sitter is error-tolerant; Req 3.4 wants fail-closed on syntax errors.
-- **Selected**: If `tree.root_node.has_error` (or ERROR children), return `FileIR(parse_ok=False, reason=parse_failed)`.
-- **Rationale**: Partial IR would invite false demote.
+- Context: tree-sitter is error-tolerant; Req 3.4 wants fail-closed on syntax errors.
+- Selected: If `tree.root_node.has_error` (or ERROR children), return `FileIR(parse_ok=False, reason=parse_failed)`.
+- Rationale: Partial IR would invite false demote.
 
 ## Synthesis
 
-- **Generalization**: One `parse_file` dispatch; extra is a grammar source, not a second overlay.
-- **Build vs adopt**: Adopt tree-sitter wheels; build only the FileIR projection (binds/calls).
-- **Simplification**: No CLI sexp walker; no second parse API; no taint/overlay changes.
+- Generalization: One `parse_file` dispatch; extra is a grammar source, not a second overlay.
+- Build vs adopt: Adopt tree-sitter wheels; build only the FileIR projection (binds/calls).
+- Simplification: No CLI sexp walker; no second parse API; no taint/overlay changes.
 
 ## Risks & Mitigations
 
-- Grammar ABI mismatch — pin extras together; extra-on CI job catches import/parse failure.
-- Node-type drift — table in cst.py; tests assert JS eval and C printf on real trees.
-- CLI still on PATH — must not set parse_ok.
+- Grammar ABI mismatch: pin extras together; extra-on CI job catches import/parse failure.
+- Node-type drift: table in cst.py; tests assert JS eval and C printf on real trees.
+- CLI still on PATH: must not set parse_ok.
 
 ## References
 

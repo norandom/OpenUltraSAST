@@ -18,8 +18,8 @@ Derive a mechanism record from a pair by parsing the vulnerable excerpt with the
 
 ## Scope
 
-- **In**: mechanism export from pairs; shape normalization; variant search as a proposer in MAP; leave-one-out measurement command and payload; `mechanisms` improve lever with validator rules; store hygiene (tier, provenance, dedupe, version); offline tests.
-- **Out**: LLM-authored shapes; changing dispositions or evidence rungs; embedding retrieval changes (existing prove-order reuse stays); inter-file flow (reachability spec); any merge gate; vendoring more pairs (corpus spec).
+- In: mechanism export from pairs; shape normalization; variant search as a proposer in MAP; leave-one-out measurement command and payload; `mechanisms` improve lever with validator rules; store hygiene (tier, provenance, dedupe, version); offline tests.
+- Out: LLM-authored shapes; changing dispositions or evidence rungs; embedding retrieval changes (existing prove-order reuse stays); inter-file flow (reachability spec); any merge gate; vendoring more pairs (corpus spec).
 
 ## Boundary Candidates
 
@@ -35,13 +35,13 @@ Derive a mechanism record from a pair by parsing the vulnerable excerpt with the
 
 ## Upstream / Downstream
 
-- **Upstream**: `PairCase`/`load_pair_catalog` with `review_tier`; `FileIR`; `MechanismStore`; `adjudicate`; `run_improvement` gate with per-profile holdout.
-- **Downstream**: `reachability-flow-model` attaches paths to variant findings; `guard-dominance-regime` consumes the guard shapes as sanitizer candidates; reports show mechanism ids on findings.
+- Upstream: `PairCase`/`load_pair_catalog` with `review_tier`; `FileIR`; `MechanismStore`; `adjudicate`; `run_improvement` gate with per-profile holdout.
+- Downstream: `reachability-flow-model` attaches paths to variant findings; `guard-dominance-regime` consumes the guard shapes as sanitizer candidates; reports show mechanism ids on findings.
 
 ## Existing Spec Touchpoints
 
-- **Extends**: `propose-adjudicate-prove` mechanism memory (additive fields, second write path), `three-stage-scan` MAP stage (one more proposer), `harnessx-self-improving-rulesets` improve loop (one more bounded lever).
-- **Depends**: `pair-corpus-honesty` Req 9 (tiers) for which pairs may seed.
+- Extends: `propose-adjudicate-prove` mechanism memory (additive fields, second write path), `three-stage-scan` MAP stage (one more proposer), `harnessx-self-improving-rulesets` improve loop (one more bounded lever).
+- Depends: `pair-corpus-honesty` Req 9 (tiers) for which pairs may seed.
 
 ## Constraints
 

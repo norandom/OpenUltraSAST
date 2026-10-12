@@ -1,9 +1,9 @@
-# Packaged acceptance validation — group 8
+# Packaged acceptance validation, group 8
 
 ## Validation Report
 - DECISION: NO-GO
 - FEATURE_COMPLETE: false
-- BLOCKED_TASKS: 8.3 — independent reviewed populations and verified VAmPI transitive evidence are missing; useful completion and runtime gates fail.
+- BLOCKED_TASKS: 8.3, independent reviewed populations and verified VAmPI transitive evidence are missing; useful completion and runtime gates fail.
 - OWNERSHIP: UPSTREAM for engine/census/context prerequisites; LOCAL for evaluation population and capability qualification.
 - UPSTREAM_SPEC: contributor-scan; see `pre-push-runtime-followup.md` there.
 

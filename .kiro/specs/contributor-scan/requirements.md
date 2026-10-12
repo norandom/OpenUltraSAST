@@ -12,7 +12,7 @@ hunter's 76.7% / 12.3%, at a fifth of the model calls. All 16 of its tasks are c
 from a measurement harness, not from the tool. This feature closes that gap and answers the question the
 maintainer actually posed: *a real world tool that helps developers when they want to contribute.*
 
-That framing changes the work. A contributor has no labelled function and no declared weakness class — they
+That framing changes the work. A contributor has no labelled function and no declared weakness class; they
 have a repository they are about to touch. Everything measured so far is function-level pairs, which
 exercise none of the questions a whole repository asks: which regions to look at, how to rank thousands of
 candidates, what to spend, and whether a CPG build on a 100k-line tree finishes at all.
@@ -22,13 +22,13 @@ Context: `brief.md`, `.kiro/specs/model-grounded-detection/`, and the committed 
 
 ## Boundary Context
 
-- **In scope**: wiring `model/pipeline` into `ousast scan`; region selection from entry points; ranking and
+- In scope: wiring `model/pipeline` into `ousast scan`; region selection from entry points; ranking and
   budget at repository scale; the performance envelope; running against known-vulnerable checkouts;
   contributor-facing output; the packaging already built (image, compose, shell wrappers, pyinfra); the
   deferred memory-family decision; retiring `evidence_level`.
-- **Out of scope**: new arbiters or families (the three forms exist); prompt optimisation of any kind;
-  building a sandbox (Req 10 of the predecessor stands — adopt, never build); changing the gates.
-- **Carried forward, not re-litigated**: the evidence ladder, the taxonomy, the fact tables, and the finding
+- Out of scope: new arbiters or families (the three forms exist); prompt optimisation of any kind;
+  building a sandbox (Req 10 of the predecessor stands: adopt, never build); changing the gates.
+- Carried forward, not re-litigated: the evidence ladder, the taxonomy, the fact tables, and the finding
   that the model supplies precision while the LLM supplies recall.
 
 ## Requirements
@@ -45,7 +45,7 @@ built is something I can run rather than something a harness demonstrates.
 2. The system shall report model findings alongside the existing pattern and overlay findings, without
    removing either.
 3. When no CPG engine is available, the scan shall behave exactly as it does today and record
-   `cpg_unavailable` — the model layer is additive, never a precondition.
+   `cpg_unavailable`; the model layer is additive, never a precondition.
 4. The detection, map and local pair gates shall remain byte-identical to the committed baseline.
 5. The system shall expose the model layer's per-rung counts in the scan's own output, so a user can see how
    much of the result the model arbitrated rather than inferring it.
@@ -109,7 +109,7 @@ in the corpus exercises it.
 #### Acceptance Criteria
 
 1. Every finding shall carry its rung, its witness, and the file and line it concerns.
-2. The system shall state plainly what a `suspicion` means — that the model could not confirm it — so a
+2. The system shall state plainly what a `suspicion` means (that the model could not confirm it) so a
    reader does not treat it as established.
 3. The system shall write findings to the writable output location, never into the repository under analysis.
 4. The system shall summarise a scan in a form readable without opening a JSON file.
@@ -121,7 +121,7 @@ in the corpus exercises it.
    throughout, and no criterion here forbade it.)*
 6. Where a family's abstraction cannot decide a weakness class, the system shall state that limit in the
    report, and no scan shall present an absence of findings as evidence of absence. *(Added 2026-09-09.
-   `c/memory` scored zero true positives across 89k lines of C for a structural reason — it models string
+   `c/memory` scored zero true positives across 89k lines of C for a structural reason: it models string
    functions and libpng overflows through arithmetic. A silent scan reading as a clean bill of health is
    worse than noise because it is quiet, and it is the one failure mode the rung ladder does not guard.)*
 
@@ -148,7 +148,7 @@ silently caps what the corpus can tell us.
 #### Acceptance Criteria
 
 1. The system shall either reach the `memory` family through an adopted execution tier, or record explicitly
-   that C memory-safety is out of scope — 173 of the 176 real-world CVE pairs currently sit idle behind a
+   that C memory-safety is out of scope; 173 of the 176 real-world CVE pairs currently sit idle behind a
    stub.
 2. The system shall retire `evidence_level` in favour of `rung`, or record why both are kept.
 3. Each decision shall be recorded with its reason where a later reader will find it.
@@ -167,7 +167,7 @@ this one, because each exists due to a specific past error.
 4. The core install shall remain zero-dependency, with the CPG engine, the LLM endpoint and any execution
    tier optional and degrading to a recorded reason.
 5. Any new family-specific code path shall be checked for sibling paths that need the same change, before it
-   is measured — five bugs in the predecessor shared exactly that shape.
+   is measured; five bugs in the predecessor shared exactly that shape.
 
 ### Requirement 9: Grow the corpus where the engine can use it
 
@@ -177,14 +177,14 @@ what developers actually contribute to rather than against 30 pairs of one slice
 #### Acceptance Criteria
 
 1. The system shall add a **PHP/WordPress** slice covering plugin and core weaknesses. WordPress plugin CVEs
-   are overwhelmingly injection, XSS and authorization bypass — the families the model layer already
-   arbitrates well — and `php2cpg` works once a PHP interpreter is present, which the shipped image now
+   are overwhelmingly injection, XSS and authorization bypass (the families the model layer already
+   arbitrates well) and `php2cpg` works once a PHP interpreter is present, which the shipped image now
    provides.
-2. The system shall add **real-world C library CVEs** beyond the existing curl and OpenSSL rows — libpng and
+2. The system shall add **real-world C library CVEs** beyond the existing curl and OpenSSL rows: libpng and
    the image libraries, OpenSSH, libpam, and vulnerable kernel modules were named. These are gated on Req 7.1:
    until the memory-family decision is closed they would join 173 pairs already sitting idle, so the decision
    comes first and the harvest follows it.
-3. The system shall add further **vibe-code** pairs — agent-written and human-written web application bugs —
+3. The system shall add further **vibe-code** pairs (agent-written and human-written web application bugs)
    because that slice is where the tool's stated audience actually works, and it is currently 35 pairs.
 4. Before any slice is vendored at scale, the system shall verify on a sample that the model can **read** its
    pairs, and shall vendor only the categories that a measurement shows it can arbitrate. The OWASP harvest
@@ -194,7 +194,7 @@ what developers actually contribute to rather than against 30 pairs of one slice
    contiguous key-shaped literal.
 6. Each new slice shall report as its own row and shall never be blended into a headline, and a synthetic
    slice shall say in its catalog that it measures breadth rather than real-world performance.
-7. The system shall record, per slice, how many pairs the model can arbitrate — so corpus growth is measured
+7. The system shall record, per slice, how many pairs the model can arbitrate, so corpus growth is measured
    by what it teaches rather than by how many rows it adds.
 
 ### Requirement 10: Regression tuning over a large codebase
@@ -206,7 +206,7 @@ tables and queries can be checked for regressions that pair scoring cannot see.
 
 1. The system shall support a repeatable scan over a pinned checkout of a large repository, recorded as a
    committed baseline.
-2. When the fact tables or queries change, the system shall report the delta against that baseline —
+2. When the fact tables or queries change, the system shall report the delta against that baseline:
    findings gained, findings lost, and rung movements.
 3. The system shall treat an unexplained loss of a previously-entailed finding as a regression to be
    investigated, not a number to be accepted.
@@ -214,7 +214,7 @@ tables and queries can be checked for regressions that pair scoring cannot see.
 
 ---
 
-## Amendment record — group 2 (approved 2026-09-09)
+## Amendment record, group 2 (approved 2026-09-09)
 
 Group 2 was specified as the phase that can reshape the rest, and it did. Three amendments were drafted from
 what it measured and **approved by the maintainer on 2026-09-09**; they are folded into the numbered
@@ -227,7 +227,7 @@ requirements above and marked there with the evidence that produced them.
 | C — a checkout that can demonstrate detection | Req 4.6 | libpng satisfies 4.1 and cannot demonstrate detection |
 
 **A is only half implemented, deliberately.** Task 2.11 made pattern matches proportionate. The same argument
-applies to the model layer's own suspicion band — 38 of vampi's 60 findings — which is an enumerated
+applies to the model layer's own suspicion band (38 of vampi's 60 findings), which is an enumerated
 candidate the graph could not decide and an LLM affirmed: a pattern match with an opinion attached, not a
 reasoned claim. Task 2.17 carries that half.
 
@@ -238,5 +238,5 @@ reasoned claim. Task 2.17 carries that half.
   (2.6), where the leak fell 42.9% → 0.0% with pair-correct unchanged.
 * **Req 3.3's honesty counters were the load-bearing part.** `regions_unjudged` is what made a budget that
   stopped free work visible at all.
-* **Req 11.2's byte-identical gates held through every one of nine defect fixes** — which says the same thing
+* **Req 11.2's byte-identical gates held through every one of nine defect fixes**, which says the same thing
   from the other side: the corpus could not have caught any of them.

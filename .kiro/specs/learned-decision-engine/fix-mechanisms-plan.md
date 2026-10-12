@@ -25,29 +25,29 @@ money.
 
 ## Requirements (proposed)
 
-1. **Mining.** From each fix pair, extract what the fixed function adds on the vulnerable flow: new calls,
+1. Mining. From each fix pair, extract what the fixed function adds on the vulnerable flow: new calls,
    new conditions guarding the sink, new or changed sink arguments. Record each as a candidate fact with its
    language, family, form (sanitizer call, guard predicate, safe argument, sink restriction) and the pairs
    that propose it. Mining is deterministic (tree-sitter diff of the two function bodies). No model calls.
-2. **Generalisation is explicit.** A candidate is a pattern, not a repository name: a callee name, an
+2. Generalisation is explicit. A candidate is a pattern, not a repository name: a callee name, an
    argument key, a predicate shape. Candidates naming project-specific identifiers are rejected (Req 8: no
    application-specific trees).
-3. **Admission by held-out separation.** Folds are by repository, as in the decision engine. A candidate is
+3. Admission by held-out separation. Folds are by repository, as in the decision engine. A candidate is
    admitted for a fold only if, on that fold's held-out pairs, adding it to the fact tables:
    - increases pairs where the vulnerable side keeps a path and the fixed side loses it or becomes
      sanitized;
    - and does not remove any held-out vulnerable-side path (no recall loss).
    A candidate proposed by fewer than 2 distinct repositories in the training folds is not tried.
-4. **No train-on-test.** Mining and admission never read held-out pairs; the closed-loop leak recorded in
+4. No train-on-test. Mining and admission never read held-out pairs; the closed-loop leak recorded in
    memory (`closed-loop-train-on-test-leak`) is the failure this rule exists to prevent. Population v3 is
    never read.
-5. **Measurement by the trace runner.** Each admission round re-runs the engine on the affected pins only
+5. Measurement by the trace runner. Each admission round re-runs the engine on the affected pins only
    (the runner's resume and selection already support this; on k3s the worker Deployment runs them in
    parallel). The outcome is the pair-asymmetry table per family, before and after, on held-out folds.
-6. **Gate before production.** An admitted fact enters `src/openultrasast/ruleset/semantic/*.toml` only after
+6. Gate before production. An admitted fact enters `src/openultrasast/ruleset/semantic/*.toml` only after
    the detection gates (`gate`, `map_gate`, `pair_gate`) show no regression, and only as a registered
    experiment whose decision rule was fixed before the run.
-7. **Coverage second.** After discharge facts, the same loop proposes source and sink additions from pairs
+7. Coverage second. After discharge facts, the same loop proposes source and sink additions from pairs
    where neither side has a path (91 of 105 today), admitted under the same held-out rule.
 
 ## How it relates to what exists

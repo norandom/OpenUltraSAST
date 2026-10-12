@@ -62,8 +62,8 @@ Principle for the roadmap: **classify first, verify before reporting, improve on
 
 ## Scope
 
-- **In**: items 1–8; roadmap rewrite from one command; a closure decision on `authorization-obligations` 4.3, 5 and 6.
-- **Out**: new static shape families; hand-written facts beyond what a round proposes and validates; changing the evidence ladder or dispositions; any merge gate on non-local slices; vendoring new pairs beyond re-harvesting existing recipes; fine-tuning model weights.
+- In: items 1–8; roadmap rewrite from one command; a closure decision on `authorization-obligations` 4.3, 5 and 6.
+- Out: new static shape families; hand-written facts beyond what a round proposes and validates; changing the evidence ladder or dispositions; any merge gate on non-local slices; vendoring new pairs beyond re-harvesting existing recipes; fine-tuning model weights.
 
 ## Boundary Candidates
 
@@ -80,14 +80,14 @@ Principle for the roadmap: **classify first, verify before reporting, improve on
 
 ## Upstream / Downstream
 
-- **Upstream**: `pair-corpus-honesty` (labels, tiers, splits, `known_limit`), `corpus-seeded-mechanisms` (exporter, LOO, lever), `tool_hunter` and `provider/openrouter`, `harness_ext`, HarnessX 0.1.0 (`meta_harness`, `rl`, `tracing.journal`), `tree-sitter-overlay-extra`, the sandbox and regress recipes.
-- **Downstream**: every roadmap number; `harnessx-self-improving-rulesets` (its evolve step is this spec); `authorization-obligations` 4.3/5/6; scan reports (findings carry class, detector and verifier).
+- Upstream: `pair-corpus-honesty` (labels, tiers, splits, `known_limit`), `corpus-seeded-mechanisms` (exporter, LOO, lever), `tool_hunter` and `provider/openrouter`, `harness_ext`, HarnessX 0.1.0 (`meta_harness`, `rl`, `tracing.journal`), `tree-sitter-overlay-extra`, the sandbox and regress recipes.
+- Downstream: every roadmap number; `harnessx-self-improving-rulesets` (its evolve step is this spec); `authorization-obligations` 4.3/5/6; scan reports (findings carry class, detector and verifier).
 
 ## Existing Spec Touchpoints
 
-- **Extends**: `pair-corpus-honesty` Req 1 (scorer) and Req 9/10 (row classification); `corpus-seeded-mechanisms` Req 4/5 (split by construction); `three-stage-scan` MAP (per-class hunters as proposers); `propose-adjudicate-prove` (verifiers keyed by class); `harnessx-self-improving-rulesets` (the evolve loop lands here).
-- **Folds in**: the retired `closed-loop-integrity` brief.
-- **Re-homes**: `authorization-obligations` 4.3 and the corpus half of 6.1; holds 5.
+- Extends: `pair-corpus-honesty` Req 1 (scorer) and Req 9/10 (row classification); `corpus-seeded-mechanisms` Req 4/5 (split by construction); `three-stage-scan` MAP (per-class hunters as proposers); `propose-adjudicate-prove` (verifiers keyed by class); `harnessx-self-improving-rulesets` (the evolve loop lands here).
+- Folds in: the retired `closed-loop-integrity` brief.
+- Re-homes: `authorization-obligations` 4.3 and the corpus half of 6.1; holds 5.
 
 ## Constraints
 

@@ -2,11 +2,11 @@
 
 ## Problem
 
-Operators care whether the harness fires on a real buggy snapshot and stays quiet after the patch — Firefox, Chromium, OpenSSL — not whether OWASP BenchmarkTest00074 is a TP. The labeled SAST slice is 11 textbook files. Overlay Youden there is **worse** than inventory (+9.09% → 0%). We cannot tell if the tool got better on messy product code.
+Operators care whether the harness fires on a real buggy snapshot and stays quiet after the patch (Firefox, Chromium, OpenSSL), not whether OWASP BenchmarkTest00074 is a TP. The labeled SAST slice is 11 textbook files. Overlay Youden there is **worse** than inventory (+9.09% → 0%). We cannot tell if the tool got better on messy product code.
 
 ## Current State
 
-Slices today: `local` (CI 100%), `github` (6 vendored functions: SVEN, hutool, node-serialize), `sast` (OWASP/Juliet). `datasets.toml` already points at CVEfixes, MoreFixes, CWE-Bench-Java, Vul4J. Nothing is harvested from gecko-dev / Firefox. Whole mozilla-central is not in-tree (and should not be). FixFox (Zenodo) is embargoed until 2030. Firefox security commit messages are often scrubbed of “security” words, so grep-the-log is a bad miner.
+Slices today: `local` (CI 100%), `github` (6 vendored functions: SVEN, hutool, node-serialize), `sast` (OWASP/Juliet). `datasets.toml` already points at CVEfixes, MoreFixes, CWE-Bench-Java, Vul4J. Nothing is harvested from gecko-dev / Firefox. Whole mozilla-central is not in-tree (and should not be). FixFox (Zenodo) is embargoed until 2030. Firefox security commit messages are often scrubbed of "security" words, so grep-the-log is a bad miner.
 
 Measured on the current 11-pair **sast** slice (2026-09-04):
 
@@ -27,8 +27,8 @@ Do not clone Firefox. Filter public VFC databases for `gecko-dev` / `mozilla-fir
 
 ## Scope
 
-- **In**: harvest script or documented procedure; catalog slice; provenance headers; overlay-vs-inventory scoreboard on that slice; dataset.toml pointers for Firefox/Chromium.
-- **Out**: Vendoring mozilla-central; live Bugzilla scraping; making Youden a merge gate; buffer-size semantics; tree-sitter packaging (owned by `tree-sitter-overlay-extra`).
+- In: harvest script or documented procedure; catalog slice; provenance headers; overlay-vs-inventory scoreboard on that slice; dataset.toml pointers for Firefox/Chromium.
+- Out: Vendoring mozilla-central; live Bugzilla scraping; making Youden a merge gate; buffer-size semantics; tree-sitter packaging (owned by `tree-sitter-overlay-extra`).
 
 ## Boundary Candidates
 
@@ -41,17 +41,17 @@ Do not clone Firefox. Filter public VFC databases for `gecko-dev` / `mozilla-fir
 
 ## Upstream / Downstream
 
-- **Upstream**: `pairs.py` catalog format; `propose-adjudicate-prove` overlay scoring
-- **Downstream**: improve-loop signals from real misses; later memory-safety spec can reuse the same slice
+- Upstream: `pairs.py` catalog format; `propose-adjudicate-prove` overlay scoring
+- Downstream: improve-loop signals from real misses; later memory-safety spec can reuse the same slice
 
 ## Existing Spec Touchpoints
 
-- **Extends**: pair catalog only (new slice). Does not change smoke gate.
-- **Adjacent**: `tree-sitter-overlay-extra` (C/Java overlay on this slice once the extra exists)
+- Extends: pair catalog only (new slice). Does not change smoke gate.
+- Adjacent: `tree-sitter-overlay-extra` (C/Java overlay on this slice once the extra exists)
 
 ## Constraints
 
-Isolated functions, same `relpath` vuln/fixed. License in the header. No 16 GB dumps in git. Firefox pairs only when a public git commit pair exists — MFSA text without a commit is not a pair.
+Isolated functions, same `relpath` vuln/fixed. License in the header. No 16 GB dumps in git. Firefox pairs only when a public git commit pair exists; MFSA text without a commit is not a pair.
 
 ## Closure (2026-09-04)
 

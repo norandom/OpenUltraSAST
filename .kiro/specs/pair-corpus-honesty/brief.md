@@ -25,8 +25,8 @@ Fix the scorer and labels first (no engine change). Anchor harvest at the declar
 
 ## Scope
 
-- **In**: scorer fidelity; label schema; harvest anchor and modes; corpus hygiene for sast; three new slices; dataset pointers; provenance fingerprint; per-profile and per-mechanism dashboard; per-profile improve-loop gate; offline tests.
-- **Out**: any change to taint, facts, CST walker, or dispositions (engine specs); tolerating tree-sitter ERROR nodes (engine); BaxBench generation and exploit-labelled slices (needs deep mode; later); profile-specific fact tables; making any dashboard a merge gate; vendoring SecBench.js test files (no license).
+- In: scorer fidelity; label schema; harvest anchor and modes; corpus hygiene for sast; three new slices; dataset pointers; provenance fingerprint; per-profile and per-mechanism dashboard; per-profile improve-loop gate; offline tests.
+- Out: any change to taint, facts, CST walker, or dispositions (engine specs); tolerating tree-sitter ERROR nodes (engine); BaxBench generation and exploit-labelled slices (needs deep mode; later); profile-specific fact tables; making any dashboard a merge gate; vendoring SecBench.js test files (no license).
 
 ## Boundary Candidates
 
@@ -42,14 +42,14 @@ Fix the scorer and labels first (no engine change). Anchor harvest at the declar
 
 ## Upstream / Downstream
 
-- **Upstream**: pair catalog schema; overlay eval path; `build_pair_signals`; `run_improvement` accept gate; preprocess tags.
-- **Downstream**: `overlay-ir-completeness` and `guard-dominance-regime` measure against these slices and vocabularies; later `baxgen` slice reuses provenance and mechanism fields.
+- Upstream: pair catalog schema; overlay eval path; `build_pair_signals`; `run_improvement` accept gate; preprocess tags.
+- Downstream: `overlay-ir-completeness` and `guard-dominance-regime` measure against these slices and vocabularies; later `baxgen` slice reuses provenance and mechanism fields.
 
 ## Existing Spec Touchpoints
 
-- **Supersedes**: `real-world-vfc-slice` (corpus/scorer plane). Its seed pairs, harvest script, and dual scoreboard are kept and extended.
-- **Extends**: roadmap direct candidate "record inventory vs overlay Youden side-by-side in sast JSON".
-- **Adjacent**: `propose-adjudicate-prove` (one additive field on `OverlayRecord`), `harnessx-self-improving-rulesets` (accept gate grows a per-profile clause, ledger format unchanged).
+- Supersedes: `real-world-vfc-slice` (corpus/scorer plane). Its seed pairs, harvest script, and dual scoreboard are kept and extended.
+- Extends: roadmap direct candidate "record inventory vs overlay Youden side-by-side in sast JSON".
+- Adjacent: `propose-adjudicate-prove` (one additive field on `OverlayRecord`), `harnessx-self-improving-rulesets` (accept gate grows a per-profile clause, ledger format unchanged).
 
 ## Constraints
 

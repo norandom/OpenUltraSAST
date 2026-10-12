@@ -4,14 +4,14 @@
 
 The detector stops being a noisy oracle and becomes a proposer that a deterministic program model audits. The
 model is a **Code Property Graph** (Joern, Apache-2.0): one graph merging AST, CFG, PDG and call graph, over
-which taint reachability and guard dominance produce verdicts on the evidence ladder — `suspicion`,
+which taint reachability and guard dominance produce verdicts on the evidence ladder, `suspicion`,
 `model_corroborated`, `model_entailed`, `execution_confirmed`. The LLM is asked one bounded question per
 candidate; its answer is checked against the CPG, not averaged over runs.
 
 Two disciplines shape every decision below. **Subtraction first:** the noise architecture and the outgrown
 test surface are removed and audited before the CPG arbiter is adopted, because the session that produced this
 spec logged eighteen defects building on an overgrown surface. **Adopt, don't build:** the CFG/PDG our flat IR
-lacks comes from Joern, not from a hand-built engine — the 2.2% entailment ceiling is the measured distance
+lacks comes from Joern, not from a hand-built engine. The 2.2% entailment ceiling is the measured distance
 between our AST projection and a real CPG, and closing it by hand is reimplementing Joern.
 
 ### Goals
@@ -19,12 +19,12 @@ between our AST projection and a real CPG, and closing it by hand is reimplement
 - Remove the noise architecture and reduce the test suite with it, gate-protected and reversible.
 - A deterministic model verdict on the band the model covers; honest `suspicion` on the rest.
 - The CPG engine, the LLM endpoint and any execution tier are optional; the core stays zero-dependency.
-- The security modelling — taxonomy, source/sink/sanitizer/guard specs — is ours, expressed as CPG queries.
+- The security modelling (taxonomy, source/sink/sanitizer/guard specs) is ours, expressed as CPG queries.
 
 ### Non-Goals
 
 - Building a control-flow or dataflow engine (adopted, Req 4). Prompt optimisation, evolve loops, acceptance
-  rules (deleted, Req 8.5). The execution tier itself (deferred to Clearwing, Req 10). Soundness — the
+  rules (deleted, Req 8.5). The execution tier itself (deferred to Clearwing, Req 10). Soundness, the
   north-star `model_entailed`-as-pure-arbiter is not v1.
 
 ## Boundary Commitments
@@ -32,18 +32,18 @@ between our AST projection and a real CPG, and closing it by hand is reimplement
 ### This Spec Owns
 
 - The subtraction: which modules are removed, the dangling-import check, the module-audit manifest.
-- `cpg/` — the Joern seam (`CpgBackend`, the subprocess/query implementation, the null backend).
-- `model/` — `Verdict`/`Rung`, taint reachability, guard dominance, constant abstraction; the security specs
+- `cpg/`, the Joern seam (`CpgBackend`, the subprocess/query implementation, the null backend).
+- `model/`, `Verdict`/`Rung`, taint reachability, guard dominance, constant abstraction; the security specs
   ported from the deleted modules' vocabularies.
 - The proposer/judge orchestration where the LLM's claim is checked against the model.
 - The corpus-as-calibration harness and its model-gap report.
 
 ### Out of Boundary
 
-- The family **taxonomy** (`learning/families.py`) — retained unchanged, re-homed under `model/`.
-- The corpus loader, per-slice split and gates — retained; the gates stay byte-identical.
-- Redaction, the LLM endpoint client (`learning/endpoint.py`) — retained.
-- Clearwing's sandbox lifecycle — never reimplemented; the execution tier adopts it.
+- The family **taxonomy** (`learning/families.py`), retained unchanged, re-homed under `model/`.
+- The corpus loader, per-slice split and gates, retained; the gates stay byte-identical.
+- Redaction, the LLM endpoint client (`learning/endpoint.py`), retained.
+- Clearwing's sandbox lifecycle, never reimplemented; the execution tier adopts it.
 
 ### Allowed Dependencies
 
@@ -63,7 +63,7 @@ between our AST projection and a real CPG, and closing it by hand is reimplement
 ### Existing Architecture Analysis
 
 The `learning/` package (4,091 lines, 16 modules) implements the noise architecture and is **absent from the
-gate path** — the gates import only from `pairs`, `benchmark`, `findings`, `mapping`, `preprocess`, `rank`,
+gate path**. The gates import only from `pairs`, `benchmark`, `findings`, `mapping`, `preprocess`, `rank`,
 `complexity.map`. So the subtraction is clean: removing `rounds`, `acceptance`, `proposer`, `journal`, the
 noise machinery in `scoring`, and the mechanism loop cannot move a gate. What survives and re-homes: the
 taxonomy (`families.py`), the candidate enumerator (`candidates.py`, the `suspicion`-band feeder), the LLM
@@ -140,7 +140,7 @@ src/openultrasast/model/
 - `learning/candidates.py` → `model/candidates.py` (the suspicion-band enumerator, Req 8.4).
 - `learning/endpoint.py` → `model/endpoint.py` (the judge client).
 - `semantic/obligations/` retained; its operation/discharge facts feed `model/dominance.py`.
-- `pairs.py`, the gates, redaction — unchanged.
+- `pairs.py`, the gates, redaction, unchanged.
 
 ### The audit manifest (Req 3)
 
@@ -288,21 +288,21 @@ is dominated by no discharger and its siblings are, else `CORROBORATED`/`None`.
 
 ## Migration and Phases
 
-1. **Subtract and audit (Req 1–3).** Remove the noise architecture; port the guard/sink vocabularies into
+1. Subtract and audit (Req 1–3). Remove the noise architecture; port the guard/sink vocabularies into
    `model/specs.py` before deleting their modules; run the import-graph check and the gate-baseline; reduce
    the tests in the same change; commit the audit manifest. Gate-protected and reversible; no CPG yet.
-2. **Joern spike on one family (Req 4, 6.1).** The `CpgBackend` seam and the injection `TaintSpec`, proven
+2. Joern spike on one family (Req 4, 6.1). The `CpgBackend` seam and the injection `TaintSpec`, proven
    end to end on the injection slice: build a CPG, run the taint query, produce entailed/corroborated
    verdicts, assert determinism. This phase can stop the design if Joern cannot deliver a deterministic
-   verdict at acceptable cost — the analogue of the candidate-ceiling gate.
-3. **The ladder and the judge (Req 5, 8).** `Verdict`/`Rung`, and `judge.py` checking the LLM's residual
+   verdict at acceptable cost, the analogue of the candidate-ceiling gate.
+3. The ladder and the judge (Req 5, 8). `Verdict`/`Rung`, and `judge.py` checking the LLM's residual
    answer against the verdict. No K-runs, nothing to average.
-4. **Absence and the rest of the taxonomy (Req 6.2, 7).** Dominance queries from the obligation facts; the
+4. Absence and the rest of the taxonomy (Req 6.2, 7). Dominance queries from the obligation facts; the
    remaining `TaintSpec`s. Regenerate the entailment ceiling (Req 6.5) and watch it rise as depth improves.
-5. **Corpus calibration and reporting (Req 9, 11).** The vulnerable-parent/fix differential, the model-gap
+5. Corpus calibration and reporting (Req 9, 11). The vulnerable-parent/fix differential, the model-gap
    report, per-slice + overfitting gap.
-6. **Execution tier stub (Req 10).** The `execution_confirmed` rung and the Clearwing adoption seam, built
-   only when a class needs it — memory/C first, and not for web/logic v1.
+6. Execution tier stub (Req 10). The `execution_confirmed` rung and the Clearwing adoption seam, built
+   only when a class needs it, memory/C first, and not for web/logic v1.
 
 Phase 1 removes ~5,000 lines before a line of Joern is written. Phase 2 can end the design before the
 integration cost is paid, exactly as the candidate ceiling could have in the prior spec.

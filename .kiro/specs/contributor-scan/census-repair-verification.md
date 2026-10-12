@@ -1,4 +1,4 @@
-# Task 2.19 — measured input retention and census completeness
+# Task 2.19, measured input retention and census completeness
 
 The maintainer accepted the proposed contributor-scan follow-up after the pre-push
 NO-GO report. The Kiro root-cause-first workflow identified a concrete shared-boundary

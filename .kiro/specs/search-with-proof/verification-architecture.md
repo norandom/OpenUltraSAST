@@ -13,7 +13,7 @@ directed state-space **search**, then a DAST-style **proof (verification)**.
    between the vulnerable and fixed revisions: the owned effect appears on the vulnerable side and
    not on the fixed side (3/3 vs 0/3). Only this differential earns `demonstrated`.
 
-## Trust boundary — what runs where
+## Trust boundary (what runs where)
 
 The brain runs on the VM; the agent's tool executions and the DAST proof run as isolated tasks in
 the kube-ax cluster. Secrets never enter the cluster.

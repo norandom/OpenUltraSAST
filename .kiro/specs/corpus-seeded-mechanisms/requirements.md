@@ -8,15 +8,15 @@ OpenUltraSAST's labeled pair corpus measures the detector but does not improve i
 
 ## Boundary Context
 
-- **In scope**: mechanism export from pairs; shape normalization per language; variant search proposer in MAP; leave-one-out evaluation; `mechanisms` improve lever; store schema additions; reports showing mechanism ids; offline tests.
-- **Out of scope**: taint, facts, walker, dispositions, evidence rungs; embedding retrieval changes; inter-file flow; LLM-authored shapes; catalogs and scorer changes beyond reading `PairCase`; any merge gate.
-- **Adjacent expectations**: `Mechanism` gains additive fields only; `order_promotions` keeps working on old records; the improve loop's existing clauses and the per-profile holdout clause apply unchanged; `local` remains the only slice that can fail CI.
+- In scope: mechanism export from pairs; shape normalization per language; variant search proposer in MAP; leave-one-out evaluation; `mechanisms` improve lever; store schema additions; reports showing mechanism ids; offline tests.
+- Out of scope: taint, facts, walker, dispositions, evidence rungs; embedding retrieval changes; inter-file flow; LLM-authored shapes; catalogs and scorer changes beyond reading `PairCase`; any merge gate.
+- Adjacent expectations: `Mechanism` gains additive fields only; `order_promotions` keeps working on old records; the improve loop's existing clauses and the per-profile holdout clause apply unchanged; `local` remains the only slice that can fail CI.
 
 ## Requirements
 
 ### Requirement 1: Mechanisms seeded from trusted pairs
 
-**Objective:** As a maintainer, I want each reviewed pair to become a mechanism record, so that the corpus is a library the detector can search, not only a ruler.
+**Objective:** As a maintainer, I want each reviewed pair to become a mechanism record, so that the corpus is both a library the detector can search and a ruler.
 
 #### Acceptance Criteria
 
@@ -64,7 +64,7 @@ OpenUltraSAST's labeled pair corpus measures the detector but does not improve i
 
 ### Requirement 5: A recall-raising lever in the improve loop
 
-**Objective:** As a maintainer, I want the improve loop to be able to admit mechanisms, so that it can raise recall and not only shadow noisy rules.
+**Objective:** As a maintainer, I want the improve loop to be able to admit mechanisms, so that it can raise recall as well as shadow noisy rules.
 
 #### Acceptance Criteria
 

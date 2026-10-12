@@ -1,6 +1,6 @@
 # Design Document: contributor-scan
 
-## Integration amendment — 2026-09-12 (draft, unapproved)
+## Integration amendment, 2026-09-12 (draft, unapproved)
 
 The maintainer has clarified the product as an actionable pre-push safety net across supported
 ecosystems. The proposed successor `../pre-push-safety-net/design.md` consumes this driver/backend
@@ -9,7 +9,7 @@ of both targets and graphs. Existing approvals below apply to the prior design, 
 
 Proposed shared seams needing requirements/design review before implementation:
 
-- Accept an absolute deadline across graph build, overlays, retries and queries, not only region/call caps.
+- Accept an absolute deadline across graph build, overlays, retries and queries as well as region/call caps.
 - Accept an optional validated reusable graph lease while preserving ordinary fresh-build scans;
   backend remains authoritative for artifact identity, census, compatibility and cleanup.
 - Return exact selected/deferred question IDs and context boundaries from ranker decisions;
@@ -45,13 +45,13 @@ for someone who does not have Joern.
 
 ### Non-Goals
 
-- New arbiters or families — the three forms exist and are measured.
+- New arbiters or families; the three forms exist and are measured.
 - Any optimiser, prompt search, or K-run averaging. The predecessor deleted that machinery; this does not
   reintroduce it by another name.
 - Building a sandbox. Req 10 of the predecessor stands: adopt, never build.
 - Changing the gates, the taxonomy, or the fact-table schema.
 
-## The fact tables are an ontology, and it is general-purpose — 2026-09-21
+## The fact tables are an ontology, and it is general-purpose, 2026-09-21
 
 The `[[source]]`, `[[sink]]`, `[[sanitizer]]`, `[[operation]]`, `[[discharger]]` and `[[layout]]` rows
 are not a pattern list. They are an ontology of program elements and their security relations: what
@@ -87,18 +87,18 @@ repository is in front of the maintainer, which is what task 7.1 exists to make 
 
 ### This Spec Owns
 
-- `model/regions.py` — entry points and file fallbacks to regions, with the family routing for each.
-- `model/scan.py` — the repository-level driver: rank, budget, dispatch to `model/pipeline`, collect.
+- `model/regions.py`: entry points and file fallbacks to regions, with the family routing for each.
+- `model/scan.py`: the repository-level driver: rank, budget, dispatch to `model/pipeline`, collect.
 - The `Stage.MAP` wiring in `cli.py` and the scan's model-layer payload and report section.
-- `benchmarks/repos/` — pinned known-vulnerable checkouts and their baselines.
+- `benchmarks/repos/`: pinned known-vulnerable checkouts and their baselines.
 - The decisions in Req 7 and their record.
 
 ### Out of Boundary
 
-- `model/pipeline`, `taint`, `dominance`, `config_value`, `ladder`, `specs`, `candidates` — built, measured,
+- `model/pipeline`, `taint`, `dominance`, `config_value`, `ladder`, `specs`, `candidates`: built, measured,
   used unchanged. If this feature needs to change one, that is a signal the change belongs in its own commit
   with its own measurement.
-- `mapping.analyze_entry_points`, the overlay, the obligations checker, the gates — untouched.
+- `mapping.analyze_entry_points`, the overlay, the obligations checker, the gates: untouched.
 
 ### Allowed Dependencies
 
@@ -117,8 +117,8 @@ repository is in front of the maintainer, which is what task 7.1 exists to make 
 ### Existing Architecture Analysis
 
 `ousast scan` runs `policy_load → ruleset_load → preprocess → entry_point_mapping → rank → calibrate →
-STATIC → MAP → REGRESS → report`. Inside MAP it already builds a complexity map, runs the overlay, and — the
-closest analogue to what we are adding — runs `_check_obligations(root, targets, entries, facts, settings,
+STATIC → MAP → REGRESS → report`. Inside MAP it already builds a complexity map, runs the overlay, and (the
+closest analogue to what we are adding) runs `_check_obligations(root, targets, entries, facts, settings,
 runtime, hunter_model)`, which takes entry points, produces findings, and merges them by re-ranking.
 
 The model layer slots in exactly there, with the same shape and the same failure discipline. `entry_points`
@@ -167,10 +167,10 @@ benchmarks/repos/
 
 ### Changed
 
-- `cli.py` — a `model` stage inside MAP, mirroring `_check_obligations`; its payload into the manifest and a
+- `cli.py`: a `model` stage inside MAP, mirroring `_check_obligations`; its payload into the manifest and a
   report section.
-- `model/report.py` — a per-rung summary block for a scan (it currently reports per-slice for corpus runs).
-- `config.py` — a `ModelConfig`-style block: enabled, budget, max regions. Zero-dep, defaults conservative.
+- `model/report.py`: a per-rung summary block for a scan (it currently reports per-slice for corpus runs).
+- `config.py`: a `ModelConfig`-style block: enabled, budget, max regions. Zero-dep, defaults conservative.
 
 ### Unchanged and load-bearing
 
@@ -194,8 +194,8 @@ class ScanRegion:
 def regions_for(entries, targets, *, taxonomy, language_of) -> tuple[ScanRegion, ...]
 ```
 
-Ranking uses what `EntryPointRecord` already carries — an externally-reachable entry point at a trust
-boundary outranks an internal one — rather than inventing a new signal.
+Ranking uses what `EntryPointRecord` already carries (an externally-reachable entry point at a trust
+boundary outranks an internal one) rather than inventing a new signal.
 
 ### model/scan.py
 
@@ -264,10 +264,10 @@ each; everything past exhaustion counted into `regions_unjudged`.
 1. **Wire it (Req 1, 2).** Regions, the MAP stage, findings with rungs reaching a report. Gate-protected.
    Nothing else matters until a user can see a rung.
 2. **Scale it (Req 3, 4).** Budget and ranking, then the first run against a pinned known-vulnerable
-   checkout — the measurement that has never been taken and can reshape the rest.
+   checkout, the measurement that has never been taken and can reshape the rest.
 3. **Ship it (Req 5, 6).** Contributor output; build and verify the image that is currently only defined.
 4. **Close the deferred (Req 7).** The memory decision; retire `evidence_level`.
-5. **Grow the corpus (Req 9).** PHP/WordPress first — the families the model arbitrates best. C CVEs only
+5. **Grow the corpus (Req 9).** PHP/WordPress first: the families the model arbitrates best. C CVEs only
    after 7.1.
 6. **Regression baselines (Req 10).**
 

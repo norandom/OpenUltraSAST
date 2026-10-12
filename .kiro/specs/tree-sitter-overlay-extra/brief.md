@@ -6,7 +6,7 @@ AppSec scanning mixed working trees gets `language_unsupported` on JS/C/Java, an
 
 ## Current State
 
-`parse_tree_sitter_cli` returns `None` even on a successful parse. Python falls back to stdlib `ast`. JS/C/Java stay unadjudicated. `quick` is correctly zero-dep. SAST overlay Youden on the 11-pair textbook slice is 0% vs +9% inventory — not because regex got worse, but because Python overlay fail-closes on ConfigParser-style heap and C/Java never parse.
+`parse_tree_sitter_cli` returns `None` even on a successful parse. Python falls back to stdlib `ast`. JS/C/Java stay unadjudicated. `quick` is correctly zero-dep. SAST overlay Youden on the 11-pair textbook slice is 0% vs +9% inventory, not because regex got worse, but because Python overlay fail-closes on ConfigParser-style heap and C/Java never parse.
 
 ## Desired Outcome
 
@@ -18,8 +18,8 @@ Add optional extra `openultrasast[semantic]` (`tree-sitter` + official language 
 
 ## Scope
 
-- **In**: extra, probe that prefers the Python API when importable, CST → FileIR, tests with and without the extra.
-- **Out**: Joern queries, inter-file taint, CWE-121 buffer semantics, new pair corpora (owned by `real-world-vfc-slice`).
+- In: extra, probe that prefers the Python API when importable, CST → FileIR, tests with and without the extra.
+- Out: Joern queries, inter-file taint, CWE-121 buffer semantics, new pair corpora (owned by `real-world-vfc-slice`).
 
 ## Boundary Candidates
 
@@ -32,13 +32,13 @@ Add optional extra `openultrasast[semantic]` (`tree-sitter` + official language 
 
 ## Upstream / Downstream
 
-- **Upstream**: `propose-adjudicate-prove` overlay records and taint
-- **Downstream**: `real-world-vfc-slice` overlay scoring on C/JS/Java pairs
+- Upstream: `propose-adjudicate-prove` overlay records and taint
+- Downstream: `real-world-vfc-slice` overlay scoring on C/JS/Java pairs
 
 ## Existing Spec Touchpoints
 
-- **Extends**: none (new spec). Does not reopen `propose-adjudicate-prove` tasks.
-- **Adjacent**: `three-stage-scan` modes; `quick` must remain zero-dep.
+- Extends: none (new spec). Does not reopen `propose-adjudicate-prove` tasks.
+- Adjacent: `three-stage-scan` modes; `quick` must remain zero-dep.
 
 ## Constraints
 

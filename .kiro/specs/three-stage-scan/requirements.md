@@ -13,9 +13,9 @@ The work is a follow-up to the HarnessX ruleset-governance spec, not a replaceme
 
 ## Boundary Context
 
-- **In scope**: a three-stage scan contract mapped onto existing scan depths; a static inventory that reports what exists without claiming verification; a complexity map of hotspots with test-tuning hints; isolated regression that produces a worth-fixing verdict; a tool-using hunter confined to stages 2–3; evaluation against split-sink and mutation corpora; visible degradation when the sandbox or a model is unavailable; evolutionary feedback from regression verdicts back into the complexity map.
-- **Out of scope**: rewriting CWE-to-severity policy or the project-score formula; authoring or rewriting detection pattern text; full fuzzing campaigns; generating or applying patches; network pentesting; importing Clearwing.
-- **Adjacent expectations**: stage 1 continues to run in the zero-dependency default install with no model and no sandbox. CWE policy, scoring, traces, and SARIF remain owned by the existing governance spec. The operator supplies an isolated-sandbox runtime (Docker CLI) for stage 3 and an LLM credential for the tool-using hunter; neither is a packaged library dependency of the core install.
+- In scope: a three-stage scan contract mapped onto existing scan depths; a static inventory that reports what exists without claiming verification; a complexity map of hotspots with test-tuning hints; isolated regression that produces a worth-fixing verdict; a tool-using hunter confined to stages 2–3; evaluation against split-sink and mutation corpora; visible degradation when the sandbox or a model is unavailable; evolutionary feedback from regression verdicts back into the complexity map.
+- Out of scope: rewriting CWE-to-severity policy or the project-score formula; authoring or rewriting detection pattern text; full fuzzing campaigns; generating or applying patches; network pentesting; importing Clearwing.
+- Adjacent expectations: stage 1 continues to run in the zero-dependency default install with no model and no sandbox. CWE policy, scoring, traces, and SARIF remain owned by the existing governance spec. The operator supplies an isolated-sandbox runtime (Docker CLI) for stage 3 and an LLM credential for the tool-using hunter; neither is a packaged library dependency of the core install.
 
 ## Requirements
 

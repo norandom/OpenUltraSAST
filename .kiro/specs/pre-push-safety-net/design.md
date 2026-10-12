@@ -24,7 +24,7 @@ an irrelevant old defect, or an unactionable witness can still produce noise.
 - Do not build a second ranker/scope heuristic, an incremental CPG engine, a daemon, an automatic fixer,
   or a mandatory model service. Do not scan intermediate pushed history in this feature.
 
-## What this hook is, and is not — 2026-09-21
+## What this hook is, and is not, 2026-09-21
 
 A general-purpose pre-commit hook, not an application-specific one. It may be measured on WordPress
 plugins and Node applications, and it may not become a tool that only works on them. The practical
@@ -63,8 +63,8 @@ The fourth and fifth cost the declared v0.1 target its entire admissibility: a W
 PHP plus admin JavaScript, so the product could detect defects on its own target and never admit
 one. Neither passing subject could reveal it, because both hold one language.
 
-**In review:** every new degradation reason must state the scope it reaches — one question, one file,
-one partition, or the whole read — and a reason that demotes an outcome must justify reaching that
+**In review:** every new degradation reason must state the scope it reaches (one question, one file,
+one partition, or the whole read), and a reason that demotes an outcome must justify reaching that
 far. A gap that costs coverage without threatening correctness is a declared exclusion: it stays
 published and it does not demote.
 
@@ -462,7 +462,7 @@ decision in the terminal; do not fabricate a successful cache entry or hang whil
    separate from a future C/C++ positive control. See `evaluation.md` for selection and labeling gates.
 
 Measure the accepted experimental acceptance profile in requirements on declared hardware and fixed workloads.
-Warm means prior reusable work from the preceding state, not only repeating the identical tip.
+Warm means prior reusable work from the preceding state. Repeating the identical tip alone is insufficient.
 Report identical-tip hits separately from a one-function change and a dependency/configuration
 change. Include first installs, cold graphs, growing repository size, multi-ref pushes and incomplete
 outcomes. Freeze the applicable population before ranker selection; deferred questions count against

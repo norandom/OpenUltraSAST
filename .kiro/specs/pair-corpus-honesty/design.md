@@ -172,11 +172,11 @@ tests/
 
 ### Modified Files
 
-- `src/openultrasast/pairs.py` — see above; `OVERLAY_SLICES` grows; `PairCase` gains `provenance`, `mechanism` (on expected), `split`, `known_limit`.
-- `src/openultrasast/semantic/overlay.py` — fill `function` from the `FunctionIR` whose range contains the record line; default `None`.
-- `src/openultrasast/improve/evolve.py` — `_Eval` computes `per_profile` on holdout; new reject reason `profile_regression:<profile>`.
-- `src/openultrasast/preprocess.py`, `reports.py`, `cli.py` — wiring only.
-- `benchmarks/pairs/README.md`, `.kiro/steering/roadmap.md` — slice list and spec order.
+- `src/openultrasast/pairs.py`: see above; `OVERLAY_SLICES` grows; `PairCase` gains `provenance`, `mechanism` (on expected), `split`, `known_limit`.
+- `src/openultrasast/semantic/overlay.py`: fill `function` from the `FunctionIR` whose range contains the record line; default `None`.
+- `src/openultrasast/improve/evolve.py`: `_Eval` computes `per_profile` on holdout; new reject reason `profile_regression:<profile>`.
+- `src/openultrasast/preprocess.py`, `reports.py`, `cli.py`: wiring only.
+- `benchmarks/pairs/README.md`, `.kiro/steering/roadmap.md`: slice list and spec order.
 
 ## System Flows
 

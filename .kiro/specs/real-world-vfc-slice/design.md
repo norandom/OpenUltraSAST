@@ -132,12 +132,12 @@ benchmarks/pairs/
 
 ### Modified Files
 
-- `src/openultrasast/pairs.py` — concatenate vfc catalog; overlay path for `vfc`; `scorers` on the eval result; `DEFAULT_VFC_CATALOG`.
-- `src/openultrasast/cli.py` — `--slice` choice `vfc`.
-- `src/openultrasast/pair_gate.py` — comment that vfc is honesty-only; fail condition stays local.
-- `tests/test_pair_corpus.py` — vfc load, provenance, CLI, not in `LANGUAGE_MANIFESTS`, pair_gate still passes.
-- `benchmarks/pairs/datasets.toml` — project pointers.
-- `benchmarks/pairs/README.md` — slice list and harvest pointer.
+- `src/openultrasast/pairs.py`: concatenate vfc catalog; overlay path for `vfc`; `scorers` on the eval result; `DEFAULT_VFC_CATALOG`.
+- `src/openultrasast/cli.py`: `--slice` choice `vfc`.
+- `src/openultrasast/pair_gate.py`: comment that vfc is honesty-only; fail condition stays local.
+- `tests/test_pair_corpus.py`: vfc load, provenance, CLI, not in `LANGUAGE_MANIFESTS`, pair_gate still passes.
+- `benchmarks/pairs/datasets.toml`: project pointers.
+- `benchmarks/pairs/README.md`: slice list and harvest pointer.
 
 ## System Flows
 
@@ -203,8 +203,8 @@ Harvest (maintainer, not CI): recipe → fetch parent blob and fix blob → extr
 - Runnable set stays small; recipes may list more than CI runs.
 
 **Dependencies**
-- Inbound: pair loader — concatenate file (P0)
-- Outbound: evaluate_pair — cases (P0)
+- Inbound: pair loader: concatenate file (P0)
+- Outbound: evaluate_pair: cases (P0)
 
 **Contracts**: State [x]
 

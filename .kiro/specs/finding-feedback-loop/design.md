@@ -10,7 +10,7 @@ anything.
 
 The design turns on one asymmetry: **two of those three bugs needed no judgement at all.** Once the first was
 understood, the other two were the same fix carried across. So the automation that pays is *propagation and
-memory*, and the model is confined to the one step that genuinely needs inference — naming what a group has in
+memory*, and the model is confined to the one step that genuinely needs inference: naming what a group has in
 common.
 
 ### Goals
@@ -22,7 +22,7 @@ common.
 
 ### Non-Goals
 
-- **Automated fact-table edits.** Not deferred — prohibited. See Boundary Commitments.
+- **Automated fact-table edits.** Prohibited rather than deferred. See Boundary Commitments.
 - Suppressing findings silently. A dismissal makes a finding *labelled*, never invisible.
 - A general-purpose optimiser. The only surfaces evolved are two prompt constants.
 - Replacing the pair corpus. It is the holdout that keeps per-repository tuning honest.
@@ -38,10 +38,10 @@ common.
 
 ### Out of Boundary
 
-- `semantic/facts`, `semantic/obligations`, `ruleset/`, the declared policy file — **no automated writer, by
+- `semantic/facts`, `semantic/obligations`, `ruleset/`, the declared policy file: **no automated writer, by
   any path, at any time.** This is the boundary the whole design exists to respect.
 - The three gates. They are the invariant an adoption is measured against, not a thing this spec changes.
-- `model/taint.py`, `dominance.py`, `config_value.py` — arbiters are fixed here; a proposal that would change
+- `model/taint.py`, `dominance.py`, `config_value.py`: arbiters are fixed here; a proposal that would change
   one is a proposal for a human, not an edit.
 
 ### Allowed Dependencies
@@ -64,7 +64,7 @@ Three pieces already exist and are reused rather than rebuilt:
 - **`benchmarks/repos/*.toml`** declares known vulnerabilities per checkout, with `in_scope` stating whether a
   family can decide one at all. That is the positive half of an evaluation set, already committed.
 - **`pairs.py`** already carries a train/holdout split and the machinery that respects it. The leak of
-  2026-09-05 was in the *lever*, not the splitter — `semantic/loo.evaluate_loo` was honest throughout.
+  2026-09-05 was in the *lever*, not the splitter; `semantic/loo.evaluate_loo` was honest throughout.
 - **`redaction.py`** is applied to every prompt and persisted trajectory, and applies here unchanged.
 
 ### Boundary Map
@@ -87,21 +87,21 @@ benchmarks/repos/*.toml ── read ────▶   evaluation set            
 
 **A dismissal is a label, not a suppression.** A suppressed finding disappears and its reason rots; a
 labelled one is reported as dismissed with its reason, and a dismissal that stops matching is reported too.
-This is what turns a suppression list into the negative half of an evaluation set — the thing that makes the
+This is what turns a suppression list into the negative half of an evaluation set, the thing that makes the
 rest of the feature possible.
 
 **The tool never writes the dismissal file.** Same rule as the declared policy file, for the same reason: a
 file the tool edits is a file no reviewer trusts. It is committed by a developer and reviewed like code.
 
 **Grouping is deterministic; only the hypothesis is not.** Entries are grouped by shared spec token, matcher
-clause, family and witness shape — all mechanical. The model is asked one question about a group it did not
+clause, family and witness shape; all mechanical. The model is asked one question about a group it did not
 choose, and its answer goes to a queue. This keeps the inference confined to the step that needs it.
 
 **Evolution targets the question, never the facts.** A prompt is how we ask; a fact table is what we claim.
 `CANDIDATE_QUESTION` and `residual_question` are already the LLM-facing surface and are the only mutable
 targets. Enforced by a test that fails if any writer touches the fact modules, not by convention.
 
-**The holdout is never read.** Not "should not" — the evaluation-set API has no path to it during
+**The holdout is never read.** The evaluation-set API has no path to it during
 optimisation, and a test asserts the absence. The 2026-09-05 leak was possible because reading it was merely
 discouraged.
 
@@ -123,9 +123,9 @@ benchmarks/ledger/
 
 ### Changed
 
-- `cli.py` — a `feedback` subcommand: `ledger`, `groups`, `propose`, `evolve`. Maintainer surface; `scan`
+- `cli.py`: a `feedback` subcommand: `ledger`, `groups`, `propose`, `evolve`. Maintainer surface; `scan`
   gains only the dismissal read.
-- `reports.py` — a dismissed finding is rendered as dismissed with its reason.
+- `reports.py`: a dismissed finding is rendered as dismissed with its reason.
 
 ### Unchanged and load-bearing
 

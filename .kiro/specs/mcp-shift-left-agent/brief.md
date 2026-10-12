@@ -8,8 +8,8 @@ skills. Related: `proof-arm-opencode` (the proof model), `pre-push-safety-net`
 ## Motivation
 
 The pre-push hook is the gate. Developers and their coding agents want the same
-security feedback **earlier**, while the code is still being written, not only at
-push. And in an agent-driven workflow, a mandatory security check is how a human
+security feedback **earlier**, while the code is still being written, before
+push. In an agent-driven workflow, a mandatory security check is how a human
 oversees agents: the agent's output has to clear it before it ships.
 
 Proposal: expose the safety net through an MCP agent and a small set of skills so
@@ -19,20 +19,20 @@ proposes a push.
 
 ## Shape
 
-- **Transport:** extend the existing narrow MCP server (`ousast mcp`, stdio) that
+- Transport: extend the existing narrow MCP server (`ousast mcp`, stdio) that
   OpenCode and other agents already speak. No new network surface; same
   no-secret, bounded contract.
-- **What the agent offers:**
+- What the agent offers:
   1. Scan the current diff with the static arm (fast, no model, no cluster) and
      return findings scoped to the change, with location and a concrete repair
      direction, not a confidence label.
   2. Triage a finding: explain it in plain terms and whether it is reachable.
   3. Prove on demand: hand the top candidate to the proof arm when a runnable
      harness exists, and return the demonstrated proof-of-concept.
-- **Skills:** the existing `openultrasast-scan` and `openultrasast-triage`
+- Skills: the existing `openultrasast-scan` and `openultrasast-triage`
   product skills, plus shift-left additions (scan-the-diff, explain-a-finding,
   suggest-a-fix-direction) that a coding agent invokes mid-task.
-- **Oversight mode:** a coding agent can be configured to call the scan as a
+- Oversight mode: a coding agent can be configured to call the scan as a
   required step before it finalizes a change, so security review is automatic
   rather than remembered.
 

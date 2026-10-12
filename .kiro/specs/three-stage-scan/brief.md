@@ -19,9 +19,9 @@ AppSec engineers and DevOps teams running OpenUltraSAST in CI get a regex static
 
 A scan answers three operator questions, in order:
 
-1. **What exists?** A static inventory of files, surfaces, and pattern/SARIF hits — honest about being inventory, not verified bugs.
-2. **Where are problems most likely, and how do I tune tests?** A complexity map of hotspots plus test-gap hints a DevOps team can act on.
-3. **Is this worth fixing?** Isolated regression against the top hotspots. Triggerable and reachable → worth a CI fail. Not triggerable → do not fail the build.
+1. What exists? A static inventory of files, surfaces, and pattern/SARIF hits, honest about being inventory, not verified bugs.
+2. Where are problems most likely, and how do I tune tests? A complexity map of hotspots plus test-gap hints a DevOps team can act on.
+3. Is this worth fixing? Isolated regression against the top hotspots. Triggerable and reachable → worth a CI fail. Not triggerable → do not fail the build.
 
 Stages 2–3 use a tool-calling hunter (read / grep / callers) and a Docker-isolated runner. Evaluation uses split-sink and mutation corpora, not cheat sheets. Missing Docker or a model degrades visibly; stage 1 still runs.
 
@@ -37,12 +37,12 @@ Do not require the HarnessX extra for the LLM path. Use the existing stdlib Open
 
 Do not add a Python Docker SDK. Drive the Docker CLI via subprocess with the threat-model flags (no network, read-only source, tmpfs scratch, memory/pids/timeout, cap-drop). Core `dependencies = []` stays.
 
-Complexity map is a new artifact built from existing ranking, entry points, finding density, nesting/size, and test-file presence — not a rewrite of `RankingScore`. Stage 3 writes a worth-fixing verdict that feeds back into a complexity ledger (evolutionary), without editing detection pattern text.
+Complexity map is a new artifact built from existing ranking, entry points, finding density, nesting/size, and test-file presence, not a rewrite of `RankingScore`. Stage 3 writes a worth-fixing verdict that feeds back into a complexity ledger (evolutionary), without editing detection pattern text.
 
 ## Scope
 
-- **In**: three-stage scan contract; complexity map + test-tuning hints; Docker-isolated regression and worth-fixing verdicts; tool-calling hunter on hotspots; split-sink/mutation evaluation; CI mapping (PR = stage 1, nightly = stage 2/3); visible degradation; evolutionary feedback from regress → map.
-- **Out**: rewriting CWE policy or project-score formula; auto-authoring regex patterns; full fuzzing campaigns; patch generation/application; network pentest; importing Clearwing.
+- In: three-stage scan contract; complexity map + test-tuning hints; Docker-isolated regression and worth-fixing verdicts; tool-calling hunter on hotspots; split-sink/mutation evaluation; CI mapping (PR = stage 1, nightly = stage 2/3); visible degradation; evolutionary feedback from regress → map.
+- Out: rewriting CWE policy or project-score formula; auto-authoring regex patterns; full fuzzing campaigns; patch generation/application; network pentest; importing Clearwing.
 
 ## Boundary Candidates
 
@@ -61,13 +61,13 @@ Complexity map is a new artifact built from existing ranking, entry points, find
 
 ## Upstream / Downstream
 
-- **Upstream**: existing preprocess, rank, mapping, findings, verification, config, CLI modes, OpenRouter client, threat-model sandbox limits.
-- **Downstream**: CI fail-on `worth-fixing`; later fuzz/patch specs; MCP scan status.
+- Upstream: existing preprocess, rank, mapping, findings, verification, config, CLI modes, OpenRouter client, threat-model sandbox limits.
+- Downstream: CI fail-on `worth-fixing`; later fuzz/patch specs; MCP scan status.
 
 ## Existing Spec Touchpoints
 
-- **Extends**: `openrouter-sast-harness` gates `standard_security_harness` and `sandboxed_dynamic_harness` (still unsatisfied).
-- **Adjacent**: `harnessx-self-improving-rulesets` owns CWE policy, score, shadow, optional HarnessX extra. This spec must not reopen those.
+- Extends: `openrouter-sast-harness` gates `standard_security_harness` and `sandboxed_dynamic_harness` (still unsatisfied).
+- Adjacent: `harnessx-self-improving-rulesets` owns CWE policy, score, shadow, optional HarnessX extra. This spec must not reopen those.
 
 ## Constraints
 

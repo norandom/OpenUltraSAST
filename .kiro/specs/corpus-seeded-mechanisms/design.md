@@ -107,9 +107,9 @@ tests/
 
 ### Modified Files
 
-- `semantic/overlay.py` — `OverlayRecord.mechanism_id: str | None = None` (additive).
-- `regress/candidate.py` — exposes `hotspot_from_finding`; variant findings enter the ranked candidate slice as zero-score hotspots from `cli.py` (after every scored promotion, inside the cap, through the safety check).
-- `config.py` — `[variants] enabled=true, max_mechanisms=500`.
+- `semantic/overlay.py`: `OverlayRecord.mechanism_id: str | None = None` (additive).
+- `regress/candidate.py`: exposes `hotspot_from_finding`; variant findings enter the ranked candidate slice as zero-score hotspots from `cli.py` (after every scored promotion, inside the cap, through the safety check).
+- `config.py`: `[variants] enabled=true, max_mechanisms=500`.
 
 ## System Flows
 

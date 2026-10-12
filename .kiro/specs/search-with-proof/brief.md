@@ -16,13 +16,13 @@ each confirm one fact; the loop ends when the goal is demonstrably met.
 
 Three things follow for OpenUltraSAST:
 
-1. **An objective success condition.** A finding is demonstrated when a test or proof of concept fails on the
+1. An objective success condition. A finding is demonstrated when a test or proof of concept fails on the
    vulnerable code and passes on the fixed code (or, for a push, fails on head and passes on base where applicable).
    A demonstrated finding is right by construction; it needs no calibration and no training data, so it generalises
    to unseen repositories by construction.
-2. **Exploration with tools.** Agents that read other files, follow callers, build and run the code, instead of a
+2. Exploration with tools. Agents that read other files, follow callers, build and run the code, instead of a
    single-shot judgement of one excerpt.
-3. **Search state per repository and push.** Facts and intents accumulate on a board instead of every question
+3. Search state per repository and push. Facts and intents accumulate on a board instead of every question
    starting from zero.
 
 ## Shape

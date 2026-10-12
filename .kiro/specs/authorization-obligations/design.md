@@ -152,9 +152,9 @@ tests/
 
 ### Modified Files
 
-- `src/openultrasast/cli.py` — `_check_obligations` after `_search_variants` in MAP (standard/deep); manifest `obligations` block; `mechanisms export` writes obligation rows too.
-- `src/openultrasast/pairs.py` — `ExpectedFinding.obligation: str | None`; `_detections`-side additive rule: for a row with `obligation`, a finding with tag `obligation:<kind>` inside the labeled function counts.
-- `src/openultrasast/semantic/mechanisms.py` — no schema change; `corpus_mechanisms()` unchanged; a helper `obligation_mechanisms(records)` selects `shape["family"] == "obligation"` (added in `obligations/shapes.py`, not in the store module).
+- `src/openultrasast/cli.py`: `_check_obligations` after `_search_variants` in MAP (standard/deep); manifest `obligations` block; `mechanisms export` writes obligation rows too.
+- `src/openultrasast/pairs.py`: `ExpectedFinding.obligation: str | None`; `_detections`-side additive rule: for a row with `obligation`, a finding with tag `obligation:<kind>` inside the labeled function counts.
+- `src/openultrasast/semantic/mechanisms.py`: no schema change; `corpus_mechanisms()` unchanged; a helper `obligation_mechanisms(records)` selects `shape["family"] == "obligation"` (added in `obligations/shapes.py`, not in the store module).
 - `src/openultrasast/reports.py`, `rank.py`, `config.py`, `improve/*`, `semantic/seed.py`, `semantic/loo.py`, `benchmarks/pairs/harvest.py`, `benchmarks/pairs/mechanisms.toml` as listed above.
 
 ## System Flows
@@ -177,7 +177,7 @@ flowchart LR
   I --> J[StaticFinding suspicion; tags obligation:*, discharger:*, obligation_evidence:*]
 ```
 
-Gating: the checker emits a finding only when (1) the operation is reached — from an entry point along a `PathRecord`, or, without paths, when the operation sits in a handler that is itself an entry point — and (2) no discharger of the required kind dominates, and (3) the obligation is justified by a sibling set (`consistency_violation`), a policy clause (`declared_policy_violation`) or, in degraded mode without either, by the operation fact alone (`function_local`). A declared public route suppresses path-guard obligations for that route only.
+Gating: the checker emits a finding only when (1) the operation is reached (from an entry point along a `PathRecord`, or, without paths, when the operation sits in a handler that is itself an entry point) and (2) no discharger of the required kind dominates, and (3) the obligation is justified by a sibling set (`consistency_violation`), a policy clause (`declared_policy_violation`) or, in degraded mode without either, by the operation fact alone (`function_local`). A declared public route suppresses path-guard obligations for that route only.
 
 ### Teaching and measuring
 

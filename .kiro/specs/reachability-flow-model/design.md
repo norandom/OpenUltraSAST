@@ -146,10 +146,10 @@ tests/
 
 ### Modified Files
 
-- `semantic/cst.py`, `semantic/ir.py` — collect import statements into `FileIR.imports`; no other IR change.
-- `mapping.py` — new function; `EntryPointRecord` unchanged.
-- `stage_processors.py` — MAP stage runs graph, summaries, paths before overlay; overlay unchanged.
-- `map_gate.py` — path assertion per language family.
+- `semantic/cst.py`, `semantic/ir.py`, collect import statements into `FileIR.imports`; no other IR change.
+- `mapping.py`, new function; `EntryPointRecord` unchanged.
+- `stage_processors.py`, MAP stage runs graph, summaries, paths before overlay; overlay unchanged.
+- `map_gate.py`, path assertion per language family.
 
 ## System Flows
 

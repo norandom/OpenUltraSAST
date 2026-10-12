@@ -9,12 +9,12 @@ kube-ax cluster. BLOCK becomes "demonstrated", not "scored above a threshold". C
 
 ## Boundary Context
 
-- **In scope**: the board (facts, intents, hints) in the memory store; reason and explore steps as AX Tasks; the
+- In scope: the board (facts, intents, hints) in the memory store; reason and explore steps as AX Tasks; the
   demonstration contract and its verification; triage-to-search budgeting; a pilot on known fix pairs; a G1 arm on the
   unseen pool; model access through an operator-managed scoped key.
-- **Out of scope**: copying Cairn code (AGPL-3.0); network actions against anything but the code under analysis;
+- Out of scope: copying Cairn code (AGPL-3.0); network actions against anything but the code under analysis;
   changing the existing quick rules, engine or classifier (they are inputs here).
-- **Adjacent expectations**: `unseen-repo-evaluation` scores this arm; the AX batch dispatcher (`benchmarks/ax/batch.py`)
+- Adjacent expectations: `unseen-repo-evaluation` scores this arm; the AX batch dispatcher (`benchmarks/ax/batch.py`)
   and the kube-ax constraints (2 heavy lanes, `ousast-engine-` names, egress to public HTTPS) apply;
   `learned-decision-engine` Req 6.4 BLOCK rule is superseded for this arm by "demonstrated".
 

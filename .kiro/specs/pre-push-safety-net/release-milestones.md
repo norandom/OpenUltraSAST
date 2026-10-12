@@ -64,9 +64,9 @@ code the precision estimate will move, against a bar of 95% with zero false aler
 benign sides. Expect the first M4 evaluation to fail and budget for a second. That is the strongest
 argument for decision 2.
 
-## M1 — One real security change works end to end
+## M1: One real security change works end to end
 
-Status: **NEXT — not verified**. Dependencies: existing immutable replay and scan machinery.
+Status: **NEXT, not verified**. Dependencies: existing immutable replay and scan machinery.
 M1 is split into M1a (diagnose with vetoes recorded, not applied) and M1b (repair only
 the vetoes M1a showed to matter). M1 is verified only when M1b passes.
 
@@ -80,7 +80,7 @@ a global completion veto, line ambiguity inherited by every question, and query 
 differing from witness identity. Requiring all four repaired before the first visible
 result is a full production pass, not one detection.
 
-### M1a — Show the detection with every veto recorded
+### M1a: Show the detection with every veto recorded
 
 Status: **MET 2026-09-16**, inside its one-week box. Evidence:
 [M1a record](m1a-recorded-vetoes.md) and
@@ -112,9 +112,9 @@ source and census receipts. **Kill criterion:** if the fixed twin is not quiet u
 recorded-veto run, M1 has a detector problem, and M1b does not start until that is
 diagnosed and recorded.
 
-### M1b — Repair only the vetoes M1a showed to matter
+### M1b: Repair only the vetoes M1a showed to matter
 
-Status: **NEXT — not verified**. M1a supplied the veto list: per-family change context,
+Status: **NEXT, not verified**. M1a supplied the veto list: per-family change context,
 question-owned vendor relevance, operation correspondence for an operation on a changed line,
 file-wide correspondence ambiguity scope, and query-to-operation provenance. The owner
 diagnosis expected the first and the last two; operation correspondence is the addition M1a
@@ -144,7 +144,7 @@ Owners: contributor-scan for query/operation/context evidence; pre-push-safety-n
 comparison, admission, the recorded-veto flag and reporting. Requirements: 1.1–1.4,
 2.1–2.4, 3.1–3.5, 6.3, 7.1–7.3.
 
-## M2 — The same useful analysis fits the push budget
+## M2: The same useful analysis fits the push budget
 
 Status: **MEASURED AND UNMET, 2026-09-17.** Two attacks on engine startup were measured and
 neither reaches the gate. A transaction-owned session is implemented and proven equivalent for
@@ -179,7 +179,7 @@ completion at least 95%, under the predeclared profile. A fast census alone does
 Owner: contributor-scan runtime, with pre-push-safety-net deadline/cache integration.
 Requirements: 4.1–4.4, 6.2–6.5, 7.3.
 
-## M3 — The shared design transfers across languages
+## M3: The shared design transfers across languages
 
 Status: **PARTIAL, 2026-09-17. Not met.** Python is established and PHP is blocked by runtime.
 
@@ -218,7 +218,7 @@ remain a separate unsupported abstraction; adding a new engine is not a prerequi
 Owners: contributor-scan shared evidence and framework adapters; pre-push-safety-net evaluation.
 Requirements: 6.2–6.4, 8.1–8.4.
 
-## M4 — Independent examples establish useful detection and low noise
+## M4: Independent examples establish useful detection and low noise
 
 Status: **PENDING M3**. Population preparation may proceed earlier, but evaluation follows
 the frozen candidate. Reserve untouched cases before examining their scan results.
@@ -241,7 +241,7 @@ do not require every possible language or family to become eligible for a narrow
 Owner: pre-push-safety-net task 8.3, consuming verified contributor-scan semantics.
 Requirements: 6.1–6.5, 8.1–8.4 and the accepted experimental acceptance profile.
 
-## M5 — Enable a narrow advisory rollout
+## M5: Enable a narrow advisory rollout
 
 Status: **PENDING M4**.
 

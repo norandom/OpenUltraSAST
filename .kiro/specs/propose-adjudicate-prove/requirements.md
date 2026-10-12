@@ -4,15 +4,15 @@
 
 ## Introduction
 
-OpenUltraSAST users scan **working trees they are writing**: mixed files, incomplete edits, generated code, framework wrappers, and no labels. Today the harness still *decides* with pattern inventory. The complexity map ranks; the sandbox can run; neither adjudicates “this sink is fed by a source” versus “this sink is hardcoded, sanitized, or unreadable.”
+OpenUltraSAST users scan **working trees they are writing**: mixed files, incomplete edits, generated code, framework wrappers, and no labels. Today the harness still *decides* with pattern inventory. The complexity map ranks; the sandbox can run; neither adjudicates "this sink is fed by a source" versus "this sink is hardcoded, sanitized, or unreadable."
 
 This feature splits the scan into three operator-visible roles that must not collapse: **regex proposes, semantics adjudicates, sandbox proves.** Labeled suites (cheat-sheet fixtures, OWASP Benchmark, Juliet, CVE pairs) remain **calibration**. They are not the definition of in-scope code.
 
 ## Boundary Context
 
-- **In scope**: Role split on `quick` / `standard` / `deep`; overlay dispositions; tree-sitter (and optional Joern) as the semantic engine; tunable retrieval/rank **before prove**; `unadjudicated` on messy files; sandbox only after promote; calibration vs unlabeled working trees.
-- **Out of scope**: Deleting pattern rules; making an LLM the adjudicator; rewriting CWE policy or project-score formula; requiring Joern or an embedding model for `quick`; auto-generated flow facts from the improve loop; treating benchmark Youden as a merge gate that can unblock a smoke-gate breach. Embedding rank is a **budget**, not a fourth verdict.
-- **Adjacent expectations**: Stage plan, complexity map, Docker sandbox, pair catalog, and 90/10 detection gate from `three-stage-scan` keep their contracts. This spec overlays adjudication on that pipeline; it does not replace stage accounting, sandbox flags, or `LANGUAGE_MANIFESTS`.
+- In scope: Role split on `quick` / `standard` / `deep`; overlay dispositions; tree-sitter (and optional Joern) as the semantic engine; tunable retrieval/rank **before prove**; `unadjudicated` on messy files; sandbox only after promote; calibration vs unlabeled working trees.
+- Out of scope: Deleting pattern rules; making an LLM the adjudicator; rewriting CWE policy or project-score formula; requiring Joern or an embedding model for `quick`; auto-generated flow facts from the improve loop; treating benchmark Youden as a merge gate that can unblock a smoke-gate breach. Embedding rank is a **budget**, not a fourth verdict.
+- Adjacent expectations: Stage plan, complexity map, Docker sandbox, pair catalog, and 90/10 detection gate from `three-stage-scan` keep their contracts. This spec overlays adjudication on that pipeline; it does not replace stage accounting, sandbox flags, or `LANGUAGE_MANIFESTS`.
 
 ## Requirements
 
@@ -36,9 +36,9 @@ This feature splits the scan into three operator-visible roles that must not col
 
 1. When a scanned file is incomplete, generated, minified, or otherwise not interpretable as structured source, the system shall leave matching inventory proposals **unadjudicated** and shall record that reason on the finding.
 2. When no available semantic engine can follow data from a source to a sink for that file (parse failure, missing grammar, cross-file call, dynamic dispatch, or missing callee), the system shall leave the proposal unadjudicated rather than demote it.
-3. When OpenUltraSAST scans a working tree with no benchmark manifest and no expected-finding labels, the system shall still emit proposals, dispositions, and (in `deep`) proofs without requiring a counterpart “fixed” tree.
+3. When OpenUltraSAST scans a working tree with no benchmark manifest and no expected-finding labels, the system shall still emit proposals, dispositions, and (in `deep`) proofs without requiring a counterpart "fixed" tree.
 4. If the operator reads a report for an unadjudicated proposal, then the system shall present it as unresolved inventory, not as a verified vulnerability and not as a cleared finding.
-5. The system shall not require a file to resemble an OWASP Benchmark or Juliet test case in order to produce a proposal.
+5. The system shall not require a file to resemble an OWASP Benchmark or Juliet test case to produce a proposal.
 
 ### Requirement 3: Adjudication promote, demote, coverage
 
@@ -46,8 +46,8 @@ This feature splits the scan into three operator-visible roles that must not col
 
 #### Acceptance Criteria
 
-1. When a proposal’s sink is reachable from an identified untrusted source without an identified sanitizer in the adjudicated region, the system shall **promote** the proposal.
-2. When a proposal’s sink is fed only by a constant, a sanitizer, or an identified non-attacker source in the adjudicated region, the system shall **demote** the proposal and shall not list it as a promoted finding.
+1. When a proposal's sink is reachable from an identified untrusted source without an identified sanitizer in the adjudicated region, the system shall **promote** the proposal.
+2. When a proposal's sink is fed only by a constant, a sanitizer, or an identified non-attacker source in the adjudicated region, the system shall **demote** the proposal and shall not list it as a promoted finding.
 3. When adjudication finds an untrusted source flowing to a dangerous sink that inventory did not propose, the system shall emit a **coverage** finding at corroboration-or-lower evidence, tagged as overlay-originated.
 4. When both a source-to-sink path and a sanitizer appear to apply, the system shall not promote unless the sanitizer does not dominate that path.
 5. The system shall persist promote, demote, unadjudicated, and coverage outcomes in the scan artifacts with the proposal identifier they refer to.
@@ -62,7 +62,7 @@ This feature splits the scan into three operator-visible roles that must not col
 2. When the pair-efficiency evaluation runs on the SAST slice, the system shall score **adjudicated** outcomes (promote on the vulnerable side, demote or silent on the false or good side), not raw inventory hits.
 3. When overlay changes raise SAST Youden and also cause the stage-1 detection gate to fail, the system shall treat the detection-gate failure as blocking.
 4. The system shall keep labeled pair fixtures and SAST-slice cases out of the stage-1 cheat-sheet corpus map.
-5. The system shall not require a labeled counterpart tree in order to scan an operator working tree.
+5. The system shall not require a labeled counterpart tree to scan an operator working tree.
 
 ### Requirement 5: Evidence and models stay honest
 
@@ -74,7 +74,7 @@ This feature splits the scan into three operator-visible roles that must not col
 2. When the tool hunter emits a finding, the system shall keep that finding at `suspicion` unless an independent corroborating stage has already raised it.
 3. If an overlay or hunter result claims an evidence level above corroboration without a sandbox or verifier step that earned it, then the system shall reject that claim.
 4. The system shall not use a language model as the adjudication engine that decides promote or demote.
-5. Where CWE policy applies, the system shall resolve severity from the central CWE policy, not from the overlay or the proposing rule’s private severity string.
+5. Where CWE policy applies, the system shall resolve severity from the central CWE policy, not from the overlay or the proposing rule's private severity string.
 
 ### Requirement 6: Sandbox proves only promoted work
 
@@ -106,7 +106,7 @@ This feature splits the scan into three operator-visible roles that must not col
 
 #### Acceptance Criteria
 
-1. When a tree-sitter grammar for the file’s language is available, the system shall use that parse as the primary intra-file IR for adjudication.
+1. When a tree-sitter grammar for the file's language is available, the system shall use that parse as the primary intra-file IR for adjudication.
 2. When tree-sitter is unavailable for that language, the system shall try a stdlib parse only for Python and shall otherwise leave the proposal unadjudicated with language_unsupported or parse_failed.
 3. Where Joern is installed and the language is one Joern can export, the system shall be allowed to attach Joern flow facts as **additional** corroboration; Joern absence shall not fail `quick` or `standard`.
 4. If Joern and tree-sitter disagree or Joern returns incomplete paths, then the system shall not demote on that disagreement; it shall promote only on a complete dominating path or leave the item unadjudicated.
@@ -124,6 +124,6 @@ This feature splits the scan into three operator-visible roles that must not col
 3. The system shall not demote or drop a promotion solely because mechanism similarity is low.
 4. When the embedding index is missing or stale, the system shall rebuild it from the mechanism log via OpenRouter embeddings; if that rebuild fails, the system shall record the degradation and continue on heuristic order.
 5. The system shall keep hard filters operator-tunable (language, CWE, tags) without changing CWE severity policy.
-6. When a finding is sandbox-proven triggerable (or otherwise verified at corroboration-or-higher with a prove step), the system shall append an abstract mechanism record to the mechanism log: summary, CWE, language, tags, what made it exploitable — without file:line as the identity.
+6. When a finding is sandbox-proven triggerable (or otherwise verified at corroboration-or-higher with a prove step), the system shall append an abstract mechanism record to the mechanism log: summary, CWE, language, tags, what made it exploitable, without file:line as the identity.
 7. The system shall treat the append-only mechanism log as the source of truth; any vector index shall be a rebuildable cache of that log.
 8. The system shall not persist mechanisms from inventory-only, demoted, or unadjudicated proposals.

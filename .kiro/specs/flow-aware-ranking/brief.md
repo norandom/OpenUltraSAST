@@ -1,10 +1,10 @@
-# Brief: flow-aware-ranking — spend the expensive query where the cheap evidence is strongest
+# Brief: flow-aware-ranking, spend the expensive query where the cheap evidence is strongest
 
 > **Status 2026-10-02:** dormant. Brief only and unapproved; its 2026-09-12 amendment placed ranking inside the pre-push safety net, where the ranker now lives.
 
 **Status:** brief only, unapproved.
 
-## Current amendment — 2026-09-12
+## Current amendment, 2026-09-12
 
 This section supersedes forward-looking interpretations below; the iteration history is retained.
 The product goal is a scalable, actionable pre-push security safety net as AI accelerates code changes.
@@ -23,7 +23,7 @@ need explicit summaries or unresolved coverage, never automatic vendor reintrodu
 - Latest recorded phase-2 budgets: PMPro **82**, WP Statistics **91**, MW WP Form **54**, VAmPI **16**.
   The `<50` gate remains unmet. The evidence passes recorded no unanswered pairs. These are stored
   ranking measurements, not fresh detection/precision results or a pre-push latency demonstration.
-- **Equal-score ties are not the whole remaining problem.** At fixed scores, perfect tie-breaking
+- Equal-score ties are not the whole remaining problem. At fixed scores, perfect tie-breaking
   still needs at least **68** regions for PMPro and **86** for WP Statistics (67/85 strictly
   higher-scored same-tier regions precede the targets). An LLM restricted to equal-score ties
   cannot pass `<50`. Within-tier reordering across scores or a new feature is a distinct experiment.
@@ -95,7 +95,7 @@ Three regions from one plugin, with what the ranker sees today and what is actua
 | `pmpro_rest_api_get_membership_level` | **0.80** | none — no SQL sink at all |
 
 A region with no sink outranks two holding raw concatenated SQL. The discriminating signal is in the sink
-call's own source text — interpolated versus bound — and nothing in the ranker reads it.
+call's own source text (interpolated versus bound), and nothing in the ranker reads it.
 
 One detail decides whether a keyword rule suffices, and it does not: `esc_sql` IS in scope for the CVE's
 function, applied to a different statement. "A sanitizer is present, rank it lower" demotes precisely the
@@ -122,8 +122,8 @@ finding**, it decides what is looked at, and `regions_truncated` already reports
 Each phase ships only if it beats the previous one **on a repository the change was not developed against**.
 A phase that cannot show that is not an improvement, it is a story.
 
-- **Phase 0 — the oracle and the baseline.** The evidence extractor (no model) and a scoring harness over the
-  pinned CVEs, reporting each one's rank position. Gate: reproduces today's numbers — CVE-2023-23488 at
+- Phase 0, the oracle and the baseline. The evidence extractor (no model) and a scoring harness over the
+  pinned CVEs, reporting each one's rank position. Gate: reproduces today's numbers, CVE-2023-23488 at
   position 390 of 4,463, 83.8% of regions in one tier. Without a baseline nothing later is measurable.
 
   **Done 2026-09-10.** `benchmarks/ranking/position.py`, committed as
@@ -138,36 +138,36 @@ A phase that cannot show that is not an improvement, it is a story.
 
   **And this corrects the cross-assessment above.** "Ranking's job is concentration, not inclusion" was
   measured on `pmpro` alone, where the CVE is inside the budget. On the other two plugins the CVE sits at
-  512 and 503 — **outside a 500-region budget** — so the current ranker never examines it at all, and the
+  512 and 503, **outside a 500-region budget**, so the current ranker never examines it at all, and the
   slices found those CVEs only because a slice has too few regions to exclude anything. Both jobs are
   real: inclusion on two repositories, concentration on all three. The single metric `budget_at_recall`
   covers both, which is why it is the one that matters.
 
   The instrument is `evidenceOnly` mode on the taint query, recorded on every scan as `ModelScanResult.tiers`
-  and `tier_counts`, and acted on by nothing — so every later phase is measured against a record made by
+  and `tier_counts`, and acted on by nothing, so every later phase is measured against a record made by
   scans that did not know they were being measured.
 
   **Measured cost of the instrument**, 637-file graph, the scan's own 500-region request set:
 
-      2,500 pairs in 98.9 s including JVM load — about 40 ms per pair
+      2,500 pairs in 98.9 s including JVM load, about 40 ms per pair
       tier 0 (no sink of that family in reach): 2,161 of 2,500 = 86%
 
   Two attempts before that ran past an hour each without producing a payload, and the cause was mine both
-  times: repository-wide walks — the sink scan, the reachable-method BFS, `familyInRepo` — repeated per
+  times: repository-wide walks (the sink scan, the reachable-method BFS, `familyInRepo`) repeated per
   request. Memoising them across the batch is what made "milliseconds per pair" true rather than claimed.
 
   **And the same memoisation reaches the dataflow mode.** The identical 250-request set that cost 2,026.3 s
-  (8,105 ms per request) with both joins on now costs **287.0 s — 1,148 ms per request — for the same 5,779
+  (8,105 ms per request) with both joins on now costs **287.0 s (1,148 ms per request) for the same 5,779
   rows.** Most of what contributor-scan 5.13 measured as "the base taint query" was the per-request scans,
   not the dataflow. That correction is recorded there.
-- **Phase 1 — tier 0 only, no model.** Exact pruning. Gate: **53% fewer taint requests issued, measured** —
+- Phase 1, tier 0 only, no model. Exact pruning. Gate: **53% fewer taint requests issued, measured**,
   and nothing more. 1,177 requests at 6.63 s is still 2.2 hours, so this phase does NOT make the scan finish;
   it halves the problem. Claiming completion here would send someone looking for a bug where there is none.
 
-  **Done 2026-09-10, gate exceeded, scan still does not finish — and the reason corrects phase 0's cost
+  **Done 2026-09-10, gate exceeded, scan still does not finish, and the reason corrects phase 0's cost
   figure.** On the 637-file plugin: `tier_counts = {0: 2161, 1: 60, 2: 20, 3: 211, 4: 48}`, **2,161 of 2,500
-  requests pruned (86%)**, evidence pass 94.5 s. The remaining **339 requests still hit the 2,400 s ceiling**
-  — more than 7 s each.
+  requests pruned (86%)**, evidence pass 94.5 s. The remaining **339 requests still hit the 2,400 s ceiling**,
+  more than 7 s each.
 
   **The scan finishes, 2026-09-11.** Not because of anything in this spec: contributor-scan 5.13 found
   that every query batch had been recomputing Joern's dataflow overlay at load since PHP builds went
@@ -188,12 +188,12 @@ A phase that cannot show that is not an improvement, it is a story.
   which 88% were tier 0 and returned instantly; the ~30 real requests in it cost about 9.5 s each. Pruning
   removes exactly the cheap questions and keeps the expensive ones, so it cannot make those faster. The
   honest per-request cost of a taint question that *can* have an answer is **7–10 s at `callDepth = 3`**,
-  and that is the number phase 2 and 5.13 must work against — not 1.1 s, and not 6.6 s either.
-- **Phase 2 — heuristic tiers, still no model.** The vector and tiers defined below, ordered within a tier
-  by a published weighted sum. Gate: `budget_at_recall` — the smallest K holding every pinned CVE — **below
+  and that is the number phase 2 and 5.13 must work against, not 1.1 s, and not 6.6 s either.
+- Phase 2, heuristic tiers, still no model. The vector and tiers defined below, ordered within a tier
+  by a published weighted sum. Gate: `budget_at_recall` (the smallest K holding every pinned CVE) **below
   50 on every pinned repository**, and `pmpro`'s taint query completing at that K. This is the phase that
   makes a scan finish, because the job is concentration: the CVE is already inside 500, the question is
-  whether it is inside 50. **If this passes, the model is a refinement, not the plan** — and knowing that is
+  whether it is inside 50. **If this passes, the model is a refinement, not the plan**, and knowing that is
   worth more than assuming it.
   **Implemented 2026-09-11, measurement in flight.** `Evidence.score` is the published weighted sum, and
   every weight is in one table in `model/evidence.py`: per open sink +1.0 (capped at 5), per cleansed or
@@ -304,17 +304,17 @@ A phase that cannot show that is not an improvement, it is a story.
   facts and a weight table can do; the ties are phase 3's. After that, within-tier order is phase 3's -- a model reading the code the ties cannot --
   or one more exact path fact (`distance`), and the gate stays unmet until one of them moves it.
 
-- **Phase 3 — the LLM ranker.** Same evidence, ordered by a model. Gate: beats phase 2 leave-one-repository-out.
+- Phase 3, the LLM ranker. Same evidence, ordered by a model. Gate: beats phase 2 leave-one-repository-out.
   If it does not, phase 2 ships and phase 3 does not.
-- **Phase 4 — break the closed loop.** An exploration slice (~10% of budget sampled outside the top-K) and
+- Phase 4, break the closed loop. An exploration slice (~10% of budget sampled outside the top-K) and
   full labelling on repositories small enough to arbitrate every region. Gate: a measured estimate of the
   selection bias in phase 3's numbers.
-- **Phase 5 — prompt optimisation (GEPA / SIMBA / DSPy).** Only after 3 and 4. An optimiser run against a
+- Phase 5, prompt optimisation (GEPA / SIMBA / DSPy). Only after 3 and 4. An optimiser run against a
   censored metric optimises the censorship.
 
 ## What the prompt has to carry
 
-The question put to the model is **not** "is this vulnerable" — that is adjudication, it is the arbiter's job,
+The question put to the model is **not** "is this vulnerable". That is adjudication, the arbiter's job,
 and it is the one thing a ranker must never be asked. It is:
 
 > Given a fixed budget of expensive dataflow queries, which of these sites are worth spending it on?
@@ -326,14 +326,14 @@ reachable from a request handler.
 
 ## Constraints, from measurement and from prior scars
 
-- **Cost.** One model call per region is 4,463 calls a scan. Batch over a prefilter, or it does not ship.
-- **The loop is closed.** A region the ranker excludes is never arbitrated, never labelled, so the ranker
+- Cost. One model call per region is 4,463 calls a scan. Batch over a prefilter, or it does not ship.
+- The loop is closed. A region the ranker excludes is never arbitrated, never labelled, so the ranker
   never learns it was wrong. Every run confirms the ordering it already had.
-- **N projects.** Four pinned CVEs is not a training set. This project already has the closed-loop
+- N projects. Four pinned CVEs is not a training set. This project already has the closed-loop
   train-on-test scar; the reported figure must come from a repository the optimiser never saw.
-- **Determinism.** Two runs of one repository must agree or a baseline diff is meaningless. The ranking is
+- Determinism. Two runs of one repository must agree or a baseline diff is meaningless. The ranking is
   recorded in the manifest.
-- **Degradation.** With no model configured, phases 0–2 still rank, and the report says which ranker ordered
+- Degradation. With no model configured, phases 0–2 still rank, and the report says which ranker ordered
   the scan.
 
 ## Cross-assessment against the measurements
@@ -342,7 +342,7 @@ Read against what was actually measured today, the plan above has two errors and
 here, corrected, rather than silently rewritten, because the corrections are themselves results.
 
 **Phase 1's gate is wrong.** It says pruning makes `pmpro`'s taint query complete. It does not. Pruning
-removes 53% of requests, and 1,177 × 6.63 s is still **2.2 hours** — nowhere near the 300 s default or the
+removes 53% of requests, and 1,177 × 6.63 s is still **2.2 hours**, nowhere near the 300 s default or the
 2,400 s that was tried. Pruning halves the problem; it does not solve it. The honest gate is "53% fewer
 requests issued, measured", and completion belongs to phase 2. Stating otherwise would have sent someone
 looking for a bug in phase 1 when phase 1 had done exactly what it can.
@@ -356,8 +356,8 @@ the numbers it had; the numbers were the instrument's.
 **Ranking's job is concentration, not inclusion.** The brief implies the CVE is missed because the ranker
 excluded it. It did not: CVE-2023-23488's region sits at position 390 of 4,463, inside the 500-region budget,
 and was examined. It goes unreported because the budget is spent on 500 regions when 50 would do, and 500
-is unaffordable at 6.63 s per family per region. So the ranker's success metric is not "is the CVE in the
-budget" — it already is — but **"how small can the budget be while the CVE stays in it"**. That is a
+is unaffordable at 6.63 s per family per region. So the ranker's success metric is
+**"how small can the budget be while the CVE stays in it"**; the CVE is already in the budget. That is a
 different objective, and it is the one that makes a scan finish.
 
 **The gap: nothing above says what the evidence IS.** "Sink shape" and "cleansing on the call" are named,
@@ -366,24 +366,24 @@ check for language leakage. The rest of this brief defines it.
 
 Two things the measurements confirm and the plan should lean on harder:
 
-- **The joins are cheap and must survive any ranker.** 22% of query cost, two of three CVEs. A ranker that
+- The joins are cheap and must survive any ranker. 22% of query cost, two of three CVEs. A ranker that
   demotes field- or hook-carried regions because they show no direct source is a ranker that loses those
   CVEs. The evidence vector below therefore carries the join's own stage-one result as a field.
-- **84% of regions in one tier means any separation is progress**, and the separation does not need to be
+- 84% of regions in one tier means any separation is progress, and the separation does not need to be
   clever to be large. A tier 0 that is merely exact already reorders the budget more than the current ranker
   ever has.
 
 ## The evidence vector, defined
 
 The unit is a **(region, family) pair**. For each, a fixed vector of fields is computed. Every field is
-defined in terms of **fact-table categories** — source, sink, sanitizer, dispatch, access — never in terms of
+defined in terms of **fact-table categories** (source, sink, sanitizer, dispatch, access), never in terms of
 a language's syntax, which is what makes the definition language-agnostic: any language with a fact table
 gets the same vector, and a heuristic that mentions `$wpdb` or `wp_ajax_` has by construction left the
 vector and must be rejected in review.
 
 **Where it is computed matters as much as what it is.** The graph is already built for the arbiter, at 76 s
-for 637 files. Extracting these fields is a CPG query **without dataflow** — call nodes, their arguments,
-their enclosing methods, the call graph one hop out — which is milliseconds per call rather than 6.63 s per
+for 637 files. Extracting these fields is a CPG query **without dataflow** (call nodes, their arguments,
+their enclosing methods, the call graph one hop out), which is milliseconds per call rather than 6.63 s per
 request. The extractor is therefore a sibling of `taint.sc` that never calls `reachableByFlows`:
 
 > **Tiering is the CPG query without dataflow. Arbitration is the CPG query with it. Same graph, same
@@ -393,7 +393,7 @@ That is the whole architecture in one line, and it is why the evidence is langua
 merely language-neutral-in-intent: the CPG normalises syntax across frontends, so "the argument of this call
 is a literal" means the same thing in PHP, Python and C.
 
-### Sink evidence — from `[[sink]]` facts of family F
+### Sink evidence, from `[[sink]]` facts of family F
 
 | field | definition | exactness |
 |---|---|---|
@@ -401,7 +401,7 @@ is a literal" means the same thing in PHP, Python and C.
 | `shape` | per sink call, one of: **`literal`** (the vulnerable-position argument is a constant), **`bound`** (the call is a declared-safe form — a `parameterized` sanitizer fact wraps it, or its arity/shape matches the bound form the taint query already recognises), **`computed`** (the argument is an expression: concatenation, interpolation, a variable, a call result) | exact for `literal` and `bound`; `computed` is the residue |
 | `cleansed_on_call` | per sink call, whether a sanitizer of F is an **ancestor of the vulnerable-position argument in the AST** — not merely present in the same function | exact, and this is the field a text scan gets wrong: `esc_sql` in scope on a different statement is `false` here |
 
-### Source evidence — from `[[source]]` facts and the entry-point contract
+### Source evidence, from `[[source]]` facts and the entry-point contract
 
 | field | definition | exactness |
 |---|---|---|
@@ -411,7 +411,7 @@ is a literal" means the same thing in PHP, Python and C.
 | `access` | the declared access level, **with provenance**: `declared` (a registration or route contract says so) or `inferred` (nothing found) — because "public" meaning "no decorator found" is the false positive the project has already paid for | exact |
 | `carried` | the region reads a **field** whose assignment is fed by a source anywhere in the file, or a **dispatch** value whose registered producer is — i.e. stage one of the two-stage join, which is already computed and memoised, reused here as evidence | exact where computed; absent (not false) where the join was not run |
 
-### Path evidence — cheap structural proxies for what dataflow would establish
+### Path evidence, cheap structural proxies for what dataflow would establish
 
 | field | definition |
 |---|---|
@@ -438,14 +438,14 @@ is a literal" means the same thing in PHP, Python and C.
 
 Two properties are load-bearing and must hold in every implementation:
 
-1. **Only tier 0 excludes; every other tier orders.** So the only place exactness is *required* is tier 0,
+1. Only tier 0 excludes; every other tier orders. So the only place exactness is *required* is tier 0,
    and tier 0's predicate has a proof: a family with no sink in reach cannot produce a flow, in any language,
    under any dataflow model. Above tier 0, being wrong costs position, and `regions_truncated` reports what
    position cost.
-2. **Tier 0's scope must match the arbiter's.** At `callDepth = 0` the scope is the region; at depth k it is
+2. Tier 0's scope must match the arbiter's. At `callDepth = 0` the scope is the region; at depth k it is
    the region plus its reachable methods. A tier 0 computed on the file when the arbiter will look k hops
    out is not exact and must not be called so. The repository-wide form (`family_in_repo == false`) is exact
-   at every depth and is the cheap first cut — it alone removes all 487 `deserialization` requests on `pmpro`.
+   at every depth and is the cheap first cut. It alone removes all 487 `deserialization` requests on `pmpro`.
 
 **Within a tier**, order by a score. In phase 2 that score is a fixed weighted sum over the vector, published
 in the manifest so two runs agree. In phase 3 it is the model's ordering **of the same vector**, which is
@@ -456,23 +456,23 @@ what makes the two comparable: same input, different ordering function, one held
 The vector above is exact wherever exactness was cheap. What remains genuinely uncertain is narrower than
 "ranking":
 
-- **Ambiguous cleansing.** `cleansed_on_call` is exact when the sanitizer wraps the argument directly. It is
-  `false` — correctly, but unhelpfully — when cleansing happens two statements earlier into a variable that is
+- Ambiguous cleansing. `cleansed_on_call` is exact when the sanitizer wraps the argument directly. It is
+  `false` (correctly, but unhelpfully) when cleansing happens two statements earlier into a variable that is
   then interpolated. Deciding whether *that* cleansing reaches *this* call is reading the code, and it is the
   single largest source of tier-2/tier-3 misplacement.
-- **Unfamiliar shapes.** A sink call whose form the `bound` rule does not recognise, in a framework with no
+- Unfamiliar shapes. A sink call whose form the `bound` rule does not recognise, in a framework with no
   facts yet. The model can say "this looks bound" as an *ordering* opinion; it cannot add a `bound` fact,
   because a fact is policy.
-- **Within-tier priority** when the fixed score ties, which on a real repository it will, constantly.
+- Within-tier priority when the fixed score ties, which on a real repository it will, constantly.
 
 And the boundaries:
 
-- **The model never computes tier 0.** Exclusion is exact or it is a silent miss, and a model's "no sink
+- The model never computes tier 0. Exclusion is exact or it is a silent miss, and a model's "no sink
   here" is not a proof.
-- **The model never sees the question "is this vulnerable".** It sees "which of these is worth an expensive
+- The model never sees the question "is this vulnerable". It sees "which of these is worth an expensive
   query", with the vector and the sink call's source text. Adjudication is the arbiter's, and keeping it
   there is what keeps the gates byte-identical.
-- **The model's input is the vector plus text, never the arbiter's verdict** on the same run — that is the
+- The model's input is the vector plus text, never the arbiter's verdict on the same run. That is the
   closed loop feeding on itself.
 
 ## Metrics, so every phase can fail
@@ -498,8 +498,8 @@ answer is visible:
 1. ~~Where does the evidence extractor live?~~ **It is a CPG query without dataflow, a sibling of `taint.sc`
    in `cpg/queries/`.** Not the mapper: the mapper reads text and would have to re-derive per language what
    the graph already normalises. The vector is language-agnostic *because* the graph is.
-2. ~~Per file or per reachable set?~~ **Both, in that order.** `family_in_repo` first — exact at any depth,
-   free, a fifth of the budget on `pmpro` — then the reachable set at the arbiter's own `callDepth`. Never the
+2. ~~Per file or per reachable set?~~ **Both, in that order.** `family_in_repo` first (exact at any depth,
+   free, a fifth of the budget on `pmpro`), then the reachable set at the arbiter's own `callDepth`. Never the
    file alone above depth zero, because that is not exact and must not be called tier 0.
 3. How many pinned repositories before leave-one-out means anything? Four is not enough. This is the
    corpus ask, and it is the same ask contributor-scan 5.8 made: plugins chosen by installed base, CVEs read
@@ -507,7 +507,7 @@ answer is visible:
 4. Does the arbiter's verdict feed back as a label? **Only through the exploration slice.** A verdict on a
    region the ranker chose is a label the policy selected, and training on it closes the loop. A verdict on
    an exploration region is the only unbiased label the scan produces, and it is the one worth keeping.
-5. **New:** the weighted sum in phase 2 has weights. Where do they come from before any model exists?
+5. New: the weighted sum in phase 2 has weights. Where do they come from before any model exists?
    Proposed: set by hand from the tier semantics, published in the manifest, and treated as a baseline for
-   phase 3 to beat — not tuned, because tuning four weights on four CVEs is the overfit the plan exists to
+   phase 3 to beat, not tuned, because tuning four weights on four CVEs is the overfit the plan exists to
    avoid.

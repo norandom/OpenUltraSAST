@@ -206,25 +206,25 @@ URL; the CLI mints them and polls the store. The URLs travel in the start body, 
               "inputs": {"CANDIDATES": "<presigned GET runs/<run>/<producer>/<artifact>>"}}}
 ```
 
-- **Why the start body.** A presigned URL is a bearer capability, so the credentials-only-in-the-start-request
+- Why the start body. A presigned URL is a bearer capability, so the credentials-only-in-the-start-request
   rule applies; env would bake it into the ActorTemplate and hand it to the golden boot; and the body has no
   32 KB ceiling (Substrate rejects env values over 32768 characters, `reconciler.py:141`). `StartGate.offer`
   (`runner.py:250-275`) validates `delivery` the way it validates `credentials`: `https` URLs only, hostnames,
   no echo. Expiry = `OUSAST_TASK_TIMEOUT` (7200 s) + 600 s; a re-start after a re-resume re-mints.
-- **Why presigned rather than a scoped delivery credential.** A per-task S3 key needs a per-task policy on RustFS,
+- Why presigned rather than a scoped delivery credential. A per-task S3 key needs a per-task policy on RustFS,
   gives the sandbox `ListBucket` and reads beyond its inputs, and would travel in the same body. Presigned URLs
   name exactly the objects a task may write and read, which is what the receiver enforces today
   (`Receiver.input_file`, `egress.py:230-247`).
-- **Why not an in-cluster receiver Service.** It is a server to run, holds state in a process, and is reachable
+- Why not an in-cluster receiver Service. It is a server to run, holds state in a process, and is reachable
   only from a pod; that is the gap remote mode has. **Rejected.**
-- **Objects.** `runs/<run>/<task>/output.tar` (the runner's PUT); after the CLI extracts it, the declared
+- Objects. `runs/<run>/<task>/output.tar` (the runner's PUT); after the CLI extracts it, the declared
   `outputs[]` are re-put as `runs/<run>/<task>/<artifact>` so a consumer's presigned GET names one artifact, and
   `runs/<run>/<task>/done.json` carries the summary's status. The 30-day `runs/` expiry already applies; memory
   rows are ingested from the local extraction by `remember` as today (f: annotations and `memory_key` seeding
   unchanged, `generate.py:_chain_inputs`, `memory.seed`).
-- **Completion.** `_await`'s `delivered()` becomes `Delivery.delivered(task)`: a HEAD on `output.tar`, polled at
+- Completion. `_await`'s `delivered()` becomes `Delivery.delivered(task)`: a HEAD on `output.tar`, polled at
   `OUSAST_POLL_SECONDS` (3 s). The runner's completion marker logic (`runner.py`, `_run_once`) is unchanged.
-- **Inputs no task produces** (`candidates.json`, `functions.json`, `case.json`) may also be store objects
+- Inputs no task produces (`candidates.json`, `functions.json`, `case.json`) may also be store objects
   declared as inputs, which lifts the ~20 KB inline-files limit (`ops/ax/README.md:117`); Workspace `files`
   stay for the smoke Task and small cases.
 
@@ -251,7 +251,7 @@ shim and `/workspace`), so one *contract* in two images: `ousast-runner` (slim, 
 2.8 GB and every golden snapshot carry it; the engine runs for a minority of cases); Docker-in-pod (no socket on
 containerd; `Dockerfile:1-7` already argues against it).
 
-- **Task.** Template `plane/tasks/engine.yaml`: `command: ["engine"]`, env `OUSAST_WORKSPACE_DIR`,
+- Task. Template `plane/tasks/engine.yaml`: `command: ["engine"]`, env `OUSAST_WORKSPACE_DIR`,
   `OUSAST_FIXED_DIR`, `OUSAST_INPUT_CASE`, pins and `OUSAST_FAMILIES`, bound to the same two Workspaces the
   `alerts` task binds (`generate.py:342-353`). The module lifts `benchmarks/push/finding_dump.py`'s scan into
   `openultrasast.cpg.dump` (the image ships `src/`, not `benchmarks/`) and reuses `engine_alerts.engine_rows`,
@@ -259,7 +259,7 @@ containerd; `Dockerfile:1-7` already argues against it).
   `alerts.jsonl` rows (`rule_id: engine:<family>`, `source: "engine"`) and `summary.json` (coverage with the
   engine's languages, files and bytes read, questions, seconds, degradations per pin) as `alerts-engine`, with
   `host: false`. The instrument rule stays: no `read N files` line or `questions == 0` fails the task loudly.
-- **Sizing from the record** (`benchmarks/measurements/2026-09-30-php-engine-alerts/record.json`): container
+- Sizing from the record (`benchmarks/measurements/2026-09-30-php-engine-alerts/record.json`): container
   peak 2.129 GiB under a 3 GiB limit, 789 s for both pins of froxlor, deadline 1800 s per pin. Task resources:
   requests 3 Gi / 1 CPU, limits 4 Gi / 2 CPU; `engine-pool` workers 4 Gi / 2 CPU, replicas 1 on kind (the 7 GB
   host holds it only with `ousast-pool` at one worker), production replicas in `k3s.toml`. Task timeout: two pins
@@ -314,23 +314,23 @@ runbook: a Run with `--workers N` beyond the pool's replicas queues in ax as Sus
 
 `plane/scan.py`, reusing `generate.py`'s render path with a new case source:
 
-1. **Workspace generation** (`generate.scan_cases(url, base, head, cache)`): a shallow clone into the case cache
+1. Workspace generation (`generate.scan_cases(url, base, head, cache)`): a shallow clone into the case cache
    (`runner.find_cached_checkout` layout), two pinned Workspaces `<repo_dir>-<head7>` and `<repo_dir>-<base7>`
    (`workspaces.py` shape, pins in `openultrasast.io/git-commits`), repository key by `memory.repo_key`.
-2. **Candidates from changed functions**: `generate.fix_ranges(repo, base, head, side="new")` gives the head-side
+2. Candidates from changed functions: `generate.fix_ranges(repo, base, head, side="new")` gives the head-side
    hunks (the `push/` delta primitive `_diff_records` is the same `git diff -U0`), `repo_facts.enclosing` names
    the function per hunk line, filtered to `repo_facts.product_files`. Quick rules on the changed files
    (`tasks.alerts.scan`) add alerted functions; `roles` runs once per repository when memory has no `roles` rows
    for it; `repo-facts` supplies callers. `candidates.json` and `functions.json` are store inputs (section 3).
-3. **Run composition**: per changed-function set `facts -> va, vb -> agree -> vc -> final -> features ->
+3. Run composition: per changed-function set `facts -> va, vb -> agree -> vc -> final -> features ->
    remember`, plus `engine` when a changed file's language is engine-covered and not quick-covered, or PHP
    (`ENGINE_ALONGSIDE_QUICK`). Budgets from `generate.verify_budget` (0.022 USD per candidate, headroom 1.5);
    `--ceiling` caps the sum. `--all` (whole repository, secondary) takes every product function.
-4. **Results** land in memory under `repos/<host>__<owner>__<name>/<head>.jsonl` through `remember` and
+4. Results land in memory under `repos/<host>__<owner>__<name>/<head>.jsonl` through `remember` and
    `ousast plane remember` (rows already carry `repo` and `pin`, `memory.py:77`); `runs/<run>/` holds the raw
    artifacts for 30 days. The report prints the attribution table and the plane's agreement (`final`); the
    decision engine's verdict only when a model is adopted (learned-decision-engine Req 6 unchanged).
-5. **Latency split (e).** `ousast pre-push` stays the blocking hook: quick rules and the delta engine inside
+5. Latency split (e). `ousast pre-push` stays the blocking hook: quick rules and the delta engine inside
    `OUSAST_PUSH_DEADLINE` (30 s, `ops/README.md:322`). `ousast plane scan --exec remote --no-wait` submits and
    prints the Run name in the hook's report; `--wait SECONDS` blocks for CI. `ousast plane status <run>` reports
    later. The wrapper `ops/pre-push` gains an opt-in `OUSAST_PLANE_SCAN=1`; it never blocks on the plane.
@@ -378,7 +378,7 @@ template names `imagePullSecret` from the profile.
 - `tests/test_plane_engine_task.py`: fixture record -> rows and summary equal `engine_alerts.produce`'s shape;
   the instrument failures.
 - `tests/test_plane_scan.py`: candidates from a two-commit fixture repository; Run composition; budgets.
-- **Only live on kind:** placement on `engine-pool`; Substrate accepting the SA token for `egress-policy`;
+- Only live on kind: placement on `engine-pool`; Substrate accepting the SA token for `egress-policy`;
   the gateway passing TLS to the store host; GHCR pulls; the HPA (k3s only). These are the kind proofs above.
 
 ## Data Models
@@ -411,16 +411,16 @@ from `StartGate.offer`. The engine task fails loudly on an unread input, as `rea
 
 ## Open Questions
 
-1. **Substrate authorization for the CI token.** `kubectl-ate` sends a ServiceAccount token; which audience and
+1. Substrate authorization for the CI token. `kubectl-ate` sends a ServiceAccount token; which audience and
    which Substrate-side grant let `ousast-ci` create `egress-policy` in `default` is not in the checkouts read
    here. Proven or refuted in increment 3.
-2. **Engine placement.** Whether Substrate places a 3 Gi actor only on workers that fit it (section 4). The
+2. Engine placement. Whether Substrate places a 3 Gi actor only on workers that fit it (section 4). The
    fallback is named.
-3. **gVisor tarball reachability on k3s** (`gs://gvisor/...` in the SandboxConfig): mirror or egress needed.
-4. **Store endpoint hostname** for any future in-cluster RustFS; today's external endpoint is fine.
-5. **Two images under one contract** versus the maintainer's "one runner image for all tasks": the design
+3. gVisor tarball reachability on k3s (`gs://gvisor/...` in the SandboxConfig): mirror or egress needed.
+4. Store endpoint hostname for any future in-cluster RustFS; today's external endpoint is fine.
+5. Two images under one contract versus the maintainer's "one runner image for all tasks": the design
    reads it as one contract; confirm.
-6. **GHCR visibility** (public packages need no pull secret) and whether Substrate's and ax's `ko` images go to
+6. GHCR visibility (public packages need no pull secret) and whether Substrate's and ax's `ko` images go to
    the same registry namespace.
-7. **Reconciler size**: remote mode and `Delivery` must stay under the 500-line test; if they do not, the test's
+7. Reconciler size: remote mode and `Delivery` must stay under the 500-line test; if they do not, the test's
    bound moves with a reason, not silently.

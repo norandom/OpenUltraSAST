@@ -300,15 +300,15 @@ and its [bundle](../../../benchmarks/measurements/2026-09-16-nodegoat-m1b-explai
 Three evaluation findings were rendered on the vulnerable revision, one per eval site. For
 line 32:
 
-- **Location** app/routes/contributions.js:32, family injection, novelty new with
+- Location: app/routes/contributions.js:32, family injection, novelty new with
   `operation_absent_from_comparable_base`.
-- **Witness** `eval(req.body.preTax) -> const preTax = eval(req.body.preTax)`.
-- **Change attribution** `base:app/routes/contributions.js:32-34`.
-- **Provenance** `file_scope`: the question named no function, the engine reported `<lambda>2`.
-- **Consequence** "A request field reaches const preTax = eval(req.body.preTax), where it is
+- Witness: `eval(req.body.preTax) -> const preTax = eval(req.body.preTax)`.
+- Change attribution: `base:app/routes/contributions.js:32-34`.
+- Provenance: `file_scope`: the question named no function, the engine reported `<lambda>2`.
+- Consequence: "A request field reaches const preTax = eval(req.body.preTax), where it is
   evaluated as JavaScript, so an attacker controlling that field can execute arbitrary code in
   the server process."
-- **Repair** "Replace the evaluation at const preTax = eval(req.body.preTax) with a numeric
+- Repair: "Replace the evaluation at const preTax = eval(req.body.preTax) with a numeric
   conversion such as Number(...) or parseInt(...), then validate the result before use."
 
 Both sentences come from the declaration's templates through the grounded-template path, not from

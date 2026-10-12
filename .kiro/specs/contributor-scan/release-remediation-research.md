@@ -1,4 +1,4 @@
-# Release remediation research — 2026-09-14
+# Release remediation research, 2026-09-14
 
 Status: investigation under the maintainer's instruction to continue towards release.
 This record does not approve rollout, replace the existing design, or mark a production

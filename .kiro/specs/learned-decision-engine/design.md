@@ -14,13 +14,13 @@ experiments.
 
 Six facts from the repository and the recorded results shape the design:
 
-- **The deployment target is a repository nobody trained on.** Maintainer: "the tool will never run against the
+- The deployment target is a repository nobody trained on. Maintainer: "the tool will never run against the
   test cases it's being trained with. it's purpose is a repo safety net." (Req 7). The primary unit is a candidate
   in changed code (`ousast pre-push`, base..head), and whole-repository `scan` is the secondary mode. Every
   reported number therefore comes from folds grouped by repository across all corpora. Features are
   repository-agnostic by an allow-list. Fit to a user's own repository is an opt-in layer outside the reported
   numbers.
-- **Labels are scarce, and full plane signals exist on 43 rows.** The only recorded plane run with
+- Labels are scarce, and full plane signals exist on 43 rows. The only recorded plane run with
   verify/agree/tie-break is `validation-46`: 15 cases, 43 candidates after triage, 19 of them with
   `site_match` true, all from population v2
   (`~/ousast-results/plane/validation-46/*-final/agreed.json`). The pair corpus is larger (427 pairs and 452
@@ -30,19 +30,19 @@ Six facts from the repository and the recorded results shape the design:
   classifier over verify signals cannot be evaluated today. The design starts from the signals every labelled row
   can have, harvests the rest at a stated cost, and accepts that data will stay small: the engine learns by
   memory and compilation, not by fitting parameters.
-- **The core install is PyYAML only** (`pyproject.toml:11`). numpy, scipy and scikit-learn are not installed in
+- The core install is PyYAML only (`pyproject.toml:11`). numpy, scipy and scikit-learn are not installed in
   `.venv`. Retrieval (a Gower distance and a cosine over at most 40 vectors) and calibration (two-parameter Platt)
   stay pure Python; the model calls go through the plane's metered client (section 4).
-- **`pre-push` already has the decision seam.** `admit_candidates` (`push/policy.py:879`) applies one evidence
+- `pre-push` already has the decision seam. `admit_candidates` (`push/policy.py:879`) applies one evidence
   bar to `CandidateDelta`s with `novelty` (`push/policy.py:61-74`). Its capability registry is empty by design
   (`push/policy.py:802-823`: "No shipped declaration is enabled"), so `pre-push` blocks nothing today. The
   engine's operating point replaces the capability-eligibility reasons, and the structural reasons stay.
-- **The memory store is the system of record and has the needed shape.** Rows are keyed by repository and pin,
+- The memory store is the system of record and has the needed shape. Rows are keyed by repository and pin,
   with a closed `KINDS` tuple (`plane/memory.py:52`). There are two backends (FileStore, S3Store) behind one
   interface (`plane/memory.py:176-291`), content-addressed blobs (`put_facts`, `plane/memory.py:249-255`), and a
   train-on-test `Guard` (`improve/memory.py:95-133`). Features, labels, decisions, model artifacts and experiment
   outcomes become new row kinds and blob prefixes. No second store is added.
-- **Hand-written framework knowledge is embedded in the detectors** (Req 8). Examples are WordPress `$wpdb`,
+- Hand-written framework knowledge is embedded in the detectors (Req 8). Examples are WordPress `$wpdb`,
   hooks and `maybe_unserialize` in `ruleset/semantic/php.toml` and `ruleset/php/rules.toml`, and Flask and
   Django names in `ruleset/semantic/python.toml`. Section 2 tags each entry. Priors become optional features
   that are off by default. Framework roles are inferred per repository instead.
@@ -548,7 +548,7 @@ If the pool cannot satisfy a minimum, take what exists and record `balance: "sho
 **The evaluation boundary (Req 3.4, 7.1).** `learn/retrieve.py: eligible(example, target, fold)` is the only way
 an example enters a prompt, for retrieved examples and for the compiled demonstrations alike:
 
-- `example.group` is not in the fold's evaluation groups (all of them, not just the target's), and not the
+- `example.group` is not in the fold's evaluation groups (every evaluation group, including the target's), and not the
   target's group after the CVE/alias merge (`Groups`, `learn/labels.py:182`);
 - leave-one-source-out: `example.source` is not the held-out source;
 - leave-one-framework-out on F: `F not in example.frameworks`; a compiled demonstration tagged F is swapped for its
@@ -669,23 +669,23 @@ million. Token sizes are estimates to be replaced by the smoke run's measured `u
 | candidate (80-line excerpt ~1,100, signals and roles ~300) | ~1,400 | no |
 | output (JSON, rationale <= 3 sentences) | ~200 | -- |
 
-- **Per candidate, `k = 1`**: 2,750 x 0.014 + 5,950 x 0.44 + 200 x 1.32 per million = **$0.0029**.
-- **Each extra sample** (same prompt, fully cached): 8,700 x 0.014 + 200 x 1.32 per million = **$0.0004**. So
+- Per candidate, `k = 1`: 2,750 x 0.014 + 5,950 x 0.44 + 200 x 1.32 per million = **$0.0029**.
+- Each extra sample (same prompt, fully cached): 8,700 x 0.014 + 200 x 1.32 per million = **$0.0004**. So
   `k = 5` is **$0.0045** with cache hits, and $0.0146 if the cache does not hit (the smoke run decides the default).
-- **Embedding**: $0.000024 per candidate; the whole store about $0.10 once.
-- **Per compile**: bootstrap 150 x $0.0029 = $0.44; proposals ~$0.01; scoring 600 x $0.0029 = $1.74; total
+- Embedding: $0.000024 per candidate; the whole store about $0.10 once.
+- Per compile: bootstrap 150 x $0.0029 = $0.44; proposals ~$0.01; scoring 600 x $0.0029 = $1.74; total
   **~$2.2, ceiling $3.00**.
-- **Per full evaluation** of one program, evaluated families only (475 verified rows outside memory,
+- Per full evaluation of one program, evaluated families only (475 verified rows outside memory,
   config_secrets and unknown) plus a 200-unit benign-delta sample for false BLOCKs:
   - outer folds: 675 candidates, **$2.0 at k = 1, $3.0 at k = 5** (cached);
   - leave-one-source-out: 475 more, **$1.4 / $2.1**;
   - leave-one-framework-out: $0 today (no framework at the floor);
   - total **~$3.4 (k = 1) to $5.2 (k = 5)**, ceiling $7.
-- **Learning curves** (section 7): 6 memory-size points + 3 source-count points on a fixed 200-candidate subset at
+- Learning curves (section 7): 6 memory-size points + 3 source-count points on a fixed 200-candidate subset at
   `k = 1`: 9 x 200 x $0.0029 = **~$5.2**, ceiling $7.
-- **A program-variant A/B** on 300 paired candidates: arm A replays cached responses from the evaluation ($0);
+- A program-variant A/B on 300 paired candidates: arm A replays cached responses from the evaluation ($0);
   arm B costs **$0.9 (k = 1) to $1.35 (k = 5)**.
-- **Deployment**: `pre-push` with ~5 candidates is ~$0.02 per push at `k = 5`; a plane Run case with ~30 candidates
+- Deployment: `pre-push` with ~5 candidates is ~$0.02 per push at `k = 5`; a plane Run case with ~30 candidates
   ~$0.14.
 
 **Against the balance.** DeepSeek was ~$19.6 before the harvest; the harvest's verify passes are ~$6 expected and
@@ -807,10 +807,10 @@ flagged in any pass as 17 for the plane vs 19 for the reference, of 20. The plan
 (`plane/tasks/verify.py:1-9, 164`, `CALLERS_CAP = 8` at :34), and the comparison is confounded (other changes,
 stochastic passes, v2 is where it was seen).
 
-- **Arms.** A is `verify` as today. B is `verify` with `OUSAST_VERIFY_CALLERS=off`, a new switch (about 3 lines)
+- Arms. A is `verify` as today. B is `verify` with `OUSAST_VERIFY_CALLERS=off`, a new switch (about 3 lines)
   that makes `callers_line` return empty. Same model (`deepseek-flash`), `PER_HUNT = 6`, `MAX_STEPS = 6`, same
   candidates, same `facts.json`, same runner image digest, two passes (a, b) per arm.
-- **Units: the development corpus, not v2** (v2 generated the hypothesis):
+- Units: the development corpus, not v2 (v2 generated the hypothesis):
   - population v1, 11 cases, whose engine scans are recorded under `~/ousast-results/independent-v1/scans/` (44
     scans);
   - pmpro, MediaWiki, WP Statistics (dev-php);
@@ -821,15 +821,15 @@ stochastic passes, v2 is where it was seen).
   model-free and frozen in the units file: per pin, the fix-changed functions, plus the top engine- and
   quick-alert functions, up to 8 candidates per pin, on the vulnerable and the fixed pin. Only units where arm A's
   callers line is non-empty are *treated*. The primary analysis is restricted to them, and the rest are reported.
-- **Metric.** Primary: the per-positive-unit rate of "flagged in any pass" (the 17-vs-19 metric), with positives
+- Metric. Primary: the per-positive-unit rate of "flagged in any pass" (the 17-vs-19 metric), with positives
   from the label builder (fix-range functions on the vulnerable pin). Secondary: the flag rate on fixed-pin
   negatives (false flags), and usd per candidate.
-- **Sample size and MDE.** About 55 positive units across 41 repositories (about 28 dev + 27 pointer pairs). With
+- Sample size and MDE. About 55 positive units across 41 repositories (about 28 dev + 27 pointer pairs). With
   a discordance rate of about 0.15, alpha 0.05 and power 0.8, the paired MDE is `(1.96 + 0.84) * sqrt(0.15) /
   sqrt(55)`, about **0.15**. The observed gap of 0.10 needs about 115 positive units, so an inconclusive result is
   the likely and honest outcome. It is registered as such in advance, and a follow-up needs new units, not a
   continuation.
-- **Budget.** Hunts per pass per arm: 14 dev repositories x 2 pins x up to 3 files (84) + 27 pairs x 2 sides (54)
+- Budget. Hunts per pass per arm: 14 dev repositories x 2 pins x up to 3 files (84) + 27 pairs x 2 sides (54)
   = 138. Four arm-passes give 552 hunts x $0.014, **about $7.7 expected**. The ceiling is **$15 total, $7.5 per
   arm**, enforced by the task budgets (`plane/budget.py`). Candidate generation reuses the recorded v1 engine
   scans. For dev-php it runs the engine once per pin on the host, one container at a time, from a frozen source
@@ -1111,30 +1111,30 @@ Each commit is gated on the full suite's own exit code, `ruff` and `mypy`. None 
 commit 9 adopts a program, and without an adopted program every path is today's. Steps that spend model money
 start only after the maintainer confirms their budget against the balance read just before.
 
-1. **Schema and features** (1.1-1.3, 7.2) -- done.
-2. **Framework tags** (8.2, 8.4) -- done.
-3. **Roles** (8.1) -- done.
-4. **Labels** (2.1-2.3, 7.1) -- done.
-5. **Harvest** (1.1, data) -- in progress: verify a/b on the verify-family pairs and the development cases (about
+1. Schema and features (1.1-1.3, 7.2) -- done.
+2. Framework tags (8.2, 8.4) -- done.
+3. Roles (8.1) -- done.
+4. Labels (2.1-2.3, 7.1) -- done.
+5. Harvest (1.1, data) -- in progress: verify a/b on the verify-family pairs and the development cases (about
    $6, ceiling $10), model roles on the candidate files (ceiling $10), engine features on the host.
-6. **Program, memory, compile, first evaluation** (3.1-3.6, 5.1-5.2, 7.3-7.4, 8.3): excerpts and the example
+6. Program, memory, compile, first evaluation (3.1-3.6, 5.1-5.2, 7.3-7.4, 8.3): excerpts and the example
    store, metered embeddings and the cache, retrieval with the boundary test, the program and response cache, folds,
    compile, cross-fitted calibration; then the paid slice (smoke, embed, compile, outer evaluation, ~$5, ceiling $7)
    and, after a second go-ahead, leave-one-source-out and the memory-size curves (~$7, ceiling $10), committed under
    `benchmarks/measurements/<date>-decision-engine-v1/`.
-7. **Experiments** (4.1-4.4): `learn/experiments.py`, `register`, `experiment-outcome`, the Run annotation checks,
+7. Experiments (4.1-4.4): `learn/experiments.py`, `register`, `experiment-outcome`, the Run annotation checks,
    `OUSAST_VERIFY_CALLERS`, exp-001 registered, run and recorded, and the program-variant experiment machinery.
-8. **Integration** (6.1-6.3, 7.3, 7.5): the `embed` and `decide` tasks with the seeded memory, the `scan` stage,
+8. Integration (6.1-6.3, 7.3, 7.5): the `embed` and `decide` tasks with the seeded memory, the `scan` stage,
    `pre-push` admission with the engine, report fields, the fallback line, and the opt-in adaptation layer.
-9. **Adopt** (3.3, 8.2): `ousast learn adopt`, the packaged program with the licence filter, the priors-on/off and
+9. Adopt (3.3, 8.2): `ousast learn adopt`, the packaged program with the licence filter, the priors-on/off and
    `k` experiments with recorded decisions.
-10. **v3 check** (5.3): `prediction-v3.json` is committed first, then v3 is run by its owner under protocol v3, and
+10. v3 check (5.3): `prediction-v3.json` is committed first, then v3 is run by its owner under protocol v3, and
     `result-v3-engine.json` is committed. Nothing between the two commits may touch the program, memory snapshot,
     features, priors or thresholds.
 
 ## Risks
 
-- **Label scarcity decides what can be evaluated.** The status of each family today:
+- Label scarcity decides what can be evaluated. The status of each family today:
   - memory (5 repository groups, 173/173 rows, almost all openssl and curl), config_secrets (5) and prototype are
     **insufficient data** (`labels.json` `verified_pin_labels`). Users get today's behaviour there, labelled as
     such, and no money is spent evaluating them.
@@ -1143,16 +1143,16 @@ start only after the maintainer confirms their budget against the balance read j
   - The plane profile has 43 rows from one population until the harvest Run.
   - BLOCK at 95% precision is likely **not reachable** for most families on this data. The design reports "BLOCK
     not offered" instead of lowering the target.
-- **Weak signals, strong code.** The pair baseline has quick-rule labelled recall 0.24 and Youden -0.013 overall
+- Weak signals, strong code. The pair baseline has quick-rule labelled recall 0.24 and Youden -0.013 overall
   (`pairs.json` `overall`); the v2 engine recall is 0/17 (`results-v2.json`). The program reads the code, so it
   can beat the signals, but the verify history says the model over-flags (v1 1/12, v2 0/17 adjudicated true). A
   calibrated classifier that mostly says "advisory" is honest; recall at ADVISORY 0.90 may need a threshold with
   poor precision. That is reported, not tuned away on outer folds.
-- **LLM nondeterminism.** The same prompt can answer differently, and temperature 0 is not a provider guarantee.
+- LLM nondeterminism. The same prompt can answer differently, and temperature 0 is not a provider guarantee.
   Guards: every response cached and replayable (numbers reproduce at $0); sample 1 at temperature 0; the vote mean
   over `k` samples as the score; the A/B unit is paired and both arms' caches are recorded; a re-ask agreement rate
   on a fixed 30-candidate canary set is reported with each evaluation.
-- **Label leakage into prompts.**
+- Label leakage into prompts.
   - Through rationales: memory examples carry no rationale; demonstration rationales are produced without the label
     and scanned for identities and advisory ids; the candidate's prompt never holds `EXCLUDED_FIELDS` (test).
   - Through code: fixed-side excerpts can carry fix comments ("prevent XSS", a CVE id). Advisory ids and security
@@ -1160,11 +1160,11 @@ start only after the maintainer confirms their budget against the balance read j
     the change under test, never the later fix.
   - Through memorisation: the chat model may have seen public CVE fixes in pre-training. Not removable; the v3
     check (unpublished fixes are rarer there) and per-source numbers expose it, and the report names it.
-- **Retrieval leakage.** Same repository under another name or corpus: group normalisation, CVE merge, the
+- Retrieval leakage. Same repository under another name or corpus: group normalisation, CVE merge, the
   near-duplicate drop at cosine >= 0.98 in evaluation, and `test_boundary`. Demonstrations from the compile split
   are, by construction, from repositories never evaluated. The seed for plane Runs filters on the host, where the
   labels are; the sandbox never receives an example of its own case's group.
-- **Label-tracking signals (maintainer decision 2026-10-01: "Neutralise both for v1").** The harvest found two
+- Label-tracking signals (maintainer decision 2026-10-01: "Neutralise both for v1"). The harvest found two
   signals that follow the pair label instead of the code: verify candidates on fixed sides named functions the side
   no longer declares (now never produced: a side's candidates are only the functions it declares, the rest counted
   `absent_on_side`), and the engine's "read the file, asked no question" state, which a fixed side reaches by losing
@@ -1173,40 +1173,40 @@ start only after the maintainer confirms their budget against the balance read j
   the stored record keeps it. The engine returns only through a pre-registered A/B evaluated on assumed-benign and
   benign-control negatives, where it cannot track a fix. `ousast learn audit-leaks` reports how well every signal
   alone separates the sides of a pair and flags any above 0.20 (counts under `benchmarks/measurements/`).
-- **Earlier leakage paths still apply.** Hand rules and framework priors written after seeing a training repository
+- Earlier leakage paths still apply. Hand rules and framework priors written after seeing a training repository
   (the `$wpdb` rule from PMPro, the hook source from WP Statistics, `taint.sc:911-949`): priors off by default,
   leave-one-framework-out, best-effort `taught_by = [repo]`. The mechanism exporter's train-on-test leak
   (`closed-loop-train-on-test-leak.md`): no exporter output is a feature. Verify and tie-break fitted on v2: the v2
   fold is design-informed. Thresholds and instructions chosen on reported folds: cross-fitting and the compile
   split. v3: fail-closed sources, never opened. User dismissals: refused by both builders.
-- **Cost.** Model spend is now per candidate and per evaluation, not one-off. Measured (section 4.6) the first
+- Cost. Model spend is now per candidate and per evaluation, not one-off. Measured (section 4.6) the first
   slice fits today's balance; everything after it needs a top-up. Guards: `MeteredClient` ceilings on every task
   and command, a smoke check that measures real tokens and cache hits before any paid run, cached replay for
   re-analysis, unevaluable families skipped, `k = 1` if the prefix cache does not hit. Deployment cost (~$0.02 per
   push) is a user-facing change: `pre-push` without a key falls back, and the report states the spend.
-- **Model and version drift.** `deepseek-flash` is an alias whose weights can change, and so can OpenRouter's
+- Model and version drift. `deepseek-flash` is an alias whose weights can change, and so can OpenRouter's
   embedding route. The artifact records model ids, the Model parameters digest and the response `model` field;
   before adoption and before the v3 prediction the canary set is re-asked, and agreement below 0.9 with the
   cached answers, or an embedding dimension change, invalidates the evaluation (re-embed, re-evaluate) rather than
   being averaged in. Prices are data in the Model manifest; a price change changes only cost reports.
-- **Latency.** A model call per candidate is slower than a dot product. The 30 s `pre-push` deadline is met by
+- Latency. A model call per candidate is slower than a dot product. The 30 s `pre-push` deadline is met by
   concurrency and the `undecided: deadline` state; a push with many candidates gets partial decisions, stated.
-- **Packaging third-party code.** Demonstrations and memory hold excerpts of corpus repositories. Only
+- Packaging third-party code. Demonstrations and memory hold excerpts of corpus repositories. Only
   permissively licensed excerpts may ship in the package; the store is never shipped. A user without a store gets
   the demonstrations-only program, whose own curve point (memory 0%) and calibration are what they are told.
-- **Framework inference is itself a model.** Model roles cost money and can be wrong. `scan` without `[models]`
+- Framework inference is itself a model. Model roles cost money and can be wrong. `scan` without `[models]`
   gets only wrapper inference, whose reach on framework-heavy code without dependency source is poor. The report
   says which role source ran. Both are measured by the roles-on/off experiment. Nothing assumes they help.
-- **Host time on the 7 GB host.** Engine features remain the time cost (7-14 hours serial for the pair corpus,
+- Host time on the 7 GB host. Engine features remain the time cost (7-14 hours serial for the pair corpus,
   dev-php scans of 200-2,000 s each), run once per engine image from a frozen source export, one container at
   `--memory 3g` at a time, never beside the kind cluster's verify pods, cached by (content sha, image id). Model
   calls add wall time but no memory pressure; excerpts and embeddings are small (~8 KB per example with a 1,536-float
   vector, ~45 MB for 5,600 examples).
-- **Experiments will often be inconclusive.** With 41 development repositories the MDE is about 15 points.
+- Experiments will often be inconclusive. With 41 development repositories the MDE is about 15 points.
   Pre-registering that and recording "inconclusive" is the intended behaviour. The failure mode to avoid is
   extending an experiment after looking.
 
-- **First paid slice, 2026-10-01 (tasks 6.2, 6.6; injection only).** Four instrument defects surfaced before any
+- First paid slice, 2026-10-01 (tasks 6.2, 6.6; injection only). Four instrument defects surfaced before any
   number was believed, each fixed with a test:
   - *The memory build joined no pair.* The harvest stores a pair side's record under its unit pin (the blob sha1 of
     the side's excerpt), not under `label_pin`; `ousast learn memory build --units <harvest units.json>` joins them.
@@ -1227,7 +1227,7 @@ start only after the maintainer confirms their budget against the balance read j
   0.90 has precision 0.54 (prevalence 0.53); the majority `vulnerable` verdict alone has precision 0.86, recall 0.43.
   Canary re-ask agreement at temperature 0 was 0.83, below the 0.9 the adoption check requires.
 
-- **Slice 2, 2026-10-02 (six families, after the advisory-fix harvest).** Two instrument defects stopped runs before any
+- Slice 2, 2026-10-02 (six families, after the advisory-fix harvest). Two instrument defects stopped runs before any
   number: the memory build's side reader knew only the first pair-kind source (all 194 advisory sides unread), and
   compiled demonstrations skipped the near-duplicate rule that retrieval and the pre-call assertion apply (the
   assertion stopped the untrusted_destination evaluation). Both fixed with tests. A confound to read with the new

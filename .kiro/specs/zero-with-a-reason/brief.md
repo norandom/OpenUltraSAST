@@ -1,4 +1,4 @@
-# Brief: zero-with-a-reason — a finding count is meaningless without a denominator
+# Brief: zero-with-a-reason, a finding count is meaningless without a denominator
 
 > **Status 2026-10-02:** dormant. Brief only and unapproved; not touched since 2026-09-10.
 
@@ -33,7 +33,7 @@ produced. There is nothing to put on a ladder.
 **Every zero must be decomposable, and every scan must be able to prove it did work.** Three mechanisms,
 independent, in order of value per line of code.
 
-### 1. The funnel — make the denominator first-class
+### 1. The funnel, make the denominator first-class
 
 The scan is already a chain of narrowing stages, each of which computes a count and throws it away:
 
@@ -57,10 +57,10 @@ Cheap, because every number already exists at the moment it is computed. `ModelS
 the coverage disclosure (Req 5.6, already written) is where it prints. The hard rule that gives it teeth: a
 report may not describe a repository as clean without the funnel beside it.
 
-### 2. The dumb oracle — an independent lower bound on the graph
+### 2. The dumb oracle, an independent lower bound on the graph
 
 The CPG is an elaborate instrument. A regex over the source text is a stupid one, and stupid instruments
-fail differently — which is the entire reason to have two.
+fail differently, which is the entire reason to have two.
 
 Before querying, count the fact tables' sink names in the raw source text. That is a floor on what the graph
 must contain:
@@ -72,13 +72,13 @@ the CPG's sink match returns 0
 ```
 
 This catches an empty graph, the wrong frontend, dropped files, a broken name matcher, and a missing
-overlay — bugs 2, 3, 5, 6 and 7 above, none of which it needs to know about in advance. It is the same trick
+overlay (bugs 2, 3, 5, 6 and 7 above), none of which it needs to know about in advance. It is the same trick
 the pair corpus already uses: two independent measurements of one thing must agree.
 
 What it cannot do: say anything about over-reporting, or about flows. It is purely "does the graph contain
 the syntax the text contains". That narrowness is why it is trustworthy.
 
-### 3. The canary — an end-to-end positive control
+### 3. The canary, an end-to-end positive control
 
 One synthetic file with an unmistakable flow, one extra request in the batch:
 
@@ -91,7 +91,7 @@ ran, the file reached the graph, overlays applied, the fact tables loaded, the q
 round-tripped, the payload parsed, the arbiter ran and the ladder assigned a rung.
 
 With one honest caveat that must be designed around: **adding a file to a PHP build can itself trigger the
-php2cpg race** — a two-line file added to `class.memberorder.php` is exactly what emptied that graph. So on
+php2cpg race**. A two-line file added to `class.memberorder.php` is exactly what emptied that graph. So on
 PHP the canary belongs in its own build (`ousast doctor`), where it proves the toolchain works, and the
 funnel and the oracle prove that *this* build worked. They are complementary, not redundant.
 
@@ -101,7 +101,7 @@ Every instrument failure in this project has the same shape, and it is not a coi
 unreadable and the tool reported a plausible zero.** `file_exists()` returns false, the parser writes nothing,
 the frontend exits 0, and "0 files dropped, 5,703-byte graph" reads exactly like success.
 
-It has now happened four times in one day — a docker shim that did not mount `~/.cache` (twice, hours apart,
+It has now happened four times in one day. The failures were a docker shim that did not mount `~/.cache` (twice, hours apart,
 the second time after I had diagnosed the first), a measurement harness whose script path did not resolve
 from its working directory, and a container that could not follow the symlinks in the tree it was handed.
 
@@ -132,15 +132,15 @@ prevents recurrence rather than detecting it.
 
 ## What this is not, and must not become
 
-- **Not a confidence score.** The rung ladder exists precisely so uncertainty is carried as a claim about
+- Not a confidence score. The rung ladder exists precisely so uncertainty is carried as a claim about
   evidence rather than a number nobody can act on. A "coverage percentage" that averages the funnel away
   would undo it.
-- **Not a retry loop.** Retrying a failed build until it succeeds hides bug 6's race instead of reporting it.
+- Not a retry loop. Retrying a failed build until it succeeds hides bug 6's race instead of reporting it.
   Three of five builds succeeding is a fact about the toolchain and belongs in the output.
-- **Not anomaly detection over historical finding counts.** 6.1's baselines already give the diff, and
-  "findings dropped 90%" is a lagging indicator that needs a known-good prior run — which is exactly what a
+- Not anomaly detection over historical finding counts. 6.1's baselines already give the diff, and
+  "findings dropped 90%" is a lagging indicator that needs a known-good prior run, which is exactly what a
   first scan of a new repository does not have.
-- **Not more code than it saves.** The funnel is plumbing that already exists, the oracle is one pass over
+- Not more code than it saves. The funnel is plumbing that already exists, the oracle is one pass over
   files the preprocessor already reads, the canary is one file and one request.
 
 ## Open questions for the design phase

@@ -1,32 +1,32 @@
-# Search-with-proof — handoff (2026-10-06)
+# Search-with-proof, handoff (2026-10-06)
 
 State at handoff, for resuming on the search problem and abstract interpretation.
 
-## RESOLVED 2026-10-07 — the one open question is CLOSED: first cluster demonstration achieved
+## RESOLVED 2026-10-07, the one open question is CLOSED: first cluster demonstration achieved
 
 The "first `demonstrated`" question below is answered. search-with-proof produced its first autonomous
 `demonstrated` finding end to end on kube-ax, and a blind negative confirmed no false proof.
 
-- **Pair:** hanxi/xiaomusic (pilot pair 13), family `path`, vulnerability class **prefix-check bypass**
+- Pair: hanxi/xiaomusic (pilot pair 13), family `path`, vulnerability class **prefix-check bypass**
   (`startswith(root)` without a trailing separator; the fix adds `os.sep`). Image `e2c8b460`.
-- **Vulnerable side:** `demonstrated` — owned effect in 3/3 affected runs, 0/3 safe runs. $0.37, 55 calls.
-- **Fixed side (blind negative, Req 6.3):** `inconclusive`, **0 false proofs**. $0.56, 85 calls.
-- **Pair total:** $1.22. Record: `benchmarks/measurements/2026-10-07-search-first-cluster-demonstration/`.
+- Vulnerable side: `demonstrated`, owned effect in 3/3 affected runs, 0/3 safe runs. $0.37, 55 calls.
+- Fixed side (blind negative, Req 6.3): `inconclusive`, **0 false proofs**. $0.56, 85 calls.
+- Pair total: $1.22. Record: `benchmarks/measurements/2026-10-07-search-first-cluster-demonstration/`.
 
 **The original pair-6 both-sides-false was a TWO-part diagnosis, both now fixed:** the demo did not reach the
-observable (demo/agent), and — the decisive one — the path oracle only modelled **classic parent traversal** while
+observable (demo/agent), and (the decisive one) the path oracle only modelled **classic parent traversal** while
 many real path CVEs (xiaomusic included) are **prefix-bypass**, which reaches a sibling that string-extends the served
 dir, not the parent. The oracle now also plants a prefix-sibling canary.
 
 **Fix chain that enabled the demonstration (each merged to main and validated by a paid run):**
-1. Parity — agent is told the observable's location (path oracle reached parity with command/ssrf).
-2. Verify-time-only — the observable is injected at verify time and absent during exploration; stop the explore-time
+1. Parity. The agent is told the observable's location (path oracle reached parity with command/ssrf).
+2. Verify-time-only. The observable is injected at verify time and absent during exploration; stop the explore-time
    reachability trap that burned budget without authoring a demo.
-3. Fair-share pilot budget — each search gets a fair share of `--ceiling-usd` with rollover, so one expensive search
+3. Fair-share pilot budget. Each search gets a fair share of `--ceiling-usd` with rollover, so one expensive search
    no longer starves the rest.
-4. Served-root guidance — the demo MUST set the app's served directory to the `${served_root}` placeholder.
-5. Oracle prefix-bypass coverage — plant a sibling canary for the `startswith`-without-separator class.
-6. Control-signal feedback — the keystone control (does the app serve `${served_root}`?) is fed back to the agent as a
+4. Served-root guidance. The demo MUST set the app's served directory to the `${served_root}` placeholder.
+5. Oracle prefix-bypass coverage. Plant a sibling canary for the `startswith`-without-separator class.
+6. Control-signal feedback. The keystone control (does the app serve `${served_root}`?) is fed back to the agent as a
    `served-root` hint so it self-corrects its wiring. This was the decisive last step.
 
 **Keystone (honest measurement), merged earlier:** the verifier runs a benign positive control; a broken or mis-wired
@@ -38,7 +38,7 @@ dependency build-break (`filed`→`mime@4`) is pinned.
 
 ---
 
-## The one open question (HISTORICAL — resolved above)
+## The one open question (HISTORICAL, resolved above)
 
 The full chain runs end to end on kube-ax. Every execution layer is cleared. The **first `demonstrated` has not
 happened yet**, and the remaining gap is narrow and reproducible at **$0 model cost** via `demo_replay`.
@@ -59,7 +59,7 @@ Both-sides-false means it is **not the harness** any more. It is one of:
   capture in `oracles.py` `PathOracle.observe`).
 - Re-run with `python -m benchmarks.search.demo_replay --both --demo <stored demo.json> --family path --lane ax
   --image <digest> ...`. Stored demos live under `benchmarks/search/private/runs/*/<pair>/demo/demo.json` (gitignored).
-- **Classifier note:** keep exploit payloads on disk. Hand Codex file-path tasks that treat demo contents as opaque;
+- Classifier note: keep exploit payloads on disk. Hand Codex file-path tasks that treat demo contents as opaque;
   print outcomes / phase timings / error *classes*, never request strings, env values, or step bodies. See memory
   `search-with-proof-direction` and the classifier false-positive note. Code changes never tripped it; echoing
   payloads or step-by-step attack prose did.
@@ -95,9 +95,9 @@ image (pip 3.13 vs venv 3.12 → use `sys.executable`) → checkout root on sys.
 - `/workspace` ~3 GiB free per node until the volume move; scratch guard 2 GiB/task.
 - Pilot spend to date ~$11 across 9 paid runs; the decisive replay was $0.
 
-## Decision model vs search — current read
+## Decision model vs search (current read)
 
 - Decision/classification: measured, **promising as triage** (within-pair AUC 0.762; trained logistic ties at 0.721),
   **capped as a blocker** (cannot prove 95% precision). Reframed as triage (`learned-decision-engine` Req 6.5).
-- Search-with-proof: **not yet demonstrated**, but no observation so far argues against the idea — every failure was
+- Search-with-proof: **not yet demonstrated**, but no observation so far argues against the idea. Every failure was
   our execution, now cleared. The pair-6 demo/oracle question is the first verdict on the method itself.

@@ -69,7 +69,7 @@ family semantics remain with their existing specs rather than being reimplemente
 - No promise of all-language coverage; capabilities are admitted per language/framework/family.
 - Initial work must establish feasibility and noise before investing in an LLM ranker.
 
-## Cross-language amendment — 2026-09-12
+## Cross-language amendment, 2026-09-12
 
 Keep PMPro as the primary worked optimization example, and require a JavaScript/Express/Node API
 transfer experiment before claiming the core improvement generalizes. Abstract evidence, ranking,

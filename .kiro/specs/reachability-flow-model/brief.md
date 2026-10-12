@@ -24,8 +24,8 @@ Build a name-resolved call graph from the `FunctionIR` records tree-sitter alrea
 
 ## Scope
 
-- **In**: call graph, summaries, path records, reachability attachment, rank and map integration, hunter on paths, hunter-to-candidate path, fact oracle with cache, `facts` lever with validator, fix-point ranking and report section, measurement on split-sink, vibe-py, vfc slices, offline tests.
-- **Out**: guard dominance semantics (`guard-dominance-regime` consumes path records), CST walker fixes (`overlay-ir-completeness`), a whole-program points-to or symbolic engine, concolic execution, executing target code outside the sandbox, new dispositions, LLM as parser, any merge gate change.
+- In: call graph, summaries, path records, reachability attachment, rank and map integration, hunter on paths, hunter-to-candidate path, fact oracle with cache, `facts` lever with validator, fix-point ranking and report section, measurement on split-sink, vibe-py, vfc slices, offline tests.
+- Out: guard dominance semantics (`guard-dominance-regime` consumes path records), CST walker fixes (`overlay-ir-completeness`), a whole-program points-to or symbolic engine, concolic execution, executing target code outside the sandbox, new dispositions, LLM as parser, any merge gate change.
 
 ## Boundary Candidates
 
@@ -42,14 +42,14 @@ Build a name-resolved call graph from the `FunctionIR` records tree-sitter alrea
 
 ## Upstream / Downstream
 
-- **Upstream**: `FileIR`/`FunctionIR`, `analyze_entry_points`, `analyze_ir`, `load_facts`, `Hotspot`, `run_tool_hunter`, `select_candidates`, `run_improvement`, pair holdout metrics per profile.
-- **Downstream**: `guard-dominance-regime` attaches guards to path records; later web-authorization detection is a path whose hops include no auth guard; reports and MCP read fix points.
+- Upstream: `FileIR`/`FunctionIR`, `analyze_entry_points`, `analyze_ir`, `load_facts`, `Hotspot`, `run_tool_hunter`, `select_candidates`, `run_improvement`, pair holdout metrics per profile.
+- Downstream: `guard-dominance-regime` attaches guards to path records; later web-authorization detection is a path whose hops include no auth guard; reports and MCP read fix points.
 
 ## Existing Spec Touchpoints
 
-- **Extends**: `three-stage-scan` (hunter tools, candidate selection, worth-fixing input), `propose-adjudicate-prove` (facts consumed unchanged; one new fact source), `harnessx-self-improving-rulesets` (one new lever under the same gate).
-- **Depends**: `pair-corpus-honesty` for per-profile holdout metrics and the hunter scorer.
-- **Adjacent**: `overlay-ir-completeness` improves the records this spec walks; neither blocks the other.
+- Extends: `three-stage-scan` (hunter tools, candidate selection, worth-fixing input), `propose-adjudicate-prove` (facts consumed unchanged; one new fact source), `harnessx-self-improving-rulesets` (one new lever under the same gate).
+- Depends: `pair-corpus-honesty` for per-profile holdout metrics and the hunter scorer.
+- Adjacent: `overlay-ir-completeness` improves the records this spec walks; neither blocks the other.
 
 ## Constraints
 

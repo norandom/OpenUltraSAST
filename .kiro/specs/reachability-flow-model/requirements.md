@@ -8,9 +8,9 @@ OpenUltraSAST cannot yet steer effort where risk is reduced because it has no mo
 
 ## Boundary Context
 
-- **In scope**: call graph, taint summaries, path records, reachability attachment to findings, rank, complexity map and worth-fixing; hunter path context; hunter findings as sandbox candidates; fact oracle and candidate-fact cache; `facts` improve lever; fix-point ranking and report section; offline tests and measurement on existing slices.
-- **Out of scope**: guard semantics; CST walker fixes; whole-program alias analysis; symbolic or concolic execution; new dispositions or evidence rungs; LLM as parser; any merge gate change; profile-specific fact tables beyond the gate defined by `pair-corpus-honesty`.
-- **Adjacent expectations**: `FileIR` shape is frozen except additive fields; `load_facts` merges candidate facts below hand-written facts; the improve loop's existing accept gate and per-profile holdout clause apply unchanged to the new lever; sandbox safety checks apply to hunter snippets as today.
+- In scope: call graph, taint summaries, path records, reachability attachment to findings, rank, complexity map and worth-fixing; hunter path context; hunter findings as sandbox candidates; fact oracle and candidate-fact cache; `facts` improve lever; fix-point ranking and report section; offline tests and measurement on existing slices.
+- Out of scope: guard semantics; CST walker fixes; whole-program alias analysis; symbolic or concolic execution; new dispositions or evidence rungs; LLM as parser; any merge gate change; profile-specific fact tables beyond the gate defined by `pair-corpus-honesty`.
+- Adjacent expectations: `FileIR` shape is frozen except additive fields; `load_facts` merges candidate facts below hand-written facts; the improve loop's existing accept gate and per-profile holdout clause apply unchanged to the new lever; sandbox safety checks apply to hunter snippets as today.
 
 ## Requirements
 
@@ -79,7 +79,7 @@ OpenUltraSAST cannot yet steer effort where risk is reduced because it has no mo
 
 ### Requirement 6: Facts as an improve-loop lever
 
-**Objective:** As a maintainer, I want the improve loop to be able to accept or reject facts, so that the evolutionary machinery can move detection and not only rule status.
+**Objective:** As a maintainer, I want the improve loop to be able to accept or reject facts, so that the evolutionary machinery can move both detection and rule status.
 
 #### Acceptance Criteria
 
