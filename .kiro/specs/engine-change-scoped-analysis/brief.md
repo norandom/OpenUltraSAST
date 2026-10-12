@@ -336,3 +336,27 @@ context:**
   measure catch + false-alarm (on ordinary changes) vs regex 1/5. The single-shot path is insufficient; the hunter
   is the real "#1".
 - Feed confirmed source shapes (e.g. library param → path join) back as guarded static facts (#2).
+
+## Future: GEPA-style reflective retries for the LLM arm (maintainer note 2026-10-12)
+
+The LLM arm (both the corpus-label audit and the search-with-proof detector) should later use a **GEPA-style
+reflective-retry loop** (DSPy GEPA: reflect on failed/low-confidence outputs, evolve the prompt, retry) rather than
+single-shot calls — aligned with [[learned-decisions-not-hand-tuning]] (learned decisions + local memory, not hand
+rules). Deferred to a future spec; the current sizing/audit uses single-shot DeepSeek. GLM 5.3 "cyber" model is
+also future-spec (brand new); DeepSeek is the working default today though it is not a security-specialised model.
+
+## POOL-P1 LABEL AUDIT (LLM, 2026-10-12) — 47% of labels are sound
+
+Widened the banks label-mislocation check across all **49 public** pool vulns via DeepSeek (advisory + head code +
+pool label → sound/unsound). Full artifact: `benchmarks/measurements/2026-10-12-pool-p1-label-audit/`.
+- **label_sound = 23/49 (47%)**; 53% unsound (25 pre-exist in base, 16 sink outside changed lines). Cost $0.038.
+- By family (sound/total): injection 10/13, access_control 5/8, untrusted_destination 4/7, deserialization 1/2,
+  config_secrets 1/4, **path 1/7, output_encoding 1/8**. Injection labels mostly sound; path/output_encoding mostly
+  mislocate or pre-exist.
+- **record 07's floor (catch 3/92) is scored against a corpus ~half unfair to a delta hook** — on the ~53%
+  pre-existing/mislocated vulns a change-scoped hook correctly stays quiet. The honest catchable denominator is the
+  sound subset; record 07 needs this caveat + a sound-subset recomputation.
+- **Fair pilot re-score:** only bedrock + graphiti (injection) of the 5 are sound; the engine missed both — the
+  real detection gaps. The 23 sound targets are the fair local eval set for "#2 guided by #1".
+- Next: run the agentic search-with-proof hunter on the sound targets (start bedrock + graphiti), size its
+  per-vuln call count/cost, measure catch + false-alarm. Then recompute record 07 on the sound subset.

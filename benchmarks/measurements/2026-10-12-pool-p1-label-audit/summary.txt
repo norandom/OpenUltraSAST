@@ -1,0 +1,48 @@
+total audited=49
+  label_sound=True : 23 (47%)
+  label_sound=False: 26 (53%)
+  errors/no-verdict: 0
+  introduced_vs_preexisting: {'preexisting': 25, 'introduced': 23, 'unclear': 1}
+  sink_in_changed_lines: {True: 33, False: 16}
+  advisory unavailable: 0 | code unavailable: 0
+
+-- SOUND (fair, change-located, introduced targets) --
+   aws/bedrock-agentcore-sdk-python         injection        :: The install_packages function (lines 540-581) falls within the changed
+   flarum/tags                              access_control   :: The advisory describes missing permission checks when editing tags; th
+   matrix-org/matrix-appservice-bridge      access_control   :: The advisory's missing predecessor check concerns the room upgrade han
+   jenkinsci/ontrack-plugin                 access_control   :: The dangerous GroovySandbox.run call with Whitelist.all() is the sandb
+   jupyter-lsp/jupyterlab-lsp               path             :: The advisory concerns unsecured endpoints in jupyter-lsp, and the chan
+   laravel/pulse                            injection        :: The advisory's vulnerable remember() method is at line 21, which is wi
+   geosolutions-it/jai-ext                  injection        :: The changed lines 555-557 fall within the createRuntimeInstance functi
+   decentralized-identity/veramo            injection        :: The advisory's SQL injection sink is the unsanitized item.column passe
+   jenkinsci/role-strategy-plugin           access_control   :: The advisory's fix concerns parent-permission checks in RoleMap, and t
+   jenkinsci/jira-plugin                    access_control   :: The advisory describes the doValidate form validation method lacking P
+   chriskacerguis/codeigniter-restserver    untrusted_destination :: The advisory describes an XXE in REST_Controller's constructor where X
+   ballcat-projects/ballcat-codegen         injection        :: The whole file (lines 1-48) is newly added in the diff, and the danger
+   getzep/graphiti                          injection        :: The advisory describes Cypher label injection via node_labels concaten
+   actions/toolkit                          injection        :: The advisory's dangerous sink is the delimiter-based GITHUB_ENV constr
+   i18next/i18next-http-backend             untrusted_destination :: The changed line 17 is inside isSafeUrlSegmentBase, the validation fun
+   jenkinsci/radargun-plugin                deserialization  :: The unsafe `new Yaml()` constructor (line 17) is the dangerous sink en
+   jenkinsci/gitlab-oauth-plugin            untrusted_destination :: The advisory describes an open redirect via the Referer header in doCo
+   sorlen008/desktopcommandermcp            untrusted_destination :: The advisory names readFileFromUrl (function_lines 164-212) and the di
+   zenitram/malla                           output_encoding  :: The advisory's relay_node_analysis.js sink at line ~124 is the candida
+   adfinis/document-merge-service           injection        :: The vulnerable sink is the Jinja2 Environment created in get_jinja_env
+   punkpeye/mcp-remote                      injection        :: The advisory describes command injection via crafted authorization_end
+   blackprint/engine-js                     injection        :: The advisory's dangerous sink is the prototype-pollution guard/assignm
+   rap2hpoutre/laravel-log-viewer           config_secrets   :: The dl request's base64_decode pathToLogFile download is the arbitrary
+
+-- by family: sound/total --
+   access_control         5/8
+   config_secrets         1/4
+   deserialization        1/2
+   injection              10/13
+   output_encoding        1/8
+   path                   1/7
+   untrusted_destination  4/7
+
+-- sound but confidence<0.7 (spot-check) --
+   jupyter-lsp/jupyterlab-lsp conf=0.6
+   jenkinsci/role-strategy-plugin conf=0.55
+   chriskacerguis/codeigniter-restserver conf=0.6
+   getzep/graphiti conf=0.6
+   punkpeye/mcp-remote conf=0.55

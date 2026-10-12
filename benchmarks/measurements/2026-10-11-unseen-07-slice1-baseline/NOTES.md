@@ -23,3 +23,9 @@ Ledger: benchmarks/unseen/usage-p1.jsonl — one `baseline` row (this is G0's ex
 - **Sizing**: 100 vulns is ~±10% for one overall catch number; per-family (deser=4, config=10) is far too thin for
   family-level decisions — needs slices 2+.
 - Raw per-change records streamed to the RustFS store; local subdirs pruned-as-we-go (records + inputs.json kept).
+- **CORPUS-LABEL CAVEAT (added 2026-10-12):** an LLM audit of the 49 public pool vulns found only **47% (23/49)
+  of labels are sound** (sink in the changed lines AND change-introduced); 53% pre-exist in base or are mislocated,
+  where a change-scoped hook *correctly* stays quiet. So this catch rate is scored against a corpus ~half of which
+  is unfair to a delta hook — the honest catchable denominator is the sound subset, and the floor should be
+  recomputed on it. By family the mislocation is systematic (path 1/7, output_encoding 1/8 sound; injection 10/13).
+  See `benchmarks/measurements/2026-10-12-pool-p1-label-audit/`.
