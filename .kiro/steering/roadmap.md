@@ -7,23 +7,23 @@ This section supersedes the ordering below it. The older sections stay as histor
 ### Destination
 
 On every push, from a hook or CI, OpenUltraSAST answers for the changed code. The answer is advisory for every
-family, and BLOCK only for families whose precision has been proven on repositories the system never saw. The work
-is split by what each place is good at:
+family, and BLOCK only for families whose precision has been proven on repositories the system never saw.
+Each environment handles different parts of the work:
 
-- **kube-ax cluster** (operator k3s, Agent Substrate v0.3.0, AX v0.3.1, 2 nodes): the Joern engine, as AX Tasks.
+- The kube-ax cluster (operator k3s, Agent Substrate v0.3.0, AX v0.3.1, 2 nodes) runs the Joern engine as AX Tasks.
   No API keys and no store credentials in the cluster; tasks read and write through short-lived presigned links.
-- **The VM or CI runner**: candidate selection, the decision engine's model calls (DeepSeek), the memory store,
-  and the fallback engine lane (2.5 GB heap) for pins that do not fit the cluster's 1.7 GB heap.
+- The VM or CI runner handles candidate selection and the decision engine's model calls (DeepSeek). It also hosts
+  the memory store and the fallback engine lane (2.5 GB heap) for pins that do not fit the cluster's 1.7 GB heap.
 - **kind** stays the local development profile, with the same code and manifests.
 
 ### The question everything answers
 
-Does the safety net work on repositories it has never seen? That is the purpose of the A/B experiments, and every
-phase below is judged by it. On an unseen repository almost every push is an ordinary change, so two numbers decide
-whether the safety net is useful, measured on the hook's advisory output exactly as a user would see it:
+The A/B experiments test whether the safety net works on repositories it has never seen. Every phase below must
+answer that question. Almost every push on an unseen repository is an ordinary change. Two numbers measure whether
+the safety net is useful, based on the hook's advisory output as a user sees it:
 
-1. **Catch rate:** on real vulnerability-introducing changes in unseen repositories, how often it flags the change.
-2. **False-alarm rate:** on ordinary changes in the same unseen repositories, how often it flags anything.
+1. How often does it flag real vulnerability-introducing changes in unseen repositories (catch rate)?
+2. How often does it flag anything on ordinary changes in the same unseen repositories (false-alarm rate)?
 
 Within-pair AUC on known fix pairs answers neither. It stays a development signal, not the goal.
 
@@ -37,17 +37,19 @@ Within-pair AUC on known fix pairs answers neither. It stays a development signa
 | Engine | Almost blind to fixes (paths differ between sides in 2 of 105 both-asked pairs) | `2026-10-04-joern-slice-leak-audit/record.json` |
 | Infrastructure | Engine runs on kube-ax as AX Tasks with a VM fallback; kind for development | memory `kube-ax-cluster` |
 
-Correction recorded 2026-10-04: the previous two days went mostly into infrastructure and engine internals that did
-not move a generalisation number. From here, infrastructure and engine work is done only when it removes a
-bottleneck for the measurements below.
+Correction recorded 2026-10-04: most work in the previous two days went into infrastructure and engine internals
+without improving a generalisation number. Further work on those areas must remove a bottleneck for the
+measurements below.
 
 ### Where we are (2026-10-11)
 
-The G0 measurement is **done**: the unseen pool is **frozen**, the pipeline is hardened and **bucket-first**,
-and the slice-1 baseline (record 07) ran on the **docker lane** — the sanctioned interim while the kube `ax`
-lane is restored. G0 is exited; the kube `ax` lane is now a **G1** concern (the engine arm at scale), not a
-baseline blocker. (Correction 2026-10-12: an earlier revision of this section said the baseline was "the one
-remaining step, to run on kube" — that was stale; record 07 was completed on docker right after, see below.)
+**The frozen-SZZ-pool scoring approach is not feasible. Its catch/false-alarm numbers are retired as a
+metric (2026-10-12 maintainer call).** The SZZ-derived labels place the vulnerability in the wrong location
+~half the time (audit: path 1/7, output_encoding 1/8 sound). Only ~24% of entries are app-shaped
+(reachability in-repo). Catch/false-alarm figures from this pool are invalid as a baseline.
+Record 07's "3/92" and every pool catch/FP number are **not quoted and not a release gate**. Before any
+detection number is valid, the pool must have **sound labels** and entries classified as app-shaped or library.
+Until then, no pool-scored metric is cited anywhere.
 
 | Area | State | Evidence |
 | --- | --- | --- |
@@ -56,25 +58,21 @@ remaining step, to run on kube" — that was stale; record 07 was completed on d
 | Harvest | Rebuilt to converge. Pure GitHub-API harvesting is a dead end for this benchmark (it needs the SZZ introducing commit + 12 stratified history negatives, not one commit). The fix: a full-objects clone (drop `--filter=blob:none`, which caused ~600 per-blob lazy fetches) + bucket-first durability + a get_repo cache that paid the 4,499-name used-set canonicalization once. Yield ~2.2%; **GitHub-rate-limit bound, not CPU**. | 95bed70, 857263d, 21aebe8, 7b711a6 |
 | Persistence | **Bucket-first, not local disk.** `ousast-corpus` is the source of truth: enumeration, resolution, get_repo, and accept/reject decisions all stream to and resume from it. The host disk (~9-13 GB free) is the scarce resource; RustFS/S3 has the room, so run artifacts and **replay outputs go to RustFS too**, not `~/ousast-results` on local disk. | `storage-streaming.md`, `bank.py` |
 | Replay image | Provenance pinned. CI `engine-image.yml` builds `ousast-replay-task` (harness with `/app/benchmarks/unseen/replay_entry.py`) + `ousast-engine-task` (Joern hook), publicly pullable by digest. The old `ousast-runner:dev` (248 MB ax-runner, no `/app/benchmarks`, no Joern) is the **wrong** image for replay. | CI run 38116281676 |
-| Baseline (G0.2) | **DONE — record 07 (`e901640`), docker lane.** 1300/1300 changes; catch 3/92 = **3.3%** (Wilson95 1.1–9.2%), false-alarm **3.1%** (cluster95 1.6–5.4%), instrument_failure 54 (4.2% < 5% guard). `engine_covered=0` and no model calls → this is a **regex/quick-rule floor** (the engine never ran under the ~200s pre-push wall; the LLM tier was disabled). Baseline row in `usage-p1.jsonl` (freeze_digest `3371c67d`) = **G0 exit**. Ran on docker (not kube `ax`) per the sanctioned interim. | `benchmarks/measurements/2026-10-11-unseen-07-slice1-baseline/` |
+| Baseline (G0.2) | **RETIRED as a metric.** A replay (record 07) ran end-to-end on the docker lane, which proves the pipeline works — but its catch/false-alarm figures are **not a usable baseline** (scored against ~half-mislocated SZZ labels on a mostly non-app-shaped corpus) and are **not quoted or used as a gate**. The pool must be cleaned to sound labels first. | pipeline proven; metric not used |
 
-Lesson, recorded so it is not re-paid: sourcing and engine-image work cost real time. The durable takeaway now lives
-in the pipeline and these docs — bucket-first persistence, pinned image provenance, a measured yield — so the next
-pool or arm is cheap, not a rediscovery.
+Sourcing and engine-image work took time. The pipeline and these docs now record bucket-first persistence and
+pinned image provenance, along with the measured yield. The next pool or arm can reuse that work.
 
-### Readiness plan (G0 exited; next is G1)
+### Readiness plan — build a VALID benchmark first
 
-**G0 exit = record 07 is DONE** (docker lane, regex/quick-rule floor; see the Baseline row above). Steps 1–4
-below are complete. The kube `ax` lane was NOT needed for the baseline and is now a **G1** target.
+The frozen-SZZ-pool approach is retired (above). The replay pipeline works end-to-end, and the harvest/freeze/bucket
+machinery remains available. The engine/replay images are pinned. No catch/false-alarm figure from that pool is used.
 
-1. ~~Kube replay lane~~ — **not needed for G0**; the baseline ran on the docker lane (the sanctioned interim).
-   The `ax` lane moves to G1 (see below).
-2. ~~Unblock the replay~~ — done; replay ran over the frozen slice.
-3. ~~Run slice-1 baseline~~ — done: `--lane docker --arm default`, 1,300 changes, no model cost, outputs to RustFS.
-4. ~~Adjudicate (7.3) → record 07 (7.4)~~ — done = **G0 exit** (`usage-p1.jsonl` freeze_digest `3371c67d`).
-5. **Next — G1 arms on the frozen pool.** Re-score the arms that the regex floor cannot be (engine evidence,
-   DeepSeek decision engine, combiner) to see what beats catch 3.3% at a fixed false-alarm budget. This is where
-   the kube `ax` lane is needed, because the engine arm cannot run under the ~200s pre-push wall on a single host.
+Next, define and build the valid benchmark. Use sound, verified positives with in-repo reachability and ordinary
+negatives on unseen repos. Measure the whole tool with metrics an engineer understands. The design is in
+`.kiro/specs/valid-detection-benchmark/brief.md`. Only once that benchmark exists does any detection number
+(catch rate, false-alarms-per-100-pushes, proved-catch) mean anything. The kube `ax` lane is still the place the
+engine tier runs at scale, but it is infrastructure, not the gate.
 
 ### Restoring the kube `ax` lane (for G1, operator-owned)
 
@@ -82,10 +80,10 @@ The AX executor is **built and smoke-tested** (`benchmarks/ax/batch.py`, `engine
 lanes, OOM→docker fallback; an engine smoke test dispatched to the 2-worker cluster end-to-end on 2026-10-04).
 What remains before the G1 engine-arm replay:
 
-- **Use the working `ax` binary: `~/go/bin/ax`** — NOT `~/.local/ax-v0.3.1/ax`, which hits the AX-lane blocker
+- Use the working `ax` binary, `~/go/bin/ax`. `~/.local/ax-v0.3.1/ax` hits the AX-lane blocker
   (recorded in the unseen spec `tasks.md`, 2026-10-11). The coordinator commands in the READMEs are being
   corrected to this binary.
-- **Store endpoint:** `benchmarks/ax/batch.py` expects a public-HTTPS DNS, presign-capable S3 endpoint reachable
+- `benchmarks/ax/batch.py` expects a public-HTTPS DNS, presign-capable S3 store endpoint reachable
   from the cluster; the cluster carries no model/store credentials (it reads/writes via short-lived presigned
   links). This and the cluster's store access are operator/AX-owned.
 - **Run the open spec tasks** that gate G1: **4.4** (engine smoke on kube-ax → record 04) and **5.4** (replay
@@ -94,23 +92,27 @@ What remains before the G1 engine-arm replay:
 
 ### Phases
 
-**G0. The unseen-repository pool and the push-level metric** (new spec `unseen-repo-evaluation`)
+**G0. A VALID detection benchmark** (spec `valid-detection-benchmark`; supersedes the retired
+`unseen-repo-evaluation` frozen-SZZ-pool approach)
 
-1. A frozen pool of repositories never used for training, tuning, mining or harvesting, and not in any population.
-   Two kinds of change per repository: real vulnerability-introducing commits (the parent of a fix, post-cutoff where
-   possible) and ordinary commits from the same history.
-2. The metric: replay each change through `ousast pre-push` (and the decision engine where an arm uses it) and
-   record catch rate and false-alarm rate, with confidence intervals, per family and overall.
-3. Rotation: the pool is spent per decision, like the populations; a new slice is drawn for the next one.
+1. Use real vulnerabilities labelled *from the fix*: the pre-fix code at the file/function the fix changed,
+   without an SZZ blame-walk. Keep only those reachable from an in-repo entry point. Confirm each case through
+   LLM adjudication and a human spot-check so the positives are sound, app-shaped and verified.
+2. Ordinary negatives: everyday non-fix commits from the same application repos, a set much larger than the
+   positives (false alarms discourage adoption).
+3. Measure the **whole tool** (all tiers on) on **unseen** repos, and report metrics an engineer reads: catch
+   rate, **false-alarms per 100 pushes**, precision, and **proved-catch** (demonstrated, label-free). See the
+   brief for the full definition and why the SZZ pool was not feasible.
 
-Exit: the pool is frozen and the current production hook has a measured baseline on it.
+Exit: the benchmark exists (frozen, verified) and the whole tool has a first measured result on it.
 
-**G1. Re-score the arms we have on the pool**
+**G1. Score the arms on the valid benchmark**
 
-Current hook (quick rules + engine), decision-engine advisory (current programs), combiner, engine evidence. Each is
-an arm with a registered decision rule, scored by catch rate at a fixed false-alarm budget.
+Quick rules, engine evidence, the LLM-guided arm, and their combination, each a registered decision rule,
+scored by catch rate at a fixed false-alarms-per-100-pushes budget, with proved-catch where available.
 
-Exit: one measured table of arms on unseen code; keep only what generalises.
+Exit: one measured table of arms on unseen app-shaped code; keep only what generalises. (No number is quoted
+until it comes from this benchmark, never the SZZ pool.)
 
 **G2. Improve what moves the unseen-repo numbers**
 
@@ -120,63 +122,63 @@ changes, more labelled pairs from more distinct repositories.
 
 Active G2 workstreams (2026-10-11; progress tracked in `.kiro/specs/engine-change-scoped-analysis/brief.md`):
 
-**#1 priority after record 07: get real (semantic) detection under the pre-push budget.** The record-07 baseline
-is **regex only** — verified: the push arms hardcode `model="disabled"`, `max_model_calls=0`, and the engine never
-ran (`engine_covered=0`); measured `catch≈2.5%`. Pattern rules alone will never be enough (else `grep` would do).
-The two tiers that carry detection both sat out: the **engine** (Joern dataflow) and the **LLM adjudication**
-(disabled in the push path). The workstream is an **efficiency barrier analysis** — a per-tier budget ledger
+Priority #1 after record 07: run semantic detection within the pre-push budget. The record-07 baseline
+is **regex only**. The push arms hardcode `model="disabled"`, `max_model_calls=0`, and the engine never
+ran (`engine_covered=0`); measured `catch≈2.5%`. Pattern rules alone are insufficient; otherwise `grep` would do.
+The two detection tiers did not run: the **engine** (Joern dataflow) and the **LLM adjudication**
+(disabled in the push path). The workstream measures **efficiency barriers** with a per-tier budget ledger
 against a realistic pre-push window (≤120 s target, 300 s hard):
-  - **Engine: E1/E2 DONE (2026-10-12, clean host) — see brief "E1/E2 RESULTS".** CORRECTION: the engine's
+  - Engine: E1/E2 DONE (2026-10-12, clean host), see brief "E1/E2 RESULTS". CORRECTION: the engine's
     `query=0` wall was **host contention** (the baseline replay), not an intrinsic floor. On a clean host the
     shipped engine **runs dataflow** (query 0→35 s, selected 0→**356 regions**). The evidence/taint batch (~225 s)
     is **invariant to session and preload**; graph-load is cheap (~35 s incl `importCpg`). The real barrier is
     `taint.sc`'s ~160 s per-batch flow work, so `build(~30)+evidence(~225)≈255 s` of 300 s defers 1009/1365
-    regions. Lever = **change-scope the family/file set** the taint batch walks (NOT session/preload). E3 analysis
+    regions. Reduce the work by **scoping the family/file set to the change** (not session/preload). E3 analysis
     per-pair cost; E4 build vs repo size remain.
-  - **ENGINE-ON PILOT DONE (2026-10-12, clean host, 5 public repos) — see brief "ENGINE-ON PILOT RESULTS".**
-    **regex 1/5, engine 0/5.** The engine added NO catches over the regex floor. The **budget hypothesis is
-    REFUTED**: 3/5 repos finished their queue (deferred=0) and still emitted no finding — so change-scoping is NOT
-    the path to catch. The engine ranked the vuln region in all 5 and found the right sink on 2 (socketio deser,
-    launch-editor, score 2.0), but **withholds any finding it cannot anchor 1:1 to changed lines**: all 5 hit
+  - **ENGINE-ON PILOT DONE (2026-10-12, clean host, 5 public repos), see brief "ENGINE-ON PILOT RESULTS".**
+    **regex 1/5, engine 0/5.** The engine added no catches over the regex floor. The budget hypothesis is
+    refuted: 3/5 repos finished their queue (deferred=0) and still emitted no finding, so change-scoping will not
+    improve catch rate. The engine ranked the vuln region in all 5 and found the right sink on 2 (socketio deser,
+    launch-editor, score 2.0), but withholds any finding it cannot anchor 1:1 to changed lines: all 5 hit
     `ambiguous_line_correspondence` → `witness_unresolved` → `coverage_status=incomplete`, suppressing even the
-    scored sinks. Confirmed NOT a shallow-clone artifact. **Release read: the net is NOT releasable on detection.**
-  - **CORRECTED after inspecting `head.findings`:** the engine produced **ZERO vuln-family findings** (path/
-    injection/deser) on all 5 — only config_secrets. The tier1/score2.0 "sink" was the RANKER's static candidate,
-    not a taint finding. `ambiguous_line_correspondence` is a downstream red herring (nothing to anchor), so the
+    scored sinks. This is not a shallow-clone artifact. Detection does not meet release requirements.
+  - Corrected after inspecting `head.findings`: the engine produced no vuln-family findings (path/
+    injection/deser) on all 5, only config_secrets. The tier1/score2.0 "sink" was the ranker's static candidate,
+    not a taint finding. `ambiguous_line_correspondence` does not explain the missing findings (nothing to anchor), so the
     region-level witness fix (old "Option A") was **refuted before implementation**. The **LLM tier was disabled**
-    (model_calls=0). **ROOT CAUSE:** pilot repos are LIBRARIES whose untrusted input is public-API parameters;
+    (model_calls=0). The cause is that pilot repos are libraries whose untrusted input is public-API parameters;
     Python taint sources are web/CLI only, and the param-as-source mode fires only for entry points (vuln regions
-    are `entry:false`) — widening it statically would reintroduce the WordPress/PMPro false-SQL-injection flood.
-    **Workstream = maintainer's "#2 guided by #1":** the LLM adjudicates which library parameter is a trust boundary
+    are `entry:false`). Widening it statically would reintroduce the WordPress/PMPro false-SQL-injection flood.
+    The workstream follows the maintainer's "#2 guided by #1" directive: the LLM adjudicates which library parameter is a trust boundary
     (static rules can't without FPs), the taint engine then traces that source→sink as proof, and repeated source
-    shapes get promoted to guarded static facts. First increment (PENDING BUDGET): wire the disabled LLM tier on the
+    shapes get promoted to guarded static facts. First increment (pending budget): wire the disabled LLM tier on the
     5 pilot regions in LLM-guided-source mode; measure source naming, traced finding, catch lift vs regex 1/5, and
     false-alarm on ordinary changes; stage 5–10 → ~10–20 → full on lift. #3 change-anchoring deprioritised until
     tiers yield findings.
-  - **BANKS FIXED-SEARCH MVP DONE (2026-10-12) — "#2 guided by #1" closes on an unseen target.** See brief
+  - **BANKS FIXED-SEARCH MVP DONE (2026-10-12), "#2 guided by #1" closes on an unseen target.** See brief
     "BANKS FIXED-SEARCH MVP" + `benchmarks/measurements/2026-10-12-banks-fixed-search-mvp/`. On banks (the
     library that gave the engine zero), injecting the two annotations an LLM steer would supply (param-as-source
     + `write_text`/`read_text` sink) makes the engine resolve `prompt → path-join → write_text` where the
-    shipped search resolved nothing. Proves the governing principle "no wrong targets, only wrong searching" and
-    names the exact inputs the DSPy-optimised steer must learn. Filed instrument bug:
+    shipped search resolved nothing. This supports the principle "no wrong targets, only wrong searching" and
+    identifies the inputs the DSPy-optimised steer must learn. Filed instrument bug:
     `.kiro/specs/engine-change-scoped-analysis/bugs/taint-sc-single-query-signature-skew.md` (single-query taint
     path dead on an exec-signature skew; batch path unaffected).
-  - LLM: L1 model latency and calls per push; L2 the recall LIFT of the LLM tier over regex+dataflow on the pool.
+  - LLM: L1 model latency and calls per push; L2 the recall lift of the LLM tier over regex+dataflow on the pool.
   - Deliverable: a barrier table (budget × tier combo → fits? measured recall/FP) → the minimal releasable config.
 
-- **Change-scoped engine analysis — DEMOTED again by the pilot.** Branch `engine-change-scoped-evidence-pass`
+- The pilot lowers the priority of change-scoped engine analysis again. Branch `engine-change-scoped-evidence-pass`
   (unmerged). Fitting the budget does not produce catches (3/5 pilot repos finished the queue with zero findings),
-  so this is not on the catch critical path. Keep only as a latency optimisation once detection works.
+  so this is not required to improve catch rate. Keep only as a latency optimisation once detection works.
 - **Line-correspondence (merged c39fbb8).** `ambiguous_line_correspondence` fires on 5/5 realistic diffs, but the
-  pilot's corrected diagnosis shows it is NOT the detection blocker here — the static tiers produce no vuln-family
-  findings to anchor in the first place. A region-level witness fallback only matters once #1/#2 yield findings.
+  pilot's corrected diagnosis shows it does not block detection here. The static tiers produce no vuln-family
+  findings to anchor. A region-level witness fallback only matters once #1/#2 yield findings.
 
 **G3. Decide BLOCK per family** on the pool's false-alarm rate and the pooled precision bound (Req 6.4).
 
 **G4. Detection on push for any repository** (`plane-on-kubernetes` P4 work: `ousast plane scan --base --head`,
 engine pins on kube-ax, model calls on the VM or CI), sized by what G1-G3 kept.
 
-**G5. Qualification and rollout:** adopt, commit `prediction-v3.json`, spend population v3 once, advisory rollout,
+G5. Qualification and rollout: adopt, commit `prediction-v3.json`, spend population v3 once, advisory rollout,
 BLOCK only for families that passed.
 
 ### Cross-cutting rules
@@ -214,13 +216,13 @@ progress, not adopted). See `overview.md` for the current-state summary.
 
 Build an actionable pre-push security safety net for AI-accelerated development.
 The maintainer accepted the following order: **prove one useful detection, make it
-fast, prove cross-language transfer, qualify independently, then enable narrow advisory
+fast, prove cross-language transfer, qualify independently, then enable a narrow advisory
 rollout**. The executable outcome contract lives in the existing
 [pre-push-safety-net release milestone spec](../specs/pre-push-safety-net/release-milestones.md).
 
 **We are at M1b. M1a is met; no other release milestone is verified yet.** The published
-`v1.2.0-alpha.1` and 28/29 completed implementation tasks describe delivered machinery,
-not a demonstrated useful safety net. Task 8.3 and rollout remain NO-GO.
+`v1.2.0-alpha.1` and 28/29 completed implementation tasks show that the machinery is implemented.
+They do not demonstrate a useful safety net. Task 8.3 and rollout remain NO-GO.
 
 | Order | Milestone | Observable exit | Current state |
 |---|---|---|---|
@@ -252,26 +254,26 @@ not dropped safety checks. Advisory and blocking share the same actionability ba
 
 Graph persistence now works: identical-tip replays take 18.5–18.9s. All 18 other measured
 transactions still time out and 0/24 target checks complete. A local Joern session census
-probe is promising, but full-query equivalence and hook performance are unverified.
+probe shows promise, but full-query equivalence and hook performance are unverified.
 These findings inform M2; they do not complete M1. No second IR/engine, new heuristic
 scope selector, differential graph mutation or unrelated backlog is part of this path.
 
 ## Existing Spec Updates
 
-- [ ] pre-push-safety-net — Execute the accepted M1–M5 release milestone amendment.
+- [ ] pre-push-safety-net, Execute the accepted M1–M5 release milestone amendment.
   Owns immutable replay, comparison, admission, evaluation and reporting. Preserve the
   existing completed tasks; task 8.3 remains blocked until qualification passes.
-- [ ] contributor-scan — Supply the required query/operation/context fixes for M1,
+- [ ] contributor-scan, Supply the required query/operation/context fixes for M1,
   followed by equivalent bounded session execution for M2 and shared transfer evidence.
   Frontend retention 2.18 and named census repair 2.19 are already verified.
-- [ ] flow-aware-ranking — Preserve ranker-owned scope and normalized cross-language
+- [ ] flow-aware-ranking, Preserve ranker-owned scope and normalized cross-language
   behavior. New ranking research is not a prerequisite for the first useful comparison.
-- [ ] zero-with-a-reason — Adjacent diagnostics work; finishing its whole backlog is
+- [ ] zero-with-a-reason, Adjacent diagnostics work; finishing its whole backlog is
   not required before M1.
 
 ## Specs (dependency order)
 
-- [ ] pre-push-safety-net — Existing approved implementation, dependent on contributor-scan.
+- [ ] pre-push-safety-net, Existing approved implementation, dependent on contributor-scan.
   Groups 1–7 and tasks 8.1, 8.2, 8.4 are verified; 26/27 executable tasks complete.
   Remaining release work follows [M1–M5](../specs/pre-push-safety-net/release-milestones.md).
   This amendment creates no duplicate implementation spec and resets no prior approvals.
@@ -289,17 +291,16 @@ supersede this accepted sequence. Blocking deployment follows a later explicit d
 The sections below preserve prior plans and measurements. Statements about the current bottleneck,
 PHP coverage, rollout order or feature readiness are superseded by the current section above.
 
-**Rewritten 2026-09-09.** The previous version (kept as `.kiro/archive/steering/roadmap-2026-09-04.md`, outside steering) described a pre-Joern world —
+**Rewritten 2026-09-09.** The previous version (kept as `.kiro/archive/steering/roadmap-2026-09-04.md`, outside steering) described a pre-Joern world,
 "adjudication is still Python-`ast` plus a tree-sitter CLI stub", "Joern-as-required deferred". Joern was
-adopted, the model layer was built, wired and measured, and two repositories have been scanned. See
+adopted. The model layer was built and wired, then measured. Two repositories have been scanned. See
 `overview.md` for what is true today; this is what happens next and in what order.
 
 ## The target: a first release for small projects
 
 > "a first release that is ready for smaller projects like libpng or wordpress"
 
-Those two are, today, exactly the cases that do not work — and they fail for **different** reasons, which is
-what makes them a good pair of targets rather than one.
+Neither works today. They fail for different reasons, so both are useful targets.
 
 | target | why it fails now | what a release needs |
 | --- | --- | --- |
@@ -312,8 +313,8 @@ So "ready for" has to mean two different things, and the release criteria say wh
 * For one it **cannot** (libpng today): run inside its envelope, report nothing false, and *state the limit*
   rather than returning a quiet clean bill of health.
 
-The second is not a consolation. A tool that says "I do not model this class" is usable; one that silently
-finds nothing is the thing that teaches developers to distrust SAST.
+A tool that says "I do not model this class" is usable. Silent failure to find anything teaches developers to
+distrust SAST.
 
 ### Release criteria (v0.1)
 
@@ -321,15 +322,15 @@ finds nothing is the thing that teaches developers to distrust SAST.
 2. **Zero known-false entailed findings** on every pinned checkout.
 3. Finds the known vulnerability wherever a family can decide it in principle (Req 4.6).
 4. States what each family cannot decide, in the report (Req 5.6).
-5. The report is proportionate — no rule repeating itself past a stated count (Req 5.5).
+5. The report is proportionate: no rule repeats itself past a stated count (Req 5.5).
 6. Installs and runs without the user having Joern, a JVM, or a PHP interpreter (docker compose + wrapper).
 7. A committed regression baseline per target, so the next change is measurable rather than argued about.
 
 ### What that reorders
 
-PHP moves **up**: it is the shortest path from here to a target the maintainer named, and it is the case the
+PHP moves up: it is the shortest path from here to a target the maintainer named, and it is the case the
 existing arbiter is best suited to. The C decision moves up with it, because criterion 4 needs `c/memory`
-either earning its place or being scoped — and scoping it is cheap.
+either earning its place or being scoped, and scoping it is cheap.
 
 ## The one test everything is ordered by
 
@@ -337,40 +338,40 @@ either earning its place or being scoped — and scoping it is cheap.
 > capabilities but never use it"
 
 So the ordering principle is: **make the output worth reading, then make it find more.** A better arbiter
-behind an unreadable report changes nothing, and a second language before the report is fixed just doubles the
+behind an unreadable report changes nothing, and a second language before the report is fixed doubles the
 noise.
 
 ## Now — make a repository scan finish at all
 
-The output work this section used to hold is done, and PHP went considerably further than it planned: three
-CVEs on real WordPress plugins, entailed by the graph with no model in the loop, each dropping on its fixed
-side. The detector is not the problem any more. **Finishing is.**
+The output work previously listed here is done. PHP detection exceeded the plan: the graph entailed three
+CVEs on real WordPress plugins without a model, and each finding disappeared on the fixed side. The remaining
+problem is getting scans to finish.
 
 A 637-file plugin builds in 76 seconds and then the taint query does not complete. Everything below is
 ordered by one question: what is the shortest path to a scan of a real plugin that reports its CVE?
 
-1. **5.14 — stop asking questions that cannot have an answer.** 53% of taint requests are put to a family
+1. For **5.14**, stop asking questions that cannot have an answer. 53% of taint requests are put to a family
    whose sinks do not appear in scope; every one of PMPro's 487 `deserialization` requests is asked of a
-   repository that never calls `unserialize`. Arithmetic, not judgement, and it cannot lose a finding.
+   repository that never calls `unserialize`. This is an arithmetic check and cannot lose a finding.
    4.6 hours → 2.2. Do this first because it makes every later measurement cheaper to run.
-2. **5.12 — rank, because 84% of regions currently share one rank ordered alphabetically.** Two thirds of the
-   budget is spent arbitrarily. Fifty well-chosen regions beat five hundred; combined with (1) that is the
+2. For **5.12**, add ranking. Currently 84% of regions share one rank and are ordered alphabetically. Two thirds of the
+   budget is spent arbitrarily. Fifty well-chosen regions are better than five hundred; combined with (1) that is the
    difference between hours and minutes. The ranker is an LLM job, and it is safe as one because ranking
-   cannot manufacture a finding -- it decides what is looked at, never what is reported.
-   **The loop is closed and that is a design requirement, not a caveat:** a region the ranker excludes is
+   cannot manufacture a finding. It decides what is looked at, never what is reported.
+   The loop is closed and that is a design requirement, not a caveat: a region the ranker excludes is
    never arbitrated, so it never produces a label, so the ranker never learns it was wrong. An exploration
    slice and a small fully-labelled corpus are what make the signal unbiased.
-3. **5.13 — the 6.63 s/request itself**, if (1) and (2) are not enough. `callDepth=3` over 7,061 methods is
-   the term that makes a request cost seconds; the two-stage joins are NOT the cost (measured: 22%, and they
+3. For **5.13**, reduce the 6.63 s/request itself if (1) and (2) are not enough. `callDepth=3` over 7,061 methods is
+   the term that makes a request cost seconds; the two-stage joins are not the cost (measured: 22%, and they
    found two of the three CVEs).
 
 Only after a scan finishes is there any point tuning what it finds.
 
 ## Next — the families that cannot be asked
 
-4. **5.9 — PHP obligation facts.** `dominance_specs(language="php")` is empty, so missing-capability checks
+4. For **5.9**, add PHP obligation facts. `dominance_specs(language="php")` is empty, so missing-capability checks
    are not asked on any WordPress scan. Not a miss; nothing was measured.
-5. **5.6 — a sanitizer cleanses the family it cleanses.** The list is flat, so `esc_sql` reads as sufficient
+5. For **5.6**, associate each sanitizer with the family it cleanses. The list is flat, so `esc_sql` reads as sufficient
    for XSS and `esc_html` as insufficient for SQL. Wrong in both directions, so no `output_encoding` verdict
    currently means anything.
 6. **File the php2cpg defect upstream.** A `global` inside a closure yields a CPG Joern's own dataflow
@@ -379,12 +380,12 @@ Only after a scan finishes is there any point tuning what it finds.
 
 ## Then — close the deferred engine questions
 
-8. **2.14 — control dependence.** Absent from both CPGs, so every guard question runs on CFG dominance. Find
+8. For **2.14**, check control dependence. It is absent from both CPGs, so every guard question runs on CFG dominance. Find
    out whether Joern's CDG pass can be applied from the query script and what it costs. If it cannot, that is
    a real bound on what this engine can reason about and should be recorded as one.
-9. **2.13 — a destination allocated to size.** Deliberately blocked on 6, so the rule can be measured for what
+9. **2.13** covers a destination allocated to size. It is deliberately blocked on 6, so the rule can be measured for what
    it *silences* as well as what it clears.
-10. **Group 3–4 — ship it.** Contributor output, the Docker image, the memory-family decision, retiring
+10. Ship **Group 3–4**: contributor output, the Docker image, the memory-family decision, and retirement of
     `evidence_level` now that the rung carries the meaning.
 
 ## Alongside — keep the codebase from growing into the problem
@@ -393,16 +394,16 @@ Only after a scan finishes is there any point tuning what it finds.
 
 `.kiro/specs/ir-consolidation/` (brief, unapproved) separates two questions with opposite answers:
 
-* **The source IR is already carried, not about to be added.** `semantic/` is 3,218 lines — 16% of the
-  codebase — holding a hand-written IR and flat taint engine measured at **2.2% entailment against the CPG's
+* The source IR already exists in the project. `semantic/` is 3,218 lines, or 16% of the
+  codebase. It holds a hand-written IR and flat taint engine measured at **2.2% entailment against the CPG's
   41.3%**, still running as a proposer. Vine and Ghidra P-Code are *binary* IRs and do not help here; the
-  work is subtraction. A candidate ~1,000-line deletion with a number attached.
+  work is subtraction. This is a candidate ~1,000-line deletion supported by a measurement.
 * **The missing abstraction is C arithmetic**, and there an existing IR is exactly right. GhidraPAL's
   three-valued-logic abstract interpreter over P-Code decides "can this index exceed this allocation", which
   is the class `c/memory` cannot see and every libpng overflow is. Vine is dormant since 2009 and is not the
   candidate.
 
-The ordering constraint is the point: **question 1 lands before question 2 starts**, or adopting an IR makes
+The order matters: **question 1 lands before question 2 starts**, or adopting an IR makes
 the growth problem worse rather than better.
 
 ## After — the feedback loop
@@ -413,15 +414,15 @@ the growth problem worse rather than better.
 
 ## Not now, and why
 
-- **`authorization-obligations`** (24 open tasks, approved) — the dominance arbiter delivered its substance by
+- `authorization-obligations` (24 open tasks, approved): the dominance arbiter delivered its substance by
   another route. It should be reconciled or retired rather than worked, and carrying it as "approved, not
   started" misrepresents both.
-- **`reachability-flow-model`** (23 open, nothing approved) — largely delivered by adopting Joern. Same
+- `reachability-flow-model` (23 open, nothing approved) was largely delivered by adopting Joern. Same
   treatment.
-- **`constrained-detector`** (4 of 20, tasks unapproved) — parked.
-- **More corpus volume.** 198 of 238 OWASP pairs were left unvendored deliberately: volume without
+- `constrained-detector` (4 of 20, tasks unapproved) is parked.
+- More corpus volume is deferred. 198 of 238 OWASP pairs were left unvendored deliberately: volume without
   readability makes every number worse, and the corpus is not the binding constraint. Reachability is.
-- **A second CPG engine, a server mode, an execution rung.** Server mode was measured and declined (6% of a
+- A second CPG engine and an execution rung are deferred, as is server mode. Server mode was measured and rejected (6% of a
   scan). The other two have no evidence calling for them yet.
 
 ## How to know it is working
@@ -430,6 +431,6 @@ The scoreboard in `overview.md`, and one question: **can a developer run this on
 write and get something they act on?** Today that is true for one Python application and false for one C
 library, and the specs above are ordered by what changes that.
 
-A release is ready when that question is answered **yes for WordPress and honestly for libpng** — found for
-the one whose class we decide, and a stated limit for the one we do not. Both are release criteria; only one
+A release is ready when it answers **yes for WordPress and honestly for libpng**. It must find the vulnerability
+where the engine can decide the class, and state the limit where it cannot. Both are release criteria; only one
 of them is a detection claim.

@@ -1,8 +1,8 @@
 # OpenUltraSAST
 
-OpenUltraSAST is an experimental static security analyser. It is meant to be a safety net on
-repositories it has never seen. It scans a checkout, or the commits a `git push` would publish. It
-keeps what it can prove apart from what it only suspects.
+OpenUltraSAST is an experimental static security analyser. It aims to check security on
+repositories it has never seen. It scans a checkout or the commits a `git push` would publish. It
+distinguishes what it can prove from what it suspects.
 
 A scan combines up to four parts:
 
@@ -11,18 +11,18 @@ A scan combines up to four parts:
 - a Joern code property graph (a graph of the program's syntax, control flow and data flow);
 - optionally, a model. It is asked only the question the graph cannot settle.
 
-Every finding carries the evidence that earned its place. When a scan could not look at
-something, it records a degradation. It does not report a clean result.
+Every finding includes its supporting evidence. When a scan cannot check something, it records
+a degradation instead of reporting a clean result.
 
 Where a repository's application can be built and run, an experimental proof arm goes further. It
-demonstrates a finding by executing it: the issue triggers on the vulnerable revision and not on
-the fixed one, so a demonstrated finding is a reproducible fact, not a score. This arm is in pilot
-and being qualified on repositories the tool has never seen; see [Status](#status).
+demonstrates a finding by executing it. The issue triggers on the vulnerable revision and not on
+the fixed one, which makes the finding reproducible. This arm is in pilot testing and is being
+qualified on repositories the tool has never seen; see [Status](#status).
 
 `ousast` is the interface. Model work over whole repositories runs on a separate agentic plane
 (google/ax). A learned decision engine is in development. A scan needs neither of them.
 
-This file is the front door. Each section links to its page of the documentation site.
+Each section in this file links to the corresponding page on the documentation site.
 The site is published at <https://norandom.github.io/OpenUltraSAST/>. Its sources are in `docs/` and
 `mkdocs.yml`; to preview it locally, run `uv sync --extra docs && uv run mkdocs serve`.
 
@@ -30,24 +30,24 @@ The site is published at <https://norandom.github.io/OpenUltraSAST/>. Its source
 
 **v2.0.1, state as of 2026-10-08.** The pre-push safety net is **not yet released**. Blocking on
 the static analyser by hand is **NO-GO** against every M4 gate, and the project no longer tries to
-reach them that way.
+meet those gates that way.
 
 - No blocking hook capability is enabled; the pre-push hook is advisory only.
 - Two independent populations (case sets frozen before any scan) have been spent on the static
-  engine: recall was 1 of 11, then 0 of 17. The learned decision engine ranks but blocks for no
+  engine: recall was 1 of 11, then 0 of 17. The learned decision engine ranks findings but does not block for any
   family.
-- Why blocking is hard: static abstract interpretation could not prove the precision a block
-  needs. So the current work is a **dynamic proof arm**. It builds and runs a repository's app and
+- Static abstract interpretation could not prove the precision needed to block a push. Current
+  work focuses on a **dynamic proof arm**. It builds and runs a repository's app and
   demonstrates a finding by a differential: the issue triggers on the vulnerable revision and not
-  on the fixed one. A demonstrated finding is ground truth by execution, so it can earn a block
+  on the fixed one. Execution establishes the finding as ground truth, so it can justify a block
   without calibration. Pilot demonstrations exist, including one executed on the cluster; the arm
   is being qualified, not shipped.
 - The release gate is a **measured** catch-rate and false-alarm number on repositories the tool
-  has never seen (the unseen-repo evaluation), produced rather than asserted. Until that number
+  has never seen (the unseen-repo evaluation). Until that number
   exists, treat all output as advisory.
 
-Every detection change has to win a controlled measurement on held-out repositories. One page
-states where things stand, with the record behind each figure:
+Every detection change must show an improvement in a controlled measurement on held-out repositories.
+The current status and the record behind each figure are in
 [docs/where-we-stand.md](docs/where-we-stand.md). For developers, the pre-push check and its
 honest limits: [docs/pre-push-for-developers.md](docs/pre-push-for-developers.md); the
 catch–prove–fix–re-verify loop: [docs/use-case-fix-and-reverify.md](docs/use-case-fix-and-reverify.md).
@@ -85,7 +85,7 @@ cd /path/to/your/repository && ousast pre-push install    # remove: ousast pre-p
 
 What it cannot do:
 
-- There is no engine. Nothing follows a value across statements or files.
+- There is no engine. It cannot follow a value across statements or files.
 - The PHP quick rules are a low-precision, in-sample development set. Per-rule precision lower
   bounds run from 0.03 to 1.0 on the real pins
   (`benchmarks/measurements/2026-09-30-php-quick-rules/measurement.json`).
@@ -95,9 +95,9 @@ the overlay.
 
 ### Tier 2: standard and deep scans (Docker)
 
-`standard` and `deep` need Joern. The Docker image ships three things in one image: the tool,
-Joern v4.0.625 and `php-cli` (the PHP frontend needs it). Each release publishes it to GHCR. It is
-big: a JRE plus about 2 GB of Joern. Pull it instead of building, and tag it with the name the
+`standard` and `deep` need Joern. The Docker image includes the tool and
+Joern v4.0.625. It also includes `php-cli`, which the PHP frontend needs. Each release publishes the image
+to GHCR. It is big: a JRE plus about 2 GB of Joern. Pull it instead of building, and tag it with the name the
 shell wrapper uses:
 
 ```bash
@@ -131,7 +131,7 @@ Details, including the host install, are in [ops/README.md](ops/README.md).
 Keys and store settings live in `.env` in the working directory. The file is gitignored;
 `.env.example` lists the names.
 
-- `DEEPSEEK_API_KEY` serves every LLM call.
+- Every LLM call uses `DEEPSEEK_API_KEY`.
 - `OPENROUTER_API_KEY` is used for embeddings only (`ousast learn memory embed`).
 - `.env` never overrides a variable already exported in your shell. If a key change seems to have
   no effect, `unset` the stale export.
@@ -141,7 +141,7 @@ Keys and store settings live in `.env` in the working directory. The file is git
 
 ### Tier 3: the plane on ax (maintainers)
 
-Tier 1 and 2 need none of this. Today's profile is a single-node kind cluster on the maintainer's
+Tier 1 and 2 need none of this. The current profile is a single-node kind cluster on the maintainer's
 host.
 
 - `ops/ax/up.sh` needs `docker`, `go`, `kubectl`, `kind`, `ko` and `ax` on the PATH. It refuses to
@@ -153,7 +153,7 @@ host.
 - The verify and roles tasks need `DEEPSEEK_API_KEY`.
 - Memory lives in the local file store or the S3 store. RustFS is the tested server.
 
-Bring-up, doctor and the smoke Run: [ops/ax/README.md](ops/ax/README.md).
+See [ops/ax/README.md](ops/ax/README.md) for bring-up and doctor instructions, along with the smoke Run.
 
 ### Tier 4: Kubernetes (k3s), planned
 
@@ -166,7 +166,7 @@ submit a Run in a remote execution mode. It needs:
 - runner and engine images published to GHCR and pinned by digest;
 - the S3 store as the artifact path, with no receiver on a laptop.
 
-The plan, and the code changes it needs with file paths, are in
+The plan and required code changes, with file paths, are in
 [docs/deployment.md](docs/deployment.md#production-topology-ax-on-a-kubernetes-cluster).
 
 ## Scan modes
@@ -209,9 +209,9 @@ The tool uses three representations of code, from cheap to expensive:
 3. Graph: the Joern CPG. It is the only one that follows a value across statements, calls and
    files.
 
-Taint runs as fact tables, queries and verdicts on the graph. Absence bugs are operations that
-should have been guarded. They are found as obligations, dominance and configuration census. A
-model answers only the residual question.
+Taint analysis uses fact tables and queries on the graph to produce verdicts. Absence bugs involve
+operations that should have been guarded. The tool finds them through obligations and dominance
+checks, plus a configuration census. A model answers only the residual question.
 
 - [docs/detection-techniques.md](docs/detection-techniques.md) explains each technique, with the
   code it comes from and what it misses.
@@ -229,7 +229,7 @@ The detection gate (`uv run python -m openultrasast.gate`) enforces at least 90%
 break a known detection. They are not a recall estimate on real code, and PHP is not in the gate.
 
 Framework knowledge (WordPress, Flask, Django, Express, Spring) is tagged as an optional prior in
-`src/openultrasast/ruleset/frameworks.toml`. So its contribution can be measured and switched off.
+`src/openultrasast/ruleset/frameworks.toml`. Its contribution can be measured and switched off.
 
 ## The plane on ax
 
@@ -282,8 +282,7 @@ refuses to run and names each missing piece. It does not fall back.
 
 ## Decision engine and evaluation
 
-A learned decision engine is being built. It is meant to replace hand-tuned detection edits. It
-follows three rules:
+A learned decision engine is being built to replace hand-tuned detection edits. Its rules are:
 
 - Every instrument produces signals, never verdicts.
 - Labels come from ground truth only.
@@ -301,7 +300,7 @@ It was measured on six families, on repositories the compiled program was not sh
   (`benchmarks/measurements/2026-10-02-decision-engine-slice-2/record.json`).
 
 Maintainer surface: `ousast learn labels|memory|compile|evaluate|curve|experiment|audit-leaks`.
-Design, slices and the A/B protocol: [docs/decision-engine.md](docs/decision-engine.md).
+The design and evaluation slices are in [docs/decision-engine.md](docs/decision-engine.md), along with the A/B protocol.
 
 [docs/evaluation.md](docs/evaluation.md) explains how anything is measured on code the tool was not
 tuned on. It covers the pair corpora, the independent populations and the M4 gates. It also covers
@@ -392,15 +391,15 @@ settings so the actors can pull it without registry credentials.
 
 The task image contains the current engine and worker code. Rebuild it after code
 changes and pass its digest with `--image`; no analyzer download is needed. The host
-materializes each pin as usual and uploads source and prepared questions under
+prepares each pin as usual and uploads source and prepared questions under
 `engine-queue/<run>/<pin>/`. Only object-scoped presigned URLs and deadline parameters
 enter Task env. Credentials stay on the coordinator. Configure `OUSAST_MEMORY=s3://…`
 and the store credentials in the coordinator's `.env` or environment, with
 `S3_ENDPOINT=https://files.because-security.com`. Presigned links expire after the
 pin deadline plus ten minutes. IP and HTTP endpoints are rejected: the operator's
-actor EgressPolicy must allow **files.because-security.com:443**.
+actor EgressPolicy must allow files.because-security.com:443.
 
-Completion is the result object, even while AX reports Running. Failed phases and
+The result object marks completion, even while AX reports Running. Failed phases and
 host deadlines produce explicit failure/timeout rows. Task and staging-object cleanup
 runs on success and failure; cleanup failure stops further dispatch. Per-pin files,
 `--rerun-status`, resume and `progress.json` retain the existing trace-runner behavior.
@@ -440,7 +439,7 @@ uncommitted changes without publishing a git commit.
 With `KUBECONFIG` pointing to the operator's kube-ax config and store settings in
 `.env`, run a one-pin smoke using the default experiment units and local example
 memory (or add `--examples /path/to/frozen-examples.jsonl`). Use the `ax` binary at
-`$HOME/go/bin/ax` — `$HOME/.local/ax-v0.3.1/ax` hits the AX-lane dispatch blocker:
+`$HOME/go/bin/ax`. `$HOME/.local/ax-v0.3.1/ax` hits the AX-lane dispatch blocker:
 
 ```bash
 : "${KUBECONFIG:?Set KUBECONFIG to the operator kube-ax configuration}"
