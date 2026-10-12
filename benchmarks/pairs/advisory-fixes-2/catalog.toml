@@ -1461,42 +1461,6 @@ family = "injection"
 evidence = "GHSA-2w86-xfrc-g85r: Orval: RCE via schema property name -> computed-property-key injection in the MSW mock generator"
 
 [[pair]]
-name = "typeorm-handler-41d1c62"
-slice = "advisory-fixes"
-batch = "2026-10-03"
-language = "typescript"
-origin = "github-advisory"
-license = "MIT"
-repo = "typeorm/typeorm"
-cve = "CVE-2026-73651 GHSA-2rp8-mm9q-fp49"
-cwe = "CWE-94"
-ecosystem = "npm"
-published_at = "2026-07-21T21:59:23Z"
-post_cutoff = true
-commit = "41d1c62fe49f99c3ca916d4d986f61ee9f45d519"
-parent = "8a51b756bf31c885da1e1d92cb17d94819c7040a"
-commit_url = "https://github.com/typeorm/typeorm/commit/41d1c62fe49f99c3ca916d4d986f61ee9f45d519"
-vendored = false
-host = "github"
-path = "src/commands/MigrationGenerateCommand.ts"
-mode = "name"
-relpath = "src/commands/MigrationGenerateCommand.ts"
-provenance = "agent"
-split = "train"
-review_tier = "advisory"
-fix_date = "2026-07-13"
-fix_lines = { in_function = 8, in_file = 20, source_total = 22 }
-
-[[pair.expected]]
-cwe = "CWE-94"
-class = "code-injection"
-path = "src/commands/MigrationGenerateCommand.ts"
-function = "handler"
-mechanism = "source_reaches_sink"
-family = "injection"
-evidence = "GHSA-2rp8-mm9q-fp49:  TypeORM: migration:generate template-literal code injection"
-
-[[pair]]
 name = "velocity-js-isblockedpathkey-f8e47a6"
 slice = "advisory-fixes"
 batch = "2026-10-03"
@@ -1603,42 +1567,6 @@ function = "getIslandContext"
 mechanism = "source_reaches_sink"
 family = "injection"
 evidence = "GHSA-9473-5f9j-94wq: Nuxt: Server-Side Remote Code Execution via Runtime Template Injection in Nuxt Server Island Props"
-
-[[pair]]
-name = "gitpython-option-candidates-96a888f"
-slice = "advisory-fixes"
-batch = "2026-10-03"
-language = "python"
-origin = "github-advisory"
-license = "BSD-3-Clause"
-repo = "gitpython-developers/gitpython"
-cve = "CVE-2026-76220 GHSA-wvpp-8hx9-p66j"
-cwe = "CWE-88"
-ecosystem = "pip"
-published_at = "2026-08-07T15:49:07Z"
-post_cutoff = true
-commit = "96a888f4d782cb2f80452148e48e60ce4af6d541"
-parent = "a495ccd3b547ccd60b2187215823b72a9c0188bf"
-commit_url = "https://github.com/gitpython-developers/gitpython/commit/96a888f4d782cb2f80452148e48e60ce4af6d541"
-vendored = false
-host = "github"
-path = "git/cmd.py"
-mode = "name"
-relpath = "git/cmd.py"
-provenance = "agent"
-split = "train"
-review_tier = "advisory"
-fix_date = "2026-08-04"
-fix_lines = { in_function = 13, in_file = 10, source_total = 12 }
-
-[[pair.expected]]
-cwe = "CWE-88"
-class = "argument-injection"
-path = "git/cmd.py"
-function = "_option_candidates"
-mechanism = "source_reaches_sink"
-family = "injection"
-evidence = "GHSA-wvpp-8hx9-p66j: GitPython: Unsafe git option guard bypass via split_single_char_options=False short-option token smuggling enables command execution"
 
 [[pair]]
 name = "mermaid-addnamespace-12d472c"
@@ -2541,42 +2469,6 @@ family = "path"
 evidence = "GHSA-m9mq-7m7q-xc6p: browse-mcp has an arbitrary file write via unconfined download and state paths"
 
 [[pair]]
-name = "notebooklm-mcp-makeslug-13828d9"
-slice = "advisory-fixes"
-batch = "2026-10-03"
-language = "typescript"
-origin = "github-advisory"
-license = "MIT"
-repo = "roomi-fields/notebooklm-mcp"
-cve = "CVE-2026-61647 GHSA-jjhp-8crj-mppq"
-cwe = "CWE-22"
-ecosystem = "npm"
-published_at = "2026-09-22T14:43:26Z"
-post_cutoff = true
-commit = "13828d9ff3933839ce14c1797d3b20a6bb7694a6"
-parent = "50f74d6bec799687066a25355894077577683231"
-commit_url = "https://github.com/roomi-fields/notebooklm-mcp/commit/13828d9ff3933839ce14c1797d3b20a6bb7694a6"
-vendored = false
-host = "github"
-path = "src/utils/vault-writer.ts"
-mode = "name"
-relpath = "src/utils/vault-writer.ts"
-provenance = "agent"
-split = "train"
-review_tier = "advisory"
-fix_date = "2026-06-20"
-fix_lines = { in_function = 10, in_file = 45, source_total = 54 }
-
-[[pair.expected]]
-cwe = "CWE-22"
-class = "path-traversal"
-path = "src/utils/vault-writer.ts"
-function = "makeSlug"
-mechanism = "path_join_user_input"
-family = "path"
-evidence = "GHSA-jjhp-8crj-mppq: @roomi-fields/notebooklm-mcp has a path traversal in vault.batch tool that allows arbitrary file write outside intended vault directory"
-
-[[pair]]
 name = "langchain-nvidia-url-to-b64-string-b483c7c"
 slice = "advisory-fixes"
 batch = "2026-10-03"
@@ -3007,42 +2899,6 @@ function = "redirectBack"
 mechanism = "validation_strength"
 family = "untrusted_destination"
 evidence = "GHSA-fp4x-ggrf-wmc6: H3 has an Open Redirect via Protocol-Relative Path in redirectBack() Referer Validation"
-
-[[pair]]
-name = "axios-setproxy-fb3befb"
-slice = "advisory-fixes"
-batch = "2026-10-03"
-language = "javascript"
-origin = "github-advisory"
-license = "MIT"
-repo = "axios/axios"
-cve = "CVE-2025-62718 GHSA-3p68-rc4w-qgx5"
-cwe = "CWE-441"
-ecosystem = "npm"
-published_at = "2026-04-09T17:32:19Z"
-post_cutoff = false
-commit = "fb3befb6daac6cad26b2e54094d0f2d9e47f24df"
-parent = "8023035109c9de959ca47a64658dd97258d5eca7"
-commit_url = "https://github.com/axios/axios/commit/fb3befb6daac6cad26b2e54094d0f2d9e47f24df"
-vendored = false
-host = "github"
-path = "lib/adapters/http.js"
-mode = "name"
-relpath = "lib/adapters/http.js"
-provenance = "agent"
-split = "train"
-review_tier = "advisory"
-fix_date = "2026-04-06"
-fix_lines = { in_function = 4, in_file = 4, source_total = 111 }
-
-[[pair.expected]]
-cwe = "CWE-441"
-class = "ssrf"
-path = "lib/adapters/http.js"
-function = "setProxy"
-mechanism = "source_reaches_sink"
-family = "untrusted_destination"
-evidence = "GHSA-3p68-rc4w-qgx5: Axios has a NO_PROXY Hostname Normalization Bypass that Leads to SSRF"
 
 [[pair]]
 name = "rembg-s-command-07ad0d4"

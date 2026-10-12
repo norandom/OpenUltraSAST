@@ -201,11 +201,6 @@
       "bytes_read": 2607
     },
     {
-      "name": "typeorm-handler-41d1c62",
-      "ok": true,
-      "bytes_read": 11977
-    },
-    {
       "name": "velocity-js-isblockedpathkey-f8e47a6",
       "ok": true,
       "bytes_read": 1539
@@ -219,11 +214,6 @@
       "name": "nuxt-getislandcontext-5b60017",
       "ok": true,
       "bytes_read": 6805
-    },
-    {
-      "name": "gitpython-option-candidates-96a888f",
-      "ok": true,
-      "bytes_read": 3421
     },
     {
       "name": "mermaid-addnamespace-12d472c",
@@ -351,11 +341,6 @@
       "bytes_read": 5302
     },
     {
-      "name": "notebooklm-mcp-makeslug-13828d9",
-      "ok": true,
-      "bytes_read": 2103
-    },
-    {
       "name": "langchain-nvidia-url-to-b64-string-b483c7c",
       "ok": true,
       "bytes_read": 2318
@@ -414,11 +399,6 @@
       "name": "h3-redirectback-459a1c6",
       "ok": true,
       "bytes_read": 2750
-    },
-    {
-      "name": "axios-setproxy-fb3befb",
-      "ok": true,
-      "bytes_read": 4403
     },
     {
       "name": "rembg-s-command-07ad0d4",
@@ -491,6 +471,6 @@
       "bytes_read": 3385
     }
   ],
-  "verified": 98,
-  "bytes_read": 526134
+  "verified": 94,
+  "bytes_read": 504230
 }

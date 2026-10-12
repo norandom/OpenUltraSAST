@@ -1353,42 +1353,6 @@ family = "injection"
 evidence = "GHSA-3mpg-q26j-83j5: Command injection in yiisoft/yii2-gii"
 
 [[pair]]
-name = "contao-tablelookupwizard-preparewhere-a5e723a"
-slice = "advisory-fixes"
-batch = "2026-10-04"
-language = "php"
-origin = "github-advisory"
-license = "MIT"
-repo = "terminal42/contao-tablelookupwizard"
-cve = "GHSA-7fpj-wc8v-9cgc"
-cwe = "CWE-89"
-ecosystem = "composer"
-published_at = "2024-05-30T13:12:13Z"
-post_cutoff = false
-commit = "a5e723a28f110b7df8ffc4175cef9b061d3cc717"
-parent = "ae6c82f10b0f1e87226079ebaa78ac630b05279a"
-commit_url = "https://github.com/terminal42/contao-tablelookupwizard/commit/a5e723a28f110b7df8ffc4175cef9b061d3cc717"
-vendored = false
-host = "github"
-path = "TableLookupWizard.php"
-mode = "name"
-relpath = "TableLookupWizard.php"
-provenance = "agent"
-split = "train"
-review_tier = "advisory"
-fix_date = "2022-02-04"
-fix_lines = { in_function = 4, in_file = 2, source_total = 4 }
-
-[[pair.expected]]
-cwe = "CWE-89"
-class = "sqli"
-path = "TableLookupWizard.php"
-function = "prepareWhere"
-mechanism = "source_reaches_sink"
-family = "injection"
-evidence = "GHSA-7fpj-wc8v-9cgc: Duplicate Advisory: terminal42/contao-tablelookupwizard possible SQL injection in widget field value"
-
-[[pair]]
 name = "spring-module-core-getschema-d374a5f"
 slice = "advisory-fixes"
 batch = "2026-10-04"
@@ -3513,42 +3477,6 @@ family = "output_encoding"
 evidence = "GHSA-rrj2-ph5q-jxw2: jquery-validation vulnerable to Cross-site Scripting"
 
 [[pair]]
-name = "email-ext-plugin-rendertemplate-7b2bd25"
-slice = "advisory-fixes"
-batch = "2026-10-04"
-language = "java"
-origin = "github-advisory"
-license = "MIT"
-repo = "jenkinsci/email-ext-plugin"
-cve = "CVE-2023-25764 GHSA-p2fr-mq9m-6w6p"
-cwe = "CWE-79"
-ecosystem = "maven"
-published_at = "2023-02-15T15:30:41Z"
-post_cutoff = false
-commit = "7b2bd251aa0193d009d85b713362d965dab262d0"
-parent = "f715c42d186f363f64b64a6a6ed76ed241e702c9"
-commit_url = "https://github.com/jenkinsci/email-ext-plugin/commit/7b2bd251aa0193d009d85b713362d965dab262d0"
-vendored = false
-host = "github"
-path = "src/main/java/hudson/plugins/emailext/EmailExtTemplateAction.java"
-mode = "name"
-relpath = "src/main/java/hudson/plugins/emailext/EmailExtTemplateAction.java"
-provenance = "agent"
-split = "train"
-review_tier = "advisory"
-fix_date = "2023-02-08"
-fix_lines = { in_function = 2, in_file = 1, source_total = 2 }
-
-[[pair.expected]]
-cwe = "CWE-79"
-class = "xss"
-path = "src/main/java/hudson/plugins/emailext/EmailExtTemplateAction.java"
-function = "renderTemplate"
-mechanism = "source_reaches_sink"
-family = "output_encoding"
-evidence = "GHSA-p2fr-mq9m-6w6p: Cross-site Scripting in Jenkins Email Extension Plugin"
-
-[[pair]]
 name = "archiva-checkparamchars-d62e81c"
 slice = "advisory-fixes"
 batch = "2026-10-04"
@@ -5097,42 +5025,6 @@ family = "output_encoding"
 evidence = "GHSA-3843-rr4g-m8jq: Express XSS Sanitizer: allowedTags/allowedAttributes bypass leads to permissive sanitization (XSS risk)"
 
 [[pair]]
-name = "graby-cleanupxss-0295d82"
-slice = "advisory-fixes"
-batch = "2026-10-04"
-language = "php"
-origin = "github-advisory"
-license = "MIT"
-repo = "j0k3r/graby"
-cve = "GHSA-3h6j-9x8m-rg3g"
-cwe = "CWE-79"
-ecosystem = "composer"
-published_at = "2026-03-31T23:12:36Z"
-post_cutoff = false
-commit = "0295d828822f7a59c5751a8199973a4f965a99b0"
-parent = "5c5870bd0e8b03c9ea3e7c056d013cd9e4ab2f9a"
-commit_url = "https://github.com/j0k3r/graby/commit/0295d828822f7a59c5751a8199973a4f965a99b0"
-vendored = false
-host = "github"
-path = "src/Graby.php"
-mode = "name"
-relpath = "src/Graby.php"
-provenance = "agent"
-split = "train"
-review_tier = "advisory"
-fix_date = "2026-03-27"
-fix_lines = { in_function = 2, in_file = 1, source_total = 2 }
-
-[[pair.expected]]
-cwe = "CWE-79"
-class = "xss"
-path = "src/Graby.php"
-function = "cleanupXss"
-mechanism = "source_reaches_sink"
-family = "output_encoding"
-evidence = "GHSA-3h6j-9x8m-rg3g: Graby has stored XSS via iframe srcdoc Attribute in htmLawed Sanitization Config"
-
-[[pair]]
 name = "unhead-getstreamkey-64b5ac0"
 slice = "advisory-fixes"
 batch = "2026-10-04"
@@ -5385,42 +5277,6 @@ family = "output_encoding"
 evidence = "GHSA-f3cj-j4f6-wq85: Svelte: SSR XSS via Insecure Promise Serialization in hydratable"
 
 [[pair]]
-name = "marimo-inject-service-worker-fdd55c8"
-slice = "advisory-fixes"
-batch = "2026-10-04"
-language = "python"
-origin = "github-advisory"
-license = "Apache-2.0"
-repo = "marimo-team/marimo"
-cve = "CVE-2026-54386 GHSA-8m59-7xv8-735h"
-cwe = "CWE-79"
-ecosystem = "pip"
-published_at = "2026-06-18T00:32:36Z"
-post_cutoff = true
-commit = "fdd55c8cf6260ae23bb411dc9d9269def5cf75d6"
-parent = "dc35cdfecf4f9b918d9c40faa92e2ad0d71501c4"
-commit_url = "https://github.com/marimo-team/marimo/commit/fdd55c8cf6260ae23bb411dc9d9269def5cf75d6"
-vendored = false
-host = "github"
-path = "marimo/_server/api/endpoints/assets.py"
-mode = "name"
-relpath = "marimo/_server/api/endpoints/assets.py"
-provenance = "agent"
-split = "train"
-review_tier = "advisory"
-fix_date = "2026-06-04"
-fix_lines = { in_function = 2, in_file = 6, source_total = 7 }
-
-[[pair.expected]]
-cwe = "CWE-79"
-class = "xss"
-path = "marimo/_server/api/endpoints/assets.py"
-function = "_inject_service_worker"
-mechanism = "source_reaches_sink"
-family = "output_encoding"
-evidence = "GHSA-8m59-7xv8-735h: marimo contains a reflected cross-site scripting vulnerability in the notebook page"
-
-[[pair]]
 name = "jupyterlab-git-diffheader-c6d37b8"
 slice = "advisory-fixes"
 batch = "2026-10-04"
@@ -5563,42 +5419,6 @@ function = "render"
 mechanism = "source_reaches_sink"
 family = "output_encoding"
 evidence = "GHSA-3753-m2x2-q623: File Viewer: DOM XSS via unsafe hyperlink schemes in the legacy DOC renderer"
-
-[[pair]]
-name = "twig-validatename-3d19a2e"
-slice = "advisory-fixes"
-batch = "2026-10-04"
-language = "php"
-origin = "github-advisory"
-license = "BSD-3-Clause"
-repo = "fabpot/twig"
-cve = "GHSA-7cvr-xhm5-x998"
-cwe = "CWE-22"
-ecosystem = "composer"
-published_at = "2024-05-30T13:42:49Z"
-post_cutoff = false
-commit = "3d19a2eed53570776af313593aaeb5ad62cf4980"
-parent = "481abb83323f4dcabadc9292b0e9f104df0719de"
-commit_url = "https://github.com/fabpot/twig/commit/3d19a2eed53570776af313593aaeb5ad62cf4980"
-vendored = false
-host = "github"
-path = "lib/Twig/Loader/Filesystem.php"
-mode = "name"
-relpath = "lib/Twig/Loader/Filesystem.php"
-provenance = "agent"
-split = "train"
-review_tier = "advisory"
-fix_date = "2013-04-08"
-fix_lines = { in_function = 1, in_file = 1, source_total = 1 }
-
-[[pair.expected]]
-cwe = "CWE-22"
-class = "path-traversal"
-path = "lib/Twig/Loader/Filesystem.php"
-function = "validateName"
-mechanism = "path_join_user_input"
-family = "path"
-evidence = "GHSA-7cvr-xhm5-x998: Twig Path Traversal vulnerability in the filesystem loader"
 
 [[pair]]
 name = "bazingajstranslationbundle-getlocales-7accee9"
@@ -6283,42 +6103,6 @@ function = "handleServiceRequest"
 mechanism = "path_join_user_input"
 family = "path"
 evidence = "GHSA-gv7f-w92j-383q: DreamFactory has a directory traversal"
-
-[[pair]]
-name = "simile-butterfly-getresource-537f64b"
-slice = "advisory-fixes"
-batch = "2026-10-04"
-language = "java"
-origin = "github-advisory"
-license = "Apache-2.0"
-repo = "openrefine/simile-butterfly"
-cve = "CVE-2024-47883 GHSA-3p8v-w8mr-m3x8"
-cwe = "CWE-22"
-ecosystem = "maven"
-published_at = "2024-10-24T18:16:43Z"
-post_cutoff = false
-commit = "537f64bfa72746f8b21d4bda461fad843435319c"
-parent = "2ad1fa4cd8afe3c920c8e6e04fe7a7df5cf8294e"
-commit_url = "https://github.com/openrefine/simile-butterfly/commit/537f64bfa72746f8b21d4bda461fad843435319c"
-vendored = false
-host = "github"
-path = "main/src/edu/mit/simile/butterfly/ButterflyModuleImpl.java"
-mode = "name"
-relpath = "main/src/edu/mit/simile/butterfly/ButterflyModuleImpl.java"
-provenance = "agent"
-split = "train"
-review_tier = "advisory"
-fix_date = "2024-10-19"
-fix_lines = { in_function = 12, in_file = 13, source_total = 18 }
-
-[[pair.expected]]
-cwe = "CWE-22"
-class = "path-traversal"
-path = "main/src/edu/mit/simile/butterfly/ButterflyModuleImpl.java"
-function = "getResource"
-mechanism = "path_join_user_input"
-family = "path"
-evidence = "GHSA-3p8v-w8mr-m3x8: Butterfly has path/URL confusion in resource handling leading to multiple weaknesses"
 
 [[pair]]
 name = "oak-send-4b2f27e"
@@ -8085,42 +7869,6 @@ family = "path"
 evidence = "GHSA-78v8-vpjp-cjqh: PDM  wheel installation leads to Path Traversal via overridden write_to_fs"
 
 [[pair]]
-name = "xiaomusic-music-file-88404da"
-slice = "advisory-fixes"
-batch = "2026-10-04"
-language = "python"
-origin = "github-advisory"
-license = "MIT"
-repo = "hanxi/xiaomusic"
-cve = "CVE-2026-10108 GHSA-5j8p-5rrj-8wjg"
-cwe = "CWE-22"
-ecosystem = "pip"
-published_at = "2026-05-29T18:31:35Z"
-post_cutoff = false
-commit = "88404da7a283f2c0a796a4cd16bbb6e6aa1f4722"
-parent = "c6679a69e4295a7e508f5ec157b60c5ac5b8a041"
-commit_url = "https://github.com/hanxi/xiaomusic/commit/88404da7a283f2c0a796a4cd16bbb6e6aa1f4722"
-vendored = false
-host = "github"
-path = "xiaomusic/api/routers/file.py"
-mode = "name"
-relpath = "xiaomusic/api/routers/file.py"
-provenance = "agent"
-split = "train"
-review_tier = "advisory"
-fix_date = "2026-05-26"
-fix_lines = { in_function = 4, in_file = 3, source_total = 6 }
-
-[[pair.expected]]
-cwe = "CWE-22"
-class = "path-traversal"
-path = "xiaomusic/api/routers/file.py"
-function = "music_file"
-mechanism = "path_join_user_input"
-family = "path"
-evidence = "GHSA-5j8p-5rrj-8wjg: xiaomusic contains an unauthenticated path traversal vulnerability"
-
-[[pair]]
 name = "serializer-decode-0943a06"
 slice = "advisory-fixes"
 batch = "2026-10-04"
@@ -8479,42 +8227,6 @@ function = "containsData"
 mechanism = "source_reaches_sink"
 family = "untrusted_destination"
 evidence = "GHSA-3ppr-72x5-x67q: XML external entity vulnerability on agents in Jenkins MSTest Plugin "
-
-[[pair]]
-name = "request-redirect-c5bcf21"
-slice = "advisory-fixes"
-batch = "2026-10-04"
-language = "javascript"
-origin = "github-advisory"
-license = "Apache-2.0"
-repo = "cypress-io/request"
-cve = "CVE-2023-28155 GHSA-p8p7-x288-28g6"
-cwe = "CWE-918"
-ecosystem = "npm"
-published_at = "2023-03-16T15:30:19Z"
-post_cutoff = false
-commit = "c5bcf21d40fb61feaff21a0e5a2b3934a440024f"
-parent = "0664780557c95610eafeedff6067bacac6783705"
-commit_url = "https://github.com/cypress-io/request/commit/c5bcf21d40fb61feaff21a0e5a2b3934a440024f"
-vendored = false
-host = "github"
-path = "lib/redirect.js"
-mode = "name"
-relpath = "lib/redirect.js"
-provenance = "agent"
-split = "train"
-review_tier = "advisory"
-fix_date = "2023-08-08"
-fix_lines = { in_function = 4, in_file = 5, source_total = 6 }
-
-[[pair.expected]]
-cwe = "CWE-918"
-class = "ssrf"
-path = "lib/redirect.js"
-function = "Redirect"
-mechanism = "source_reaches_sink"
-family = "untrusted_destination"
-evidence = "GHSA-p8p7-x288-28g6: Server-Side Request Forgery in Request"
 
 [[pair]]
 name = "drill-xmlreader-0e88b7a"

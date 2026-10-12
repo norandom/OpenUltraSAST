@@ -141,6 +141,16 @@ reason = "v3 selection research; never opened"
 file = "protocol-v3.md"
 reason = "v3 protocol; never opened"
 
+# Counts derived from the advisory-fix catalog, not an independent labelled population.
+[[excluded]]
+file = "advisory-fixes-spread.json"
+reason = "advisory-fix catalog spread report; never opened"
+
+# Selection write-up: rejected-candidate mentions are narrative, not labelled cases.
+[[excluded]]
+file = "research-2026-09-26.md"
+reason = "v2 selection research write-up; never opened"
+
 # Repository aliases: forks and renames that are one repository group. Groups sharing an advisory id (CVE/GHSA) or
 # a fix commit are merged automatically; list here only what those cannot see.
 # [[alias]]

@@ -93,6 +93,13 @@ def test_no_pair_repeats_a_repository_the_benchmarks_already_name(source_id: str
     ours = {repo_name(item["repo"]) for item in _raw(folder)}
     elsewhere: set[str] = set()
     for path in (ROOT / "benchmarks").rglob("*"):
+        # A vendored dependency tree is not the benchmarks NAMING a repository as a population member: it is a
+        # checked-out application's own `node_modules`, where any dependency's README or package.json mentions
+        # its upstream repo. benchmarks/search/private/runs/*/checkout/ carries ~49k such files, so grepping
+        # them deletes a labelled advisory pair the moment a vendored dep happens to name its repo -- corpus
+        # loss masquerading as hygiene. Skip vendored trees; the leak guard is about our own populations.
+        if "node_modules" in path.parts or "vendor" in path.parts:
+            continue
         if not path.is_file() or folder in path.parents or path.name in excluded or path.suffix in {".pyc", ".bin", ".gz", ".jsonl"}:
             continue
         try:

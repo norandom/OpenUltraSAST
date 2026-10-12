@@ -21,11 +21,6 @@
       "bytes_read": 2273
     },
     {
-      "name": "google-login-plugin-docommencelogin-532d714",
-      "ok": true,
-      "bytes_read": 2790
-    },
-    {
       "name": "truelayer-dotnet-getpayment-75e436e",
       "ok": true,
       "bytes_read": 2335
@@ -69,11 +64,6 @@
       "name": "koel-createforepisode-8708f07",
       "ok": true,
       "bytes_read": 1867
-    },
-    {
-      "name": "authentication-getloginredirect-1c1e29c",
-      "ok": true,
-      "bytes_read": 3975
     },
     {
       "name": "og-image-resolve-243cac2",
@@ -266,19 +256,9 @@
       "bytes_read": 1368
     },
     {
-      "name": "omnifaces-getupdatescript-c43eef0",
-      "ok": true,
-      "bytes_read": 1491
-    },
-    {
       "name": "tablib-export-book-b0ff39f",
       "ok": true,
       "bytes_read": 1683
-    },
-    {
-      "name": "hono-resolvechildearly-2b8ed40",
-      "ok": true,
-      "bytes_read": 3041
     },
     {
       "name": "serialize-to-js-deserialize-1cd4339",
@@ -486,6 +466,6 @@
       "bytes_read": 2462
     }
   ],
-  "verified": 97,
-  "bytes_read": 367053
+  "verified": 93,
+  "bytes_read": 355756
 }
