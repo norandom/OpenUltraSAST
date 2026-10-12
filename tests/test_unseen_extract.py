@@ -16,6 +16,25 @@ e = importlib.import_module("benchmarks.unseen.extract")
 s = importlib.import_module("benchmarks.unseen.source")
 
 
+@pytest.fixture(autouse=True)
+def _hermetic_git_env(monkeypatch):
+    """Neutralise inherited Git control vars so each test is self-contained.
+
+    A GIT_DIR / GIT_OBJECT_DIRECTORY / alternates value leaked from an earlier test in the suite redirects
+    object lookup: the partial-clone lazy-fetch test then sees a different missing-blob count (it passes alone
+    but failed mid-suite). These tests build their own repos under tmp_path and must not read ambient git env.
+    """
+    for var in (
+        "GIT_DIR",
+        "GIT_WORK_TREE",
+        "GIT_INDEX_FILE",
+        "GIT_OBJECT_DIRECTORY",
+        "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+        "GIT_COMMON_DIR",
+    ):
+        monkeypatch.delenv(var, raising=False)
+
+
 @pytest.mark.parametrize("slow", [False, True])
 def test_process_deadline_restores_alarm(slow):
     original = signal.getsignal(signal.SIGALRM)

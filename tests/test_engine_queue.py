@@ -199,8 +199,12 @@ def test_engine_k8s_render_contract():
 
 def test_engine_image_and_rustfs_policy():
     dockerfile = (ROOT / "Dockerfile").read_text()
-    assert "COPY benchmarks ./benchmarks" in dockerfile
-    assert ".[semantic,s3]" in dockerfile
+    assert "COPY --chown=1000 benchmarks ./benchmarks" in dockerfile
+    # The image is built on the digest-pinned task base (which carries the semantic+s3 deps), so the package
+    # installs --no-deps and Joern (the semantic engine) is copied from the joern-build stage.
+    assert "ousast-task-base:${TASK_BASE_TAG}@${TASK_BASE_DIGEST}" in dockerfile
+    assert "/venv/bin/pip install --no-deps --no-cache-dir ." in dockerfile
+    assert "COPY --from=joern-build /opt/joern-cli /opt/joern-cli" in dockerfile
     for name in ["engine_trace_worker.py", "engine_trace_parse.py", "engine_worker_service.py"]:
         assert (ROOT / "benchmarks/learn" / name).stat().st_size > 0
     doc = (ROOT / "docs/rustfs.md").read_text().split("## Scoped account for engine workers")[1]

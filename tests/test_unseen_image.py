@@ -4,13 +4,19 @@ import hashlib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-ENGINE_SHA = "06ec67d411cd7abbfcd0735b1c2a70e4f3eb65ddcfeef89975709c664f59ad42"
+# The engine portion is pinned so that adding the replay stage cannot silently change the engine image.
+# Recompute after an intentional engine-stage change: it is sha256 of `engine.rstrip() + "\n"` where `engine`
+# is everything before the `FROM ${ENGINE_REF} AS replay` line.
+ENGINE_SHA = "77c34f3381cef6c6d1f7fd761cd3924a3656cc5e6eb20c51c819de77afb4b2fc"
 
 
 def test_image_stages():
     text = (ROOT / "plane/Dockerfile.engine-task").read_text()
-    engine, replay = text.split("FROM engine AS replay", 1)
-    original = engine.replace("v0.3.1 AS engine", "v0.3.1").rstrip() + "\n"
-    assert hashlib.sha256(original.encode()).hexdigest() == ENGINE_SHA
-    assert "FROM ghcr.io/norandom/ax-task-runner:v0.3.1 AS engine" in engine
-    assert "git" in replay and "replay_entry.py" in replay and "ousast pre-push --help" in replay
+    # The replay stage builds FROM the engine stage (via the ENGINE_REF arg, default `engine`).
+    engine, replay = text.split("FROM ${ENGINE_REF} AS replay", 1)
+    assert hashlib.sha256((engine.rstrip() + "\n").encode()).hexdigest() == ENGINE_SHA
+    # Task base is digest-pinned (no floating fallback) and built in two stages: joern-build -> engine.
+    assert "FROM ghcr.io/norandom/ousast-task-base:${TASK_BASE_TAG}@${TASK_BASE_DIGEST} AS joern-build" in engine
+    assert "FROM ghcr.io/norandom/ousast-task-base:${TASK_BASE_TAG}@${TASK_BASE_DIGEST} AS engine" in engine
+    # The replay stage is a pure addition on top of engine: the unseen replay harness + a smoke check.
+    assert "replay_entry.py" in replay and "ousast pre-push --help" in replay
