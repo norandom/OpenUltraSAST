@@ -20,7 +20,7 @@ reports the hook as shipped and the hook plus the hunter arm separately until th
 
 ## What makes the data valid
 
-### Positive cases — "should catch" (real, verified, reachable vulnerabilities)
+### Positive cases: "should catch" (real, verified, reachable vulnerabilities)
 - Take the label from the security fix, never from SZZ. Use the code *just before* the fix, at the file/function
   the fix changed. The fix establishes the vulnerability location without a blame walk-back or mislocation.
 - Keep only app-shaped cases where the vulnerability is reachable from an entry point *inside the repo*. This
@@ -29,7 +29,7 @@ reports the hook as shipped and the hook plus the hunter arm separately until th
 - Verify each case through LLM adjudication and a human spot-check. Confirm (a) that the pre-fix code is
   vulnerable and (b) that the fix addresses it. Also confirm (c) that it is reachable in-repo.
 
-### Negative cases — "should not alarm" (ordinary safe changes)
+### Negative cases: "should not alarm" (ordinary safe changes)
 - Use everyday commits from the **same** application repositories that are not security fixes. They are plentiful
   and cheap to collect. Almost every real push is ordinary, so false alarms determine whether developers keep
   using the tool. The negative set must be much larger than the positive set.
