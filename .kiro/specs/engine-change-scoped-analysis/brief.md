@@ -417,3 +417,19 @@ scored against a ~90%-illegitimate denominator — the near-zero catch is largel
 **Next:** deep scan (regex/engine/hunter) on the 5 fair targets → per-tier catch rate on the corrected set; then
 stand up an app-shaped eval set from known-vulnerable apps (VAmPI/NodeGoat/DjanGoat/vibe-py) and recompute the
 floor. Deferred bets (advisory-with-conditions, reachability prover) revisited once the fair-target numbers land.
+
+## FAIR-TARGET RESULT: detection 3/5 on app-shaped+sound (vs ~0 library-heavy) — target-fix validated (2026-10-12)
+
+Deep scan on the 5 app-shaped+sound targets (`benchmarks/measurements/2026-10-12-hunter-fair-targets/`):
+- **3/5 detected**: graphiti (hunter, Cypher injection), mcp-remote (hunter, url-scheme injection), dcmcp (ENGINE
+  overlay — "outbound.request reached from parameter" on readFileFromUrl; the param-as-source mode fired because an
+  entry point is present). **2/5 missed**: malla (DOM/template XSS) and dms (Jinja SSTI) — both in families
+  families.toml DOCUMENTS as limited (template-mediated escaping).
+- vs the library-heavy pilot's ~0 → **the target mismatch was real and material.** On an app-shaped repo the engine
+  itself detects (parameter is a recognized source once the entry point is in-repo).
+- **But everything stops at `suspicion`/`static_corroboration`** — none proven. Cost ~$0.007/repo.
+
+**Strategy verdict:** bet #1 (fix the eval target) is validated as NECESSARY and MATERIAL but NOT SUFFICIENT.
+Detection appears on fair targets; release-grade BLOCK still needs (a) proof-arm elevation (suspicion→proven) and
+(b) family coverage (template XSS/SSTI) + the DSPy hint loop for misses. Next: recompute a floor on an app-shaped
+sound subset / real app corpus (VAmPI, NodeGoat, DjanGoat, vibe-py), and measure the proof arm's suspicion→proven lift.
