@@ -80,9 +80,28 @@ Unaffected:
 - `config` and `dominance` single-queries (`config_value.py:46`, `dominance.py:54`) — their `.sc` signatures
   are presumed to match what their specs emit (confirm separately; not exercised here).
 
-Open question to close: enumerate every production path that reaches `scan_region`/`verdict()` taint rather
-than the batch route, to state whether any shipped push/replay flow silently loses taint flows today, or
-whether the single-query path is only hit by pair measurements and ad-hoc harnesses.
+Open question — **CLOSED by call-graph trace (2026-10-12).** No shipped product path and no in-repo
+benchmark/test reached the real single-query `JoernBackend.query("taint")`; the bug was latent but unreached
+by the product. Traced:
+
+- **Shipped push/scan/replay** (`cli.py:1334` → `scan_repository` → `_scan_repository_impl`) is DOUBLE
+  shielded: Phase 2 fetches taint via the **batch route** (`run_batch`, always wired by `build()`), and
+  Phase 3's `scan_region` (scan.py:559) runs against a **`_prefetched` CpgResult** whose `run` ignores the
+  query and returns the already-fetched batch rows (scan.py:1472). So `scan_region → taint_verdict →
+  _usable_flows → cpg.run("taint", …)` is a no-op replay that never reaches `JoernBackend.query()`.
+- The non-batching fallback (`scan.py:519 cpg.run(kind, params)`) only runs for a backend without
+  `run_batch`; `JoernBackend` always provides it (backend.py:625/658), so it is dead for Joern.
+- In-repo real-backend benchmarks both use the batch path: `benchmarks/ranking/position.py` via
+  `scan_repository`; `benchmarks/learn/engine_trace_worker.py` via `cpg.run_batch_once("taint", …)`.
+- `tests/test_model_taint.py` / `tests/test_model_pipeline.py` drive `verdict`/`scan_region` against FAKE
+  canned-row `CpgResult`s, not a real `JoernBackend`, so they never exercised `query()` with these params.
+- The only callers that reached the real single-query path were **out-of-product ad-hoc harnesses** (pair /
+  measurement scripts, the banks MVP). Regression onset: **562b670 (2026-09-25)**, when `request_params`
+  began emitting `fixedOrigin`/`originAnchors` (taint.sc never declared them on `exec`; they are batch-JSON
+  only by design). Residual unknown: any EXTERNAL/historical pair harness that drove single-query taint
+  against a real backend after that date would have silently zeroed; none is present in-repo to confirm.
+
+The fix restores the single-query path for pair/direct use without altering push behaviour.
 
 ## Evidence
 
