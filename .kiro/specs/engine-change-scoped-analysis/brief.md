@@ -337,13 +337,31 @@ context:**
   is the real "#1".
 - Feed confirmed source shapes (e.g. library param → path join) back as guarded static facts (#2).
 
-## Future: GEPA-style reflective retries for the LLM arm (maintainer note 2026-10-12)
+## Prompt evolution is a CORE lever for the LLM arm (maintainer directive 2026-10-12)
 
-The LLM arm (both the corpus-label audit and the search-with-proof detector) should later use a **GEPA-style
-reflective-retry loop** (DSPy GEPA: reflect on failed/low-confidence outputs, evolve the prompt, retry) rather than
-single-shot calls — aligned with [[learned-decisions-not-hand-tuning]] (learned decisions + local memory, not hand
-rules). Deferred to a future spec; the current sizing/audit uses single-shot DeepSeek. GLM 5.3 "cyber" model is
-also future-spec (brand new); DeepSeek is the working default today though it is not a security-specialised model.
+**"What is key is that we evolve the prompts as well"** — and **"GEPA or comparable; this is an evolving field."**
+The bedrock hunter result makes this concrete: the agentic hunter ran (64 model calls, $0.0076) and reasoned
+carefully, but with its **current prompts** it flagged adjacent concerns (network-PUBLIC default, download_file)
+and never named the actual `install_packages` command injection — a *prompting/targeting* miss, not a cost or
+capability limit. So the LLM arm needs a **prompt-optimisation loop** that reflects on misses/low-confidence
+outputs, evolves the prompt, and retries — built on **DSPy** (its GEPA / MIPRO optimisers), kept **pluggable**
+behind an interface because the field moves fast (GEPA, MIPRO, TextGrad, successors). This aligns with
+[[learned-decisions-not-hand-tuning]] (learned decisions + local memory, not hand rules). It applies to BOTH LLM
+uses here — the search-with-proof detector and the corpus-label auditor.
+
+**The optimisation objective is to learn WHAT HINTS/ANNOTATIONS the model needs** to reach the real sink — not
+just reword the prompt. bedrock needed the hint "`install_packages` runs `pip install` with caller-supplied package
+names → command injection"; banks needed "`prompt.name` is request-derived and joined into a filesystem path →
+traversal". DSPy optimises which evidence/hints to feed the signature so the model targets the true sink instead of
+adjacent noise.
+
+**Source those hints from the framework knowledge the project ALREADY ships** — the semantic facts taxonomy
+(`ruleset/semantic/*.toml`, `ruleset/frameworks.toml`) encodes sources/sinks/sanitizers per framework WITHOUT
+user annotations ([[php-detection-is-engine-only]] zero-annotation value). Where framework knowledge covers the
+API, feed it as a hint; where it does not (library APIs like banks/bedrock), the LLM proposes the trust boundary
+and, on repeated confirmation, it graduates into the facts (the #2 feedback loop). No new annotation burden on the
+user. This is now a first-class part of the "#2 guided by #1" workstream, not a deferred nicety. (DeepSeek
+`deepseek-flash` is the working default; GLM 5.3 "cyber" model is future-spec.)
 
 ## POOL-P1 LABEL AUDIT (LLM, 2026-10-12) — 47% of labels are sound
 
@@ -360,3 +378,21 @@ pool label → sound/unsound). Full artifact: `benchmarks/measurements/2026-10-1
   real detection gaps. The 23 sound targets are the fair local eval set for "#2 guided by #1".
 - Next: run the agentic search-with-proof hunter on the sound targets (start bedrock + graphiti), size its
   per-vuln call count/cost, measure catch + false-alarm. Then recompute record 07 on the sound subset.
+
+## MODEL HUNTER on the 2 sound targets (2026-10-12) — first LLM catch the static tiers missed
+
+Ran `ousast scan --mode deep` (DeepSeek `deepseek-flash`, model layer + tool_hunter, 60-call/8-hotspot bound) on
+bedrock + graphiti, the two sound pilot targets the static engine missed. Artifact:
+`benchmarks/measurements/2026-10-12-hunter-sound-targets/`.
+- **hunter 1/2 vs static engine 0/2.** graphiti: **HIT** — `falkordb_driver.py:207`, tag `family:cypher-injection`,
+  rationale traces `build_fulltext_query` concatenating user input into a Cypher string at line 278 (inside the
+  labelled function, location-matches). bedrock: **miss** — 12 suspicions on adjacent concerns, never named the
+  `install_packages`→`pip` command injection.
+- **Cost is a non-issue:** ~$0.007/repo, 64 model calls for a whole-repo deep scan.
+- **Everything stopped at `suspicion`** — the proof arm did not elevate to corroborated/entailed/execution_confirmed.
+  Release-grade BLOCK needs *proven* findings; measuring the proof arm's lift is the next depth.
+- bedrock's miss is the concrete case for the DSPy prompt/hints loop above.
+
+Next: (a) measure the proof arm (can it elevate graphiti's suspicion to proven?); (b) stand up the DSPy hint loop
+and re-run bedrock; (c) widen the hunter to the 23 sound targets for a catch rate; (d) then a change-scoped + proven
+run for the release-relevant shape.

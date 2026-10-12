@@ -1,0 +1,281 @@
+{
+  "findings": [
+    {
+      "confidence": "medium",
+      "evidence_level": "static_corroboration",
+      "finding_id": "python-unsafe-eval:tests/bedrock_agentcore/evaluation/integrations/strands_agents_evals/test_end_to_end.py:26",
+      "function_name": null,
+      "line": 26,
+      "path": "tests/bedrock_agentcore/evaluation/integrations/strands_agents_evals/test_end_to_end.py",
+      "proposed_snippet": null,
+      "ranking_priority": 2.9,
+      "rationale": "Static pattern python-unsafe-eval (CWE-95) matched eval on line 26; manual verification still required.",
+      "reachability_conditions": [],
+      "reachability_evidence": [
+        {
+          "access_declared": false,
+          "access_evidence": [
+            "auth boundary file tag"
+          ],
+          "access_level": "authenticated",
+          "conditions": [],
+          "defines_handler": true,
+          "end_line": null,
+          "function_name": null,
+          "kind": "privileged_surface",
+          "line": null,
+          "name": "auth_boundary",
+          "path": "tests/bedrock_agentcore/evaluation/integrations/strands_agents_evals/test_end_to_end.py",
+          "provenance": "entrypoint:privileged_surface:authenticated",
+          "rationale": "privileged_surface surface classified as authenticated at identity_boundary",
+          "registered_by": "",
+          "trust_boundary": "identity_boundary"
+        }
+      ],
+      "reachability_status": "inferred-file-surface",
+      "rung": "suspicion",
+      "severity": "critical",
+      "status": "enabled",
+      "tags": [
+        "auth_boundary",
+        "syscall_entry"
+      ],
+      "title": "Dynamic Python execution needs review"
+    },
+    {
+      "confidence": "medium",
+      "evidence_level": "static_corroboration",
+      "finding_id": "python-unsafe-eval:tests_integ/evaluation/integrations/strands_agents_evals/test_strands_evaluation.py:30",
+      "function_name": null,
+      "line": 30,
+      "path": "tests_integ/evaluation/integrations/strands_agents_evals/test_strands_evaluation.py",
+      "proposed_snippet": null,
+      "ranking_priority": 1.0,
+      "rationale": "Static pattern python-unsafe-eval (CWE-95) matched eval on line 30; manual verification still required.",
+      "reachability_conditions": [],
+      "reachability_evidence": [],
+      "reachability_status": "unknown",
+      "rung": "suspicion",
+      "severity": "critical",
+      "status": "enabled",
+      "tags": [
+        "syscall_entry"
+      ],
+      "title": "Dynamic Python execution needs review"
+    },
+    {
+      "confidence": "medium",
+      "evidence_level": "static_corroboration",
+      "finding_id": "overlay-coverage:tests_integ/async/interactive_async_strands.py:159:path.open",
+      "function_name": null,
+      "line": 159,
+      "path": "tests_integ/async/interactive_async_strands.py",
+      "proposed_snippet": null,
+      "ranking_priority": 0.0,
+      "rationale": "uninventoried sink path.open reached from parameter",
+      "reachability_conditions": [],
+      "reachability_evidence": [],
+      "reachability_status": "unknown",
+      "rung": "suspicion",
+      "severity": "medium",
+      "status": "enabled",
+      "tags": [
+        "overlay-originated"
+      ],
+      "title": "Overlay coverage: path.open"
+    },
+    {
+      "confidence": "medium",
+      "evidence_level": "static_corroboration",
+      "finding_id": "overlay-coverage:tests_integ/async/interactive_async_strands.py:170:path.open",
+      "function_name": null,
+      "line": 170,
+      "path": "tests_integ/async/interactive_async_strands.py",
+      "proposed_snippet": null,
+      "ranking_priority": 0.0,
+      "rationale": "uninventoried sink path.open reached from parameter",
+      "reachability_conditions": [],
+      "reachability_evidence": [],
+      "reachability_status": "unknown",
+      "rung": "suspicion",
+      "severity": "medium",
+      "status": "enabled",
+      "tags": [
+        "overlay-originated"
+      ],
+      "title": "Overlay coverage: path.open"
+    },
+    {
+      "confidence": "medium",
+      "evidence_level": "static_corroboration",
+      "finding_id": "overlay-coverage:tests_integ/async/interactive_async_strands.py:211:path.open",
+      "function_name": null,
+      "line": 211,
+      "path": "tests_integ/async/interactive_async_strands.py",
+      "proposed_snippet": null,
+      "ranking_priority": 0.0,
+      "rationale": "uninventoried sink path.open reached from parameter",
+      "reachability_conditions": [],
+      "reachability_evidence": [],
+      "reachability_status": "unknown",
+      "rung": "suspicion",
+      "severity": "medium",
+      "status": "enabled",
+      "tags": [
+        "overlay-originated"
+      ],
+      "title": "Overlay coverage: path.open"
+    },
+    {
+      "confidence": "medium",
+      "evidence_level": "static_corroboration",
+      "finding_id": "overlay-coverage:tests_integ/runtime/base_test.py:44:os.system",
+      "function_name": null,
+      "line": 44,
+      "path": "tests_integ/runtime/base_test.py",
+      "proposed_snippet": null,
+      "ranking_priority": 0.0,
+      "rationale": "uninventoried sink os.system reached from parameter",
+      "reachability_conditions": [],
+      "reachability_evidence": [],
+      "reachability_status": "unknown",
+      "rung": "suspicion",
+      "severity": "critical",
+      "status": "enabled",
+      "tags": [
+        "overlay-originated"
+      ],
+      "title": "Overlay coverage: os.system"
+    },
+    {
+      "confidence": "medium",
+      "evidence_level": "static_corroboration",
+      "finding_id": "overlay-coverage:tests_integ/runtime/http_client.py:34:outbound.request",
+      "function_name": null,
+      "line": 34,
+      "path": "tests_integ/runtime/http_client.py",
+      "proposed_snippet": null,
+      "ranking_priority": 0.0,
+      "rationale": "uninventoried sink outbound.request reached from parameter",
+      "reachability_conditions": [],
+      "reachability_evidence": [],
+      "reachability_status": "unknown",
+      "rung": "suspicion",
+      "severity": "medium",
+      "status": "enabled",
+      "tags": [
+        "overlay-originated"
+      ],
+      "title": "Overlay coverage: outbound.request"
+    },
+    {
+      "confidence": "medium",
+      "evidence_level": "static_corroboration",
+      "finding_id": "overlay-coverage:tests_integ/runtime/http_client.py:44:outbound.request",
+      "function_name": null,
+      "line": 44,
+      "path": "tests_integ/runtime/http_client.py",
+      "proposed_snippet": null,
+      "ranking_priority": 0.0,
+      "rationale": "uninventoried sink outbound.request reached from parameter",
+      "reachability_conditions": [],
+      "reachability_evidence": [],
+      "reachability_status": "unknown",
+      "rung": "suspicion",
+      "severity": "medium",
+      "status": "enabled",
+      "tags": [
+        "overlay-originated"
+      ],
+      "title": "Overlay coverage: outbound.request"
+    },
+    {
+      "confidence": "low",
+      "evidence_level": "suspicion",
+      "finding_id": "tool-hunter:src/bedrock_agentcore/tools/code_interpreter_client.py:114",
+      "function_name": null,
+      "line": 114,
+      "path": "src/bedrock_agentcore/tools/code_interpreter_client.py",
+      "proposed_snippet": null,
+      "ranking_priority": 0.0,
+      "rationale": "grep_repo and read_file show create_code_interpreter builds request_params with networkConfiguration=network_configuration or {\"networkMode\": \"PUBLIC\"} (line 173). The flagged test test_create_code_interpreter_minimal asserts exactly this PUBLIC default (test file line 120), so the tests corroborate that omitting network_configuration silently provisions a publicly networked interpreter rather than failing closed. This is the production behavior the hotspot tests exercise.",
+      "reachability_conditions": [],
+      "reachability_evidence": [],
+      "reachability_status": "unknown",
+      "rung": "suspicion",
+      "severity": "medium",
+      "status": "enabled",
+      "tags": [
+        "tool-hunter",
+        "family:insecure-default network configuration"
+      ],
+      "title": "create_code_interpreter defaults networkConfiguration to PUBLIC"
+    },
+    {
+      "confidence": "low",
+      "evidence_level": "suspicion",
+      "finding_id": "tool-hunter:src/bedrock_agentcore/tools/code_interpreter_client.py:188",
+      "function_name": null,
+      "line": 188,
+      "path": "src/bedrock_agentcore/tools/code_interpreter_client.py",
+      "proposed_snippet": null,
+      "ranking_priority": 0.0,
+      "rationale": "read_file shows delete_code_interpreter(interpreter_id, client_token) forwards client_token verbatim into request_params[\"clientToken\"] (line 208) with no format/length validation, and the flagged test test_delete_code_interpreter_with_client_token passes \"test-token\" through. The same pattern exists in browser_client.py lines 186-206. This is an idempotency-token passthrough, not a credential, so impact is limited, but it is the production path the flagged tests cover.",
+      "reachability_conditions": [],
+      "reachability_evidence": [],
+      "reachability_status": "unknown",
+      "rung": "suspicion",
+      "severity": "medium",
+      "status": "enabled",
+      "tags": [
+        "tool-hunter",
+        "family:unvalidated idempotency token passthrough"
+      ],
+      "title": "delete_code_interpreter accepts caller-supplied client_token without validation"
+    },
+    {
+      "confidence": "low",
+      "evidence_level": "suspicion",
+      "finding_id": "tool-hunter:src/bedrock_agentcore/tools/code_interpreter_client.py:583",
+      "function_name": null,
+      "line": 583,
+      "path": "src/bedrock_agentcore/tools/code_interpreter_client.py",
+      "proposed_snippet": null,
+      "ranking_priority": 0.0,
+      "rationale": "grep_repo locates download_file at line 583 and download_files at line 621 in src/bedrock_agentcore/tools/code_interpreter_client.py, matching the flagged tests test_download_file_text (test line 988), test_download_file_binary (1025), test_download_file_not_found (1059) and test_download_files_empty_result (1116). The tests mock the data plane client, so the filesystem_entry tag on the hotspots refers to sandbox-side file paths passed as strings; no local filesystem write was observed in the inspected source.",
+      "reachability_conditions": [],
+      "reachability_evidence": [],
+      "reachability_status": "unknown",
+      "rung": "suspicion",
+      "severity": "medium",
+      "status": "enabled",
+      "tags": [
+        "tool-hunter",
+        "family:sandbox file download surface"
+      ],
+      "title": "download_file/download_files are the production targets of the flagged download tests"
+    },
+    {
+      "confidence": "low",
+      "evidence_level": "suspicion",
+      "finding_id": "tool-hunter:tests/bedrock_agentcore/tools/test_code_interpreter_client.py:1",
+      "function_name": null,
+      "line": 1,
+      "path": "tests/bedrock_agentcore/tools/test_code_interpreter_client.py",
+      "proposed_snippet": null,
+      "ranking_priority": 19.983,
+      "rationale": "All eight flagged functions (test_create_code_interpreter_minimal, test_create_code_interpreter_with_all_options, test_delete_code_interpreter, test_delete_code_interpreter_with_client_token, test_download_file_binary, test_download_file_not_found, test_download_file_text, test_download_files_empty_result) live in tests/bedrock_agentcore/tools/test_code_interpreter_client.py. Reading the file confirms they are pytest test methods that mock boto3, get_control_plane_endpoint and get_data_plane_endpoint, so the auth_boundary/crypto/filesystem_entry/network_entry/parser tags reflect the mocked production surface, not reachable production code. The high score is driven by file-level loc=1139 and nesting=7 shared across all entries, not by per-function complexity.",
+      "reachability_conditions": [],
+      "reachability_evidence": [],
+      "reachability_status": "unknown",
+      "rung": "suspicion",
+      "severity": "medium",
+      "status": "enabled",
+      "tags": [
+        "tool-hunter",
+        "family:test-only complexity hotspot"
+      ],
+      "title": "Complexity hotspots are all test functions in a single test file"
+    }
+  ]
+}

@@ -1,0 +1,479 @@
+{
+  "findings": [
+    {
+      "confidence": "medium",
+      "evidence_level": "static_corroboration",
+      "finding_id": "python-weak-hash:graphiti_core/llm_client/client.py:127",
+      "function_name": null,
+      "line": 127,
+      "path": "graphiti_core/llm_client/client.py",
+      "proposed_snippet": null,
+      "ranking_priority": 4.3,
+      "rationale": "Static pattern python-weak-hash (CWE-327) matched md5 on line 127; manual verification still required.",
+      "reachability_conditions": [],
+      "reachability_evidence": [
+        {
+          "access_declared": false,
+          "access_evidence": [
+            "auth boundary file tag"
+          ],
+          "access_level": "authenticated",
+          "conditions": [],
+          "defines_handler": true,
+          "end_line": null,
+          "function_name": null,
+          "kind": "privileged_surface",
+          "line": null,
+          "name": "auth_boundary",
+          "path": "graphiti_core/llm_client/client.py",
+          "provenance": "entrypoint:privileged_surface:authenticated",
+          "rationale": "privileged_surface surface classified as authenticated at identity_boundary",
+          "registered_by": "",
+          "trust_boundary": "identity_boundary"
+        },
+        {
+          "access_declared": false,
+          "access_evidence": [
+            "network entry file tag"
+          ],
+          "access_level": "public",
+          "conditions": [],
+          "defines_handler": true,
+          "end_line": null,
+          "function_name": null,
+          "kind": "route",
+          "line": null,
+          "name": "network_surface",
+          "path": "graphiti_core/llm_client/client.py",
+          "provenance": "entrypoint:route:public",
+          "rationale": "route surface classified as public at network_request",
+          "registered_by": "",
+          "trust_boundary": "network_request"
+        },
+        {
+          "access_declared": false,
+          "access_evidence": [
+            "parser/deserialization file tag"
+          ],
+          "access_level": "public",
+          "conditions": [],
+          "defines_handler": true,
+          "end_line": null,
+          "function_name": null,
+          "kind": "parser",
+          "line": null,
+          "name": "parser_input",
+          "path": "graphiti_core/llm_client/client.py",
+          "provenance": "entrypoint:parser:public",
+          "rationale": "parser surface classified as public at attacker_controlled_input",
+          "registered_by": "",
+          "trust_boundary": "attacker_controlled_input"
+        }
+      ],
+      "reachability_status": "inferred-file-surface",
+      "rung": "suspicion",
+      "severity": "medium",
+      "status": "enabled",
+      "tags": [
+        "auth_boundary",
+        "crypto",
+        "network_entry",
+        "parser"
+      ],
+      "title": "Python weak hash needs review"
+    },
+    {
+      "confidence": "medium",
+      "evidence_level": "static_corroboration",
+      "finding_id": "overlay-coverage:examples/podcast/transcript_parser.py:39:path.open",
+      "function_name": null,
+      "line": 39,
+      "path": "examples/podcast/transcript_parser.py",
+      "proposed_snippet": null,
+      "ranking_priority": 0.0,
+      "rationale": "uninventoried sink path.open reached from parameter",
+      "reachability_conditions": [],
+      "reachability_evidence": [],
+      "reachability_status": "unknown",
+      "rung": "suspicion",
+      "severity": "medium",
+      "status": "enabled",
+      "tags": [
+        "overlay-originated"
+      ],
+      "title": "Overlay coverage: path.open"
+    },
+    {
+      "confidence": "medium",
+      "evidence_level": "static_corroboration",
+      "finding_id": "overlay-coverage:examples/wizard_of_oz/parser.py:6:path.open",
+      "function_name": null,
+      "line": 6,
+      "path": "examples/wizard_of_oz/parser.py",
+      "proposed_snippet": null,
+      "ranking_priority": 0.0,
+      "rationale": "uninventoried sink path.open reached from parameter",
+      "reachability_conditions": [],
+      "reachability_evidence": [],
+      "reachability_status": "unknown",
+      "rung": "suspicion",
+      "severity": "medium",
+      "status": "enabled",
+      "tags": [
+        "overlay-originated"
+      ],
+      "title": "Overlay coverage: path.open"
+    },
+    {
+      "confidence": "medium",
+      "evidence_level": "static_corroboration",
+      "finding_id": "overlay-coverage:graphiti_core/driver/kuzu_driver.py:118:execute",
+      "function_name": null,
+      "line": 118,
+      "path": "graphiti_core/driver/kuzu_driver.py",
+      "proposed_snippet": null,
+      "ranking_priority": 0.0,
+      "rationale": "uninventoried sink execute reached from parameter",
+      "reachability_conditions": [],
+      "reachability_evidence": [],
+      "reachability_status": "unknown",
+      "rung": "suspicion",
+      "severity": "high",
+      "status": "enabled",
+      "tags": [
+        "overlay-originated"
+      ],
+      "title": "Overlay coverage: execute"
+    },
+    {
+      "confidence": "low",
+      "evidence_level": "suspicion",
+      "finding_id": "tool-hunter:examples/podcast/podcast_runner.py:130",
+      "function_name": null,
+      "line": 130,
+      "path": "examples/podcast/podcast_runner.py",
+      "proposed_snippet": null,
+      "ranking_priority": 15.0729,
+      "rationale": "The file ends with asyncio.run(main(False)) at module scope (line ~130) rather than under an if __name__ == '__main__' guard, unlike the quickstart examples which do guard (quickstart_neo4j.py:241, quickstart_falkordb.py:252). Importing this module triggers clear_data(client.driver) and graph ingestion against the configured database.",
+      "reachability_conditions": [],
+      "reachability_evidence": [],
+      "reachability_status": "unknown",
+      "rung": "suspicion",
+      "severity": "medium",
+      "status": "enabled",
+      "tags": [
+        "tool-hunter",
+        "family:unsafe-side-effect"
+      ],
+      "title": "Module-level asyncio.run(main(False)) executes on import"
+    },
+    {
+      "confidence": "low",
+      "evidence_level": "suspicion",
+      "finding_id": "tool-hunter:examples/podcast/podcast_runner.py:36",
+      "function_name": null,
+      "line": 36,
+      "path": "examples/podcast/podcast_runner.py",
+      "proposed_snippet": null,
+      "ranking_priority": 15.0729,
+      "rationale": "neo4j_password = os.environ.get('NEO4J_PASSWORD') or 'password' (line 36) supplies a literal default credential when the env var is unset, and the same pattern appears in examples/ecommerce/runner.py:36, examples/wizard_of_oz/runner.py:35, and examples/quickstart/quickstart_neo4j.py:51. These are example scripts, but the fallback silently connects with a well-known password.",
+      "reachability_conditions": [],
+      "reachability_evidence": [],
+      "reachability_status": "unknown",
+      "rung": "suspicion",
+      "severity": "medium",
+      "status": "enabled",
+      "tags": [
+        "tool-hunter",
+        "family:hardcoded-credential"
+      ],
+      "title": "Example runner hardcodes default Neo4j password fallback"
+    },
+    {
+      "confidence": "low",
+      "evidence_level": "suspicion",
+      "finding_id": "tool-hunter:graphiti_core/driver/falkordb_driver.py:207",
+      "function_name": null,
+      "line": 207,
+      "path": "graphiti_core/driver/falkordb_driver.py",
+      "proposed_snippet": null,
+      "ranking_priority": 0.0,
+      "rationale": "sanitize() only translates a separator_map and collapses whitespace (lines 244-247), then build_fulltext_query concatenates the sanitized user query into a Cypher string: full_query = group_filter + ' (' + sanitized_query + ')' (line 278). The query text is interpolated into the query string rather than passed as a bound parameter, so the sanitize step is the only barrier. This is the parser/network_entry hotspot surface for the FalkorDB driver.",
+      "reachability_conditions": [],
+      "reachability_evidence": [],
+      "reachability_status": "unknown",
+      "rung": "suspicion",
+      "severity": "medium",
+      "status": "enabled",
+      "tags": [
+        "tool-hunter",
+        "family:cypher-injection"
+      ],
+      "title": "FalkorDB fulltext query built by string concatenation after weak sanitize()"
+    },
+    {
+      "confidence": "low",
+      "evidence_level": "suspicion",
+      "finding_id": "tool-hunter:graphiti_core/driver/falkordb_driver.py:264",
+      "function_name": null,
+      "line": 264,
+      "path": "graphiti_core/driver/falkordb_driver.py",
+      "proposed_snippet": null,
+      "ranking_priority": 0.0,
+      "rationale": "group_values = '|'.join(group_ids) (line 264) is embedded into the group_filter portion of the fulltext query string, and the length check at line 275 uses len(group_ids or '') which is a length guard, not an escaping guard. group_ids flow from caller-supplied values (e.g. graphiti.py group_ids params) into a concatenated query.",
+      "reachability_conditions": [],
+      "reachability_evidence": [],
+      "reachability_status": "unknown",
+      "rung": "suspicion",
+      "severity": "medium",
+      "status": "enabled",
+      "tags": [
+        "tool-hunter",
+        "family:cypher-injection"
+      ],
+      "title": "group_ids joined into query string without parameterization"
+    },
+    {
+      "confidence": "low",
+      "evidence_level": "suspicion",
+      "finding_id": "tool-hunter:graphiti_core/edges.py:191",
+      "function_name": null,
+      "line": 191,
+      "path": "graphiti_core/edges.py",
+      "proposed_snippet": null,
+      "ranking_priority": 17.9696,
+      "rationale": "get_by_group_ids builds cursor_query as a LiteralString ('AND e.uuid < $uuid' if uuid_cursor ...) and concatenates it into the query, with group_ids passed as a bound parameter (group_ids=group_ids, line 215). The group_ids themselves are parameterized, but the cursor clause is string-concatenated; this is the high-complexity edge query path flagged in the hotspot.",
+      "reachability_conditions": [],
+      "reachability_evidence": [],
+      "reachability_status": "unknown",
+      "rung": "suspicion",
+      "severity": "medium",
+      "status": "enabled",
+      "tags": [
+        "tool-hunter",
+        "family:cypher-construction"
+      ],
+      "title": "Edge.get_by_group_ids interpolates cursor clause into Cypher"
+    },
+    {
+      "confidence": "low",
+      "evidence_level": "suspicion",
+      "finding_id": "tool-hunter:graphiti_core/llm_client/anthropic_client.py:130",
+      "function_name": null,
+      "line": 130,
+      "path": "graphiti_core/llm_client/anthropic_client.py",
+      "proposed_snippet": null,
+      "ranking_priority": 16.2076,
+      "rationale": "_extract_json_from_text finds the first '{' and last '}' and json.loads the slice (lines ~120-135). This is the parser-tagged hotspot: it will mis-parse when the model emits multiple JSON objects or braces inside strings, and it raises ValueError carrying the full model response text in the message.",
+      "reachability_conditions": [],
+      "reachability_evidence": [],
+      "reachability_status": "unknown",
+      "rung": "suspicion",
+      "severity": "medium",
+      "status": "enabled",
+      "tags": [
+        "tool-hunter",
+        "family:unsafe-parsing"
+      ],
+      "title": "_extract_json_from_text uses brace-slicing to parse model output"
+    },
+    {
+      "confidence": "low",
+      "evidence_level": "suspicion",
+      "finding_id": "tool-hunter:graphiti_core/llm_client/anthropic_client.py:95",
+      "function_name": null,
+      "line": 95,
+      "path": "graphiti_core/llm_client/anthropic_client.py",
+      "proposed_snippet": null,
+      "ranking_priority": 16.2076,
+      "rationale": "When config is None, the client constructs LLMConfig() and sets config.api_key = os.getenv('ANTHROPIC_API_KEY') (lines ~93-96). This is the auth_boundary/network_entry hotspot: the API key is read from the process environment and passed to AsyncAnthropic, so any code path that instantiates the client without an explicit config silently inherits ambient credentials.",
+      "reachability_conditions": [],
+      "reachability_evidence": [],
+      "reachability_status": "unknown",
+      "rung": "suspicion",
+      "severity": "medium",
+      "status": "enabled",
+      "tags": [
+        "tool-hunter",
+        "family:credential-handling"
+      ],
+      "title": "AnthropicClient falls back to ANTHROPIC_API_KEY env var when config omitted"
+    },
+    {
+      "confidence": "low",
+      "evidence_level": "suspicion",
+      "finding_id": "tool-hunter:graphiti_core/llm_client/client.py:130",
+      "function_name": null,
+      "line": 130,
+      "path": "graphiti_core/llm_client/client.py",
+      "proposed_snippet": null,
+      "ranking_priority": 16.3098,
+      "rationale": "_get_cache_key builds key_str = f'{self.model}:{message_str}' and returns hashlib.md5(key_str.encode()).hexdigest() (lines ~128-131). MD5 is used here for cache-key derivation, not for a security boundary, but it is the crypto-tagged hotspot in this file and collisions could cause cross-message cache reuse of LLM responses.",
+      "reachability_conditions": [],
+      "reachability_evidence": [],
+      "reachability_status": "unknown",
+      "rung": "suspicion",
+      "severity": "medium",
+      "status": "enabled",
+      "tags": [
+        "tool-hunter",
+        "family:weak-hash"
+      ],
+      "title": "LLM response cache key uses MD5 over model+messages"
+    },
+    {
+      "confidence": "low",
+      "evidence_level": "suspicion",
+      "finding_id": "tool-hunter:graphiti_core/llm_client/client.py:155",
+      "function_name": null,
+      "line": 155,
+      "path": "graphiti_core/llm_client/client.py",
+      "proposed_snippet": null,
+      "ranking_priority": 16.3098,
+      "rationale": "generate_response appends the response_model JSON schema to messages[-1].content and appends MULTILINGUAL_EXTRACTION_RESPONSES to messages[0].content (lines ~150-160) before computing the cache key. Because the same list object is mutated, repeated calls accumulate appended instructions and change the cache key, which is a correctness/state-leak concern in the shared LLM client path.",
+      "reachability_conditions": [],
+      "reachability_evidence": [],
+      "reachability_status": "unknown",
+      "rung": "suspicion",
+      "severity": "medium",
+      "status": "enabled",
+      "tags": [
+        "tool-hunter",
+        "family:state-mutation"
+      ],
+      "title": "generate_response mutates caller-supplied messages list in place"
+    },
+    {
+      "confidence": "low",
+      "evidence_level": "suspicion",
+      "finding_id": "tool-hunter:graphiti_core/llm_client/gemini_client.py:130",
+      "function_name": null,
+      "line": 130,
+      "path": "graphiti_core/llm_client/gemini_client.py",
+      "proposed_snippet": null,
+      "ranking_priority": 16.3961,
+      "rationale": "_check_safety_blocks collects safety_ratings category/probability into safety_info and raises Exception(f'Response blocked by Gemini safety filters: {safety_details}') (lines ~120-135). Raising a bare Exception (rather than a typed error) from the response-parsing path means callers cannot distinguish safety blocks from other failures, and the message embeds model-provided content.",
+      "reachability_conditions": [],
+      "reachability_evidence": [],
+      "reachability_status": "unknown",
+      "rung": "suspicion",
+      "severity": "medium",
+      "status": "enabled",
+      "tags": [
+        "tool-hunter",
+        "family:error-handling"
+      ],
+      "title": "Safety-block handling raises bare Exception with response details"
+    },
+    {
+      "confidence": "low",
+      "evidence_level": "suspicion",
+      "finding_id": "tool-hunter:graphiti_core/llm_client/gemini_client.py:95",
+      "function_name": null,
+      "line": 95,
+      "path": "graphiti_core/llm_client/gemini_client.py",
+      "proposed_snippet": null,
+      "ranking_priority": 16.3961,
+      "rationale": "In __init__, when no client is supplied, self.client = genai.Client(api_key=config.api_key) (line ~95). This is the auth_boundary/network_entry hotspot for the Gemini path; the API key is taken from LLMConfig and used to build the outbound client, with no validation that the key is present before the network client is created.",
+      "reachability_conditions": [],
+      "reachability_evidence": [],
+      "reachability_status": "unknown",
+      "rung": "suspicion",
+      "severity": "medium",
+      "status": "enabled",
+      "tags": [
+        "tool-hunter",
+        "family:credential-handling"
+      ],
+      "title": "GeminiClient constructs genai.Client with config.api_key"
+    },
+    {
+      "confidence": "low",
+      "evidence_level": "suspicion",
+      "finding_id": "tool-hunter:graphiti_core/nodes.py:100",
+      "function_name": null,
+      "line": 100,
+      "path": "graphiti_core/nodes.py",
+      "proposed_snippet": null,
+      "ranking_priority": 18.8338,
+      "rationale": "In the KUZU and default branches, labels are interpolated via f-string into MATCH (n:{label} {{uuid: $uuid}}) (e.g. lines ~100 and ~130). The label values are hardcoded literals ('Episodic','Community','Entity'), so this is not currently attacker-controlled, but it is the high-complexity delete path flagged in the hotspot and the pattern is unsafe if labels ever become dynamic.",
+      "reachability_conditions": [],
+      "reachability_evidence": [],
+      "reachability_status": "unknown",
+      "rung": "suspicion",
+      "severity": "medium",
+      "status": "enabled",
+      "tags": [
+        "tool-hunter",
+        "family:cypher-injection"
+      ],
+      "title": "Node.delete interpolates label into f-string Cypher"
+    },
+    {
+      "confidence": "low",
+      "evidence_level": "suspicion",
+      "finding_id": "tool-hunter:graphiti_core/search/search_utils.py:1",
+      "function_name": null,
+      "line": 1,
+      "path": "graphiti_core/search/search_utils.py",
+      "proposed_snippet": null,
+      "ranking_priority": 15.6127,
+      "rationale": "The hotspot reports loc=1889 and nesting=35 for graphiti_core/search/search_utils.py, the largest and most deeply nested file in the set, tagged auth_boundary and network_entry with reachability=5. The grep for query construction shows this module is the search/query layer, so its depth makes the query-building paths hard to audit for parameterization.",
+      "reachability_conditions": [],
+      "reachability_evidence": [],
+      "reachability_status": "unknown",
+      "rung": "suspicion",
+      "severity": "medium",
+      "status": "enabled",
+      "tags": [
+        "tool-hunter",
+        "family:complexity"
+      ],
+      "title": "search_utils.py is a 1889-line module with nesting depth 35"
+    },
+    {
+      "confidence": "low",
+      "evidence_level": "suspicion",
+      "finding_id": "tool-hunter:mcp_server/graphiti_mcp_server.py:1192",
+      "function_name": null,
+      "line": 1192,
+      "path": "mcp_server/graphiti_mcp_server.py",
+      "proposed_snippet": null,
+      "ranking_priority": 17.4409,
+      "rationale": "argparse registers parser.add_argument('--destroy-graph', action='store_true', help='Destroy all Graphiti graphs') (line 1192), and the module imports clear_data from graphiti_core.utils.maintenance.graph_data_operations (line 38). This is the network_entry/auth_boundary hotspot: a single CLI flag drives destructive deletion of all graphs with no confirmation or scoping shown in the argument definition.",
+      "reachability_conditions": [],
+      "reachability_evidence": [],
+      "reachability_status": "unknown",
+      "rung": "suspicion",
+      "severity": "medium",
+      "status": "enabled",
+      "tags": [
+        "tool-hunter",
+        "family:destructive-operation"
+      ],
+      "title": "MCP server exposes --destroy-graph flag that clears all graphs"
+    },
+    {
+      "confidence": "low",
+      "evidence_level": "suspicion",
+      "finding_id": "tool-hunter:mcp_server/graphiti_mcp_server.py:266",
+      "function_name": null,
+      "line": 266,
+      "path": "mcp_server/graphiti_mcp_server.py",
+      "proposed_snippet": null,
+      "ranking_priority": 17.4409,
+      "rationale": "GraphitiLLMConfig.from_cli_and_env(cls, args) (line 266) and GraphitiConfig.from_cli_and_env (line 492) build configuration by combining argparse Namespace values with environment variables, and the module imports DefaultAzureCredential/get_bearer_token_provider (line 15) and AsyncAzureOpenAI (line 17). This is the auth_boundary surface where CLI-supplied values and ambient cloud credentials converge into the LLM/embedder clients.",
+      "reachability_conditions": [],
+      "reachability_evidence": [],
+      "reachability_status": "unknown",
+      "rung": "suspicion",
+      "severity": "medium",
+      "status": "enabled",
+      "tags": [
+        "tool-hunter",
+        "family:credential-handling"
+      ],
+      "title": "GraphitiLLMConfig.from_cli_and_env merges CLI args with environment credentials"
+    }
+  ]
+}
