@@ -433,3 +433,32 @@ Deep scan on the 5 app-shaped+sound targets (`benchmarks/measurements/2026-10-12
 Detection appears on fair targets; release-grade BLOCK still needs (a) proof-arm elevation (suspicion→proven) and
 (b) family coverage (template XSS/SSTI) + the DSPy hint loop for misses. Next: recompute a floor on an app-shaped
 sound subset / real app corpus (VAmPI, NodeGoat, DjanGoat, vibe-py), and measure the proof arm's suspicion→proven lift.
+
+## PROOF-ARM MEASUREMENT on the 3 fair-target hits (2026-10-12) — push-time lift 0/3, structural
+
+Measured whether the proof arm can elevate the 3 fair-target suspicions (graphiti, mcp-remote, dcmcp) to
+`exploit_demonstrated`.
+- **Correction:** the search arm's `FAMILY_ORACLES` (search/demo.py) differs from families.toml's `verifier`.
+  All 3 hits HAVE a runtime oracle: injection→(sql,command), untrusted_destination→(ssrf). (deserialization/
+  access_control/config_secrets have NONE — empty tuple → `no_oracle`.) So dcmcp IS provable in principle
+  (earlier "unprovable" was a families.toml misread).
+- **But proving is a runtime differential:** `search/verify.verify()` requires (1) an AUTHORED declarative demo
+  (start the app on a port, run exploit steps, fill oracle placeholders: sql→database_path, command→marker_dir,
+  ssrf→callback_url), (2) BOTH head AND base runnable with OFFLINE deps (`pip --no-index`, `npm ci --offline`),
+  (3) a sandbox differential "owned effect in 3/3 affected runs and 0/3 safe runs". Local host has a sandbox
+  (`isolation_mode: userns`); the plane supplies a task-boundary dispatcher.
+- **The scan/push path reaches only `suspicion`/`static_corroboration`** (verification.py levels) — there is NO code
+  path from a scan suspicion to `exploit_demonstrated`, and no caller wires the search Coordinator from the push
+  flow. So **proof-arm lift at push time = 0/3**: not because the vulns are unreal, but because proving is a
+  per-target, offline-build, runtime, differential operation that cannot run inside a pre-push hook. (Prior
+  per-pair demo attempts were mostly inconclusive on this exact wiring — app startup, offline deps, oracle plumbing.)
+
+**Strategic consequence (resolves the three-bet fork):** proof/BLOCK is an ASYNC capability (CI / plane / triage
+with authored demos + a runnable sandbox), NOT a pre-push one. At push time the honest ceiling is corroborated
+suspicion. So:
+- **Bet #2 (advisory-with-conditions) is the honest PRE-PUSH product**: surface corroborated suspicions ("change
+  introduces a flow that looks like X; reachable if untrusted Y reaches it"), let the dev / coding-agent (who has
+  the app context) judge — matching the "oversee coding agents" framing and the suspicion-rung reality.
+- **Bet #3 (the proof arm) is the ASYNC BLOCK lane**: run `search/verify` on the plane/CI for the suspicions worth
+  proving, with authored (eventually DSPy-authored) demos. Worth an empirical run on one tractable target
+  (mcp-remote) to confirm the arm demonstrates on a real unseen vuln — a bounded, separate effort.
