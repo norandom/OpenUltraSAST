@@ -132,6 +132,14 @@ against a realistic pre-push window (≤120 s target, 300 s hard):
     5 pilot regions in LLM-guided-source mode; measure source naming, traced finding, catch lift vs regex 1/5, and
     false-alarm on ordinary changes; stage 5–10 → ~10–20 → full on lift. #3 change-anchoring deprioritised until
     tiers yield findings.
+  - **BANKS FIXED-SEARCH MVP DONE (2026-10-12) — "#2 guided by #1" closes on an unseen target.** See brief
+    "BANKS FIXED-SEARCH MVP" + `benchmarks/measurements/2026-10-12-banks-fixed-search-mvp/`. On banks (the
+    library that gave the engine zero), injecting the two annotations an LLM steer would supply (param-as-source
+    + `write_text`/`read_text` sink) makes the engine resolve `prompt → path-join → write_text` where the
+    shipped search resolved nothing. Proves the governing principle "no wrong targets, only wrong searching" and
+    names the exact inputs the DSPy-optimised steer must learn. Filed instrument bug:
+    `.kiro/specs/engine-change-scoped-analysis/bugs/taint-sc-single-query-signature-skew.md` (single-query taint
+    path dead on an exec-signature skew; batch path unaffected).
   - LLM: L1 model latency and calls per push; L2 the recall LIFT of the LLM tier over regex+dataflow on the pool.
   - Deliverable: a barrier table (budget × tier combo → fits? measured recall/FP) → the minimal releasable config.
 

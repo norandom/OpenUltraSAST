@@ -1,0 +1,32 @@
+CPG built; run_batch available.
+baseline sinks: ('FileResponse', 'open', 'os.remove', 'os.unlink', 'send_file', 'send_from_directory', 'shutil.copy', 'shutil.move', 'shutil.rmtree')
+annotated sinks: ('FileResponse', 'open', 'os.remove', 'os.unlink', 'read_text', 'send_file', 'send_from_directory', 'shutil.copy', 'shutil.move', 'shutil.rmtree', 'write_text')
+
+=== BASELINE (shipped search) ===
+  [baseline] from_prompt_path psrc=False: 1 flow row(s)
+      sink=None source=None line=None evidence=None
+  [baseline] set psrc=False: 1 flow row(s)
+      sink=None source=None line=None evidence=None
+  [baseline] _load psrc=False: 1 flow row(s)
+      sink=None source=None line=None evidence=None
+  [baseline] _scan psrc=False: 2 flow row(s)
+      sink=None source=None line=None evidence=None
+      sink=None source=None line=None evidence=None
+
+=== FIXED SEARCH (annotation: param-source + write_text/read_text sink) ===
+  [fixed] from_prompt_path psrc=True: 4 flow row(s)
+      sink=prompt_file.write_text(prompt.raw) source=path line=None evidence=None
+      sink=prompt_file.write_text(prompt.raw) source=prompt line=None evidence=None
+      sink=None source=None line=None evidence=None
+  [fixed] set psrc=True: 1 flow row(s)
+      sink=None source=None line=None evidence=None
+  [fixed] _load psrc=True: 2 flow row(s)
+      sink=None source=None line=None evidence=None
+      sink=None source=None line=None evidence=None
+  [fixed] _scan psrc=True: 4 flow row(s)
+      sink=self._index_path.write_text(self._index.model_dump_json()) source=self line=None evidence=None
+      sink=None source=None line=None evidence=None
+      sink=None source=None line=None evidence=None
+
+=== RESULT: baseline flow rows=5  fixed-search flow rows=11 ===
+FIXED SEARCH TRACES BANKS (search was wrong, not the target)

@@ -462,3 +462,30 @@ suspicion. So:
 - **Bet #3 (the proof arm) is the ASYNC BLOCK lane**: run `search/verify` on the plane/CI for the suspicions worth
   proving, with authored (eventually DSPy-authored) demos. Worth an empirical run on one tractable target
   (mcp-remote) to confirm the arm demonstrates on a real unseen vuln — a bounded, separate effort.
+
+## BANKS FIXED-SEARCH MVP (2026-10-12) — "no wrong targets, only wrong searching" demonstrated
+
+Record: `benchmarks/measurements/2026-10-12-banks-fixed-search-mvp/`. Target: banks (the "library" that gave
+the engine ZERO path findings in the pilot). Same target, same CPG — only the search changes.
+
+- Injected the two annotations a per-target LLM steer would supply: **parameter-as-source**
+  (`parameter_sources=True`, so `prompt.name` counts as untrusted) + the **missing file-write sink**
+  (`write_text`/`read_text` added to path sinks).
+- **Baseline (shipped search): 0 resolved `prompt → write_text` flows** — its 5 flow rows are all census/
+  evidence (`sink=None`), matching the pilot's zero path findings.
+- **Fixed search: the engine resolves `prompt → path-join → prompt_file.write_text(prompt.raw)` in
+  `from_prompt_path`** (`source=prompt`), plus a second `write_text` sink in `_scan`. These appear ONLY with
+  the annotations.
+- **Thesis demonstrated on a concrete case:** banks was not a wrong target; the search was unannotated. The
+  fix needed exactly **two** inputs — the param-source and the file-write sink — which are precisely what the
+  per-target LLM steer (DSPy-optimised, framework-seeded) has to learn to supply. This is the first measured
+  instance of the "#2 guided by #1" loop closing on an unseen target.
+- Caveats: (1) one row shows `source=path` not `prompt` — the param-source fires broadly, a precision knob for
+  the steering loop; (2) this is a TRACE, not the runtime differential proof (proof stays the async BLOCK lane).
+
+**Instrument note / filed bug:** the first MVP used the single-query `cpg.run("taint", …)` path and returned
+0/0 — an INSTRUMENT FAILURE, not a result (`cpg query taint failed` on every query). Root cause filed in
+`bugs/taint-sc-single-query-signature-skew.md`: `request_params()` emits 5 keys (`guards`, `fixedOrigin`,
+`originAnchors`, `quotedSanitizers`, `fieldParameterSources`) that `taint.sc`'s `exec` signature does not
+declare, so both single-query sub-routes (CLI `--param` and session named-arg) reject them. The batch path
+(`run_batch` → `requestsFile` JSON) tolerates them, which is why the pilot scans ran and this MVP used it.
