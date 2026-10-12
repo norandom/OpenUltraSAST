@@ -119,20 +119,22 @@ against a realistic pre-push window (≤120 s target, 300 s hard):
     launch-editor, score 2.0), but **withholds any finding it cannot anchor 1:1 to changed lines**: all 5 hit
     `ambiguous_line_correspondence` → `witness_unresolved` → `coverage_status=incomplete`, suppressing even the
     scored sinks. Confirmed NOT a shallow-clone artifact. **Release read: the net is NOT releasable on detection.**
-  - **Reprioritised engine levers (budget/change-scoping DEMOTED):** #1 **change-anchoring robustness** (report a
-    region-level / change-adjacent finding when exact 1:1 line anchoring fails — suppressed findings on 5/5); #2
-    **family ranking / taint coverage** (correct family must win, source→sink must connect); #3 the **LLM
-    adjudication tier** — the pilot is the empirical case to prioritise it (L1/L2): does the LLM confirm what the
-    dataflow finds but cannot anchor?
+  - **CORRECTED after inspecting `head.findings`:** the engine produced **ZERO vuln-family findings** (path/
+    injection/deser) on all 5 — only config_secrets. The tier1/score2.0 "sink" was the RANKER's static candidate,
+    not a taint finding. `ambiguous_line_correspondence` is a downstream red herring (nothing to anchor), so the
+    region-level witness fix (old "Option A") was **refuted before implementation**. The **LLM tier was disabled**
+    (model_calls=0). **Reprioritised levers:** #1 the **LLM adjudication tier** (disabled) — now primary: run the
+    LLM pilot L1/L2, staged (costs money). #2 taint source/sink coverage + region ranking. #3 change-anchoring
+    (only matters once tiers produce vuln-family findings — deprioritised).
   - LLM: L1 model latency and calls per push; L2 the recall LIFT of the LLM tier over regex+dataflow on the pool.
   - Deliverable: a barrier table (budget × tier combo → fits? measured recall/FP) → the minimal releasable config.
 
 - **Change-scoped engine analysis — DEMOTED again by the pilot.** Branch `engine-change-scoped-evidence-pass`
   (unmerged). Fitting the budget does not produce catches (3/5 pilot repos finished the queue with zero findings),
   so this is not on the catch critical path. Keep only as a latency optimisation once detection works.
-- **Line-correspondence (merged c39fbb8 but INSUFFICIENT).** The pilot shows `ambiguous_line_correspondence` still
-  fires on 5/5 realistic diffs and is now the **#1 detection blocker** — the engine withholds anchored findings.
-  Needs a region-level witness fallback when 1:1 line anchoring is impossible.
+- **Line-correspondence (merged c39fbb8).** `ambiguous_line_correspondence` fires on 5/5 realistic diffs, but the
+  pilot's corrected diagnosis shows it is NOT the detection blocker here — the static tiers produce no vuln-family
+  findings to anchor in the first place. A region-level witness fallback only matters once #1/#2 yield findings.
 
 **G3. Decide BLOCK per family** on the pool's false-alarm rate and the pooled precision bound (Req 6.4).
 

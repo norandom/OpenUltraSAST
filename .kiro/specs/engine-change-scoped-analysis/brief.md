@@ -232,32 +232,38 @@ Five public repos picked for flow-shaped families and small size (engine's best 
 **Result: regex 1/5, engine 0/5.** On a clean host, with budget to spare on most, the shipped engine **added no
 catches over the regex floor.**
 
-**Why (measured, traced — not a budget wall):**
+**Why (measured, traced — CORRECTED after inspecting `head.findings`, not ranker evidence):**
 1. **The budget hypothesis is REFUTED.** banks, graphiti and socketio **finished their region queue** (deferred=0)
    and still emitted no finding. Change-scoping to fit budget would not have changed the outcome.
-2. **The engine ranked the vuln region in every repo** (`vuln_in_analyses=true`) and on 2 of 5 (socketio deser,
-   launch-editor) the **dataflow found the right sink** (tier=1, score=2.0). So detection partially worked.
-3. **The dominant blocker is change-anchoring, not taint.** All 5 hit `ambiguous_line_correspondence` →
-   `witness_unresolved` → `coverage_status=incomplete`, and the engine **withholds any finding it cannot anchor
-   one-to-one to the changed lines** — suppressing even the scored sinks in (2). This is `snapshot.py`'s line
-   correspondence marking the diff ambiguous when the same content line appears in multiple runs (moved/repeated
-   lines). **Confirmed NOT a shallow-clone replay artifact** — correspondence is computed from both full blobs, which
-   depth-1 fetches of each SHA provide. The merged line-correspondence fix (c39fbb8) does not resolve these cases.
-4. **Family ranking also misses** on some (graphiti injection score 0; banks path found the sink but no source).
-5. **Measurement caveat:** the pool's SZZ last-writer change definition yields **large/moved diffs** where exact
-   change-anchoring is inherently ambiguous (the pool documents this bias). Part of the 0/5 is this corpus property
-   interacting with the engine's change-anchored design; a cleaner probe uses tight vuln-introducing diffs.
+2. **The engine produced ZERO vuln-family findings (path/injection/deser) on all 5.** Actual `head.findings`:
+   banks 1 (config_secrets), socketio 2 (config_secrets), launch-editor / graphiti / bedrock **0 findings each**.
+   The dataflow/taint tier traced **no source→sink flow** for the vuln families (`taint_evidence_not_applicable`;
+   e.g. banks found the `path.open` sink but **no source reaches it**). **Correction:** the tier=1 / score=2.0
+   "sink" seen in the ranker's `normalized_evidence` is the RANKER's static sink candidate, NOT a confirmed taint
+   finding — an earlier draft of this section misread it as detection partially working. It was not.
+3. **`ambiguous_line_correspondence` is a downstream RED HERRING for these vulns.** It fires on all 5, but there
+   are **no vuln-family findings to anchor**, so a region-level witness fallback (the proposed "Option A") would
+   change nothing here. Witness/anchoring only touched the config_secrets findings that did appear.
+4. **The LLM adjudication tier was DISABLED** (`model_calls=0`, `cost_usd=0`, `model_assistance={}` on all 5). The
+   rungs reached: `suspicion=0, model_corroborated=0, model_entailed=0–2, execution_confirmed=0`. The tier designed
+   to confirm a vuln the static dataflow cannot trace **never ran**.
+5. **Ranking also under-promotes the vuln region** (tier 0 for most families; banks path family stuck low). So even
+   where a sink exists, the region is not analysed deeply enough to attempt a flow.
+6. **Measurement caveat:** the pool's SZZ last-writer change definition yields large/moved diffs; a cleaner probe
+   uses tight vuln-introducing diffs. Secondary to (2)/(4).
 
-**Reprioritised engine levers (budget/change-scoping demoted):**
-- **#1 change-anchoring robustness.** `ambiguous_line_correspondence`/`witness_unresolved` suppressed findings on
-  5/5, including 2 with a scored sink. Make the engine able to report a change-adjacent finding when exact 1:1
-  anchoring is impossible (region-level witness, not line-level) — the single highest-leverage fix.
-- **#2 family ranking / taint coverage** so the correct family wins and source→sink connects on these shapes.
-- **#3 the LLM adjudication tier (disabled in the push path)** — the arm designed to confirm what the dataflow
-  finds but cannot anchor. The pilot is the empirical case for L1/L2: regex+dataflow caught 1/5 here; the question
-  is whether the LLM tier lifts it. **This is now the strongest argument for prioritising the LLM arm.**
+**Reprioritised engine levers (CORRECTED — anchoring is NOT the lever):**
+- **#1 the LLM adjudication tier (disabled in the push path) — now the primary lever.** regex+dataflow = 1/5 with
+  the model OFF; the static tiers produce no vuln-family findings on these shapes. The product thesis
+  ([[search-with-proof]]) is that the LLM tier catches what regex+dataflow miss. The pilot is the empirical case to
+  turn it on: **L1** model latency + calls/push, **L2** recall LIFT on the same 5 (and beyond). Costs money — stage
+  it (5–10 sizing → ~10–20 pilot → full only on lift).
+- **#2 taint source/sink coverage + region ranking** so the dataflow recognises these vuln sources and promotes the
+  vuln region (banks path: sink found, source unrecognised; graphiti injection: score 0).
+- **#3 change-anchoring robustness** — real, but only matters AFTER the static/LLM tiers produce vuln-family
+  findings to anchor. Deprioritised until (1)/(2) yield findings.
 
-**Release read:** the pre-push net is NOT releasable on detection yet. Clean host, generous budget: regex 1/5,
-engine 0/5 on flow-shaped unseen vulns. The engine is close (ranks the region, finds sinks) but its change-anchoring
-gate and family ranking block the catch. Next: a change-anchoring fix + an LLM-tier pilot (L2 recall lift), not more
-budget work.
+**Release read:** the pre-push net is NOT releasable on detection. Clean host, generous budget, LLM off: regex 1/5,
+engine 0/5. The static tiers (regex + Joern dataflow) do not detect these unseen vulns; the decisive untested lever
+is the **LLM adjudication tier**. Next: an **LLM-tier pilot (L1/L2)** on these 5 repos — does enabling the model
+produce vuln-family findings regex+dataflow miss, and at what $/latency.
