@@ -123,9 +123,15 @@ against a realistic pre-push window (≤120 s target, 300 s hard):
     injection/deser) on all 5 — only config_secrets. The tier1/score2.0 "sink" was the RANKER's static candidate,
     not a taint finding. `ambiguous_line_correspondence` is a downstream red herring (nothing to anchor), so the
     region-level witness fix (old "Option A") was **refuted before implementation**. The **LLM tier was disabled**
-    (model_calls=0). **Reprioritised levers:** #1 the **LLM adjudication tier** (disabled) — now primary: run the
-    LLM pilot L1/L2, staged (costs money). #2 taint source/sink coverage + region ranking. #3 change-anchoring
-    (only matters once tiers produce vuln-family findings — deprioritised).
+    (model_calls=0). **ROOT CAUSE:** pilot repos are LIBRARIES whose untrusted input is public-API parameters;
+    Python taint sources are web/CLI only, and the param-as-source mode fires only for entry points (vuln regions
+    are `entry:false`) — widening it statically would reintroduce the WordPress/PMPro false-SQL-injection flood.
+    **Workstream = maintainer's "#2 guided by #1":** the LLM adjudicates which library parameter is a trust boundary
+    (static rules can't without FPs), the taint engine then traces that source→sink as proof, and repeated source
+    shapes get promoted to guarded static facts. First increment (PENDING BUDGET): wire the disabled LLM tier on the
+    5 pilot regions in LLM-guided-source mode; measure source naming, traced finding, catch lift vs regex 1/5, and
+    false-alarm on ordinary changes; stage 5–10 → ~10–20 → full on lift. #3 change-anchoring deprioritised until
+    tiers yield findings.
   - LLM: L1 model latency and calls per push; L2 the recall LIFT of the LLM tier over regex+dataflow on the pool.
   - Deliverable: a barrier table (budget × tier combo → fits? measured recall/FP) → the minimal releasable config.
 

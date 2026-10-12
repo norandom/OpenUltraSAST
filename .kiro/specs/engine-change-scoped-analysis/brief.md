@@ -267,3 +267,34 @@ catches over the regex floor.**
 engine 0/5. The static tiers (regex + Joern dataflow) do not detect these unseen vulns; the decisive untested lever
 is the **LLM adjudication tier**. Next: an **LLM-tier pilot (L1/L2)** on these 5 repos — does enabling the model
 produce vuln-family findings regex+dataflow miss, and at what $/latency.
+
+## ROOT CAUSE of engine 0/5 + the "#2 guided by #1" workstream (2026-10-12)
+
+**Why the taint tier traced no flow (verified in code + evidence):** the pilot repos are **libraries**, whose
+untrusted input arrives as **public-API function parameters**, not HTTP requests. The Python taint **source**
+vocabulary (`ruleset/semantic/python.toml`) is entirely web/CLI: Flask/Django `request.*`, `sys.argv`, `sys.stdin`,
+`input(`. There is no source for a library's own API parameter. The engine *does* have a parameter-as-source mode
+(`_parameters_are_input`, `scan.py`), but it fires **only for recognised entry points** (`_is_entry_point` and
+`entry_kind != "function"`) — the pilot vuln regions carry `entry:false`, so their parameters are **deliberately
+not** sources. That restriction is intentional: treating every function parameter as a source caused a flood of
+false SQL-injections on WordPress/PMPro (documented in the `_parameters_are_input` docstring). So **the static
+engine cannot safely widen its sources to library APIs without reintroducing that false-alarm explosion** —
+`banks` path: sink `path.open` found, `source_local/near=false`; `graphiti`/`bedrock` injection: no source.
+
+**This is the precise seam for the maintainer's "#2 guided by #1" directive.** The static taint cannot *safely*
+decide which library parameters are trust boundaries; the **LLM can** reason about which public-API surface is
+attacker-reachable (intent, not pattern). So:
+- **#1 (LLM) guides:** on a changed library region the engine ranks but cannot source, the LLM adjudicates whether a
+  parameter is an untrusted trust boundary and names the source→sink it believes exists (search-with-proof).
+- **#2 (taint) traces + proves:** the engine then runs the flow from the LLM-named source to the known sink,
+  confirming (or refuting) with a traced path — a proof, not the LLM's say-so. Net: catch without the static FP
+  blowup, and every catch carries a dataflow witness.
+- **Feedback:** where the LLM repeatedly names the same source shape (e.g. a registry-key → path family), promote it
+  to a static fact in `python.toml` guarded by the entry/shape conditions that keep WordPress quiet.
+
+**Proposed first increment (pending budget confirmation — LLM calls cost money):** wire the disabled LLM tier on the
+5 pilot regions in *LLM-guided-source* mode and measure: (a) does it name the right trust-boundary source per vuln,
+(b) does the taint engine then trace source→sink and emit a vuln-family finding, (c) catch lift over regex (1/5) and
+false-alarm cost on the ordinary changes. Stage it (5–10 sizing → ~10–20 → full on lift). This makes "#2 guided by
+#1" the concrete G2 detection workstream; budget/change-scoping and change-anchoring stay deprioritised until it
+yields findings.
