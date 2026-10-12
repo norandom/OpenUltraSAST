@@ -2,7 +2,7 @@
 
 Created 2026-10-12. This brief **supersedes the frozen-SZZ-pool evaluation** (`unseen-repo-evaluation`), which is retired.
 SZZ guessed its labels and placed the vulnerability in the wrong location about half the time (audit: path 1/7,
-output-encoding 1/8 sound). Also, ~76% of entries are library-internal (reachability not in-repo). Catch /
+output-encoding 1/8 sound). Also, ~76% of entries are library-internal (reachability not in-repo). Recall and
 false-alarm numbers from that pool are not valid benchmark results. This brief defines a benchmark with
 sound ground truth and metrics that engineers and managers can understand.
 
@@ -41,15 +41,18 @@ tooling that found the SZZ pool's defects. Dozens of good cases are enough.
 
 ## Metrics someone understands
 
+These are the standard detector metrics. Each row leads with the name a security engineer already knows and
+gives the plain-English question it answers.
+
 | Metric | Plain-English question | Example |
 |---|---|---|
-| **Catch rate** (recall) | Of real vulnerabilities, how many did it flag? | "Caught 18 of 20 (90%)" |
-| **False-alarm rate** | On safe changes, how often does it cry wolf? | "Flagged 3 of 100 ordinary pushes" |
-| **Precision** | When it alarms, how often is it real? | "When it speaks up, it's right 8 of 10 times" |
-| **Proof rate** | Of what it flags, how much can it *demonstrate*, not just suspect? | "12 of 18 catches came with a working demonstration" |
+| **Recall** (true-positive rate) | Of real vulnerabilities, how many did it flag? | "Caught 18 of 20 (90%)" |
+| **False-positive rate** | On safe changes, how often does it alarm? | "Flagged 3 of 100 ordinary pushes" |
+| **Precision** (positive predictive value) | When it alarms, how often is it real? | "When it speaks up, it's right 8 of 10 times" |
+| **Exploit-verified rate** | Of what it flags, how much can it demonstrate with a working proof of concept, not just suspect? | "12 of 18 catches came with a working proof of concept" |
 
-Report false alarms as **"per 100 pushes"**, which reflects a developer's experience. Vulnerabilities are rare
-among real pushes. Precision depends on that ratio, so a 50/50 test set overstates it.
+Report the false-positive rate as **false alarms per 100 pushes**, which reflects a developer's experience.
+Vulnerabilities are rare among real pushes. Precision depends on that ratio, so a 50/50 test set overstates it.
 
 Report the first two metrics together:
 
@@ -58,20 +61,20 @@ Report the first two metrics together:
 
 This wording is easier for a manager to understand than "3/92, Wilson95 1.1–9.2%".
 
-## The gold-standard metric — and the project's edge
+## The gold-standard metric, and the project's edge
 
-**Proved catches** do not depend on labels. The search-with-proof / differential-exploit arm demonstrates the
-bad effect on the vulnerable code and its absence on the fixed code. The demonstration *is* the ground truth.
-The headline to aim for is:
+**Exploit-verified findings** do not depend on labels. The search-with-proof / differential-exploit arm
+demonstrates the bad effect on the vulnerable code and its absence on the fixed code. A working proof of concept
+is the ground truth. The headline to aim for is:
 
-> "On unseen app repos: caught and *proved* N of M real vulnerabilities, with K false alarms per 100 ordinary
-> pushes."
+> "On unseen app repos: caught and exploit-verified N of M real vulnerabilities, with K false alarms per 100
+> ordinary pushes."
 
 The architecture is built to produce this kind of benchmark.
 
 ## Why the old approach was not feasible (recorded so it is not re-tried)
 
-- SZZ ground truth is machine-guessed and ~half wrong → every catch/FP number off it is noise.
+- SZZ ground truth is machine-guessed and ~half wrong → every recall or false-positive number off it is noise.
 - Library-heavy corpus → most cases are unreachable in-repo, so a pre-push tool is scored on things it
   structurally cannot see.
 - Scoring regex-only (engine and LLM off) measured a tier nobody would ship alone.
@@ -79,7 +82,7 @@ The architecture is built to produce this kind of benchmark.
 
 ## Open questions for the spec phase
 
-- How many verified positives are enough for a credible catch-rate interval (target set size)?
+- How many verified positives are enough for a credible recall interval (target set size)?
 - The negative:positive ratio that reflects real push traffic (for an honest false-alarms-per-100-pushes).
 - Curation workflow: how LLM adjudication + human spot-check are recorded and frozen per case.
 - Language/framework coverage of the positive set (be explicit about what is and isn't represented).

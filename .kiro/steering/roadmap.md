@@ -22,8 +22,8 @@ The A/B experiments test whether the safety net works on repositories it has nev
 answer that question. Almost every push on an unseen repository is an ordinary change. Two numbers measure whether
 the safety net is useful, based on the hook's advisory output as a user sees it:
 
-1. How often does it flag real vulnerability-introducing changes in unseen repositories (catch rate)?
-2. How often does it flag anything on ordinary changes in the same unseen repositories (false-alarm rate)?
+1. How often does it flag real vulnerability-introducing changes in unseen repositories (recall)?
+2. How often does it flag anything on ordinary changes in the same unseen repositories (false-positive rate)?
 
 Within-pair AUC on known fix pairs answers neither. It stays a development signal, not the goal.
 
@@ -71,7 +71,7 @@ machinery remains available. The engine/replay images are pinned. No catch/false
 Next, define and build the valid benchmark. Use sound, verified positives with in-repo reachability and ordinary
 negatives on unseen repos. Measure the whole tool with metrics an engineer understands. The design is in
 `.kiro/specs/valid-detection-benchmark/brief.md`. Only once that benchmark exists does any detection number
-(catch rate, false-alarms-per-100-pushes, proved-catch) mean anything. The kube `ax` lane is still the place the
+(recall, false alarms per 100 pushes, exploit-verified findings) mean anything. The kube `ax` lane is still the place the
 engine tier runs at scale, but it is infrastructure, not the gate.
 
 ### Restoring the kube `ax` lane (for G1, operator-owned)
@@ -100,16 +100,17 @@ What remains before the G1 engine-arm replay:
    LLM adjudication and a human spot-check so the positives are sound, app-shaped and verified.
 2. Ordinary negatives: everyday non-fix commits from the same application repos, a set much larger than the
    positives (false alarms discourage adoption).
-3. Measure the **whole tool** (all tiers on) on **unseen** repos, and report metrics an engineer reads: catch
-   rate, **false-alarms per 100 pushes**, precision, and **proved-catch** (demonstrated, label-free). See the
-   brief for the full definition and why the SZZ pool was not feasible.
+3. Measure the **whole tool** (all tiers on) on **unseen** repos, and report metrics an engineer reads:
+   **recall**, **false alarms per 100 pushes** (false-positive rate), **precision**, and **exploit-verified**
+   findings (demonstrated with a working proof of concept, label-free). See the brief for the full definition
+   and why the SZZ pool was not feasible.
 
 Exit: the benchmark exists (frozen, verified) and the whole tool has a first measured result on it.
 
 **G1. Score the arms on the valid benchmark**
 
 Quick rules, engine evidence, the LLM-guided arm, and their combination, each a registered decision rule,
-scored by catch rate at a fixed false-alarms-per-100-pushes budget, with proved-catch where available.
+scored by recall at a fixed false-alarms-per-100-pushes budget, with exploit-verified findings where available.
 
 Exit: one measured table of arms on unseen app-shaped code; keep only what generalises. (No number is quoted
 until it comes from this benchmark, never the SZZ pool.)
@@ -138,7 +139,7 @@ against a realistic pre-push window (≤120 s target, 300 s hard):
   - **ENGINE-ON PILOT DONE (2026-10-12, clean host, 5 public repos), see brief "ENGINE-ON PILOT RESULTS".**
     **regex 1/5, engine 0/5.** The engine added no catches over the regex floor. The budget hypothesis is
     refuted: 3/5 repos finished their queue (deferred=0) and still emitted no finding, so change-scoping will not
-    improve catch rate. The engine ranked the vuln region in all 5 and found the right sink on 2 (socketio deser,
+    improve recall. The engine ranked the vuln region in all 5 and found the right sink on 2 (socketio deser,
     launch-editor, score 2.0), but withholds any finding it cannot anchor 1:1 to changed lines: all 5 hit
     `ambiguous_line_correspondence` → `witness_unresolved` → `coverage_status=incomplete`, suppressing even the
     scored sinks. This is not a shallow-clone artifact. Detection does not meet release requirements.
@@ -168,7 +169,7 @@ against a realistic pre-push window (≤120 s target, 300 s hard):
 
 - The pilot lowers the priority of change-scoped engine analysis again. Branch `engine-change-scoped-evidence-pass`
   (unmerged). Fitting the budget does not produce catches (3/5 pilot repos finished the queue with zero findings),
-  so this is not required to improve catch rate. Keep only as a latency optimisation once detection works.
+  so this is not required to improve recall. Keep only as a latency optimisation once detection works.
 - **Line-correspondence (merged c39fbb8).** `ambiguous_line_correspondence` fires on 5/5 realistic diffs, but the
   pilot's corrected diagnosis shows it does not block detection here. The static tiers produce no vuln-family
   findings to anchor. A region-level witness fallback only matters once #1/#2 yield findings.
