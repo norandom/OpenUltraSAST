@@ -112,17 +112,27 @@ against a realistic pre-push window (≤120 s target, 300 s hard):
     `taint.sc`'s ~160 s per-batch flow work, so `build(~30)+evidence(~225)≈255 s` of 300 s defers 1009/1365
     regions. Lever = **change-scope the family/file set** the taint batch walks (NOT session/preload). E3 analysis
     per-pair cost; E4 build vs repo size remain.
-  - **DECISIVE next experiment (ahead of E3/E4/L1/L2): engine-on unseen PILOT.** Clean host selects 356 regions —
-    does it CATCH what regex misses? Replay a handful of pool repos with the engine arm enabled, clean host, score
-    vs record-07's regex-only floor (catch 3/92). This is the G2 payoff measurement.
+  - **ENGINE-ON PILOT DONE (2026-10-12, clean host, 5 public repos) — see brief "ENGINE-ON PILOT RESULTS".**
+    **regex 1/5, engine 0/5.** The engine added NO catches over the regex floor. The **budget hypothesis is
+    REFUTED**: 3/5 repos finished their queue (deferred=0) and still emitted no finding — so change-scoping is NOT
+    the path to catch. The engine ranked the vuln region in all 5 and found the right sink on 2 (socketio deser,
+    launch-editor, score 2.0), but **withholds any finding it cannot anchor 1:1 to changed lines**: all 5 hit
+    `ambiguous_line_correspondence` → `witness_unresolved` → `coverage_status=incomplete`, suppressing even the
+    scored sinks. Confirmed NOT a shallow-clone artifact. **Release read: the net is NOT releasable on detection.**
+  - **Reprioritised engine levers (budget/change-scoping DEMOTED):** #1 **change-anchoring robustness** (report a
+    region-level / change-adjacent finding when exact 1:1 line anchoring fails — suppressed findings on 5/5); #2
+    **family ranking / taint coverage** (correct family must win, source→sink must connect); #3 the **LLM
+    adjudication tier** — the pilot is the empirical case to prioritise it (L1/L2): does the LLM confirm what the
+    dataflow finds but cannot anchor?
   - LLM: L1 model latency and calls per push; L2 the recall LIFT of the LLM tier over regex+dataflow on the pool.
   - Deliverable: a barrier table (budget × tier combo → fits? measured recall/FP) → the minimal releasable config.
 
-- **Change-scoped engine analysis — RECONSIDERED: relevant after all, on a clean host.** Branch
-  `engine-change-scoped-evidence-pass` (unmerged). E1/E2 show the barrier is the taint batch's per-batch work, so
-  scoping the **family/file set** it walks (not merely the pair list) is the lever; replace the adaptive portioning
-  with a fixed cap (cost is per-batch-fixed, not per-pair). Pair up with the engine-on pilot.
-- **Line-correspondence (done, necessary-not-sufficient).** `snapshot.py` run-aware anchoring (commit c39fbb8).
+- **Change-scoped engine analysis — DEMOTED again by the pilot.** Branch `engine-change-scoped-evidence-pass`
+  (unmerged). Fitting the budget does not produce catches (3/5 pilot repos finished the queue with zero findings),
+  so this is not on the catch critical path. Keep only as a latency optimisation once detection works.
+- **Line-correspondence (merged c39fbb8 but INSUFFICIENT).** The pilot shows `ambiguous_line_correspondence` still
+  fires on 5/5 realistic diffs and is now the **#1 detection blocker** — the engine withholds anchored findings.
+  Needs a region-level witness fallback when 1:1 line anchoring is impossible.
 
 **G3. Decide BLOCK per family** on the pool's false-alarm rate and the pooled precision bound (Req 6.4).
 

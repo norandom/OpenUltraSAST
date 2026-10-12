@@ -216,3 +216,48 @@ conflated with host contention from the running baseline replay:
 CATCH vulns regex misses?* That needs an **engine-on unseen pilot** (a handful of pool repos replayed with the
 engine arm enabled on a clean host) scored against record 07's regex-only floor (catch 3/92). That is the decisive
 next experiment, ahead of E3/E4/L1/L2.
+
+## ENGINE-ON PILOT RESULTS (measured 2026-10-12, CLEAN host, 5 public pool repos, vuln change each, 300 s)
+
+Five public repos picked for flow-shaped families and small size (engine's best chance to finish and catch):
+
+| repo | fam | size | REGEX on vuln | ENGINE finding | cov | vuln region ranked | best taint | selected/deferred | wall |
+|---|---|---|---|---|---|---|---|---|---|
+| masci/banks | path | 2f | ✗ | **none** | incomplete | yes | sink found, no source (score 0) | 281 / **0** | 236 s |
+| vitejs/launch-editor | injection | 1f | ✗ | **none** | incomplete | yes | tier1 score2.0 sink (wrong fam) | 13 / 38 | 261 s |
+| getzep/graphiti | injection | 5f | ✗ | **none** | incomplete | yes | injection score 0 | 882 / **0** | 304 s |
+| aws/bedrock-agentcore | injection | 3f | ✗ | **none** | incomplete | yes | — | 356 / 1009 | 305 s |
+| miguelgrinberg/python-socketio | deser | 10f | **✓ (n=2)** | **none** | incomplete | yes | **tier1 score2.0 sink found** | 136 / **0** | 257 s |
+
+**Result: regex 1/5, engine 0/5.** On a clean host, with budget to spare on most, the shipped engine **added no
+catches over the regex floor.**
+
+**Why (measured, traced — not a budget wall):**
+1. **The budget hypothesis is REFUTED.** banks, graphiti and socketio **finished their region queue** (deferred=0)
+   and still emitted no finding. Change-scoping to fit budget would not have changed the outcome.
+2. **The engine ranked the vuln region in every repo** (`vuln_in_analyses=true`) and on 2 of 5 (socketio deser,
+   launch-editor) the **dataflow found the right sink** (tier=1, score=2.0). So detection partially worked.
+3. **The dominant blocker is change-anchoring, not taint.** All 5 hit `ambiguous_line_correspondence` →
+   `witness_unresolved` → `coverage_status=incomplete`, and the engine **withholds any finding it cannot anchor
+   one-to-one to the changed lines** — suppressing even the scored sinks in (2). This is `snapshot.py`'s line
+   correspondence marking the diff ambiguous when the same content line appears in multiple runs (moved/repeated
+   lines). **Confirmed NOT a shallow-clone replay artifact** — correspondence is computed from both full blobs, which
+   depth-1 fetches of each SHA provide. The merged line-correspondence fix (c39fbb8) does not resolve these cases.
+4. **Family ranking also misses** on some (graphiti injection score 0; banks path found the sink but no source).
+5. **Measurement caveat:** the pool's SZZ last-writer change definition yields **large/moved diffs** where exact
+   change-anchoring is inherently ambiguous (the pool documents this bias). Part of the 0/5 is this corpus property
+   interacting with the engine's change-anchored design; a cleaner probe uses tight vuln-introducing diffs.
+
+**Reprioritised engine levers (budget/change-scoping demoted):**
+- **#1 change-anchoring robustness.** `ambiguous_line_correspondence`/`witness_unresolved` suppressed findings on
+  5/5, including 2 with a scored sink. Make the engine able to report a change-adjacent finding when exact 1:1
+  anchoring is impossible (region-level witness, not line-level) — the single highest-leverage fix.
+- **#2 family ranking / taint coverage** so the correct family wins and source→sink connects on these shapes.
+- **#3 the LLM adjudication tier (disabled in the push path)** — the arm designed to confirm what the dataflow
+  finds but cannot anchor. The pilot is the empirical case for L1/L2: regex+dataflow caught 1/5 here; the question
+  is whether the LLM tier lifts it. **This is now the strongest argument for prioritising the LLM arm.**
+
+**Release read:** the pre-push net is NOT releasable on detection yet. Clean host, generous budget: regex 1/5,
+engine 0/5 on flow-shaped unseen vulns. The engine is close (ranks the region, finds sinks) but its change-anchoring
+gate and family ranking block the catch. Next: a change-anchoring fix + an LLM-tier pilot (L2 recall lift), not more
+budget work.
