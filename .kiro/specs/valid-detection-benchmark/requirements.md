@@ -52,9 +52,19 @@ security metrics.
 - No repository in the benchmark was used to build, train, tune, mine, or harvest the tool. Enforce this
   with the existing used-set canonicalization (`eligibility.normalize`), the same guard the SZZ pool used.
 
-### R6. Measure the whole tool on unseen repos
-- Run the tool as a developer runs it at push time: quick rules on, engine on, LLM-guided arm on.
-- Use the existing replay harness so the measured path is the shipped push hook.
+### R6. Measure the push path on unseen repos, with the LLM tier
+- The tool a developer runs at push time must include the LLM detection tier (the hunter). That is a
+  product requirement on the pre-push hook, owned by `pre-push-safety-net`. The benchmark measures the
+  push path, not a scan mode.
+- Today the shipped hook runs quick rules and the engine only. Its model path (`push/assistance.py`)
+  selects witnesses for already-admitted defects and cannot add a finding. Until the hunter is wired into
+  the hook, the benchmark reports two arms over the same changes and labels them:
+  - (a) the push hook as shipped (quick rules + engine), through the replay harness;
+  - (b) the push hook plus the hunter arm, the hunter run off-cluster over the same changes and the
+    records combined per change.
+  (b) is the number the tool is held to. (a) is what ships today. The gap between them is product work,
+  not a benchmark artefact, and is reported as such.
+- Use the existing replay harness for (a) so the measured path is the shipped push hook.
 
 ### R7. Standard metrics
 - Report recall (true-positive rate), precision (positive predictive value), false-positive rate as

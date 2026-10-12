@@ -43,13 +43,26 @@ Order is dependency order. Each task is small enough to review on its own. New c
 - [ ] 5.1 Source Python/JS advisories; run `catalog.py` to ~25 candidates. (deliberate, rate-aware)
 - [ ] 5.2 Run `verify.py` + human spot-check to land ~12 accepted positives.
 - [ ] 5.3 `assemble.py` freezes the pilot manifest + negatives (>=20x) + held-out guard.
-- [ ] 5.4 `replay.py` on the Docker lane, whole tool on (quick + engine + LLM arm).
-- [ ] 5.5 `score.py` + `metrics.py`: produce recall, precision, FP/100, exploit-verified, intervals, and
-  the headline. Freeze the run under `benchmarks/measurements/`.
-- [ ] 5.6 Write up the pilot: the four numbers, what they mean, and the target set size from `required_n`
-  for the full ~40-positive benchmark.
+- [ ] 5.4 `replay.py` on the Docker lane, arm (a): the push hook as shipped (quick + engine, 300 s).
+  Running overnight 2026-10-12; records under `~/ousast-results/valid/pilot/long_deadline`.
+- [ ] 5.5 `score.py` + `metrics.py` on arm (a): recall, precision, FP/100, exploit-verified, intervals,
+  and the headline, labelled "push hook as shipped". Freeze the run under `benchmarks/measurements/`.
+- [ ] 5.6 Write up the pilot: the four numbers for (a), what they mean, the engine-covered rate, and the
+  target set size from `required_n` for the full ~40-positive benchmark.
+
+## Group 6 - hunter arm (the LLM tier required on pre-push)
+- [ ] 6.1 `benchmarks/valid/hunter_arm.py`: for each change in the frozen manifest, check out `head` in
+  the local clone, build `FileTarget`s scoped to the changed files, run `hunter.run_hunter_pool`
+  (`src/openultrasast/hunter.py`, wiring in `cli.py` `_attach_tool_hunter`), and emit a record `score.py`
+  can read (an alerts/advisory stream keyed by change id). Runs off-cluster; the model key never enters
+  a replay container. Honors the instrument rule (bytes read per target, fail loudly on an empty read).
+- [ ] 6.2 Combine arm (a) and arm (b) records per change id and rescore: this is the number the tool is
+  held to (R6). Report (a), (a)+(b), and the difference as the pre-push product gap.
+- [ ] 6.3 Offline test with a stub hunter: a flagged change joins the (a) record; a missing (b) record
+  leaves (a) unchanged; duplicate ids are rejected.
 
 ## Out of this spec
 - Growing beyond the pilot to the full set (follow-up, once the pipeline is proven).
 - Running on kube `ax` (blocked on gVisor; Docker lane is enough here).
-- Any new detection capability.
+- Any new detection capability, including wiring the hunter into the pre-push hook. That is product
+  work in `pre-push-safety-net`; this spec measures the push path with and without it.

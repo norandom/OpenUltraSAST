@@ -13,8 +13,10 @@ A pre-push security check must answer two questions:
 1. **If I'm about to push a real vulnerability, does it stop me?**
 2. **If my change is fine, does it leave me alone?**
 
-The benchmark runs the **whole tool** as a developer uses it at push time. Quick rules and the engine are on,
-as is the LLM-guided arm. The repositories are ones the tool has **never seen**.
+The benchmark measures the **push path** as a developer uses it. The LLM detection tier (the hunter) is
+required on pre-push. Today the shipped hook runs quick rules and the engine only, so the benchmark
+reports the hook as shipped and the hook plus the hunter arm separately until the hunter is wired in
+(see `requirements.md` R6). The repositories are ones the tool has **never seen**.
 
 ## What makes the data valid
 

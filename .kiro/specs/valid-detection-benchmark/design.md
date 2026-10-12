@@ -36,7 +36,9 @@ advisories (OSV/GHSA)
   -> human spot-check                record decision, reviewer, date       [manual, recorded in verification.json]
   -> draw_ordinary()                 negatives from the same repos          [reuse]
   -> assemble.py                     freeze positives+negatives -> manifest + digest, held-out guard  [new, wraps eligibility.normalize]
-  -> replay.py (docker lane)         run the whole tool at push time        [reuse]
+  -> replay.py (docker lane)         arm (a): the push hook as shipped (quick + engine)      [reuse]
+  -> hunter arm runner               arm (b): the hunter over the same changes, off-cluster  [new, group 6]
+  -> combine                         (a) and (b) joined per change id                        [new, group 6]
   -> score.py + metrics.py           recall, precision, FP/100, exploit-verified, intervals  [reuse + new]
 ```
 
@@ -108,8 +110,13 @@ Headline string, built here:
 3. `verify.py` runs the LLM check; human spot-checks all of them (dozens, so full review is cheap).
 4. `draw_ordinary()` draws >=20x negatives from the same repos.
 5. `assemble.py` freezes the manifest + digest + held-out guard.
-6. `replay.py` on the Docker lane runs the whole tool.
-7. `score.py` + `metrics.py` produce the four metrics with intervals and the headline.
+6. `replay.py` on the Docker lane runs the push hook as shipped (arm a). The hunter arm runner adds arm
+   (b) over the same changes, off-cluster, and the two are combined per change.
+7. `score.py` + `metrics.py` produce the four metrics with intervals and the headline, for (a) and for
+   (a)+(b). (b) is the number the tool is held to; the difference is the product gap on pre-push.
+
+Wiring the hunter into the pre-push hook itself is product work in `pre-push-safety-net`. This spec
+measures the push path with and without it; it does not change the hook.
 
 The pilot proves the pipeline and gives the first real numbers. Then grow positives to ~40 (set exactly
 by `required_n`) and, where the proof arm has run, fill in the exploit-verified rate.
