@@ -1,6 +1,28 @@
 # BUG: `taint.sc` single-query path broken by exec-signature skew
 
-Filed: 2026-10-12 · Repo HEAD at filing: `7ab5c2a` · Severity: **high (silent zero)** · Status: OPEN
+Filed: 2026-10-12 · Repo HEAD at filing: `7ab5c2a` · Severity: **high (silent zero)** · Status: **FIXED (2026-10-12)**
+
+## Resolution (2026-10-12)
+
+Fixed via **option 1** (filter params to the declared signature) in `src/openultrasast/cpg/backend.py`:
+
+- New `_declared_exec_params(source)` parses the `@main def exec(...)` parameter names from a shipped script
+  (brace-aware, tolerant of an unfindable signature → empty set → "do not filter").
+- New memoised `JoernBackend._declared_params(query)` reads+caches a script's declared names.
+- `JoernBackend.query()` now drops any param the script does not declare before building the `--param` list
+  (disposable route) and the in-session named-arg call (session route). This is faithful, not lossy: the
+  single-request branch of `taint.sc` (line 1542) calls `rowsFor(...)` with top-level params only and lets
+  `fixedOrigin`/`originAnchors`/`quotedSanitizers`/`guards`/`fieldParameterSources` default — it never could
+  consume them. The batch path keeps carrying them as JSON the script parses itself.
+- No-op for `config`/`dominance`: their own `request_params` emit only params their `.sc` declares (verified),
+  so nothing is dropped. Only `taint` sheds the 5 extras.
+
+**Verified end-to-end** (patched backend mounted into the replay image, single-query path on banks): the
+queries now RUN (no `cpg query taint failed`); baseline = 0 findings, fixed search (annotation) = 2 scored
+`path`/`model_entailed` findings (`from_prompt_path` → `prompt_file.write_text(prompt.raw)` L45; `_scan` →
+`self._index_path.write_text(...)` L155). Regression test:
+`tests/test_cpg_backend.py::test_a_single_query_passes_only_params_the_script_declares` (fake runner, no Joern
+— asserts the 5 undeclared params never reach the command line and the query parses).
 
 ## Summary
 

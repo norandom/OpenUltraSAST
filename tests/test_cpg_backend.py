@@ -166,6 +166,43 @@ def test_a_batch_is_one_invocation_carrying_many_requests(monkeypatch: pytest.Mo
     assert rows["r1"] and rows["r2"] == []
 
 
+def test_a_single_query_passes_only_params_the_script_declares(tmp_path: Path) -> None:
+    """A taint spec carries fields only the BATCH path consumes (`guards`, `fixedOrigin`, ...): the script
+    reads them from each request's JSON, and its single-request branch defaults them. Passed to `exec` as
+    `--param guards=...`, joern reports `Unknown arguments` and the whole query fails -- a silent zero of the
+    exact shape AGENTS.md warns about. The single-query path must drop any name the script does not declare.
+    """
+    from openultrasast.cpg.backend import BEGIN, END, JoernBackend, _declared_exec_params
+    from openultrasast.model.specs import taint_specs
+    from openultrasast.model.taint import request_params
+
+    calls: list[list[str]] = []
+
+    class _Done:
+        returncode = 0
+        stderr = ""
+        stdout = f"{BEGIN}\n[]\n{END}\n"
+
+    def runner(command, **kwargs):  # type: ignore[no-untyped-def]
+        calls.append(list(command))
+        return _Done()
+
+    backend = JoernBackend(runner=runner)
+    spec = taint_specs(language="python")["path"]
+    params = request_params(spec, function="from_prompt_path", file="x.py", parameter_sources=True)
+    # The spec DOES emit the undeclared fields; the guard is that they do not reach the command line.
+    undeclared = set(params) - _declared_exec_params((backend.queries_dir / "taint.sc").read_text())
+    assert {"guards", "fixedOrigin", "originAnchors", "quotedSanitizers", "fieldParameterSources"} <= undeclared
+
+    result = backend.query(tmp_path / "cpg.bin", "taint", params)
+
+    assert result == [], "the query must parse, not fail on unknown arguments"
+    assert len(calls) == 1
+    passed = {part.split("=", 1)[0] for part in calls[0] if "=" in part}
+    assert not (passed & {f"{name}" for name in undeclared}), f"undeclared params reached joern: {passed & undeclared}"
+    assert {"sources", "sinks", "function"} <= passed, "declared params must still be sent"
+
+
 def test_a_failed_batch_yields_no_rows_for_any_request(monkeypatch: pytest.MonkeyPatch) -> None:
     """Fail closed, as everywhere else: an engine that could not answer must not read as 'nothing here'."""
     from openultrasast.cpg.backend import JoernBackend

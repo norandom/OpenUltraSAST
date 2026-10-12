@@ -1,0 +1,22 @@
+PATCH PRESENT: True
+=== building banks CPG (python) ===
+CPG built.
+shipped path spec: sources=22 sinks=('FileResponse', 'open', 'os.remove', 'os.unlink', 'send_file', 'send_from_directory', 'shutil.copy', 'shutil.move', 'shutil.rmtree')
+ANNOTATED path spec sinks: ('FileResponse', 'open', 'os.remove', 'os.unlink', 'read_text', 'send_file', 'send_from_directory', 'shutil.copy', 'shutil.move', 'shutil.rmtree', 'write_text')
+
+=== BASELINE (shipped search: no source annotation, no sink annotation) ===
+  [baseline] from_prompt_path (parameter_sources=False): 0 finding(s)
+  [baseline] set (parameter_sources=False): 0 finding(s)
+  [baseline] _load (parameter_sources=False): 0 finding(s)
+  [baseline] _scan (parameter_sources=False): 0 finding(s)
+
+=== FIXED SEARCH (LLM annotation injected: param source + write_text/read_text sink) ===
+  [fixed] from_prompt_path (parameter_sources=True): 1 finding(s)
+      family=path rung=model_entailed site=src/banks/registries/directory.py:45:from_prompt_path witness=path -> prompt_file.write_text(prompt.raw) in src/banks/registries/directory.py (line 45, 
+  [fixed] set (parameter_sources=True): 0 finding(s)
+  [fixed] _load (parameter_sources=True): 0 finding(s)
+  [fixed] _scan (parameter_sources=True): 1 finding(s)
+      family=path rung=model_entailed site=src/banks/registries/directory.py:155:_scan witness=self -> self._index_path.write_text(self._index.model_dump_json()) in src/banks/registries
+
+=== RESULT: baseline path findings=0  fixed-search path findings=2 ===
+FIXED SEARCH CATCHES BANKS

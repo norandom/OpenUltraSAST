@@ -408,6 +408,8 @@ class JoernBackend:
     _cancel_deadline: float | None = field(default=None, init=False, repr=False)
     _session: EngineSession | None = field(default=None, init=False, repr=False)
     _defined: set[str] = field(default_factory=set, init=False, repr=False)
+    # Declared `@main def exec(...)` parameter names per shipped script, parsed once. See `_declared_params`.
+    _script_params: dict[str, frozenset[str]] = field(default_factory=dict, init=False, repr=False)
 
     def available(self) -> bool:
         from .capability import has_cpg
@@ -1263,6 +1265,23 @@ class JoernBackend:
         # A request the engine did not answer is absent, not empty: the caller must be able to tell them apart.
         return {str(rid): list(rows) for rid, rows in parsed.items() if rid != PARTIAL and isinstance(rows, list)}
 
+    def _declared_params(self, query: str) -> frozenset[str]:
+        """Declared ``exec`` parameter names for a shipped script, parsed once and memoised.
+
+        Empty means the signature could not be read or parsed; callers must then NOT filter, so an
+        unexpected script shape degrades to today's behaviour rather than dropping every parameter.
+        """
+        cached = self._script_params.get(query)
+        if cached is not None:
+            return cached
+        try:
+            source = (self.queries_dir / f"{query}.sc").read_text()
+        except OSError:
+            source = ""
+        declared = _declared_exec_params(source)
+        self._script_params[query] = declared
+        return declared
+
     def query(self, cpg_path: Path, query: str, params: Mapping[str, object]) -> object | None:
         """Run a shipped CPGQL script against a built CPG and return its fenced JSON payload."""
         if not self._time_available():
@@ -1271,6 +1290,14 @@ class JoernBackend:
         if not script.is_file():
             logger.warning("no such cpg query: %s", script)
             return None
+        # A single query passes its params as `--param name=value` (disposable) or as named arguments to the
+        # in-session `exec` (session). Either way a name the script does not declare is a hard error -- joern
+        # prints `Unknown arguments: --guards ...` and the query fails, reading upstream as zero flows. The
+        # batch path never hits this because the same extras travel inside the requests JSON the script parses
+        # itself. So drop any param the script does not declare; the single-request branch defaults them anyway.
+        declared = self._declared_params(query)
+        if declared:
+            params = {key: value for key, value in params.items() if key in declared}
         body = self._session_payload(cpg_path, query, {"cpgFile": str(cpg_path), **params})
         if body is None:
             command = [shutil.which("joern") or "joern", self._heap_flag(), "--script", str(script), "--param", f"cpgFile={cpg_path}"]
@@ -1721,6 +1748,57 @@ def _engine_failure(completed: subprocess.CompletedProcess[str] | None) -> str:
     lines = [line for line in text.splitlines() if line.strip() and not line.strip().startswith("at ")]
     head = " | ".join(lines[:4])[:600]
     return head or text[:300]
+
+
+def _declared_exec_params(source: str) -> frozenset[str]:
+    """The parameter names a shipped ``@main def exec(...)`` script declares.
+
+    A single-query caller builds its params from a family spec (``request_params``), which carries fields
+    only some scripts and some code paths consume. ``taint.sc`` reads ``fixedOrigin``/``originAnchors``/
+    ``quotedSanitizers``/``guards``/``fieldParameterSources`` from the per-request JSON object in its BATCH
+    branch, but its single-request branch and its ``exec`` signature do not take them at all -- they default.
+    Passed to ``exec`` as ``--param guards=...`` or as a named argument, joern reports ``Unknown arguments``
+    and the whole query fails: a silent zero of exactly the shape AGENTS.md warns about. Knowing what a
+    script declares lets the single-query path drop the rest, losing nothing the single-request branch could
+    have used while the batch path keeps carrying them as JSON the script parses itself.
+
+    Returns an empty set when the signature cannot be found, which callers read as "do not filter".
+    """
+    marker = "@main def exec("
+    start = source.find(marker)
+    if start < 0:
+        return frozenset()
+    index = start + len(marker)
+    depth = 1
+    begin = index
+    while index < len(source) and depth > 0:
+        char = source[index]
+        if char in "([{":
+            depth += 1
+        elif char in ")]}":
+            depth -= 1
+            if depth == 0:
+                break
+        index += 1
+    signature = source[begin:index]
+    names: set[str] = set()
+    depth = 0
+    last = 0
+    parts: list[str] = []
+    for position, char in enumerate(signature):
+        if char in "([{":
+            depth += 1
+        elif char in ")]}":
+            depth -= 1
+        elif char == "," and depth == 0:
+            parts.append(signature[last:position])
+            last = position + 1
+    parts.append(signature[last:])
+    for part in parts:
+        head = part.split(":", 1)[0].strip()
+        if head.isidentifier():
+            names.add(head)
+    return frozenset(names)
 
 
 def _render(value: object) -> str:
