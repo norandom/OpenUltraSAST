@@ -51,14 +51,16 @@ Order is dependency order. Each task is small enough to review on its own. New c
   target set size from `required_n` for the full ~40-positive benchmark.
 
 ## Group 6 - hunter arm (the LLM tier required on pre-push)
-- [ ] 6.1 `benchmarks/valid/hunter_arm.py`: for each change in the frozen manifest, check out `head` in
-  the local clone, build `FileTarget`s scoped to the changed files, run `hunter.run_hunter_pool`
-  (`src/openultrasast/hunter.py`, wiring in `cli.py` `_attach_tool_hunter`), and emit a record `score.py`
-  can read (an alerts/advisory stream keyed by change id). Runs off-cluster; the model key never enters
-  a replay container. Honors the instrument rule (bytes read per target, fail loudly on an empty read).
-- [ ] 6.2 Combine arm (a) and arm (b) records per change id and rescore: this is the number the tool is
+- [x] 6.1 `benchmarks/valid/hunter_arm.py`: for each change in the frozen manifest, check out `head` in
+  the local clone (detached worktree), build hotspots for the changed files, run the shipped deep-mode
+  arm `tool_hunter.run_tool_hunter` with `resolve_hunter_client()` (the hunter that beat overlay 12/14;
+  wiring in `cli.py` `_attach_tool_hunter`), and emit a record `score.py` can read: findings go under
+  `push.admission.defects` with `family` and `locations = [[path, line]]` (the alerts stream), keyed by
+  change id. Runs off-cluster; the model key never enters a replay container. Honors the instrument rule
+  (bytes read per hotspot, fail loudly on an empty read).
+- [x] 6.2 Combine arm (a) and arm (b) records per change id and rescore: this is the number the tool is
   held to (R6). Report (a), (a)+(b), and the difference as the pre-push product gap.
-- [ ] 6.3 Offline test with a stub hunter: a flagged change joins the (a) record; a missing (b) record
+- [x] 6.3 Offline test with a stub hunter: a flagged change joins the (a) record; a missing (b) record
   leaves (a) unchanged; duplicate ids are rejected.
 
 ## Out of this spec
