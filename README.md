@@ -439,12 +439,13 @@ uncommitted changes without publishing a git commit.
 
 With `KUBECONFIG` pointing to the operator's kube-ax config and store settings in
 `.env`, run a one-pin smoke using the default experiment units and local example
-memory (or add `--examples /path/to/frozen-examples.jsonl`):
+memory (or add `--examples /path/to/frozen-examples.jsonl`). Use the `ax` binary at
+`$HOME/go/bin/ax` — `$HOME/.local/ax-v0.3.1/ax` hits the AX-lane dispatch blocker:
 
 ```bash
 : "${KUBECONFIG:?Set KUBECONFIG to the operator kube-ax configuration}"
 python benchmarks/learn/engine_trace.py --executor ax \
-  --ax-bin "$HOME/.local/ax-v0.3.1/ax" --kubeconfig "$KUBECONFIG" \
+  --ax-bin "$HOME/go/bin/ax" --kubeconfig "$KUBECONFIG" \
   --atespace default --image "$TASK_IMAGE" --docker-image openultrasast:engine-ax \
   --parallel 1 --limit 1 --deadline 900 \
   --out "$HOME/ousast-results/plane/engine-ax-smoke"
@@ -454,7 +455,7 @@ Then run the mixed lanes (repeat to resume; defaults re-run failed/timeout pins)
 
 ```bash
 python benchmarks/learn/engine_trace.py --executor mixed-ax \
-  --ax-bin "$HOME/.local/ax-v0.3.1/ax" --kubeconfig "$KUBECONFIG" \
+  --ax-bin "$HOME/go/bin/ax" --kubeconfig "$KUBECONFIG" \
   --atespace default --image "$TASK_IMAGE" --docker-image openultrasast:engine-ax \
   --parallel 2 --deadline 900 --rerun-status failed,timeout \
   --out "$HOME/ousast-results/plane/engine-ax-mixed"

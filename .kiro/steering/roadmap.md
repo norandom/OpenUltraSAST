@@ -43,8 +43,11 @@ bottleneck for the measurements below.
 
 ### Where we are (2026-10-11)
 
-The G0 measurement is now runnable: the unseen pool is **frozen** and the whole pipeline is hardened and
-**bucket-first**. The baseline replay is the one remaining step, to run on kube.
+The G0 measurement is **done**: the unseen pool is **frozen**, the pipeline is hardened and **bucket-first**,
+and the slice-1 baseline (record 07) ran on the **docker lane** — the sanctioned interim while the kube `ax`
+lane is restored. G0 is exited; the kube `ax` lane is now a **G1** concern (the engine arm at scale), not a
+baseline blocker. (Correction 2026-10-12: an earlier revision of this section said the baseline was "the one
+remaining step, to run on kube" — that was stale; record 07 was completed on docker right after, see below.)
 
 | Area | State | Evidence |
 | --- | --- | --- |
@@ -53,23 +56,41 @@ The G0 measurement is now runnable: the unseen pool is **frozen** and the whole 
 | Harvest | Rebuilt to converge. Pure GitHub-API harvesting is a dead end for this benchmark (it needs the SZZ introducing commit + 12 stratified history negatives, not one commit). The fix: a full-objects clone (drop `--filter=blob:none`, which caused ~600 per-blob lazy fetches) + bucket-first durability + a get_repo cache that paid the 4,499-name used-set canonicalization once. Yield ~2.2%; **GitHub-rate-limit bound, not CPU**. | 95bed70, 857263d, 21aebe8, 7b711a6 |
 | Persistence | **Bucket-first, not local disk.** `ousast-corpus` is the source of truth: enumeration, resolution, get_repo, and accept/reject decisions all stream to and resume from it. The host disk (~9-13 GB free) is the scarce resource; RustFS/S3 has the room, so run artifacts and **replay outputs go to RustFS too**, not `~/ousast-results` on local disk. | `storage-streaming.md`, `bank.py` |
 | Replay image | Provenance pinned. CI `engine-image.yml` builds `ousast-replay-task` (harness with `/app/benchmarks/unseen/replay_entry.py`) + `ousast-engine-task` (Joern hook), publicly pullable by digest. The old `ousast-runner:dev` (248 MB ax-runner, no `/app/benchmarks`, no Joern) is the **wrong** image for replay. | CI run 38116281676 |
-| Baseline (G0.2) | **Not yet.** Replay reads the frozen pool cleanly (dry-run = 1,300 changes, `freeze_digest` verified). Remaining: mirror CI's passing `replay` job wiring, and stand up the kube lane (`ax` binary + a public-HTTPS presign-capable store endpoint; GHCR pull already public). | CI `replay` job (passed) |
+| Baseline (G0.2) | **DONE — record 07 (`e901640`), docker lane.** 1300/1300 changes; catch 3/92 = **3.3%** (Wilson95 1.1–9.2%), false-alarm **3.1%** (cluster95 1.6–5.4%), instrument_failure 54 (4.2% < 5% guard). `engine_covered=0` and no model calls → this is a **regex/quick-rule floor** (the engine never ran under the ~200s pre-push wall; the LLM tier was disabled). Baseline row in `usage-p1.jsonl` (freeze_digest `3371c67d`) = **G0 exit**. Ran on docker (not kube `ax`) per the sanctioned interim. | `benchmarks/measurements/2026-10-11-unseen-07-slice1-baseline/` |
 
 Lesson, recorded so it is not re-paid: sourcing and engine-image work cost real time. The durable takeaway now lives
 in the pipeline and these docs — bucket-first persistence, pinned image provenance, a measured yield — so the next
 pool or arm is cheap, not a rediscovery.
 
-### Readiness plan (to G0 exit = record 07)
+### Readiness plan (G0 exited; next is G1)
 
-1. **Kube replay lane (infra, operator-owned):** install the `ax` binary; provide the store endpoint the AX lane
-   needs. The only thing settled in-repo is a code fact: `benchmarks/ax/batch.py` currently expects a public-HTTPS
-   DNS, presign-capable S3 endpoint. How that endpoint and the cluster's access to the store are provided is an
-   operator/AX decision, not an assumption to make here. GHCR pull of the images is verified public.
-2. **Unblock the replay** by mirroring CI's passing `replay` job (replay-task + engine-task wired, store + network).
-3. **Run slice-1 baseline on kube:** `--lane ax --arm default`, 1,300 changes, no model cost, resumable; outputs to
-   RustFS.
-4. **Adjudicate (7.3) -> record 07 (7.4)** = the measured machine-label unseen baseline = **G0 exit**.
-5. Then **G1 arms** (DeepSeek decision engine) on the frozen pool.
+**G0 exit = record 07 is DONE** (docker lane, regex/quick-rule floor; see the Baseline row above). Steps 1–4
+below are complete. The kube `ax` lane was NOT needed for the baseline and is now a **G1** target.
+
+1. ~~Kube replay lane~~ — **not needed for G0**; the baseline ran on the docker lane (the sanctioned interim).
+   The `ax` lane moves to G1 (see below).
+2. ~~Unblock the replay~~ — done; replay ran over the frozen slice.
+3. ~~Run slice-1 baseline~~ — done: `--lane docker --arm default`, 1,300 changes, no model cost, outputs to RustFS.
+4. ~~Adjudicate (7.3) → record 07 (7.4)~~ — done = **G0 exit** (`usage-p1.jsonl` freeze_digest `3371c67d`).
+5. **Next — G1 arms on the frozen pool.** Re-score the arms that the regex floor cannot be (engine evidence,
+   DeepSeek decision engine, combiner) to see what beats catch 3.3% at a fixed false-alarm budget. This is where
+   the kube `ax` lane is needed, because the engine arm cannot run under the ~200s pre-push wall on a single host.
+
+### Restoring the kube `ax` lane (for G1, operator-owned)
+
+The AX executor is **built and smoke-tested** (`benchmarks/ax/batch.py`, `engine_trace.py` `ax`/`mixed-ax`
+lanes, OOM→docker fallback; an engine smoke test dispatched to the 2-worker cluster end-to-end on 2026-10-04).
+What remains before the G1 engine-arm replay:
+
+- **Use the working `ax` binary: `~/go/bin/ax`** — NOT `~/.local/ax-v0.3.1/ax`, which hits the AX-lane blocker
+  (recorded in the unseen spec `tasks.md`, 2026-10-11). The coordinator commands in the READMEs are being
+  corrected to this binary.
+- **Store endpoint:** `benchmarks/ax/batch.py` expects a public-HTTPS DNS, presign-capable S3 endpoint reachable
+  from the cluster; the cluster carries no model/store credentials (it reads/writes via short-lived presigned
+  links). This and the cluster's store access are operator/AX-owned.
+- **Run the open spec tasks** that gate G1: **4.4** (engine smoke on kube-ax → record 04) and **5.4** (replay
+  proof on kind, then kube-ax → record 05), both marked `(coordinator, network)`. Then the full engine-arm
+  replay (`--lane ax`).
 
 ### Phases
 

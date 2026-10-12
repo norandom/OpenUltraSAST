@@ -243,6 +243,11 @@ to the operator's kube-ax kubeconfig. Host store credentials stay on the VM; use
 HTTPS `S3_ENDPOINT=https://files.because-security.com` and the operator's `OUSAST_MEMORY`.
 Use a fresh output directory, so the smoke executes instead of resuming prior records.
 
+**`ax` binary:** use `$HOME/go/bin/ax` (passed via `--ax-bin` below). `$HOME/.local/ax-v0.3.1/ax`
+hits the AX-lane dispatch blocker recorded in the spec `tasks.md` (2026-10-11). These tasks (4.4,
+5.4) gate **G1** (the engine arm at scale); the G0 baseline (record 07) already ran on the docker
+lane and did not need this lane.
+
 ```sh
 export PATH=/home/mc/Source/OpenUltraSAST/.venv/bin:$PATH
 export PYTHONPATH=$PWD/src
@@ -250,6 +255,7 @@ export S3_ENDPOINT=https://files.because-security.com
 python benchmarks/learn/engine_trace.py \
   --units "$ENGINE_UNITS" --examples "$ENGINE_EXAMPLES" \
   --executor ax --parallel 2 --limit 2 --image "$ENGINE_IMAGE" \
+  --ax-bin "$HOME/go/bin/ax" \
   --kubeconfig "$AX_KUBECONFIG" --out "$HOME/ousast-results/unseen/proof-04"
 python -m benchmarks.unseen.proof engine --image "$ENGINE_IMAGE" \
   --records "$HOME/ousast-results/unseen/proof-04" --baseline "$ENGINE_BASELINE" \
@@ -275,7 +281,7 @@ python -m benchmarks.unseen.replay --manifest "$HOME/ousast-results/unseen/proof
   --image "$REPLAY_IMAGE" --lane kind --kubeconfig "$KIND_KUBECONFIG" \
   --out "$HOME/ousast-results/unseen/proof-05-kind"
 python -m benchmarks.unseen.replay --manifest "$HOME/ousast-results/unseen/proof-05-inputs.json" \
-  --image "$REPLAY_IMAGE" --lane ax --kubeconfig "$AX_KUBECONFIG" \
+  --image "$REPLAY_IMAGE" --lane ax --ax-bin "$HOME/go/bin/ax" --kubeconfig "$AX_KUBECONFIG" \
   --out "$HOME/ousast-results/unseen/proof-05-ax"
 python -m benchmarks.unseen.replay --manifest "$HOME/ousast-results/unseen/proof-05-inputs.json" \
   --image "$REPLAY_IMAGE" --lane docker \
