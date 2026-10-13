@@ -95,3 +95,23 @@ def test_build_lm_needs_a_key_from_the_environment(monkeypatch):
     monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
     with pytest.raises(RuntimeError, match="DEEPSEEK_API_KEY"):
         hp.build_lm()
+
+
+def test_lines_read_through_a_tool_count_as_shown(tmp_path):
+    (tmp_path / "app.py").write_text("a = 1\nb = 2\nc = eval(input())\n")
+    seen: dict[str, set[int]] = {}
+    tools = {tool.name: tool for tool in hp.repository_tools(tmp_path, seen=seen)}
+    tools["read_file"](path="app.py")
+    assert seen["app.py"] >= {1, 2, 3}
+    inputs = hp.render_rows(CHANGE, ROWS, TEXT)
+    finding = {"path": "app.py", "line": 3, "family": "injection", "confidence": 0.9, "rationale": "eval", "cited_lines": [3]}
+    assert hp.check([finding], inputs)[0]["family"] == "unknown"  # line 3 is outside the rendered span 5-7
+    assert hp.check([finding], inputs, seen)[0]["family"] == "injection"  # but the model read it through a tool
+
+
+def test_an_unparseable_answer_is_an_empty_flagged_answer():
+    lm = DummyLM([{"findings": "not json at all"}] * 4)
+    dspy.configure(lm=lm, adapter=dspy.ChatAdapter())
+    program = hp.HuntProgram()
+    prediction = program(**hp.render_rows(CHANGE, ROWS, TEXT))
+    assert prediction.findings == [] and prediction.parse_failed is True

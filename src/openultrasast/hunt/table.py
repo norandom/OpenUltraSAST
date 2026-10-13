@@ -87,8 +87,7 @@ class FeatureTable:
         if unknown:
             raise ValueError("mask names an unknown producer or feature column")
         columns = {c for c in FEATURE_COLUMNS if c in names or c.split(".")[1] in names}
-        return FeatureTable(({k: v for k, v in row.items() if k not in columns} for row in self.rows),
-                            masked=(*self.masked, *names))
+        return FeatureTable(({k: v for k, v in row.items() if k not in columns} for row in self.rows), masked=(*self.masked, *names))
 
     def feature_columns(self) -> list[str]:
         return sorted({column for row in self.rows for column in row if column.startswith("feature.")})

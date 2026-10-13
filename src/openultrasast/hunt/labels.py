@@ -21,13 +21,17 @@ def label_rows(rows: Sequence[Mapping[str, Any]], change: Mapping[str, Any]) -> 
         data = deepcopy(dict(row))
         span = change.get("function_lines")
         function = row.get("function", row.get("feature.source.function"))
-        site = kind == "vulnerability" and row.get("path") == change["path"] and (
-            function == change["function"] or (span[0] <= row.get("line", 0) <= span[1])
+        site = (
+            kind == "vulnerability"
+            and row.get("path") == change["path"]
+            and (function == change["function"] or (span[0] <= row.get("line", 0) <= span[1]))
         )
-        data.update(label=1 if site else 0 if kind == "ordinary" else None,
-                    family=change["family"] if site else None,
-                    fix_span=list(span) if site else None,
-                    label_ref=change["case_id"] if site or kind == "ordinary" else None,
-                    verification=None)
+        data.update(
+            label=1 if site else 0 if kind == "ordinary" else None,
+            family=change["family"] if site else None,
+            fix_span=list(span) if site else None,
+            label_ref=change["case_id"] if site or kind == "ordinary" else None,
+            verification=None,
+        )
         result.append(data)
     return result

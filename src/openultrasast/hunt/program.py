@@ -117,10 +117,14 @@ def shown_lines(inputs: Mapping[str, str]) -> dict[str, set[int]]:
     return shown
 
 
-def check(findings: Iterable[Finding | Mapping[str, Any]], inputs: Mapping[str, str]) -> list[dict[str, Any]]:
+def check(
+    findings: Iterable[Finding | Mapping[str, Any]], inputs: Mapping[str, str], seen: Mapping[str, set[int]] | None = None
+) -> list[dict[str, Any]]:
     """Apply the answer rules: a family outside the closed list, or a cited line the model was not shown, scores
     against the program by becoming `unknown` with a reason. Nothing is dropped, so the metric sees it."""
     shown = shown_lines(inputs)
+    for path, lines in (seen or {}).items():
+        shown.setdefault(path, set()).update(lines)
     allowed = {family for family in FAMILY_IDS if family != "unknown"}
     out = []
     for item in findings:
@@ -139,22 +143,35 @@ def check(findings: Iterable[Finding | Mapping[str, Any]], inputs: Mapping[str, 
     return out
 
 
-def repository_tools(root: Path, *, max_chars: int = 4000, max_matches: int = 50) -> list[dspy.Tool]:
-    """The three tools the shipped hunter has, bound to one checkout and clamped to it."""
+def repository_tools(
+    root: Path, *, max_chars: int = 4000, max_matches: int = 50, seen: dict[str, set[int]] | None = None
+) -> list[dspy.Tool]:
+    """The three tools the shipped hunter has, bound to one checkout and clamped to it. Every line a tool returns
+    is recorded in `seen` (path -> line numbers), because a line the model read through a tool was shown to it."""
     root = Path(root)
+    seen = seen if seen is not None else {}
+
+    def note(path: str, lines: Iterable[int]) -> None:
+        seen.setdefault(path, set()).update(int(line) for line in lines)
 
     def read_file(path: str) -> str:
         """Read a file of the repository by its relative path, numbered lines."""
-        return hunter_tools.read_file(root, path, max_chars=max_chars)
+        text = hunter_tools.read_file(root, path, max_chars=max_chars)
+        note(path, range(1, text.count("\n") + 2))
+        return text
 
     def grep_repo(pattern: str) -> str:
         """Search the repository for a regular expression; returns path:line: text, one per line."""
         rows = hunter_tools.grep_repo(root, pattern, max_matches=max_matches)
+        for row in rows:
+            note(str(row.get("path")), [int(row.get("line") or 0)])
         return "\n".join(f"{row.get('path')}:{row.get('line')}: {row.get('text', '')}" for row in rows) or "(no matches)"
 
     def find_refs(symbol: str) -> str:
         """Find where a symbol is referenced in the repository; returns path:line per reference."""
         rows = hunter_tools.find_refs(root, symbol)
+        for row in rows:
+            note(str(row.get("path")), [int(row.get("line") or 0)])
         return "\n".join(f"{row.get('path')}:{row.get('line')}" for row in rows) or "(no references)"
 
     return [dspy.Tool(read_file), dspy.Tool(grep_repo), dspy.Tool(find_refs)]
@@ -166,13 +183,25 @@ class HuntProgram(dspy.Module):
     def __init__(self, *, mask: Iterable[str] = (), tools: Sequence[dspy.Tool] = (), max_iters: int = 8) -> None:
         super().__init__()
         self.mask = tuple(sorted(set(mask)))
+        self.seen: dict[str, set[int]] = {}
         signature = signature_for(self.mask)
         self.hunt = dspy.ReAct(signature, tools=list(tools), max_iters=max_iters) if tools else dspy.Predict(signature)
 
+    def bind(self, root: Path) -> None:
+        """Point the tools at one checkout and start a fresh record of what they show."""
+        self.seen = {}
+        if isinstance(self.hunt, dspy.ReAct):
+            for tool in repository_tools(root, seen=self.seen):
+                self.hunt.tools[tool.name] = tool
+
     def forward(self, **inputs: str) -> dspy.Prediction:
-        prediction = self.hunt(**inputs)
-        findings = check(getattr(prediction, "findings", []) or [], inputs)
-        return dspy.Prediction(findings=findings, raw=getattr(prediction, "findings", []))
+        try:
+            prediction = self.hunt(**inputs)
+        except dspy.utils.exceptions.AdapterParseError:
+            # An answer the program could not shape is an empty answer that scores against it, not a broken run.
+            return dspy.Prediction(findings=[], raw=[], parse_failed=True)
+        findings = check(getattr(prediction, "findings", []) or [], inputs, self.seen)
+        return dspy.Prediction(findings=findings, raw=getattr(prediction, "findings", []), parse_failed=False)
 
 
 def program_id(program: dspy.Module, *, mask: Iterable[str] = ()) -> str:
@@ -193,7 +222,9 @@ def build_lm(
     if not key:
         raise RuntimeError("DEEPSEEK_API_KEY is not set")
     if cache_dir is not None:
-        os.environ["DSPY_CACHEDIR"] = str(cache_dir)
+        # A run's own response cache, kept with its records so the run can be replayed at no cost.
+        Path(cache_dir).mkdir(parents=True, exist_ok=True)
+        dspy.configure_cache(enable_disk_cache=True, enable_memory_cache=True, disk_cache_dir=str(cache_dir))
     try:
         import litellm
 

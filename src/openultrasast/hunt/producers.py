@@ -98,9 +98,18 @@ class Context:
     def hunks(self) -> dict[str, list[list[int]]]:
         self.verify_head()
         # Exclude private files before git opens the patch; only hunk coordinates become features.
-        patch = _git(self.root, "diff", "--no-ext-diff", "--no-textconv", "-U0",
-                     f"{self.change['base']}..{self.change['head']}", "--", ".",
-                     ":(glob,exclude)**/.env*", ":(exclude).env*")
+        patch = _git(
+            self.root,
+            "diff",
+            "--no-ext-diff",
+            "--no-textconv",
+            "-U0",
+            f"{self.change['base']}..{self.change['head']}",
+            "--",
+            ".",
+            ":(glob,exclude)**/.env*",
+            ":(exclude).env*",
+        )
         self.diff_bytes = len(patch.encode("utf-8"))
         result: dict[str, list[list[int]]] = {}
         path = None
@@ -154,8 +163,14 @@ def _producer(name: str, compute: Compute) -> Producer:
             bytes_read = ctx.diff_bytes
         elif name == "taxonomy" and reason is None:
             bytes_read = len(DEFAULT_FAMILIES_PATH.read_bytes())
-        result.update({f"provenance.{name}.ok": reason is None, f"provenance.{name}.reason": reason,
-                       f"provenance.{name}.version": "1", f"provenance.{name}.bytes_read": bytes_read})
+        result.update(
+            {
+                f"provenance.{name}.ok": reason is None,
+                f"provenance.{name}.reason": reason,
+                f"provenance.{name}.version": "1",
+                f"provenance.{name}.bytes_read": bytes_read,
+            }
+        )
         return result
 
     return Producer(name, "1", columns + provenance, guarded)
@@ -175,10 +190,13 @@ def _source(root: Path, change: Change, path: str, line: int, ctx: Context) -> d
     # Select the occurrence at this line when several methods share a name.
     spans = [r for r in ctx.ranges(path) if r.name == facts.function and r.start <= line <= r.end]
     span = min(spans, key=lambda r: r.end - r.start) if spans else None
-    return {"function": facts.function, "span": [span.start, span.end] if span else None,
-            "callers": [list(caller) for caller in facts.callers],
-            "entry_points": [{"path": entry.path, "line": entry.line, "kind": entry.kind} for entry in facts.entry_points],
-            "language": facts.language}
+    return {
+        "function": facts.function,
+        "span": [span.start, span.end] if span else None,
+        "callers": [list(caller) for caller in facts.callers],
+        "entry_points": [{"path": entry.path, "line": entry.line, "kind": entry.kind} for entry in facts.entry_points],
+        "language": facts.language,
+    }
 
 
 def _roles(function: Any, facts: Any) -> dict[str, str]:
@@ -192,8 +210,11 @@ def _roles(function: Any, facts: Any) -> dict[str, str]:
         for arguments in call.arg_names:
             names.update(arguments)
     roles = {}
-    for role, entries, attribute in (("source", facts.sources, "patterns"), ("sink", facts.sinks, "calls"),
-                                     ("sanitizer", facts.sanitizers, "calls")):
+    for role, entries, attribute in (
+        ("source", facts.sources, "patterns"),
+        ("sink", facts.sinks, "calls"),
+        ("sanitizer", facts.sanitizers, "calls"),
+    ):
         for fact in entries:
             for pattern in getattr(fact, attribute):
                 token = pattern.rstrip("(")
@@ -211,13 +232,29 @@ def _obligations(path: str, ctx: Context) -> list[dict[str, object]]:
     if not scoped.operations and not scoped.dischargers:
         raise _Absent("obligations_language_unsupported")
     dominance = OrderDominance({path: text})
-    result = check_obligations(irs={path: (ir, text)}, entries=ctx.entry_points, facts=facts, flow_facts=flow,
-                               policy=None, paths=(), dominance=dominance, store_shapes=(), min_siblings=3)
+    result = check_obligations(
+        irs={path: (ir, text)},
+        entries=ctx.entry_points,
+        facts=facts,
+        flow_facts=flow,
+        policy=None,
+        paths=(),
+        dominance=dominance,
+        store_shapes=(),
+        min_siblings=3,
+    )
     # No finding does not imply discharge: the checker also gates on entry-point reachability.
-    return [{"operation": operation.kind, "line": operation.line,
-             "discharged": any(valid_witness(witness) and covers(witness, operation) and
-                               dominance.dominates(witness, operation, None) for witness in result.discharges)}
-            for operation in find_operations(ir, scoped, text=text)]
+    return [
+        {
+            "operation": operation.kind,
+            "line": operation.line,
+            "discharged": any(
+                valid_witness(witness) and covers(witness, operation) and dominance.dominates(witness, operation, None)
+                for witness in result.discharges
+            ),
+        }
+        for operation in find_operations(ir, scoped, text=text)
+    ]
 
 
 def _semantic(root: Path, change: Change, path: str, line: int, ctx: Context) -> dict[str, object]:
@@ -228,20 +265,21 @@ def _semantic(root: Path, change: Change, path: str, line: int, ctx: Context) ->
     if not functions:
         raise _Absent("function_unavailable")
     function = min(functions, key=lambda fn: fn.end_line - fn.start_line)
-    return {"roles": _roles(function, load_facts().for_language(ir.language)),
-            "def_use": {"binds": [{"line": b.line, "name": b.name, "names": list(b.names), "call_name": b.call_name}
-                                  for b in function.binds],
-                        "calls": [{"line": c.line, "name": c.name, "names": [list(names) for names in c.arg_names]}
-                                  for c in function.calls]},
-            "obligations": _obligations(path, ctx)}
+    return {
+        "roles": _roles(function, load_facts().for_language(ir.language)),
+        "def_use": {
+            "binds": [{"line": b.line, "name": b.name, "names": list(b.names), "call_name": b.call_name} for b in function.binds],
+            "calls": [{"line": c.line, "name": c.name, "names": [list(names) for names in c.arg_names]} for c in function.calls],
+        },
+        "obligations": _obligations(path, ctx),
+    }
 
 
 def _taxonomy(root: Path, change: Change, path: str, line: int, ctx: Context) -> dict[str, object]:
     return {"families": [{"id": f.id, "definition": " ".join(f.description.split())} for f in load_families().families]}
 
 
-PRODUCERS = (_producer("diff", _diff), _producer("source", _source),
-             _producer("semantic", _semantic), _producer("taxonomy", _taxonomy))
+PRODUCERS = (_producer("diff", _diff), _producer("source", _source), _producer("semantic", _semantic), _producer("taxonomy", _taxonomy))
 
 
 def _candidates(root: Path, change: Change, ctx: Context) -> list[dict[str, Any]]:
@@ -259,20 +297,35 @@ def _candidates(root: Path, change: Change, ctx: Context) -> list[dict[str, Any]
             line = next((start for start, _ in file.get("head_lines", [])), 1)
             selected.add((path, max(1, line)))
             continue
-        touched = [r for r in ranges if r.kind == "function" and
-                   any(r.start <= end and start <= r.end for start, end in file.get("head_lines", []))]
+        touched = [
+            r
+            for r in ranges
+            if r.kind == "function" and any(r.start <= end and start <= r.end for start, end in file.get("head_lines", []))
+        ]
         selected.update((path, r.start) for r in touched)
         if not touched and file.get("head_lines") and ranges:
             selected.add((path, max(1, file["head_lines"][0][0])))
         if change.get("kind") == "vulnerability" and path == change["path"]:
-            labelled = [r for r in ranges if r.name == change["function"] and
-                        r.start <= change["function_lines"][1] and change["function_lines"][0] <= r.end]
+            labelled = [
+                r
+                for r in ranges
+                if r.name == change["function"] and r.start <= change["function_lines"][1] and change["function_lines"][0] <= r.end
+            ]
             selected.update((path, r.start) for r in labelled)
             if not labelled:
                 selected.add((path, change["function_lines"][0]))
-    return [{"change_id": change.get("id", change.get("case_id")), "repo": change.get("repo", change.get("repository")),
-             "head": change["head"], "path": path, "line": line, "kind": change["kind"], "fold": change.get("fold")}
-            for path, line in sorted(selected)]
+    return [
+        {
+            "change_id": change.get("id", change.get("case_id")),
+            "repo": change.get("repo", change.get("repository")),
+            "head": change["head"],
+            "path": path,
+            "line": line,
+            "kind": change["kind"],
+            "fold": change.get("fold"),
+        }
+        for path, line in sorted(selected)
+    ]
 
 
 def candidate_rows(root: Path, change: Change) -> list[dict[str, Any]]:

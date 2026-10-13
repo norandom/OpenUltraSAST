@@ -34,9 +34,11 @@ def _location_match(change: Mapping[str, Any], finding: Mapping[str, Any], toler
 
 
 def _on_diff(change: Mapping[str, Any], finding: Mapping[str, Any], tolerance: int) -> bool:
-    return any(finding.get("path") == file["path"] and
-               any(start - tolerance <= (finding.get("line", 0) or 0) <= end + tolerance
-                   for start, end in file.get("head_lines", [])) for file in change.get("files", []))
+    return any(
+        finding.get("path") == file["path"]
+        and any(start - tolerance <= (finding.get("line", 0) or 0) <= end + tolerance for start, end in file.get("head_lines", []))
+        for file in change.get("files", [])
+    )
 
 
 def search_outcome(change: Mapping[str, Any], findings: Sequence[Mapping[str, Any]], *, tolerance: int = 10) -> Outcome:
@@ -51,11 +53,11 @@ def search_outcome(change: Mapping[str, Any], findings: Sequence[Mapping[str, An
     on_diff = sum(_on_diff(change, finding, tolerance) for finding in findings)
     feedback = []
     if change["kind"] == "vulnerability" and not hit:
-        span = change.get("function_lines") or [next((start for f in change.get("files", [])
-                                                    for start, _ in f.get("head_lines", [])), 0)]
+        span = change.get("function_lines") or [next((start for f in change.get("files", []) for start, _ in f.get("head_lines", [])), 0)]
         feedback.append(f"missed {change.get('path', '')}:{span[0]} {change.get('function', '')} family {change.get('family', '')}")
-    off_diff = [f"{f.get('path', '')}:{f.get('line', 0)} family {f.get('family', '')}"
-                for f in findings if not _on_diff(change, f, tolerance)]
+    off_diff = [
+        f"{f.get('path', '')}:{f.get('line', 0)} family {f.get('family', '')}" for f in findings if not _on_diff(change, f, tolerance)
+    ]
     if off_diff:
         feedback.append("off-diff suspicions: " + ", ".join(off_diff))
     return Outcome(hit, len(findings), on_diff, "; ".join(feedback))

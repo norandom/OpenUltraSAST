@@ -77,8 +77,12 @@ class UsageLedger:
 
     def add(self, call_row: Mapping[str, Any]) -> None:
         replay_hits = call_row.get("replay_hits", int(bool(call_row.get("replay_hit", False))))
-        values = {"usd": call_row.get("usd", 0), "calls": call_row.get("calls", 0 if replay_hits else 1),
-                  "replay_hits": replay_hits, "wall_seconds": call_row.get("wall_seconds", 0)}
+        values = {
+            "usd": call_row.get("usd", 0),
+            "calls": call_row.get("calls", 0 if replay_hits else 1),
+            "replay_hits": replay_hits,
+            "wall_seconds": call_row.get("wall_seconds", 0),
+        }
         if any(not isinstance(v, int | float) or not math.isfinite(v) or v < 0 for v in values.values()):
             raise ValueError("usage values must be finite and non-negative")
         if any(int(values[k]) != values[k] for k in ("calls", "replay_hits")):

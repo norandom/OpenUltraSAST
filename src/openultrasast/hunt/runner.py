@@ -138,11 +138,10 @@ def hunt_change(
                 record["rows"] = len(rows)
                 inputs = render(change, rows, texts, mask=mask)
                 record["inputs_present"] = sorted(inputs)
-                if tools_for is not None:
-                    program.hunt.tools = (
-                        {tool.name: tool for tool in tools_for(root)} if hasattr(program.hunt, "tools") else program.hunt.tools
-                    )
+                if tools_for is not None and hasattr(program, "bind"):
+                    program.bind(root)
                 prediction = program(**inputs)
+                record["parse_failed"] = bool(getattr(prediction, "parse_failed", False))
                 for finding in prediction.findings:
                     if finding.get("path") in texts and not finding.get("function") and (span := _function_at(root, finding)):
                         finding["function"] = span
