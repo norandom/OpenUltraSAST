@@ -72,7 +72,7 @@
   - For every annotation, its effect when removed from the full set and when added to the baseline, with intervals and counts; an annotation stays only on a held-out effect whose interval excludes zero or when a kept annotation needs it; one that raises suspicions without raising recall is dropped and recorded
   - Done when the table is written for a fixture ablation and the rule's decisions match the fixture's expectations
   - _Requirements: 4.4, 4.5, 4.6_
-- [ ] 4.5 Contamination check
+- [x] 4.5 Contamination check
   - A training repository later found in the pilot or in a benchmark report marks every run that used it as contaminated and excludes those runs from any gain
   - Done when a fixture run is marked contaminated after its repository is added to a report list
   - _Requirements: 2.7_

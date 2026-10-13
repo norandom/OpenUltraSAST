@@ -394,10 +394,19 @@ def analyse(out_dir: Path | str, manifest: Manifest, changes: Sequence[Mapping[s
         for arm, mask in manifest.arms.items()
     }
     result["dry_run"] = sum(c["kind"] == "vulnerability" for c in changes) < 40
+    contamination_path = out / "contamination.json"
+    if contamination_path.exists():
+        contamination = json.loads(contamination_path.read_text(encoding="utf-8"))
+        result["contaminated"] = bool(contamination["contaminated"])
+        result["contaminating_repositories"] = contamination["repositories"]
+        if result["contaminated"]:
+            result["excluded_from_gain"] = True
     _write(out / "analysis.json", result)
     table = importance(result, annotations=[name for name, _, _ in INPUTS])
     _write(out / "importance.json", json.loads(table.to_json(orient="records")))
-    decide(table, needs={name: set(deps) for name, deps in manifest.rule.get("needs", {}).items()})
+    decisions = decide(table, needs={name: set(deps) for name, deps in manifest.rule.get("needs", {}).items()})
+    if result.get("excluded_from_gain"):
+        _write(out / "decisions.json", {**decisions, "excluded_from_gain": True})
     return result
 
 
