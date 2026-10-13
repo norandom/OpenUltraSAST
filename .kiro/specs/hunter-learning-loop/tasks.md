@@ -1,54 +1,54 @@
 # Implementation Plan
 
-- [ ] 1. Foundation: the feature table and its producers
-- [ ] 1.1 Create the feature table with a versioned column schema, masks and digests
+- [x] 1. Foundation: the feature table and its producers
+- [x] 1.1 Create the feature table with a versioned column schema, masks and digests
   - One row per candidate location (change, path, line) with key, label, feature, provenance and fold columns
   - Rows read and write as JSONL and parquet; a table digest covers rows and schema version
   - A mask drops named feature columns and is recorded with the table it was applied to
   - Done when a round-trip test shows the same digest after write and read, and a masked table lists its mask
   - _Requirements: 3.1, 3.5, 4.2, 5.1_
-- [ ] 1.2 Produce the four existing annotations from the repository only (P)
+- [x] 1.2 Produce the four existing annotations from the repository only (P)
   - Diff hunks at head with on-changed-line and distance; enclosing function, span, callers, entry points from the source facts; roles, def-use and obligations from the semantic facts; the closed family list with one-line definitions
   - An annotation a producer cannot compute is recorded as absent with a reason, never defaulted
   - Done when a fixture repository yields every column, and a repository with a planted advisory id and a security-worded commit message yields no feature carrying either
   - _Requirements: 3.2, 3.3, 3.4, 3.7, 3.8_
   - _Boundary: producers_
-- [ ] 1.3 Label the rows by the benchmark's rule (P)
+- [x] 1.3 Label the rows by the benchmark's rule (P)
   - Fix-site rows of positives label 1 with the change's family and fix span; ordinary-push rows label 0; other rows on a positive label null and are excluded from scoring
   - Each positive row carries the verification record reference next to the label; a row whose source cannot be traced is rejected
   - Done when a fixture manifest with one positive and two ordinary pushes produces the expected labels and the null rows are excluded
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6_
   - _Boundary: FeatureTable, training_set.py_
-- [ ] 1.4 Install the research extra and pin the program runtime
+- [x] 1.4 Install the research extra and pin the program runtime
   - Optional dependency group for the loop with the program runtime and the table library, pinned to a minor version; the core install stays unchanged
   - Done when the extra installs into the research environment and the core test suite collects without it
   - _Requirements: 5.1, 9.5_
 
-- [ ] 2. Core: the hunter as a program
-- [ ] 2.1 Define the hunt signature and the program with the three repository tools
+- [x] 2. Core: the hunter as a program
+- [x] 2.1 Define the hunt signature and the program with the three repository tools
   - Inputs are the rendered unmasked feature columns plus the hunks; the output is the classifier's answer structure with a family from the closed list and cited lines inside the shown text
   - The tool loop is bounded by the run budget; an answer outside the vocabulary or citing unseen lines is recorded unknown
   - Done when a scripted model drives the program through the tools on a fixture and the parsed findings match the fixture's expectation
   - _Requirements: 3.5, 3.6, 5.1, 5.2, 5.4_
-- [ ] 2.2 Score a change: the search metric with feedback (P)
+- [x] 2.2 Score a change: the search metric with feedback (P)
   - A suspicion within the scorer's tolerance of the fix site with the right family counts as a hit; ordinary-push suspicions are counted per push; the feedback text names the missed site or the off-diff suspicions
   - Done when the metric reproduces the pilot's hit list for the 12 positives from their recorded suspicions
   - _Requirements: 1.4, 4.3, 7.1, 7.2_
   - _Boundary: search_metric_
-- [ ] 2.3 Record a run as a content-addressed artifact (P)
+- [x] 2.3 Record a run as a content-addressed artifact (P)
   - Program id, schema version, mask, data digests, every scored configuration, spend, calls, replay hits, wall time, library versions; the saved program and its cache directory travel with it
   - A run that exhausts its budget writes no artifact and reports the spend so far
   - Done when two identical runs produce the same artifact id and a budget-exhausted run leaves only the partial report
   - _Requirements: 5.1, 5.2, 5.3, 5.5, 9.1, 9.2, 9.5_
   - _Boundary: RunArtifact_
 
-- [ ] 3. Integration: the runner and the baseline
-- [ ] 3.1 Run the program through the existing hunter-arm runner
+- [x] 3. Integration: the runner and the baseline
+- [x] 3.1 Run the program through the existing hunter-arm runner
   - The runner takes a program artifact and a mask, computes the table rows for each change at head, renders the inputs, runs the program and writes the same record shape as today, resumable by change id, input digest, program id and mask
   - The pilot manifest is refused by digest unless the run is explicitly a pilot report run
   - Done when a run over a five-change fixture manifest with the scripted model writes records the existing scorer accepts
   - _Requirements: 2.4, 8.4, 9.3, 9.4_
-- [ ] 3.2 Prove the plumbing: baseline program on the 12 pilot positives
+- [x] 3.2 Prove the plumbing: baseline program on the 12 pilot positives
   - The baseline instruction equals today's hunter prompt plus the hunks; one live, budgeted run over the 12 positives only, as a pilot report run
   - Done when the search metric over the new records is compared with the pilot's recorded hunter hits and the difference is explained in the measurement record
   - _Requirements: 8.1, 8.4, 8.5, 8.6_
