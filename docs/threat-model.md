@@ -12,8 +12,8 @@ It also lists the controls that keep a scan safe to run in CI and safe to share.
     control flow and data flow) with Joern. It uses `joern-parse`, a parser, not a build.
     Standard mode may send code excerpts to the configured model.
   - No scan mode executes target-derived code any more: the deep-mode REGRESS stage was retired on 2026-10-13
-    and is recorded as `regress_retired`. Execution happens only in the search-with-proof arm's sandbox,
-    described in `.kiro/specs/search-with-proof/`.
+    and is recorded as `regress_retired`. Execution happens only in the search-with-proof arm's sandbox
+    (`src/openultrasast/search/_sandbox.py`).
 - **The ruleset and CWE policy are trusted, governed data.** They change
   through reviewed commits.
 - **Provider credentials are the operator's.** The core install (PyYAML only) makes no network
@@ -94,4 +94,4 @@ internal hunter tools. No tool accepts a free-form command argument.
 
 Retired on 2026-10-13 with the REGRESS stage. The search-with-proof arm runs demos under bubblewrap with
 seccomp, no network unless the oracle needs a namespace, and differential runs against owned canaries;
-see `src/openultrasast/search/_sandbox.py` and `.kiro/specs/search-with-proof/`.
+see `src/openultrasast/search/_sandbox.py`.

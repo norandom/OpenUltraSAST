@@ -360,7 +360,7 @@ def test_catalog_gen_fails_loud_without_the_package_and_refuses_to_prune_an_empt
         gen["generate"]("s", prune=True)
     assert pair.is_dir()
     # The package import must fail loud, never degrade into "no named function".
-    monkeypatch.setitem(sys.modules, "openultrasast.semantic.functions", None)
+    monkeypatch.setitem(sys.modules, "openultrasast.source", None)
     with pytest.raises((SystemExit, ImportError)):
         runpy.run_path(str(Path("benchmarks/pairs/catalog_gen.py")), run_name="catalog_gen_lib_blocked")
 

@@ -148,7 +148,7 @@ files live in `~/.cache/ousast/ax-src/` (`OUSAST_AX_SRC`).
     - An admin must set up the bucket once, as [RustFS setup](rustfs.md) describes. The store verifies
       it at every start.
 
-5. **Run a real Run**, as in [Examples](examples.md#7-running-the-agentic-plane): `ousast plane run
+5. **Run a real Run**, as in [Examples](examples.md#6-running-the-agentic-plane): `ousast plane run
     plane/runs/validation-46.yaml`, then `status` and `remember`.
 
 6. **Tear down** with `ops/ax/down.sh`. It deletes the cluster and its registry.

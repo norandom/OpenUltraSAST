@@ -379,7 +379,7 @@ def labeled_spans(
     wanted.discard("")
     found: list[tuple[str, int, int]] = []
     for path, entries in ranges.items():
-        for name, start, end in entries:
+        for name, start, end, *_kind in entries:
             if name in wanted:
                 found.append((path, start, end))
     return tuple(found)

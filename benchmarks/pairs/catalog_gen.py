@@ -269,10 +269,11 @@ def _language(recipe: dict[str, object]) -> str:
 
 
 def _ranges(path: Path, language: str) -> tuple[tuple[str, int, int], ...] | None:
-    ranges = source_ranges(str(path), path.read_text(errors="ignore"), language)
-    if ranges is None:
+    try:
+        ranges = source_ranges(str(path), path.read_text(errors="ignore"), language)
+    except ValueError:
         return None  # parser rejected the excerpt; a regex label would not scope
-    return tuple(r for r in ranges if r[0] != ANON_FUNCTION)
+    return tuple((r.name, r.start, r.end) for r in ranges if r.kind == "function" and r.name != ANON_FUNCTION)
 
 
 def _innermost(ranges: tuple[tuple[str, int, int], ...], line: int) -> str | None:

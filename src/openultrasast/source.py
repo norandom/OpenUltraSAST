@@ -238,7 +238,7 @@ def ranges_from_ir(ir: FileIR, text: str) -> tuple[FunctionRange, ...]:
         if fn.name == MODULE_FUNCTION:
             continue
         line = lines[fn.start_line - 1] if 0 < fn.start_line <= len(lines) else ""
-        declared = declarator_name(line, ir.language)
+        declared = declarator_name(line)  # the declaration tables would name a callback call (`exec(..., function () {`)
         name = declared or fn.name
         if (
             name in RESERVED_FUNCTION_LABELS
