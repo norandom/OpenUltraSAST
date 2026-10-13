@@ -88,7 +88,7 @@
   - _Requirements: 5.6, 6.1, 6.2, 6.3, 6.4, 6.5, 6.7_
 
 - [ ] 6. Validation: the pilot gain
-- [ ] 6.1 Run an accepted program once over the held-out pilot and report the gain
+- [x] 6.1 Run an accepted program once over the held-out pilot and report the gain
   - Same scorer and metrics as the pilot; before-and-after of search recall, suspicions per push, push-level recall, false alarms per 100 and precision, per family, with intervals; the proof arm's workload per 100 pushes; the gate distance read off the curve; the run recorded next to the pilot's measurement, at most once per accepted program
   - Done when the measurement record exists with the before-and-after table and the instrument proof for every change
   - _Requirements: 7.3, 7.4, 7.5, 8.1, 8.2, 8.3, 8.6_
