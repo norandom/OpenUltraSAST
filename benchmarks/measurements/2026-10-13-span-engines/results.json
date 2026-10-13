@@ -1,0 +1,1016 @@
+{
+ "files": 610,
+ "labels": 570,
+ "runtime_s_per_1000": {
+  "ours_parser": 4.211489868838889,
+  "ours_line": 1.1895652253516629,
+  "lizard": 6.240230225041875,
+  "tslp": 2.9363752468718123
+ },
+ "failures": {
+  "ours_parser": [
+   [
+    "benchmarks/pairs/vfc/curl-cve-2020-8284/fixed.c",
+    "ValueError: benchmarks/pairs/vfc/curl-cve-2020-8284/fixed.c: source parse failed"
+   ],
+   [
+    "benchmarks/pairs/vfc/curl-cve-2020-8284/vuln.c",
+    "ValueError: benchmarks/pairs/vfc/curl-cve-2020-8284/vuln.c: source parse failed"
+   ],
+   [
+    "benchmarks/pairs/vfc/curl-cve-2020-8286/fixed.c",
+    "ValueError: benchmarks/pairs/vfc/curl-cve-2020-8286/fixed.c: source parse failed"
+   ],
+   [
+    "benchmarks/pairs/vfc/curl-cve-2020-8286/vuln.c",
+    "ValueError: benchmarks/pairs/vfc/curl-cve-2020-8286/vuln.c: source parse failed"
+   ],
+   [
+    "benchmarks/pairs/vfc/curl-cve-2021-22890/fixed.c",
+    "ValueError: benchmarks/pairs/vfc/curl-cve-2021-22890/fixed.c: source parse failed"
+   ],
+   [
+    "benchmarks/pairs/vfc/curl-cve-2021-22890/vuln.c",
+    "ValueError: benchmarks/pairs/vfc/curl-cve-2021-22890/vuln.c: source parse failed"
+   ],
+   [
+    "benchmarks/pairs/vfc/curl-cve-2021-22901-ossl_connect_step1/fixed.c",
+    "ValueError: benchmarks/pairs/vfc/curl-cve-2021-22901-ossl_connect_step1/fixed.c: source parse failed"
+   ],
+   [
+    "benchmarks/pairs/vfc/curl-cve-2021-22901-ossl_connect_step1/vuln.c",
+    "ValueError: benchmarks/pairs/vfc/curl-cve-2021-22901-ossl_connect_step1/vuln.c: source parse failed"
+   ],
+   [
+    "benchmarks/pairs/vfc/curl-cve-2021-22924-servercert/fixed.c",
+    "ValueError: benchmarks/pairs/vfc/curl-cve-2021-22924-servercert/fixed.c: source parse failed"
+   ],
+   [
+    "benchmarks/pairs/vfc/curl-cve-2021-22924-servercert/vuln.c",
+    "ValueError: benchmarks/pairs/vfc/curl-cve-2021-22924-servercert/vuln.c: source parse failed"
+   ],
+   [
+    "benchmarks/pairs/vfc/curl-cve-2022-27775/fixed.c",
+    "ValueError: benchmarks/pairs/vfc/curl-cve-2022-27775/fixed.c: source parse failed"
+   ],
+   [
+    "benchmarks/pairs/vfc/curl-cve-2022-27775/vuln.c",
+    "ValueError: benchmarks/pairs/vfc/curl-cve-2022-27775/vuln.c: source parse failed"
+   ],
+   [
+    "benchmarks/pairs/vfc/curl-cve-2022-27776/fixed.c",
+    "ValueError: benchmarks/pairs/vfc/curl-cve-2022-27776/fixed.c: source parse failed"
+   ],
+   [
+    "benchmarks/pairs/vfc/curl-cve-2022-27776/vuln.c",
+    "ValueError: benchmarks/pairs/vfc/curl-cve-2022-27776/vuln.c: source parse failed"
+   ],
+   [
+    "benchmarks/pairs/vfc/curl-cve-2022-27778/fixed.c",
+    "ValueError: benchmarks/pairs/vfc/curl-cve-2022-27778/fixed.c: source parse failed"
+   ],
+   [
+    "benchmarks/pairs/vfc/curl-cve-2022-27778/vuln.c",
+    "ValueError: benchmarks/pairs/vfc/curl-cve-2022-27778/vuln.c: source parse failed"
+   ],
+   [
+    "benchmarks/pairs/vfc/curl-cve-2022-27782-curl_init_userdefined/fixed.c",
+    "ValueError: benchmarks/pairs/vfc/curl-cve-2022-27782-curl_init_userdefined/fixed.c: source parse failed"
+   ],
+   [
+    "benchmarks/pairs/vfc/curl-cve-2022-27782-curl_init_userdefined/vuln.c",
+    "ValueError: benchmarks/pairs/vfc/curl-cve-2022-27782-curl_init_userdefined/vuln.c: source parse failed"
+   ],
+   [
+    "benchmarks/pairs/vfc/curl-cve-2022-27782-nss_setup_connect/fixed.c",
+    "ValueError: benchmarks/pairs/vfc/curl-cve-2022-27782-nss_setup_connect/fixed.c: source parse failed"
+   ],
+   [
+    "benchmarks/pairs/vfc/curl-cve-2022-27782-nss_setup_connect/vuln.c",
+    "ValueError: benchmarks/pairs/vfc/curl-cve-2022-27782-nss_setup_connect/vuln.c: source parse failed"
+   ],
+   [
+    "benchmarks/pairs/vfc/curl-cve-2022-27782-ossl_connect_step1/fixed.c",
+    "ValueError: benchmarks/pairs/vfc/curl-cve-2022-27782-ossl_connect_step1/fixed.c: source parse failed"
+   ],
+   [
+    "benchmarks/pairs/vfc/curl-cve-2022-27782-ossl_connect_step1/vuln.c",
+    "ValueError: benchmarks/pairs/vfc/curl-cve-2022-27782-ossl_connect_step1/vuln.c: source parse failed"
+   ],
+   [
+    "benchmarks/pairs/vfc/curl-cve-2023-38545/fixed.c",
+    "ValueError: benchmarks/pairs/vfc/curl-cve-2023-38545/fixed.c: source parse failed"
+   ],
+   [
+    "benchmarks/pairs/vfc/curl-cve-2023-38545/vuln.c",
+    "ValueError: benchmarks/pairs/vfc/curl-cve-2023-38545/vuln.c: source parse failed"
+   ],
+   [
+    "benchmarks/pairs/vfc/curl-cve-2023-38545-do_socks5/fixed.c",
+    "ValueError: benchmarks/pairs/vfc/curl-cve-2023-38545-do_socks5/fixed.c: source parse failed"
+   ],
+   [
+    "benchmarks/pairs/vfc/curl-cve-2023-38545-do_socks5/vuln.c",
+    "ValueError: benchmarks/pairs/vfc/curl-cve-2023-38545-do_socks5/vuln.c: source parse failed"
+   ],
+   [
+    "benchmarks/pairs/vfc/curl-cve-2026-9080/fixed.c",
+    "ValueError: benchmarks/pairs/vfc/curl-cve-2026-9080/fixed.c: source parse failed"
+   ],
+   [
+    "benchmarks/pairs/vfc/curl-cve-2026-9080/vuln.c",
+    "ValueError: benchmarks/pairs/vfc/curl-cve-2026-9080/vuln.c: source parse failed"
+   ],
+   [
+    "benchmarks/pairs/vfc/openssl-cve-2021-3449-init_sig_algs_cert/fixed.c",
+    "ValueError: benchmarks/pairs/vfc/openssl-cve-2021-3449-init_sig_algs_cert/fixed.c: source parse failed"
+   ],
+   [
+    "benchmarks/pairs/vfc/openssl-cve-2021-3449-init_sig_algs_cert/vuln.c",
+    "ValueError: benchmarks/pairs/vfc/openssl-cve-2021-3449-init_sig_algs_cert/vuln.c: source parse failed"
+   ],
+   [
+    "benchmarks/pairs/vfc/openssl-cve-2021-3712/fixed.c",
+    "ValueError: benchmarks/pairs/vfc/openssl-cve-2021-3712/fixed.c: source parse failed"
+   ],
+   [
+    "benchmarks/pairs/vfc/openssl-cve-2021-3712/vuln.c",
+    "ValueError: benchmarks/pairs/vfc/openssl-cve-2021-3712/vuln.c: source parse failed"
+   ],
+   [
+    "benchmarks/pairs/vfc/openssl-cve-2021-3712-append_ia5/fixed.c",
+    "ValueError: benchmarks/pairs/vfc/openssl-cve-2021-3712-append_ia5/fixed.c: source parse failed"
+   ],
+   [
+    "benchmarks/pairs/vfc/openssl-cve-2021-3712-append_ia5/vuln.c",
+    "ValueError: benchmarks/pairs/vfc/openssl-cve-2021-3712-append_ia5/vuln.c: source parse failed"
+   ],
+   [
+    "benchmarks/pairs/vfc/openssl-cve-2021-3712-print_qualifiers/fixed.c",
+    "ValueError: benchmarks/pairs/vfc/openssl-cve-2021-3712-print_qualifiers/fixed.c: source parse failed"
+   ],
+   [
+    "benchmarks/pairs/vfc/openssl-cve-2021-3712-print_qualifiers/vuln.c",
+    "ValueError: benchmarks/pairs/vfc/openssl-cve-2021-3712-print_qualifiers/vuln.c: source parse failed"
+   ],
+   [
+    "benchmarks/pairs/vfc/openssl-cve-2022-1343/fixed.c",
+    "ValueError: benchmarks/pairs/vfc/openssl-cve-2022-1343/fixed.c: source parse failed"
+   ],
+   [
+    "benchmarks/pairs/vfc/openssl-cve-2022-1343/vuln.c",
+    "ValueError: benchmarks/pairs/vfc/openssl-cve-2022-1343/vuln.c: source parse failed"
+   ],
+   [
+    "benchmarks/pairs/vfc/openssl-cve-2022-3358/fixed.c",
+    "ValueError: benchmarks/pairs/vfc/openssl-cve-2022-3358/fixed.c: source parse failed"
+   ],
+   [
+    "benchmarks/pairs/vfc/openssl-cve-2022-3358/vuln.c",
+    "ValueError: benchmarks/pairs/vfc/openssl-cve-2022-3358/vuln.c: source parse failed"
+   ],
+   [
+    "benchmarks/pairs/vfc/openssl-cve-2022-3358-evp_cipher_init_internal/fixed.c",
+    "ValueError: benchmarks/pairs/vfc/openssl-cve-2022-3358-evp_cipher_init_internal/fixed.c: source parse failed"
+   ],
+   [
+    "benchmarks/pairs/vfc/openssl-cve-2022-3358-evp_cipher_init_internal/vuln.c",
+    "ValueError: benchmarks/pairs/vfc/openssl-cve-2022-3358-evp_cipher_init_internal/vuln.c: source parse failed"
+   ],
+   [
+    "benchmarks/pairs/vfc/openssl-cve-2023-0216/fixed.c",
+    "ValueError: benchmarks/pairs/vfc/openssl-cve-2023-0216/fixed.c: source parse failed"
+   ],
+   [
+    "benchmarks/pairs/vfc/openssl-cve-2023-0216/vuln.c",
+    "ValueError: benchmarks/pairs/vfc/openssl-cve-2023-0216/vuln.c: source parse failed"
+   ],
+   [
+    "benchmarks/pairs/vfc/openssl-cve-2023-0464/fixed.c",
+    "ValueError: benchmarks/pairs/vfc/openssl-cve-2023-0464/fixed.c: source parse failed"
+   ],
+   [
+    "benchmarks/pairs/vfc/openssl-cve-2023-0464/vuln.c",
+    "ValueError: benchmarks/pairs/vfc/openssl-cve-2023-0464/vuln.c: source parse failed"
+   ],
+   [
+    "benchmarks/pairs/vfc/openssl-cve-2023-0464-tree_init/fixed.c",
+    "ValueError: benchmarks/pairs/vfc/openssl-cve-2023-0464-tree_init/fixed.c: source parse failed"
+   ],
+   [
+    "benchmarks/pairs/vfc/openssl-cve-2023-0464-tree_init/vuln.c",
+    "ValueError: benchmarks/pairs/vfc/openssl-cve-2023-0464-tree_init/vuln.c: source parse failed"
+   ],
+   [
+    "benchmarks/pairs/vfc/openssl-cve-2023-5363/fixed.c",
+    "ValueError: benchmarks/pairs/vfc/openssl-cve-2023-5363/fixed.c: source parse failed"
+   ],
+   [
+    "benchmarks/pairs/vfc/openssl-cve-2023-5363/vuln.c",
+    "ValueError: benchmarks/pairs/vfc/openssl-cve-2023-5363/vuln.c: source parse failed"
+   ],
+   [
+    "benchmarks/pairs/vfc/openssl-cve-2024-2511/fixed.c",
+    "ValueError: benchmarks/pairs/vfc/openssl-cve-2024-2511/fixed.c: source parse failed"
+   ],
+   [
+    "benchmarks/pairs/vfc/openssl-cve-2024-2511/vuln.c",
+    "ValueError: benchmarks/pairs/vfc/openssl-cve-2024-2511/vuln.c: source parse failed"
+   ],
+   [
+    "benchmarks/pairs/vfc/openssl-cve-2026-14456-expect_quic_for_value/fixed.c",
+    "ValueError: benchmarks/pairs/vfc/openssl-cve-2026-14456-expect_quic_for_value/fixed.c: source parse failed"
+   ],
+   [
+    "benchmarks/pairs/vfc/openssl-cve-2026-14456-expect_quic_for_value/vuln.c",
+    "ValueError: benchmarks/pairs/vfc/openssl-cve-2026-14456-expect_quic_for_value/vuln.c: source parse failed"
+   ],
+   [
+    "benchmarks/pairs/vfc/openssl-cve-2026-45447/fixed.c",
+    "ValueError: benchmarks/pairs/vfc/openssl-cve-2026-45447/fixed.c: source parse failed"
+   ],
+   [
+    "benchmarks/pairs/vfc/openssl-cve-2026-45447/vuln.c",
+    "ValueError: benchmarks/pairs/vfc/openssl-cve-2026-45447/vuln.c: source parse failed"
+   ]
+  ],
+  "ours_line": [],
+  "lizard": [],
+  "tslp": [
+   [
+    "benchmarks/pairs/vfc/curl-cve-2020-8284/fixed.c",
+    "ValueError: parse error"
+   ],
+   [
+    "benchmarks/pairs/vfc/curl-cve-2020-8284/vuln.c",
+    "ValueError: parse error"
+   ],
+   [
+    "benchmarks/pairs/vfc/curl-cve-2020-8286/fixed.c",
+    "ValueError: parse error"
+   ],
+   [
+    "benchmarks/pairs/vfc/curl-cve-2020-8286/vuln.c",
+    "ValueError: parse error"
+   ],
+   [
+    "benchmarks/pairs/vfc/curl-cve-2021-22890/fixed.c",
+    "ValueError: parse error"
+   ],
+   [
+    "benchmarks/pairs/vfc/curl-cve-2021-22890/vuln.c",
+    "ValueError: parse error"
+   ],
+   [
+    "benchmarks/pairs/vfc/curl-cve-2021-22901-ossl_connect_step1/fixed.c",
+    "ValueError: parse error"
+   ],
+   [
+    "benchmarks/pairs/vfc/curl-cve-2021-22901-ossl_connect_step1/vuln.c",
+    "ValueError: parse error"
+   ],
+   [
+    "benchmarks/pairs/vfc/curl-cve-2021-22924-servercert/fixed.c",
+    "ValueError: parse error"
+   ],
+   [
+    "benchmarks/pairs/vfc/curl-cve-2021-22924-servercert/vuln.c",
+    "ValueError: parse error"
+   ],
+   [
+    "benchmarks/pairs/vfc/curl-cve-2022-27775/fixed.c",
+    "ValueError: parse error"
+   ],
+   [
+    "benchmarks/pairs/vfc/curl-cve-2022-27775/vuln.c",
+    "ValueError: parse error"
+   ],
+   [
+    "benchmarks/pairs/vfc/curl-cve-2022-27776/fixed.c",
+    "ValueError: parse error"
+   ],
+   [
+    "benchmarks/pairs/vfc/curl-cve-2022-27776/vuln.c",
+    "ValueError: parse error"
+   ],
+   [
+    "benchmarks/pairs/vfc/curl-cve-2022-27778/fixed.c",
+    "ValueError: parse error"
+   ],
+   [
+    "benchmarks/pairs/vfc/curl-cve-2022-27778/vuln.c",
+    "ValueError: parse error"
+   ],
+   [
+    "benchmarks/pairs/vfc/curl-cve-2022-27782-curl_init_userdefined/fixed.c",
+    "ValueError: parse error"
+   ],
+   [
+    "benchmarks/pairs/vfc/curl-cve-2022-27782-curl_init_userdefined/vuln.c",
+    "ValueError: parse error"
+   ],
+   [
+    "benchmarks/pairs/vfc/curl-cve-2022-27782-nss_setup_connect/fixed.c",
+    "ValueError: parse error"
+   ],
+   [
+    "benchmarks/pairs/vfc/curl-cve-2022-27782-nss_setup_connect/vuln.c",
+    "ValueError: parse error"
+   ],
+   [
+    "benchmarks/pairs/vfc/curl-cve-2022-27782-ossl_connect_step1/fixed.c",
+    "ValueError: parse error"
+   ],
+   [
+    "benchmarks/pairs/vfc/curl-cve-2022-27782-ossl_connect_step1/vuln.c",
+    "ValueError: parse error"
+   ],
+   [
+    "benchmarks/pairs/vfc/curl-cve-2023-38545/fixed.c",
+    "ValueError: parse error"
+   ],
+   [
+    "benchmarks/pairs/vfc/curl-cve-2023-38545/vuln.c",
+    "ValueError: parse error"
+   ],
+   [
+    "benchmarks/pairs/vfc/curl-cve-2023-38545-do_socks5/fixed.c",
+    "ValueError: parse error"
+   ],
+   [
+    "benchmarks/pairs/vfc/curl-cve-2023-38545-do_socks5/vuln.c",
+    "ValueError: parse error"
+   ],
+   [
+    "benchmarks/pairs/vfc/curl-cve-2026-9080/fixed.c",
+    "ValueError: parse error"
+   ],
+   [
+    "benchmarks/pairs/vfc/curl-cve-2026-9080/vuln.c",
+    "ValueError: parse error"
+   ],
+   [
+    "benchmarks/pairs/vfc/openssl-cve-2021-3449-init_sig_algs_cert/fixed.c",
+    "ValueError: parse error"
+   ],
+   [
+    "benchmarks/pairs/vfc/openssl-cve-2021-3449-init_sig_algs_cert/vuln.c",
+    "ValueError: parse error"
+   ],
+   [
+    "benchmarks/pairs/vfc/openssl-cve-2021-3712/fixed.c",
+    "ValueError: parse error"
+   ],
+   [
+    "benchmarks/pairs/vfc/openssl-cve-2021-3712/vuln.c",
+    "ValueError: parse error"
+   ],
+   [
+    "benchmarks/pairs/vfc/openssl-cve-2021-3712-append_ia5/fixed.c",
+    "ValueError: parse error"
+   ],
+   [
+    "benchmarks/pairs/vfc/openssl-cve-2021-3712-append_ia5/vuln.c",
+    "ValueError: parse error"
+   ],
+   [
+    "benchmarks/pairs/vfc/openssl-cve-2021-3712-print_qualifiers/fixed.c",
+    "ValueError: parse error"
+   ],
+   [
+    "benchmarks/pairs/vfc/openssl-cve-2021-3712-print_qualifiers/vuln.c",
+    "ValueError: parse error"
+   ],
+   [
+    "benchmarks/pairs/vfc/openssl-cve-2022-1292/fixed.in",
+    "ValueError: no grammar for perl"
+   ],
+   [
+    "benchmarks/pairs/vfc/openssl-cve-2022-1292/vuln.in",
+    "ValueError: no grammar for perl"
+   ],
+   [
+    "benchmarks/pairs/vfc/openssl-cve-2022-1343/fixed.c",
+    "ValueError: parse error"
+   ],
+   [
+    "benchmarks/pairs/vfc/openssl-cve-2022-1343/vuln.c",
+    "ValueError: parse error"
+   ],
+   [
+    "benchmarks/pairs/vfc/openssl-cve-2022-2068-hash_dir/fixed.in",
+    "ValueError: no grammar for perl"
+   ],
+   [
+    "benchmarks/pairs/vfc/openssl-cve-2022-2068-hash_dir/vuln.in",
+    "ValueError: no grammar for perl"
+   ],
+   [
+    "benchmarks/pairs/vfc/openssl-cve-2022-3358/fixed.c",
+    "ValueError: parse error"
+   ],
+   [
+    "benchmarks/pairs/vfc/openssl-cve-2022-3358/vuln.c",
+    "ValueError: parse error"
+   ],
+   [
+    "benchmarks/pairs/vfc/openssl-cve-2022-3358-evp_cipher_init_internal/fixed.c",
+    "ValueError: parse error"
+   ],
+   [
+    "benchmarks/pairs/vfc/openssl-cve-2022-3358-evp_cipher_init_internal/vuln.c",
+    "ValueError: parse error"
+   ],
+   [
+    "benchmarks/pairs/vfc/openssl-cve-2023-0216/fixed.c",
+    "ValueError: parse error"
+   ],
+   [
+    "benchmarks/pairs/vfc/openssl-cve-2023-0216/vuln.c",
+    "ValueError: parse error"
+   ],
+   [
+    "benchmarks/pairs/vfc/openssl-cve-2023-0464/fixed.c",
+    "ValueError: parse error"
+   ],
+   [
+    "benchmarks/pairs/vfc/openssl-cve-2023-0464/vuln.c",
+    "ValueError: parse error"
+   ],
+   [
+    "benchmarks/pairs/vfc/openssl-cve-2023-0464-tree_init/fixed.c",
+    "ValueError: parse error"
+   ],
+   [
+    "benchmarks/pairs/vfc/openssl-cve-2023-0464-tree_init/vuln.c",
+    "ValueError: parse error"
+   ],
+   [
+    "benchmarks/pairs/vfc/openssl-cve-2023-5363/fixed.c",
+    "ValueError: parse error"
+   ],
+   [
+    "benchmarks/pairs/vfc/openssl-cve-2023-5363/vuln.c",
+    "ValueError: parse error"
+   ],
+   [
+    "benchmarks/pairs/vfc/openssl-cve-2024-2511/fixed.c",
+    "ValueError: parse error"
+   ],
+   [
+    "benchmarks/pairs/vfc/openssl-cve-2024-2511/vuln.c",
+    "ValueError: parse error"
+   ],
+   [
+    "benchmarks/pairs/vfc/openssl-cve-2026-14456-expect_quic_for_value/fixed.c",
+    "ValueError: parse error"
+   ],
+   [
+    "benchmarks/pairs/vfc/openssl-cve-2026-14456-expect_quic_for_value/vuln.c",
+    "ValueError: parse error"
+   ],
+   [
+    "benchmarks/pairs/vfc/openssl-cve-2026-31790-rsasve_generate/fixed.in",
+    "ValueError: no grammar for perl"
+   ],
+   [
+    "benchmarks/pairs/vfc/openssl-cve-2026-31790-rsasve_generate/vuln.in",
+    "ValueError: no grammar for perl"
+   ],
+   [
+    "benchmarks/pairs/vfc/openssl-cve-2026-45447/fixed.c",
+    "ValueError: parse error"
+   ],
+   [
+    "benchmarks/pairs/vfc/openssl-cve-2026-45447/vuln.c",
+    "ValueError: parse error"
+   ]
+  ]
+ },
+ "coverage": {
+  "cpp": {
+   "ours_parser": [
+    287,
+    346
+   ],
+   "ours_line": [
+    346,
+    346
+   ],
+   "lizard": [
+    343,
+    346
+   ],
+   "tslp": [
+    290,
+    346
+   ]
+  },
+  "all": {
+   "ours_parser": [
+    511,
+    570
+   ],
+   "ours_line": [
+    570,
+    570
+   ],
+   "lizard": [
+    559,
+    570
+   ],
+   "tslp": [
+    506,
+    570
+   ]
+  },
+  "perl": {
+   "ours_parser": [
+    6,
+    6
+   ],
+   "ours_line": [
+    6,
+    6
+   ],
+   "lizard": [
+    4,
+    6
+   ],
+   "tslp": [
+    0,
+    6
+   ]
+  },
+  "python": {
+   "ours_parser": [
+    82,
+    82
+   ],
+   "ours_line": [
+    82,
+    82
+   ],
+   "lizard": [
+    82,
+    82
+   ],
+   "tslp": [
+    82,
+    82
+   ]
+  },
+  "javascript": {
+   "ours_parser": [
+    44,
+    44
+   ],
+   "ours_line": [
+    44,
+    44
+   ],
+   "lizard": [
+    38,
+    44
+   ],
+   "tslp": [
+    42,
+    44
+   ]
+  },
+  "typescript": {
+   "ours_parser": [
+    36,
+    36
+   ],
+   "ours_line": [
+    36,
+    36
+   ],
+   "lizard": [
+    36,
+    36
+   ],
+   "tslp": [
+    36,
+    36
+   ]
+  },
+  "java": {
+   "ours_parser": [
+    56,
+    56
+   ],
+   "ours_line": [
+    56,
+    56
+   ],
+   "lizard": [
+    56,
+    56
+   ],
+   "tslp": [
+    56,
+    56
+   ]
+  }
+ },
+ "agreement": {
+  "ours_parser~lizard": {
+   "cpp": {
+    "n": 286,
+    "start_eq": 1.0,
+    "end_mad": 0,
+    "end_within_1": 1.0
+   },
+   "all": {
+    "n": 502,
+    "start_eq": 0.8844621513944223,
+    "end_mad": 0.3665338645418327,
+    "end_within_1": 0.9800796812749004
+   },
+   "perl": {
+    "n": 4,
+    "start_eq": 1.0,
+    "end_mad": 0,
+    "end_within_1": 1.0
+   },
+   "python": {
+    "n": 82,
+    "start_eq": 1.0,
+    "end_mad": 0,
+    "end_within_1": 1.0
+   },
+   "javascript": {
+    "n": 38,
+    "start_eq": 0.9473684210526315,
+    "end_mad": 0.15789473684210525,
+    "end_within_1": 0.9473684210526315
+   },
+   "typescript": {
+    "n": 36,
+    "start_eq": 1.0,
+    "end_mad": 4.944444444444445,
+    "end_within_1": 0.7777777777777778
+   },
+   "java": {
+    "n": 56,
+    "start_eq": 0.0,
+    "end_mad": 0,
+    "end_within_1": 1.0
+   }
+  },
+  "ours_parser~tslp": {
+   "cpp": {
+    "n": 287,
+    "start_eq": 1.0,
+    "end_mad": 0,
+    "end_within_1": 1.0
+   },
+   "all": {
+    "n": 503,
+    "start_eq": 1.0,
+    "end_mad": 0,
+    "end_within_1": 1.0
+   },
+   "python": {
+    "n": 82,
+    "start_eq": 1.0,
+    "end_mad": 0,
+    "end_within_1": 1.0
+   },
+   "javascript": {
+    "n": 42,
+    "start_eq": 1.0,
+    "end_mad": 0,
+    "end_within_1": 1.0
+   },
+   "typescript": {
+    "n": 36,
+    "start_eq": 1.0,
+    "end_mad": 0,
+    "end_within_1": 1.0
+   },
+   "java": {
+    "n": 56,
+    "start_eq": 1.0,
+    "end_mad": 0,
+    "end_within_1": 1.0
+   }
+  },
+  "ours_line~lizard": {
+   "cpp": {
+    "n": 343,
+    "start_eq": 1.0,
+    "end_mad": 0,
+    "end_within_1": 1.0
+   },
+   "all": {
+    "n": 559,
+    "start_eq": 0.9892665474060823,
+    "end_mad": 0.9570661896243292,
+    "end_within_1": 0.962432915921288
+   },
+   "perl": {
+    "n": 4,
+    "start_eq": 0.0,
+    "end_mad": 0.75,
+    "end_within_1": 0.75
+   },
+   "python": {
+    "n": 82,
+    "start_eq": 1.0,
+    "end_mad": 0.34146341463414637,
+    "end_within_1": 0.9878048780487805
+   },
+   "javascript": {
+    "n": 38,
+    "start_eq": 0.9473684210526315,
+    "end_mad": 9.052631578947368,
+    "end_within_1": 0.7105263157894737
+   },
+   "typescript": {
+    "n": 36,
+    "start_eq": 1.0,
+    "end_mad": 2.888888888888889,
+    "end_within_1": 0.7777777777777778
+   },
+   "java": {
+    "n": 56,
+    "start_eq": 1.0,
+    "end_mad": 1,
+    "end_within_1": 1.0
+   }
+  },
+  "ours_line~tslp": {
+   "cpp": {
+    "n": 290,
+    "start_eq": 1.0,
+    "end_mad": 0,
+    "end_within_1": 1.0
+   },
+   "all": {
+    "n": 506,
+    "start_eq": 0.8893280632411067,
+    "end_mad": 1.3359683794466404,
+    "end_within_1": 0.9723320158102767
+   },
+   "python": {
+    "n": 82,
+    "start_eq": 1.0,
+    "end_mad": 0.34146341463414637,
+    "end_within_1": 0.9878048780487805
+   },
+   "javascript": {
+    "n": 42,
+    "start_eq": 1.0,
+    "end_mad": 8.047619047619047,
+    "end_within_1": 0.7857142857142857
+   },
+   "typescript": {
+    "n": 36,
+    "start_eq": 1.0,
+    "end_mad": 7.055555555555555,
+    "end_within_1": 0.8888888888888888
+   },
+   "java": {
+    "n": 56,
+    "start_eq": 0.0,
+    "end_mad": 1,
+    "end_within_1": 1.0
+   }
+  }
+ },
+ "jaccard": {
+  "ours_parser~lizard": {
+   "cpp": {
+    "n": 296,
+    "mean": 0.9738738738738739
+   },
+   "all": {
+    "n": 553,
+    "mean": 0.966793782841232
+   },
+   "javascript": {
+    "n": 47,
+    "mean": 0.8650214793669975
+   },
+   "python": {
+    "n": 102,
+    "mean": 1.0
+   },
+   "typescript": {
+    "n": 36,
+    "mean": 0.9642857142857143
+   },
+   "java": {
+    "n": 66,
+    "mean": 1.0
+   },
+   "perl": {
+    "n": 6,
+    "mean": 0.5
+   }
+  },
+  "ours_parser~tslp": {
+   "cpp": {
+    "n": 296,
+    "mean": 0.984009009009009
+   },
+   "all": {
+    "n": 547,
+    "mean": 0.9859327196245145
+   },
+   "javascript": {
+    "n": 47,
+    "mean": 0.9430690479501493
+   },
+   "python": {
+    "n": 102,
+    "mean": 1.0
+   },
+   "typescript": {
+    "n": 36,
+    "mean": 0.9920634920634921
+   },
+   "java": {
+    "n": 66,
+    "mean": 1.0
+   }
+  },
+  "ours_line~lizard": {
+   "cpp": {
+    "n": 352,
+    "mean": 0.0
+   },
+   "all": {
+    "n": 607,
+    "mean": 0.37971662305778986
+   },
+   "javascript": {
+    "n": 47,
+    "mean": 0.6334830740806962
+   },
+   "python": {
+    "n": 102,
+    "mean": 1.0
+   },
+   "typescript": {
+    "n": 36,
+    "mean": 0.9087301587301587
+   },
+   "java": {
+    "n": 66,
+    "mean": 1.0
+   },
+   "perl": {
+    "n": 4,
+    "mean": 0.0
+   }
+  },
+  "ours_line~tslp": {
+   "cpp": {
+    "n": 296,
+    "mean": 0.0
+   },
+   "all": {
+    "n": 547,
+    "mean": 0.42291456333154365
+   },
+   "javascript": {
+    "n": 47,
+    "mean": 0.6302123495333758
+   },
+   "python": {
+    "n": 102,
+    "mean": 1.0
+   },
+   "typescript": {
+    "n": 36,
+    "mean": 0.9365079365079365
+   },
+   "java": {
+    "n": 66,
+    "mean": 1.0
+   }
+  }
+ },
+ "nesting": {
+  "python": {
+   "n": 50,
+   "spearman_max_nesting_depth": 0.61018251197266,
+   "spearman_max_ccn": 0.5217231522987315,
+   "spearman_sum_ccn": 0.4691059685541511,
+   "exact_equal_max_nd": 6
+  },
+  "javascript": {
+   "n": 50,
+   "spearman_max_nesting_depth": 0.6386202078849221,
+   "spearman_max_ccn": 0.6024274418026722,
+   "spearman_sum_ccn": 0.6507917848851569,
+   "exact_equal_max_nd": 11
+  }
+ },
+ "module_share": {
+  "cpp": {
+   "module_code_lines": 3764,
+   "code_lines": 35076,
+   "files_without_units": 0
+  },
+  "all": {
+   "module_code_lines": 9509,
+   "code_lines": 51810,
+   "files_without_units": 2
+  },
+  "javascript": {
+   "module_code_lines": 1790,
+   "code_lines": 7399,
+   "files_without_units": 0
+  },
+  "python": {
+   "module_code_lines": 1156,
+   "code_lines": 2918,
+   "files_without_units": 0
+  },
+  "typescript": {
+   "module_code_lines": 740,
+   "code_lines": 2669,
+   "files_without_units": 0
+  },
+  "java": {
+   "module_code_lines": 1897,
+   "code_lines": 3452,
+   "files_without_units": 0
+  },
+  "perl": {
+   "module_code_lines": 162,
+   "code_lines": 296,
+   "files_without_units": 2
+  }
+ },
+ "candidate_misses": {
+  "tslp": [
+   "openssl-cve-2021-3712:benchmarks/pairs/vfc/openssl-cve-2021-3712/vuln.c:append_ia5",
+   "openssl-cve-2021-3712:benchmarks/pairs/vfc/openssl-cve-2021-3712/fixed.c:append_ia5",
+   "openssl-cve-2022-1292:benchmarks/pairs/vfc/openssl-cve-2022-1292/vuln.in:link_hash_cert",
+   "openssl-cve-2022-1292:benchmarks/pairs/vfc/openssl-cve-2022-1292/fixed.in:link_hash_cert",
+   "curl-cve-2023-38545:benchmarks/pairs/vfc/curl-cve-2023-38545/vuln.c:do_SOCKS5",
+   "curl-cve-2023-38545:benchmarks/pairs/vfc/curl-cve-2023-38545/fixed.c:do_SOCKS5",
+   "openssl-cve-2026-14456-expect_quic_for_value:benchmarks/pairs/vfc/openssl-cve-2026-14456-expect_quic_for_value/vuln.c:expect_quic_for_value",
+   "openssl-cve-2026-14456-expect_quic_for_value:benchmarks/pairs/vfc/openssl-cve-2026-14456-expect_quic_for_value/fixed.c:expect_quic_for_value",
+   "openssl-cve-2026-45447:benchmarks/pairs/vfc/openssl-cve-2026-45447/vuln.c:PKCS7_verify",
+   "openssl-cve-2026-45447:benchmarks/pairs/vfc/openssl-cve-2026-45447/fixed.c:PKCS7_verify",
+   "openssl-cve-2026-31790-rsasve_generate:benchmarks/pairs/vfc/openssl-cve-2026-31790-rsasve_generate/vuln.in:rsasve_generate",
+   "openssl-cve-2026-31790-rsasve_generate:benchmarks/pairs/vfc/openssl-cve-2026-31790-rsasve_generate/fixed.in:rsasve_generate",
+   "openssl-cve-2024-2511:benchmarks/pairs/vfc/openssl-cve-2024-2511/vuln.c:ssl_update_cache",
+   "openssl-cve-2024-2511:benchmarks/pairs/vfc/openssl-cve-2024-2511/fixed.c:ssl_update_cache",
+   "openssl-cve-2023-5363:benchmarks/pairs/vfc/openssl-cve-2023-5363/vuln.c:evp_cipher_init_internal",
+   "openssl-cve-2023-5363:benchmarks/pairs/vfc/openssl-cve-2023-5363/fixed.c:evp_cipher_init_internal",
+   "openssl-cve-2023-0464:benchmarks/pairs/vfc/openssl-cve-2023-0464/vuln.c:tree_init",
+   "openssl-cve-2023-0464:benchmarks/pairs/vfc/openssl-cve-2023-0464/fixed.c:tree_init",
+   "openssl-cve-2023-0464-tree_init:benchmarks/pairs/vfc/openssl-cve-2023-0464-tree_init/vuln.c:tree_init",
+   "openssl-cve-2023-0464-tree_init:benchmarks/pairs/vfc/openssl-cve-2023-0464-tree_init/fixed.c:tree_init",
+   "openssl-cve-2023-0216:benchmarks/pairs/vfc/openssl-cve-2023-0216/vuln.c:STACK_OF",
+   "openssl-cve-2023-0216:benchmarks/pairs/vfc/openssl-cve-2023-0216/fixed.c:STACK_OF",
+   "openssl-cve-2022-3358:benchmarks/pairs/vfc/openssl-cve-2022-3358/vuln.c:evp_md_init_internal",
+   "openssl-cve-2022-3358:benchmarks/pairs/vfc/openssl-cve-2022-3358/fixed.c:evp_md_init_internal",
+   "openssl-cve-2022-3358-evp_cipher_init_internal:benchmarks/pairs/vfc/openssl-cve-2022-3358-evp_cipher_init_internal/vuln.c:evp_cipher_init_internal",
+   "openssl-cve-2022-3358-evp_cipher_init_internal:benchmarks/pairs/vfc/openssl-cve-2022-3358-evp_cipher_init_internal/fixed.c:evp_cipher_init_internal",
+   "openssl-cve-2022-2068-hash_dir:benchmarks/pairs/vfc/openssl-cve-2022-2068-hash_dir/vuln.in:hash_dir",
+   "openssl-cve-2022-2068-hash_dir:benchmarks/pairs/vfc/openssl-cve-2022-2068-hash_dir/fixed.in:hash_dir",
+   "openssl-cve-2022-1343:benchmarks/pairs/vfc/openssl-cve-2022-1343/vuln.c:ocsp_verify_signer",
+   "openssl-cve-2022-1343:benchmarks/pairs/vfc/openssl-cve-2022-1343/fixed.c:ocsp_verify_signer",
+   "openssl-cve-2021-3712-append_ia5:benchmarks/pairs/vfc/openssl-cve-2021-3712-append_ia5/vuln.c:append_ia5",
+   "openssl-cve-2021-3712-append_ia5:benchmarks/pairs/vfc/openssl-cve-2021-3712-append_ia5/fixed.c:append_ia5",
+   "openssl-cve-2021-3712-print_qualifiers:benchmarks/pairs/vfc/openssl-cve-2021-3712-print_qualifiers/vuln.c:print_qualifiers",
+   "openssl-cve-2021-3712-print_qualifiers:benchmarks/pairs/vfc/openssl-cve-2021-3712-print_qualifiers/fixed.c:print_qualifiers",
+   "openssl-cve-2021-3449-init_sig_algs_cert:benchmarks/pairs/vfc/openssl-cve-2021-3449-init_sig_algs_cert/vuln.c:init_sig_algs_cert",
+   "openssl-cve-2021-3449-init_sig_algs_cert:benchmarks/pairs/vfc/openssl-cve-2021-3449-init_sig_algs_cert/fixed.c:init_sig_algs_cert",
+   "curl-cve-2026-9080:benchmarks/pairs/vfc/curl-cve-2026-9080/vuln.c:mev_forget_socket",
+   "curl-cve-2026-9080:benchmarks/pairs/vfc/curl-cve-2026-9080/fixed.c:mev_forget_socket",
+   "curl-cve-2023-38545-do_socks5:benchmarks/pairs/vfc/curl-cve-2023-38545-do_socks5/vuln.c:do_SOCKS5",
+   "curl-cve-2023-38545-do_socks5:benchmarks/pairs/vfc/curl-cve-2023-38545-do_socks5/fixed.c:do_SOCKS5"
+  ],
+  "lizard": [
+   "openssl-cve-2025-69421:benchmarks/pairs/vfc/openssl-cve-2025-69421/fixed.c:OSSL_TRACE_BEGIN",
+   "openssl-cve-2026-31790-rsasve_generate:benchmarks/pairs/vfc/openssl-cve-2026-31790-rsasve_generate/vuln.in:rsasve_generate",
+   "openssl-cve-2026-31790-rsasve_generate:benchmarks/pairs/vfc/openssl-cve-2026-31790-rsasve_generate/fixed.in:rsasve_generate",
+   "openssl-cve-2023-0216:benchmarks/pairs/vfc/openssl-cve-2023-0216/vuln.c:STACK_OF",
+   "openssl-cve-2023-0216:benchmarks/pairs/vfc/openssl-cve-2023-0216/fixed.c:STACK_OF",
+   "glance-3-0-0:benchmarks/pairs/vfc-js/glance-3-0-0/vuln.js:Glance$serveRequest",
+   "glance-3-0-0:benchmarks/pairs/vfc-js/glance-3-0-0/fixed.js:Glance$serveRequest",
+   "hot-formula-parser-3-0-0:benchmarks/pairs/vfc-js/hot-formula-parser-3-0-0/vuln.js:performAction",
+   "hot-formula-parser-3-0-0:benchmarks/pairs/vfc-js/hot-formula-parser-3-0-0/fixed.js:performAction",
+   "static-eval-1-1-1:benchmarks/pairs/vfc-js/static-eval-1-1-1/vuln.js:walk",
+   "static-eval-1-1-1:benchmarks/pairs/vfc-js/static-eval-1-1-1/fixed.js:walk"
+  ]
+ },
+ "lang_counts": {
+  "cpp": 352,
+  "java": 66,
+  "javascript": 48,
+  "perl": 6,
+  "python": 102,
+  "typescript": 36
+ }
+}

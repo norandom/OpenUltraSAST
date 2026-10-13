@@ -62,10 +62,21 @@
   `semantic/`), `mapping.analyze_entry_points`, lizard (function spans, nesting, cyclomatic complexity; pure
   Python), universal-ctags (spans across many languages; a binary), Semgrep OSS or Opengrep (pattern
   and taint findings as features; also a candidate to replace the quick-rule engine, a separate decision).
-- **Status**: a measured comparison of lizard against our two engines on the pair corpus is running
-  (`~/ousast-results/fossil/span-eval/REPORT.md`); a licensing and capability brief for Semgrep CE and Opengrep is
-  being written (`~/ousast-results/fossil/semgrep-brief.md`). Both land as producers behind the same contract;
-  the ablation decides whether their columns stay.
+- **Result, lizard (benchmarks/measurements/2026-10-13-span-engines/REPORT.md)**: on 610 pair files and 570 labelled
+  functions, lizard matches our parser engine line for line on C, Python and Java (end-line difference 0.00,
+  name-set Jaccard 0.97 to 1.00) and survives the 56 excerpts the cpp grammar rejects, but loses 6 of 44 labelled
+  JavaScript functions to naming (`$` identifiers, `function anonymous`, nested named functions, assigned function
+  expressions), gets TypeScript end lines wrong on 22% of labels (one by 81 lines), has no Perl reader, and is the
+  slowest of the four engines. Verdict: keep ours; lizard's per-function cyclomatic complexity and nesting are a
+  candidate feature column, not a span engine (its nesting correlates with `measure_nesting` at Spearman 0.6, so
+  it is not a drop-in there either).
+- **Result, tree-sitter-language-pack**: the same tree-sitter, 503 of 503 spans identical with our parser engine,
+  1.4x faster (it caches parsers), one 6 MB MIT wheel in place of six grammar wheels, and it adds Go, Ruby, PHP
+  and Perl grammars that ours handles by regex today. Adopt it as the grammar packaging in `semantic/extra.py`;
+  map `.c` to the c grammar first (20 of the 56 rejections clear); cache the parser. `tree-sitter-languages` is
+  ABI-broken under tree-sitter 0.26; universal-ctags has no pip build.
+- **Pending**: the Semgrep CE and Opengrep brief (`~/ousast-results/fossil/semgrep-brief.md`). Producers land behind
+  the same contract; the ablation decides whether their columns stay.
 - **Research needed**: Semgrep registry rule licence terms for an open-source tool.
 
 ### Training data apart from the pilot
