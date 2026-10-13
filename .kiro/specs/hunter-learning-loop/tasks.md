@@ -1,0 +1,94 @@
+# Implementation Plan
+
+- [ ] 1. Foundation: the feature table and its producers
+- [ ] 1.1 Create the feature table with a versioned column schema, masks and digests
+  - One row per candidate location (change, path, line) with key, label, feature, provenance and fold columns
+  - Rows read and write as JSONL and parquet; a table digest covers rows and schema version
+  - A mask drops named feature columns and is recorded with the table it was applied to
+  - Done when a round-trip test shows the same digest after write and read, and a masked table lists its mask
+  - _Requirements: 3.1, 3.5, 4.2, 5.1_
+- [ ] 1.2 Produce the four existing annotations from the repository only (P)
+  - Diff hunks at head with on-changed-line and distance; enclosing function, span, callers, entry points from the source facts; roles, def-use and obligations from the semantic facts; the closed family list with one-line definitions
+  - An annotation a producer cannot compute is recorded as absent with a reason, never defaulted
+  - Done when a fixture repository yields every column, and a repository with a planted advisory id and a security-worded commit message yields no feature carrying either
+  - _Requirements: 3.2, 3.3, 3.4, 3.7, 3.8_
+  - _Boundary: producers_
+- [ ] 1.3 Label the rows by the benchmark's rule (P)
+  - Fix-site rows of positives label 1 with the change's family and fix span; ordinary-push rows label 0; other rows on a positive label null and are excluded from scoring
+  - Each positive row carries the verification record reference next to the label; a row whose source cannot be traced is rejected
+  - Done when a fixture manifest with one positive and two ordinary pushes produces the expected labels and the null rows are excluded
+  - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6_
+  - _Boundary: FeatureTable, training_set.py_
+- [ ] 1.4 Install the research extra and pin the program runtime
+  - Optional dependency group for the loop with the program runtime and the table library, pinned to a minor version; the core install stays unchanged
+  - Done when the extra installs into the research environment and the core test suite collects without it
+  - _Requirements: 5.1, 9.5_
+
+- [ ] 2. Core: the hunter as a program
+- [ ] 2.1 Define the hunt signature and the program with the three repository tools
+  - Inputs are the rendered unmasked feature columns plus the hunks; the output is the classifier's answer structure with a family from the closed list and cited lines inside the shown text
+  - The tool loop is bounded by the run budget; an answer outside the vocabulary or citing unseen lines is recorded unknown
+  - Done when a scripted model drives the program through the tools on a fixture and the parsed findings match the fixture's expectation
+  - _Requirements: 3.5, 3.6, 5.1, 5.2, 5.4_
+- [ ] 2.2 Score a change: the search metric with feedback (P)
+  - A suspicion within the scorer's tolerance of the fix site with the right family counts as a hit; ordinary-push suspicions are counted per push; the feedback text names the missed site or the off-diff suspicions
+  - Done when the metric reproduces the pilot's hit list for the 12 positives from their recorded suspicions
+  - _Requirements: 1.4, 4.3, 7.1, 7.2_
+  - _Boundary: search_metric_
+- [ ] 2.3 Record a run as a content-addressed artifact (P)
+  - Program id, schema version, mask, data digests, every scored configuration, spend, calls, replay hits, wall time, library versions; the saved program and its cache directory travel with it
+  - A run that exhausts its budget writes no artifact and reports the spend so far
+  - Done when two identical runs produce the same artifact id and a budget-exhausted run leaves only the partial report
+  - _Requirements: 5.1, 5.2, 5.3, 5.5, 9.1, 9.2, 9.5_
+  - _Boundary: RunArtifact_
+
+- [ ] 3. Integration: the runner and the baseline
+- [ ] 3.1 Run the program through the existing hunter-arm runner
+  - The runner takes a program artifact and a mask, computes the table rows for each change at head, renders the inputs, runs the program and writes the same record shape as today, resumable by change id, input digest, program id and mask
+  - The pilot manifest is refused by digest unless the run is explicitly a pilot report run
+  - Done when a run over a five-change fixture manifest with the scripted model writes records the existing scorer accepts
+  - _Requirements: 2.4, 8.4, 9.3, 9.4_
+- [ ] 3.2 Prove the plumbing: baseline program on the 12 pilot positives
+  - The baseline instruction equals today's hunter prompt plus the hunks; one live, budgeted run over the 12 positives only, as a pilot report run
+  - Done when the search metric over the new records is compared with the pilot's recorded hunter hits and the difference is explained in the measurement record
+  - _Requirements: 8.1, 8.4, 8.5, 8.6_
+  - _Depends: 2.2, 2.3_
+
+- [ ] 4. Core: the training set, folds and ablation
+- [ ] 4.1 Source the training set apart from the pilot
+  - About one hundred advisories through the fix-site catalog and verifier, pilot repositories excluded, at least 40 accepted positives across two languages, 20 ordinary pushes per positive from the same repositories; the sourcing run is recorded
+  - Done when the frozen training manifest lists its positives, negatives, languages and the pilot exclusion check
+  - _Requirements: 2.1, 2.2, 2.3_
+- [ ] 4.2 Fold by repository and audit every annotation for leaks
+  - Compile folds and held-out folds by repository group; the leak audit runs over every feature column and reports any that separates positives from negatives on its own
+  - Done when the folds are disjoint by repository and the audit report lists each column with its separation score
+  - _Requirements: 2.5, 2.6_
+- [ ] 4.3 Register and run a paired ablation
+  - A manifest fixes the table digest, the masks, the folds, the metric, the sample size, the budget and the decision rule before anything runs; each arm runs over the same changes with the same program and sampling
+  - Results per arm carry the paired effect on search recall and suspicions per ordinary push, per family and pooled, with intervals from the repository-clustered bootstrap and a paired test
+  - Done when an ablation over a fixture manifest with the scripted model yields two arms, the paired statistics, and the full recall-against-suspicions curve
+  - _Requirements: 4.1, 4.2, 4.3, 4.7, 4.8_
+- [ ] 4.4 Build the importance table and apply the keep/drop rule
+  - For every annotation, its effect when removed from the full set and when added to the baseline, with intervals and counts; an annotation stays only on a held-out effect whose interval excludes zero or when a kept annotation needs it; one that raises suspicions without raising recall is dropped and recorded
+  - Done when the table is written for a fixture ablation and the rule's decisions match the fixture's expectations
+  - _Requirements: 4.4, 4.5, 4.6_
+- [ ] 4.5 Contamination check
+  - A training repository later found in the pilot or in a benchmark report marks every run that used it as contaminated and excludes those runs from any gain
+  - Done when a fixture run is marked contaminated after its repository is added to a report list
+  - _Requirements: 2.7_
+
+- [ ] 5. Core: proposals and acceptance
+- [ ] 5.1 Propose candidates with the program runtime's optimisers
+  - One change per round: an instruction proposal, a demonstration set, or a mask; proposals score on compile folds with the search metric; the proposer never sees held-out results; rejected candidates stay visible to the next round
+  - Done when a round on a fixture produces a candidate with its compile-fold score and the proposer's inputs are shown to exclude held-out data
+  - _Requirements: 5.4, 6.6, 6.8_
+- [ ] 5.2 Accept or reject by the rule
+  - Compile-fold and held-out results per family; accepted only when both are non-negative, one strictly positive, no family below its regression budget, instruction under the length cap; ties rejected; the comparison is recorded in the new artifact
+  - Done when every clause of the rule has a synthetic fold-result test that flips the decision
+  - _Requirements: 5.6, 6.1, 6.2, 6.3, 6.4, 6.5, 6.7_
+
+- [ ] 6. Validation: the pilot gain
+- [ ] 6.1 Run an accepted program once over the held-out pilot and report the gain
+  - Same scorer and metrics as the pilot; before-and-after of search recall, suspicions per push, push-level recall, false alarms per 100 and precision, per family, with intervals; the proof arm's workload per 100 pushes; the gate distance read off the curve; the run recorded next to the pilot's measurement, at most once per accepted program
+  - Done when the measurement record exists with the before-and-after table and the instrument proof for every change
+  - _Requirements: 7.3, 7.4, 7.5, 8.1, 8.2, 8.3, 8.6_
