@@ -14,6 +14,7 @@ from pathlib import Path
 from openultrasast import tool_hunter
 from openultrasast.complexity.map import Hotspot
 from openultrasast.config import load_config
+from openultrasast.hunt.runner import _full_checkout as full_checkout
 from openultrasast.hunter_tools import clamp_repo_path
 from openultrasast.learn.program import ANSWER_FORMAT, Caller, Prompt, classify
 from openultrasast.model.endpoint import resolve_models
@@ -204,6 +205,10 @@ def _hunt_change(change, repos, *, client, model, max_steps, no_classify=False):
             try:
                 git.run("-c", "core.hooksPath=/dev/null", "worktree", "add", "--detach", str(root), change["head"])
                 added = True
+                try:
+                    full_checkout(root)  # training clones are sparse-checkout; the worktree inherits it
+                except RuntimeError:
+                    raise InstrumentFailure("checkout_incomplete") from None
                 if local_git(root).run("rev-parse", "HEAD").strip() != change["head"]:
                     raise InstrumentFailure("head_mismatch")
                 instrument["head_verified"] = True
