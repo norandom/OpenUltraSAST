@@ -54,13 +54,16 @@ def freeze(
     history_cache: Path | None = None,
     fix_index: dict | None = None,
     floor: int = extract.ORDINARY_FLOOR,
+    history_limit: int | None = None,
 ) -> dict:
     """Freeze accepted positives with ``ratio`` ordinary pushes per fix commit from the same repositories.
 
     ``floor`` is the eligible-commit count a repository needs before its ordinary pushes are drawn. The
     held-out benchmark keeps the shipped 40; a training freeze may lower it (never below the ratio) so small
     repositories with 20 eligible commits still contribute, and the record carries the floor used.
-    ``history_cache`` reuses completed per-commit history rows across freezes of the same clone."""
+    ``history_cache`` reuses completed per-commit history rows across freezes of the same clone. ``history_limit``
+    caps the walk at the newest first-parent commits for a training freeze and is recorded; the held-out benchmark
+    passes none."""
     if type(ratio) is not int or ratio < 20:
         raise ValueError("ordinary ratio must be at least 20")
     if type(floor) is not int or floor < ratio:
@@ -94,6 +97,8 @@ def freeze(
         head = (history_heads or {}).get(repo) or git.run("rev-parse", "HEAD").strip()
         heads[repo] = head
         history_options = {"cache_dir": history_cache} if history_cache is not None else {}
+        if history_limit is not None:
+            history_options["limit"] = history_limit
         history = sorted(extract.ordinary_history(git, head, **history_options), key=lambda row: row["head"])
         # Ratio is per positive CHANGE (a fix commit), not per accepted function. Several
         # accepted functions in one fix collapse to one vulnerability change below, so the
@@ -156,6 +161,7 @@ def freeze(
         ordinary_exclusions=draws,
         negative_ratio=ratio,
         ordinary_floor=floor,
+        history_limit=history_limit,
         label_check_counts={"confirmed": sum(len(v) for v in retained.values()), "unchecked": 0, "unclear": 0, "refactor": 0},
     )
     payloads = [
@@ -181,6 +187,7 @@ def main(argv=None):
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--history-cache", type=Path, help="Directory for per-clone commit history caches")
+    parser.add_argument("--history-limit", type=int, default=None, help="Training only: walk the newest N first-parent commits")
     args = parser.parse_args(argv)
     result = freeze(
         args.out,
@@ -190,6 +197,7 @@ def main(argv=None):
         used=json.loads(args.used.read_text()),
         seed=args.seed,
         history_cache=args.history_cache,
+        history_limit=args.history_limit,
     )
     print(json.dumps(result, sort_keys=True))
     return 0

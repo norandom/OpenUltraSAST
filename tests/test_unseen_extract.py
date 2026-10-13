@@ -670,3 +670,12 @@ def test_partial_clone_lazy_fetch_preserves_extraction_content(history, tmp_path
     assert partial.files_read > 0 and partial.bytes_read > 0
     assert json.dumps(result, sort_keys=True).encode() == json.dumps(baseline, sort_keys=True).encode()
     assert sum("built-in: git fetch " in line for line in trace.read_text().splitlines()) >= 12
+
+
+def test_history_limit_walks_only_the_newest_commits(history):
+    git, *_ = history
+    full = e.ordinary_history(git, "HEAD")
+    assert len(full) > 2
+    assert e.ordinary_history(git, "HEAD", limit=2) == full[:2]  # the newest first-parent commits, same rows
+    with pytest.raises(ValueError, match="positive integer"):
+        e.ordinary_history(git, "HEAD", limit=0)

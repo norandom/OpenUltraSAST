@@ -486,9 +486,15 @@ def _history_cache(git, cache_dir: Path | None):
         yield cached, handle
 
 
-def ordinary_history(git, head: str, *, cache_dir: Path | None = None) -> list[dict]:
-    """Read first-parent history, optionally reusing completed rows from this clone."""
-    raw = git.run("log", "--first-parent", "--format=%H%x00%P%x00%ct%x00%an%x00%B%x1e", head)
+def ordinary_history(git, head: str, *, cache_dir: Path | None = None, limit: int | None = None) -> list[dict]:
+    """Read first-parent history, optionally reusing completed rows from this clone.
+
+    ``limit`` walks only the newest ``limit`` first-parent commits (a training freeze's cap; the held-out
+    benchmark passes none)."""
+    if limit is not None and (type(limit) is not int or limit < 1):
+        raise ValueError("history limit must be a positive integer")
+    count = () if limit is None else ("-n", str(limit))
+    raw = git.run("log", "--first-parent", *count, "--format=%H%x00%P%x00%ct%x00%an%x00%B%x1e", head)
     rows = []
     with _history_cache(git, cache_dir) as (cached, handle):
         for entry in raw.split("\x1e"):
