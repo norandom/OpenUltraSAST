@@ -181,7 +181,8 @@ def test_a_removed_guard_anchors_the_function_it_left(tmp_path):
     check = "    if not user.is_admin:\n        raise PermissionError\n"
     guarded = "def first():\n    return 1\n\n\ndef admin(user):\n" + check + "    return delete_everything()\n"
     (tmp_path / "app.py").write_text(guarded)
-    git("add", "app.py")
+    (tmp_path / "empty.py").write_text("")  # an empty product file elsewhere must not fail the row's producers
+    git("add", "app.py", "empty.py")
     git("commit", "-qm", "fix: require admin")
     base = git("rev-parse", "HEAD")
     (tmp_path / "app.py").write_text(guarded.replace(check, ""))
@@ -191,6 +192,7 @@ def test_a_removed_guard_anchors_the_function_it_left(tmp_path):
     change = {"id": "c", "case_id": "c-1", "repo": "fixture/repo", "base": base, "head": head, "kind": "ordinary", "fold": 1,
               "files": [{"path": "app.py", "head_lines": [[1, 1], [5, 6]]}]}  # fmt: skip
     rows = compute_rows(tmp_path, change)
+    assert all(r["provenance.source.ok"] for r in rows), [r["provenance.source.reason"] for r in rows]
     row = next(r for r in rows if r["feature.source.function"] == "admin")
     assert row["feature.diff.hunks"] == [] and row["feature.diff.deletions"] == [5]
     assert row["feature.diff.on_changed_line"] and row["feature.diff.distance"] == 0

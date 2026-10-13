@@ -91,7 +91,13 @@ class Context:
     @cached_property
     def entry_points(self) -> list[mapping.EntryPointRecord]:
         for path in self.product_files:
-            self.read(path)
+            try:
+                self.read(path)
+            except _Absent:
+                # An empty product file elsewhere in the tree is not this row's problem. Before this guard one
+                # such file failed the source producer on every row of the change, and the failure escaped the
+                # cache so every row re-read the whole tree.
+                continue
         return mapping.analyze_entry_points(self.root, [build_file_target(self.root, self.root / path) for path in self.product_files])
 
     @cached_property
