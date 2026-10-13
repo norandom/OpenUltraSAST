@@ -257,5 +257,5 @@ closes = "U3: move under benchmarks/push or delete if only tests use them"
 status = "review"
 modules = ["findings.py", "ruleset", "semantic (taint, overlay, prove_filter)"]
 note = "maintainer 2026-10-13: 'semgrep oss is a good idea'; brief in benchmarks/measurements/2026-10-13-semgrep-brief/ says registry rules are not shippable, our converted rules are; 4.7 s startup floor"
-closes = "run the Semgrep arm on the valid pilot (benchmarks/valid/semgrep_arm.py); if it scores at least as well, retire findings.py, ruleset/*.py and the taint overlay (~1,250 lines) and amend safety-net.md's second-engine rule with the measurement"
+closes = "run the Semgrep arm on the valid pilot (benchmarks/valid/semgrep_arm.py) as a comparison; it may replace the regex quick tier only (same job: pattern matches), never act as a filter on other tiers. A Semgrep miss is never evidence (maintainer 2026-10-13). If it matches the quick tier at least as well, retire findings.py and ruleset/*.py and amend safety-net.md with the measurement"
 

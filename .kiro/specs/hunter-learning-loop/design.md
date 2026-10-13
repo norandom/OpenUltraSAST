@@ -106,6 +106,13 @@ tests/test_hunt_*.py             table, producers (planted-advisory test), progr
                                  ablation masks, acceptance rule, artifact
 ```
 
+### Rule: a pattern engine's miss is never evidence
+Maintainer, 2026-10-13: "what does not work is that we dismiss things just because semgrep cannot find the bug.
+if semgrep was enough we'd use it." A Semgrep (or quick-rule, or engine) match is positive evidence and may enter
+the table as a feature ("matched here, rule X"). The absence of a match is not recorded as a feature, is never a
+filter, a demotion, a down-weight or a gate on a hunter suspicion, and no acceptance rule may count it. The
+Semgrep arm on the pilot is a comparison arm only.
+
 ## Components and interfaces
 | Component | Intent | Requirements | Depends on | Contract |
 |---|---|---|---|---|
