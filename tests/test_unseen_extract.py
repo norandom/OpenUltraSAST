@@ -406,6 +406,9 @@ def test_draw_seed_proportional_cells_floor_and_thirds():
     assert counts["eligible"] == 120
     with pytest.raises(s.Rejected, match="ordinary_floor"):
         e.draw_ordinary(rows[:39], set(), set(), seed=19)
+    assert len(e.draw_ordinary(rows[:39], set(), set(), seed=19, floor=20)[0]) == 12  # a training freeze may lower the floor
+    with pytest.raises(ValueError, match="below one draw"):
+        e.draw_ordinary(rows, set(), set(), seed=19, floor=11)
     # Thirds come from the history's time span, not rank among eligible changes.
     with pytest.raises(s.Rejected, match="time_thirds"):
         e.draw_ordinary([ordinary(i) for i in range(40)] + [ordinary(10000, message="security")], set(), set(), seed=1)

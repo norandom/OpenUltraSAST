@@ -385,7 +385,18 @@ def test_insufficient_negatives_and_invalid_ratio(pair, tmp_path, monkeypatch):
         assemble.freeze(tmp_path, **kwargs)
     with pytest.raises(ValueError, match="at least 20"):
         assemble.freeze(tmp_path, ratio=19, **kwargs)
+    with pytest.raises(ValueError, match="at least the ratio"):
+        assemble.freeze(tmp_path, floor=19, **kwargs)
     assert not (tmp_path / "freeze-valid.json").exists()
+    # A training freeze lowers the floor to the ratio: 20 eligible commits now suffice, and the record says so.
+    monkeypatch.setattr(extract, "ordinary_history", lambda *args: ordinary_rows(20))
+    with pytest.raises(ValueError, match="ordinary_floor"):  # Rejected is a ValueError with a fixed reason code
+        assemble.freeze(tmp_path / "default", **kwargs)
+    result = assemble.freeze(tmp_path / "train", floor=20, **kwargs)
+    assert result["ordinary_floor"] == 20 and result["negative_ratio"] == 20
+    # Twenty eligible commits for a ratio of twenty: every one of them is drawn, none twice.
+    ordinary = [c for c in replay.load_slice(tmp_path / "train/pool-valid.toml", 1) if c["kind"] == "ordinary"]
+    assert len(ordinary) == 20 and len({c["head"] for c in ordinary}) == 20
 
 
 def test_freeze_cannot_overwrite_or_trust_verdict_alone(pair, tmp_path, monkeypatch):

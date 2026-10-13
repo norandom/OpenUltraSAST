@@ -494,7 +494,20 @@ def ordinary_history(git, head: str) -> list[dict]:
     return rows
 
 
-def draw_ordinary(rows: list[dict], fixes: set[str], known_functions: set[tuple[str, str]], *, seed: int) -> tuple[list[dict], dict]:
+ORDINARY_FLOOR = 40  # eligible ordinary commits a repository must have before one stratified draw of 12
+
+
+def draw_ordinary(
+    rows: list[dict],
+    fixes: set[str],
+    known_functions: set[tuple[str, str]],
+    *,
+    seed: int,
+    floor: int = ORDINARY_FLOOR,
+    draws: int = 12,
+) -> tuple[list[dict], dict]:
+    """One stratified draw of ``draws`` ordinary commits (time third x size bucket, proportional, at least one per
+    third). ``draws`` equal to the eligible count takes every eligible commit, cell by cell."""
     import random
     from collections import Counter, defaultdict
 
@@ -505,7 +518,9 @@ def draw_ordinary(rows: list[dict], fixes: set[str], known_functions: set[tuple[
         counts[reason or "eligible"] += 1
         if reason is None:
             eligible.append(row)
-    if len(eligible) < 40:
+    if floor < 12 or draws < 12:
+        raise ValueError("the ordinary floor and draw size cannot be below one draw of 12")
+    if len(eligible) < max(floor, draws):
         failure = Rejected("ordinary_floor")
         failure.counts = dict(counts)
         raise failure
@@ -523,11 +538,11 @@ def draw_ordinary(rows: list[dict], fixes: set[str], known_functions: set[tuple[
     # Largest-deficit rounding with the mandatory minimum of one per time third.
     # No cell can receive more draws than it has eligible commits.
     allocation = Counter()
-    targets = {cell: 12 * len(items) / len(eligible) for cell, items in cells.items()}
+    targets = {cell: draws * len(items) / len(eligible) for cell, items in cells.items()}
     for third in range(3):
         cell = max(sorted(c for c in cells if c[0] == third), key=lambda c: targets[c])
         allocation[cell] = 1
-    while sum(allocation.values()) < 12:
+    while sum(allocation.values()) < draws:
         cell = max(sorted(c for c in cells if allocation[c] < len(cells[c])), key=lambda c: targets[c] - allocation[c])
         allocation[cell] += 1
     rng = random.Random(seed)

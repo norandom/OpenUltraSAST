@@ -18,20 +18,27 @@ from .catalog import local_git
 from .verify import verdict
 
 
-def negatives(rows: list[dict], fixes: set[str], functions: set[tuple[str, str]], *, count: int, seed: int):
-    """Combine the shipped twelve-commit stratified draws without duplicates."""
+def negatives(
+    rows: list[dict], fixes: set[str], functions: set[tuple[str, str]], *, count: int, seed: int, floor: int = extract.ORDINARY_FLOOR
+):
+    """Combine the shipped twelve-commit stratified draws without duplicates.
+
+    Small cells can stay unallocated in every twelve-commit draw, so when the union cannot reach ``count`` (a
+    training repository whose eligible commits barely cover the ratio) one stratified draw of ``count`` is used
+    instead; with ``count`` equal to the eligible commits that is every eligible commit."""
     available = {row["head"] for row in rows if extract.ordinary_rejection(row, fixes, functions) is None}
     if len(available) < count:
         raise ValueError(f"insufficient ordinary commits: {len(available)} available, {count} required")
     chosen = {}
     # Every call retains the original population and its time/size strata.
     for attempt in range(max(100, math.ceil(count / 12) * 100)):
-        drawn, exclusions = extract.draw_ordinary(rows, fixes, functions, seed=seed + attempt)
+        drawn, exclusions = extract.draw_ordinary(rows, fixes, functions, seed=seed + attempt, floor=floor)
         for row in drawn:
             chosen.setdefault(row["head"], row)
             if len(chosen) == count:
                 return sorted(chosen.values(), key=lambda row: row["head"]), exclusions
-    raise ValueError("ordinary draw did not reach the required distinct count")
+    drawn, exclusions = extract.draw_ordinary(rows, fixes, functions, seed=seed, floor=floor, draws=count)
+    return sorted(drawn, key=lambda row: row["head"]), exclusions
 
 
 def freeze(
@@ -45,9 +52,17 @@ def freeze(
     ratio: int = 20,
     history_heads: dict | None = None,
     fix_index: dict | None = None,
+    floor: int = extract.ORDINARY_FLOOR,
 ) -> dict:
+    """Freeze accepted positives with ``ratio`` ordinary pushes per fix commit from the same repositories.
+
+    ``floor`` is the eligible-commit count a repository needs before its ordinary pushes are drawn. The
+    held-out benchmark keeps the shipped 40; a training freeze may lower it (never below the ratio) so small
+    repositories with 20 eligible commits still contribute, and the record carries the floor used."""
     if type(ratio) is not int or ratio < 20:
         raise ValueError("ordinary ratio must be at least 20")
+    if type(floor) is not int or floor < ratio:
+        raise ValueError("ordinary floor must be at least the ratio")
     if len({row["id"] for row in cases}) != len(cases) or len({row["id"] for row in verifications}) != len(verifications):
         raise ValueError("duplicate case or verification id")
     used_names = {normalize(name) for name in (set().union(*used.sources.values()) if hasattr(used, "sources") else used)}
@@ -81,7 +96,7 @@ def freeze(
         # accepted functions in one fix collapse to one vulnerability change below, so the
         # negative count must track distinct (commit, parent) pairs.
         change_count = len({(case["commit"], case["parent"]) for case in positives})
-        ordinary, exclusions = negatives(history, fixes, functions, count=ratio * change_count, seed=seed)
+        ordinary, exclusions = negatives(history, fixes, functions, count=ratio * change_count, seed=seed, floor=floor)
         draws[repo] = exclusions
         changes = []
         pairs = defaultdict(list)
@@ -137,6 +152,7 @@ def freeze(
         history_heads=heads,
         ordinary_exclusions=draws,
         negative_ratio=ratio,
+        ordinary_floor=floor,
         label_check_counts={"confirmed": sum(len(v) for v in retained.values()), "unchecked": 0, "unclear": 0, "refactor": 0},
     )
     payloads = [
