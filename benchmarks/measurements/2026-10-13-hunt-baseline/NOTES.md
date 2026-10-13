@@ -31,3 +31,10 @@ What this says:
 
 Next: verify cache replay on one change (two runs, identical output and zero new tokens), then k = 5 runs of the
 baseline and of the pilot hunter's prompt on the 12 positives, paired by change.
+
+## Cache replay, verified after the fix (2026-10-13)
+
+One change (nvbn/thefuck), program without tools, three runs into one per-run cache configured through
+`dspy.configure_cache`: runs 1 and 2 gave the same answer, run 3 used zero tokens and the same answer. Replay now
+works; the earlier failure was the cache directory being set after DSPy had chosen its default. Repeated runs for
+variance therefore have to use separate cache directories (or `cache=False`), or they measure nothing.
