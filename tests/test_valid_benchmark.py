@@ -285,7 +285,7 @@ def test_precision_counts_unmatched_positive_flags_and_proof_failures():
     assert result["exploit_verified"]["not_yet_proved"] == ["p"]
 
 
-@pytest.mark.parametrize("suffix,language", [(".js", "javascript"), (".ts", "typescript"), (".php", None)])
+@pytest.mark.parametrize("suffix,language", [(".js", "javascript"), (".ts", "typescript"), (".php", "php"), (".rb", None)])
 def test_catalog_language_scope_and_single_line_function(suffix, language):
     class Git:
         def parents(self, sha):

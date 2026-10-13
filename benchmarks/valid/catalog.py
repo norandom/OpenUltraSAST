@@ -24,6 +24,8 @@ LANGUAGES = {
     ".cjs": "javascript",
     ".ts": "typescript",
     ".tsx": "typescript",
+    ".java": "java",  # added 2026-10-13 for the training set: extract.fix_sites and function_bounds both read Java and PHP
+    ".php": "php",
 }
 
 
