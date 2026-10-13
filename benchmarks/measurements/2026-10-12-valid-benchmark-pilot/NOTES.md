@@ -78,6 +78,27 @@ strict scorer; note them.
   prompt to the taxonomy (`tool_hunter.py`) so the push path emits taxonomy families natively.
 - The instrument failure: `matrix` 7018468e, no readable hotspot (`hook_bytes_read: 0`).
 
+### Where the hunter's false alarms come from (sweep over the same records, no new model calls)
+
+Of the 343 ordinary-push suspicions the classifier called `vulnerable`, only 40 sit on a line the
+push changed and only 93 within 10 lines of one. The hunter searches the whole changed file, so on
+an ordinary push it re-reports the repo's pre-existing code. Scoping to the change is the biggest
+lever, confidence the second, the `config_secrets` family the third. In-sample on 12 positives, so
+treat the table as direction, not a tuned threshold:
+
+| Filter on hunter suspicions | Recall | False alarms per 100 |
+|---|---|---|
+| raw | 6/12 | 92.5 |
+| classifier `vulnerable` | 5/12 | 54.4 |
+| `vulnerable`, confidence >= 0.8 | 5/12 | 31.8 |
+| `vulnerable`, within 10 lines of the diff | 5/12 | 22.6 |
+| `vulnerable`, confidence >= 0.8, within 10 lines | 5/12 | 11.3 |
+| `vulnerable`, confidence >= 0.8, within 10 lines, not `config_secrets` | 5/12 | 8.8 |
+
+The exact-line scope (0 lines) drops recall to 1/12 because the benchmark's "head" is the code
+before the fix, where most fixes add lines rather than change them; a developer's own push has the
+vulnerable lines in the diff by construction. Proof stays the last step, on what survives this.
+
 ### What to do with this
 
 1. The push hook needs the LLM tier (owned by `pre-push-safety-net`): the hook as shipped caught
