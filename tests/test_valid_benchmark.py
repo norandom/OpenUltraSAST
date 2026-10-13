@@ -366,15 +366,70 @@ def test_empty_entry_point_cannot_accept(pair):
     assert verify.spot_check(verify.verify_case(git, case, client=stub), "accept", "AB", "2026-10-12")["verdict"] == "rejected"
 
 
-def test_real_local_history_freezes_without_network(pair, tmp_path):
+@pytest.mark.parametrize("use_cache", [False, True])
+def test_real_local_history_freezes_without_network(pair, tmp_path, monkeypatch, use_cache):
     git, case = pair
     for i in range(55):
         (git.path / "other.py").write_text(f"def other():\n    return {i}\n")
         git.run("add", "other.py")
         git.run("commit", "-qm", "ordinary edit")
-    result = assemble.freeze(tmp_path / "freeze", cases=[case], verifications=[accepted(case)], repos={case["repo"]: git}, used=set())
+    kwargs = dict(cases=[case], verifications=[accepted(case)], repos={case["repo"]: git}, used=set())
+    expected = assemble.freeze(tmp_path / "uncached", **kwargs)
+    cache = tmp_path / "history-cache" if use_cache else None
+    result = assemble.freeze(tmp_path / "freeze", **kwargs, history_cache=cache)
+    assert result == expected
     assert result["label_check_counts"]["confirmed"] == 1
     assert len(replay.load_slice(tmp_path / "freeze/pool-valid.toml", 1)) == 21
+    if use_cache:
+        (path,) = cache.glob("*.jsonl")
+        before = path.read_bytes()
+        assert len(before.splitlines()) == 57
+
+        def forbidden(*args):
+            pytest.fail("cached freeze repeated per-commit work")
+
+        for name in ("stats", "hunks", "blob"):
+            monkeypatch.setattr(git, name, forbidden)
+        assert assemble.freeze(tmp_path / "freeze", **kwargs, history_cache=cache) == result
+        assert path.read_bytes() == before
+
+
+def test_freeze_cli_passes_history_cache(pair, tmp_path, monkeypatch, capsys):
+    git, case = pair
+    catalog_path = tmp_path / "catalog.toml"
+    catalog.write_catalog(catalog_path, [case])
+    verification_path = tmp_path / "verification.json"
+    verification_path.write_text(json.dumps({"cases": [accepted(case)]}))
+    repos_path = tmp_path / "repos.json"
+    repos_path.write_text(json.dumps({case["repo"]: str(git.path)}))
+    used_path = tmp_path / "used.json"
+    used_path.write_text("[]")
+    cache = tmp_path / "history-cache"
+
+    def freeze(directory, **kwargs):
+        assert directory == tmp_path / "out"
+        assert kwargs["history_cache"] == cache
+        return {"checked": True}
+
+    monkeypatch.setattr(assemble, "freeze", freeze)
+    assert (
+        assemble.main(
+            [
+                str(catalog_path),
+                str(verification_path),
+                "--repos",
+                str(repos_path),
+                "--used",
+                str(used_path),
+                "--out",
+                str(tmp_path / "out"),
+                "--history-cache",
+                str(cache),
+            ]
+        )
+        == 0
+    )
+    assert json.loads(capsys.readouterr().out) == {"checked": True}
 
 
 def test_insufficient_negatives_and_invalid_ratio(pair, tmp_path, monkeypatch):

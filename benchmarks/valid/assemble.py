@@ -51,6 +51,7 @@ def freeze(
     seed: int = 0,
     ratio: int = 20,
     history_heads: dict | None = None,
+    history_cache: Path | None = None,
     fix_index: dict | None = None,
     floor: int = extract.ORDINARY_FLOOR,
 ) -> dict:
@@ -58,7 +59,8 @@ def freeze(
 
     ``floor`` is the eligible-commit count a repository needs before its ordinary pushes are drawn. The
     held-out benchmark keeps the shipped 40; a training freeze may lower it (never below the ratio) so small
-    repositories with 20 eligible commits still contribute, and the record carries the floor used."""
+    repositories with 20 eligible commits still contribute, and the record carries the floor used.
+    ``history_cache`` reuses completed per-commit history rows across freezes of the same clone."""
     if type(ratio) is not int or ratio < 20:
         raise ValueError("ordinary ratio must be at least 20")
     if type(floor) is not int or floor < ratio:
@@ -91,7 +93,8 @@ def freeze(
         functions = {(case["path"], case["function"]) for case in all_cases}
         head = (history_heads or {}).get(repo) or git.run("rev-parse", "HEAD").strip()
         heads[repo] = head
-        history = sorted(extract.ordinary_history(git, head), key=lambda row: row["head"])
+        history_options = {"cache_dir": history_cache} if history_cache is not None else {}
+        history = sorted(extract.ordinary_history(git, head, **history_options), key=lambda row: row["head"])
         # Ratio is per positive CHANGE (a fix commit), not per accepted function. Several
         # accepted functions in one fix collapse to one vulnerability change below, so the
         # negative count must track distinct (commit, parent) pairs.
@@ -177,6 +180,7 @@ def main(argv=None):
     parser.add_argument("--used", type=Path, required=True, help="JSON array of used repository identities, including known aliases")
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--history-cache", type=Path, help="Directory for per-clone commit history caches")
     args = parser.parse_args(argv)
     result = freeze(
         args.out,
@@ -185,6 +189,7 @@ def main(argv=None):
         repos={k: local_git(Path(v)) for k, v in json.loads(args.repos.read_text()).items()},
         used=json.loads(args.used.read_text()),
         seed=args.seed,
+        history_cache=args.history_cache,
     )
     print(json.dumps(result, sort_keys=True))
     return 0

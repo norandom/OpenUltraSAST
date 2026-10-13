@@ -8,6 +8,7 @@ are dropped, and the recorded SZZ bias remains subject to task 2.6's label check
 from __future__ import annotations
 
 import ast
+import hashlib
 import json
 import re
 import signal
@@ -23,6 +24,8 @@ from .source import Candidate, Rejected
 EXTRACTION_CONTRACT = "v1"
 # Bump only when enumeration, eligibility or source.candidate outputs change.
 RESOLUTION_CONTRACT = "v1"
+# Bump whenever functions(), generated(), LANGUAGES or the row shape change: cached rows embed their results.
+HISTORY_CACHE_VERSION = 1
 
 LANGUAGES = {".py", ".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".php", ".java"}
 HUNK = re.compile(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@", re.M)
@@ -452,45 +455,84 @@ def generated(git, revision: str, path: str, text: str) -> bool:
     return result
 
 
-def ordinary_history(git, head: str) -> list[dict]:
+@contextmanager
+def _history_cache(git, cache_dir: Path | None):
+    """Load completed rows and open the clone's cache for appending."""
+    if cache_dir is None:
+        yield {}, None
+        return
+    top = git.run("rev-parse", "--show-toplevel").strip()
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    path = cache_dir / (hashlib.sha256(top.encode()).hexdigest() + ".jsonl")
+    with path.open("a+b") as handle:
+        handle.seek(0)
+        cached = {}
+        line = b""
+        for line in handle:
+            try:
+                entry = json.loads(line)
+            except (json.JSONDecodeError, UnicodeDecodeError):
+                continue
+            if not isinstance(entry, dict) or entry.get("version") != HISTORY_CACHE_VERSION:
+                continue
+            row = entry.get("row")
+            sha = entry.get("head")
+            if isinstance(sha, str) and isinstance(row, dict) and row.get("head") == sha:
+                cached[sha] = row
+        if line and not line.endswith(b"\n"):
+            # Keep a partial last line from swallowing the next completed row.
+            handle.write(b"\n")
+            handle.flush()
+        yield cached, handle
+
+
+def ordinary_history(git, head: str, *, cache_dir: Path | None = None) -> list[dict]:
+    """Read first-parent history, optionally reusing completed rows from this clone."""
     raw = git.run("log", "--first-parent", "--format=%H%x00%P%x00%ct%x00%an%x00%B%x1e", head)
     rows = []
-    for entry in raw.split("\x1e"):
-        if not entry.strip():
-            continue
-        fields = entry.strip().split("\x00")
-        if len(fields) != 5 or not SHA.fullmatch(fields[0]):
-            raise InstrumentFailure("invalid_history")
-        sha, parents, timestamp, author, message = fields
-        row = {"head": sha, "parents": parents.split(), "timestamp": int(timestamp), "author": author, "message": message, "files": []}
-        rows.append(row)
-        if len(row["parents"]) != 1:
-            continue
-        base = row["parents"][0]
-        for path, added, removed in git.stats(base, sha):
-            hunks = git.hunks(base, sha, path)
-            info = {
-                "path": path,
-                "added": added,
-                "removed": removed,
-                "head_lines": [[max(1, n), max(1, n + max(c, 1) - 1)] for _, _, n, c in hunks],
-                "functions": [],
-                "generated": False,
-            }
-            if Path(path).suffix in LANGUAGES:
-                # Inspect both sides: deleting a vulnerable function is still touching it.
-                for revision, side in ((base, 0), (sha, 2)):
-                    text = git.blob(revision, path)
-                    if text is None:
-                        continue
-                    spans = functions(path, text)
-                    for hunk in hunks:
-                        start, count = hunk[side : side + 2]
-                        for name, lo, hi in spans:
-                            if max(1, start) <= hi and start + max(count, 1) - 1 >= lo:
-                                info["functions"].append(name)
-                    info["generated"] |= generated(git, revision, path, text)
-            row["files"].append(info)
+    with _history_cache(git, cache_dir) as (cached, handle):
+        for entry in raw.split("\x1e"):
+            if not entry.strip():
+                continue
+            fields = entry.strip().split("\x00")
+            if len(fields) != 5 or not SHA.fullmatch(fields[0]):
+                raise InstrumentFailure("invalid_history")
+            sha, parents, timestamp, author, message = fields
+            previous = cached.get(sha)
+            if previous is not None and previous.get("parents") == parents.split():
+                rows.append(previous)
+                continue
+            row = {"head": sha, "parents": parents.split(), "timestamp": int(timestamp), "author": author, "message": message, "files": []}
+            rows.append(row)
+            if len(row["parents"]) == 1:
+                base = row["parents"][0]
+                for path, added, removed in git.stats(base, sha):
+                    hunks = git.hunks(base, sha, path)
+                    info = {
+                        "path": path,
+                        "added": added,
+                        "removed": removed,
+                        "head_lines": [[max(1, n), max(1, n + max(c, 1) - 1)] for _, _, n, c in hunks],
+                        "functions": [],
+                        "generated": False,
+                    }
+                    if Path(path).suffix in LANGUAGES:
+                        # Inspect both sides: deleting a vulnerable function is still touching it.
+                        for revision, side in ((base, 0), (sha, 2)):
+                            text = git.blob(revision, path)
+                            if text is None:
+                                continue
+                            spans = functions(path, text)
+                            for hunk in hunks:
+                                start, count = hunk[side : side + 2]
+                                for name, lo, hi in spans:
+                                    if max(1, start) <= hi and start + max(count, 1) - 1 >= lo:
+                                        info["functions"].append(name)
+                            info["generated"] |= generated(git, revision, path, text)
+                    row["files"].append(info)
+            if handle is not None:
+                handle.write((json.dumps({"version": HISTORY_CACHE_VERSION, "head": sha, "row": row}) + "\n").encode())
+                handle.flush()
     return rows
 
 
