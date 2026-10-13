@@ -76,10 +76,10 @@ from openultrasast.plane.harvest import declares
 from openultrasast.plane.tasks.alerts import covers
 from openultrasast.plane.tasks.alerts import engine_languages as _engine_languages
 from openultrasast.plane.tasks.alerts import quick_languages as _quick_languages
-from openultrasast.plane.tasks.repo_facts import GLOBAL
 from openultrasast.preprocess import detect_language
 from openultrasast.rank import rank_targets
 from openultrasast.ruleset import DEFAULT_RULESET_DIR, load_ruleset
+from openultrasast.source import MODULE_FUNCTION
 
 RESULTS = Path.home() / "ousast-results"
 MISSING = Part("failed", version="missing:not-run")
@@ -306,7 +306,7 @@ def static_parts(root: Path, index: SourceIndex, quick: Mapping, engine: Mapping
     parts["roles"] = roles_part(function_of(lines, path, language, function), inferred, language)
     parts["delta"] = NOT_APPLICABLE
     if repository and entries is not None:
-        distance = 0 if function == GLOBAL and path in entries[1] else entry_distance(function, entries[0], index.callers())
+        distance = 0 if function == MODULE_FUNCTION and path in entries[1] else entry_distance(function, entries[0], index.callers())
         parts["entry_points"] = Part("ran", {"facts.entry_distance": distance})
         parts["facts"] = facts_part(_callers_of(index, index.callers(), path, function), function, "host")
     else:

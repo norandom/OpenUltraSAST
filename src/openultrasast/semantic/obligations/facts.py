@@ -11,6 +11,7 @@ import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 
+from ...source import canonical_language
 from ..facts import _ruleset_state
 
 OPERATION_KINDS = ("protected_read", "protected_write", "privileged_action", "security_setting")
@@ -18,7 +19,6 @@ DISCHARGER_KINDS = ("path_guard", "identity_constraint", "ownership_check", "non
 PROVENANCE_KINDS = ("authenticated_context", "request_input", "constant", "unknown")
 SENSITIVITIES = ("low", "medium", "high")
 DEFAULT_OBLIGATION_FACTS_DIR = Path(__file__).resolve().parents[2] / "ruleset" / "obligations"
-_LANGUAGE_ALIASES = {"c_cpp": "c", "cpp": "c", "python_web": "python", "node": "javascript", "ts": "typescript"}
 
 _OPERATION_FIELDS = frozenset({"id", "kind", "calls", "resource_arg", "requires", "sensitivity", "query_document_arg"})
 _DISCHARGER_FIELDS = frozenset(
@@ -67,7 +67,9 @@ class ObligationFacts:
     dischargers: tuple[DischargerFact, ...]
 
     def for_language(self, language: str) -> ObligationFacts:
-        key = _LANGUAGE_ALIASES.get(language, language)
+        key = canonical_language(language)
+        if key == "cpp":
+            key = "c"
         return ObligationFacts(
             version=self.version,
             operations=tuple(item for item in self.operations if item.language == key),

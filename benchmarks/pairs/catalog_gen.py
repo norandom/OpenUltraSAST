@@ -15,7 +15,8 @@ import tomllib
 from pathlib import Path
 
 try:
-    from openultrasast.semantic.functions import ANON_FUNCTION, named_function_ranges
+    from openultrasast.source import ANON_FUNCTION
+    from openultrasast.source import ranges as source_ranges
 except ImportError as exc:  # never degrade into "no named function": that path deletes corpora under --prune
     raise SystemExit(f"catalog_gen needs the openultrasast package (run it with the project venv): {exc}") from exc
 
@@ -268,7 +269,7 @@ def _language(recipe: dict[str, object]) -> str:
 
 
 def _ranges(path: Path, language: str) -> tuple[tuple[str, int, int], ...] | None:
-    ranges = named_function_ranges(str(path), path.read_text(errors="ignore"), language)
+    ranges = source_ranges(str(path), path.read_text(errors="ignore"), language)
     if ranges is None:
         return None  # parser rejected the excerpt; a regex label would not scope
     return tuple(r for r in ranges if r[0] != ANON_FUNCTION)

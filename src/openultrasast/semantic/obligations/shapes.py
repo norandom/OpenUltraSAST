@@ -15,8 +15,8 @@ import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 
+from ...source import ranges_from_ir
 from ..facts import SemanticFacts
-from ..functions import named_ranges_from_ir
 from ..ir import CallSite, FileIR, FunctionIR, trailing_name
 from .facts import DISCHARGER_KINDS, OPERATION_KINDS, PROVENANCE_KINDS, DischargerFact, ObligationFacts, OperationFact
 
@@ -382,7 +382,7 @@ def _function_named(ir: FileIR, function: str, text: str) -> FunctionIR | None:
         if item.name == function:
             return item
     if text:
-        for name, start, _end in named_ranges_from_ir(ir, text):
+        for name, start, _end, _kind in ranges_from_ir(ir, text):
             if name == function:
                 for item in ir.functions:
                     if item.start_line == start:

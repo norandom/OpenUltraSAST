@@ -45,7 +45,7 @@ def _units() -> list[Unit]:
     return [excerpt, roles_only, oversized, repo]
 
 
-GLOBAL_ = "<global>"
+GLOBAL_ = "<module>"
 
 
 def _render(tmp_path: Path, ceiling: float = 10.0) -> tuple[dict[str, str], Path]:

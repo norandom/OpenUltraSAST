@@ -40,10 +40,10 @@ from typing import Any
 import yaml
 
 from ..preprocess import detect_language
+from ..source import DECLARATION, MODULE_FUNCTION, _declared_name
 from .generate import ATESPACE, CALLS_PER_HUNT, CASE_PATH, INPUTS_PATH, _dump, _json, _task
 from .manifests import GIT_COMMITS_ANNOTATION, RUN_API_VERSION, Task
 from .reconciler import _ax_name, _doc
-from .tasks.repo_facts import DECLARATION, GLOBAL, _declared_name
 from .tasks.roles import CHUNK_LINES
 from .tasks.verify import OPERATIONS, units_of
 
@@ -106,9 +106,9 @@ def blob_sha1(text: str) -> str:
 
 
 def declaration_line(lines: Sequence[str] | None, path: str, function: str) -> int:
-    """1-based line of the first declaration of ``function`` in ``lines``; 1 for ``<global>`` or when not declared."""
+    """1-based line of the first declaration of ``function`` in ``lines``; 1 for ``<module>`` or when not declared."""
     pattern = DECLARATION.get(detect_language(Path(path)) or "")
-    if not lines or pattern is None or function == GLOBAL:
+    if not lines or pattern is None or function == MODULE_FUNCTION:
         return 1
     return next((i + 1 for i, line in enumerate(lines) if _declared_name(pattern, line) == function), 1)
 
@@ -116,7 +116,7 @@ def declaration_line(lines: Sequence[str] | None, path: str, function: str) -> i
 def declares(lines: Sequence[str] | None, path: str, function: str) -> bool:
     """Whether a side's file declares ``function``, by the excerpt builder's matcher
     (:func:`..learn.excerpt.function_bounds`): a candidate is asked only where an excerpt of it exists."""
-    from ..learn.excerpt import function_bounds
+    from ..source import function_bounds
 
     return bool(lines) and function_bounds(lines or (), detect_language(Path(path)) or "", function) is not None
 

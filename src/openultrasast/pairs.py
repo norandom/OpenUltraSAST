@@ -40,8 +40,9 @@ from .rank import rank_targets
 from .ruleset import PatternRule
 from .semantic import OverlayRecord, adjudicate
 from .semantic.facts import FactLoadError, load_facts
-from .semantic.functions import RESERVED_FUNCTION_LABELS, function_at, named_function_ranges, spans_named
 from .semantic.obligations.facts import OPERATION_KINDS
+from .source import MODULE_FUNCTION, RESERVED_FUNCTION_LABELS, FunctionRange, enclosing, spans_named
+from .source import ranges as source_ranges
 
 DEFAULT_CATALOG = Path("benchmarks/pairs/catalog.toml")
 DEFAULT_SAST_CATALOG = Path("benchmarks/pairs/sast/catalog.toml")
@@ -57,7 +58,7 @@ DEFAULT_MECHANISMS = Path("benchmarks/pairs/mechanisms.toml")
 OVERLAY_SLICES = frozenset({"sast", "vfc", "vibe-py", "vfc-js", "agent-vfc", "owasp"})
 # Harvested function slices: every label must name the function (design §LabelSchema); "<anon>" does not scope.
 FUNCTION_REQUIRED_SLICES = OVERLAY_SLICES - {"sast"}
-FunctionRanges = dict[str, tuple[tuple[str, int, int], ...]]
+FunctionRanges = dict[str, tuple[FunctionRange, ...]]
 SLICE_NAMES = ("all", "local", "github", "sast", "vfc", "vibe-py", "vfc-js", "agent-vfc", "owasp")
 PROVENANCES = frozenset({"human", "agent", "mixed", "synthetic"})
 SPLITS = frozenset({"train", "holdout"})
@@ -806,7 +807,7 @@ class _Side:
     findings: list[StaticFinding]
     records: list[OverlayRecord]
     parse_failed: int
-    ranges: dict[str, tuple[tuple[str, int, int], ...]]
+    ranges: dict[str, tuple[FunctionRange, ...]]
     obligations: list[StaticFinding] = field(default_factory=list)  # obligation statics, computed for obligation-labeled rows only
 
 
@@ -815,18 +816,17 @@ def _overlay_scan(target: Path, ruleset: tuple[PatternRule, ...] | None = None, 
     findings = [f for f in quick_scan_findings(target, targets, rank_targets(targets), ruleset) if f.status != "shadow"]
     records = adjudicate(root=target, targets=targets, findings=findings)
     parse_failed = 0
-    ranges: dict[str, tuple[tuple[str, int, int], ...]] = {}
+    ranges: dict[str, tuple[FunctionRange, ...]] = {}
     for item in targets:
         try:
             text = (target / item.path).read_text(errors="ignore")
         except OSError:
             parse_failed += 1
             continue
-        named = named_function_ranges(item.path, text, item.language)
-        if named is None:
+        try:
+            ranges[item.path] = source_ranges(item.path, text, item.language)
+        except ValueError:
             parse_failed += 1
-        else:
-            ranges[item.path] = named
     statics = _obligation_scan(target, targets) if obligations else []
     return _Side(findings=findings, records=records, parse_failed=parse_failed, ranges=ranges, obligations=statics)
 
@@ -890,19 +890,19 @@ def _with_functions(root: Path, findings: list[StaticFinding]) -> list[StaticFin
     """Give regex findings an enclosing function from a parse so function-labeled rows can match (Req 1.2)."""
     if not any(finding.function_name is None for finding in findings):
         return findings
-    ranges: dict[str, tuple[tuple[str, int, int], ...]] = {}
+    ranges: dict[str, tuple[FunctionRange, ...]] = {}
     for target in _targets(root):
         try:
-            named = named_function_ranges(target.path, (root / target.path).read_text(errors="ignore"), target.language)
-        except OSError:
+            named = source_ranges(target.path, (root / target.path).read_text(errors="ignore"), target.language)
+        except (OSError, ValueError):
             continue
         if named is not None:
             ranges[target.path] = named
     out: list[StaticFinding] = []
     for finding in findings:
         if finding.function_name is None:
-            function = function_at(ranges.get(finding.path, ()), finding.line)
-            if function is not None:
+            function = enclosing(ranges.get(finding.path, ()), finding.line)
+            if function != MODULE_FUNCTION:
                 finding = replace(finding, function_name=function)
         out.append(finding)
     return out

@@ -1,0 +1,25 @@
+{
+  "date": "2026-10-13",
+  "what": "Label diff gate for P1 (PATHFINDER-2026-10-13/04-handoff-prompts.md): labels built by `ousast learn labels` with the modules before source.py (HEAD f63703a, exported pristine) and after, compared row by row after mapping the legacy module-level sentinel <global> to <module>.",
+  "before": {
+    "file": "labels-c3d9c302eadf79de.jsonl",
+    "rows": 7921,
+    "sha256": "c3d9c302eadf79dedd3b91b5545ee4f2d91d634dafe244eb7f7cf73e76d3f1f4",
+    "code": "f63703a"
+  },
+  "after": {
+    "file": "labels-7701cc7339a0d0f7.jsonl",
+    "rows": 7921,
+    "sha256": "7701cc7339a0d0f7aff036581c8417f5afc645d9e45bc067787fbf767425f02a",
+    "code": "working tree before the P1 commit"
+  },
+  "result": "identical after sentinel normalisation (0 rows only-before, 0 rows only-after)",
+  "iterations": [
+    "1: Codex's parser-first rewrite of the learn and plane modules: 18 test failures (function bounds semantics), reverted those modules to the line-pattern engine moved into source.py",
+    "2: 4 rows missing: KEYWORDS had been widened to the parser's reserved set; restored the 22-word set (no change in output, kept for correctness)",
+    "3: 4 rows still missing: frozen population records store declared sites as path::<global>; normalised on read (module_function) in labels and in function_bounds/function_span",
+    "4: identical"
+  ],
+  "sources": "src/openultrasast/learn/sources.toml (population-v1, population-v2, dev-php, pairs, advisory-fixes, ...; v3 excluded unread)",
+  "note": "The label files themselves stay outside the repo (they name functions in private repositories): ~/ousast-results/fossil/p1-{baseline,after}/out/."
+}

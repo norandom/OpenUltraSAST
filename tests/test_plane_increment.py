@@ -20,7 +20,7 @@ from openultrasast.plane.budget import prices_from
 from openultrasast.plane.generate import TEMPLATES, fix_ranges, increment, read_cases, render, repin_templates
 from openultrasast.plane.manifests import load_manifests
 from openultrasast.plane.memory import MEMORY_KEY_ANNOTATION, POPULATION_ANNOTATION, SPLIT_ANNOTATION, parse_memory_key
-from openultrasast.plane.tasks.repo_facts import _digest
+from openultrasast.source import _digest
 
 PLANE = Path("plane")
 RUN = PLANE / "runs" / "validation-46.yaml"

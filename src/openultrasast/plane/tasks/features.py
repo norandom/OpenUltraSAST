@@ -55,8 +55,8 @@ from ...learn.roles import from_model_roles, infer_for_checkout
 from ...model.taxonomy import load_families
 from ...preprocess import detect_language
 from ...ruleset import DEFAULT_RULESET_DIR, PatternRule, load_ruleset
+from ...source import MODULE_FUNCTION
 from .alerts import covers
-from .repo_facts import GLOBAL
 
 OUTPUT = "features.jsonl"
 PASSES = ("a", "b", "c")
@@ -142,7 +142,7 @@ def case_features(
         rule_id = str(alert.get("rule_id") or "")
         engine = rule_id.startswith(ENGINE_PREFIX)
         family = rule_id.removeprefix(ENGINE_PREFIX) if engine else _family(by_id.get(rule_id))
-        key = (f"{alert.get('path')}::{alert.get('function') or GLOBAL}", family)
+        key = (f"{alert.get('path')}::{alert.get('function') or MODULE_FUNCTION}", family)
         entry = candidates.setdefault(key, {"line": alert.get("line"), "quick": [], "engine": []})
         if engine:
             entry["engine"].append({"site": f"{alert.get('path')}:{alert.get('line')}"})
@@ -179,7 +179,7 @@ def case_features(
                 entries = entry_names(index.root, {c.partition("::")[0] for c, _ in candidates})
             parts["source"] = source_part(index.lines(path), language, function)
             parts["roles"] = roles_part(function_of(index.lines(path), path, language, function), inferred, language)
-            distance = 0 if function == GLOBAL and path in entries[1] else entry_distance(function, entries[0], index.callers())
+            distance = 0 if function == MODULE_FUNCTION and path in entries[1] else entry_distance(function, entries[0], index.callers())
             parts["entry_points"] = Part("ran", {"facts.entry_distance": distance})
         out.append(record(candidate, family, language, "plane", parts))
     return out

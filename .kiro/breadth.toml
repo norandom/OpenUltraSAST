@@ -198,7 +198,9 @@ lines = 4803
 
 [capability.core]
 status = "active"
-modules = ["cli.py", "config.py", "contracts.py", "preprocess.py", "findings.py", "rank.py", "mapping.py", "ruleset", "policy", "reports.py", "stages.py", "run.py", "provenance.py", "profiling.py"]
+modules = ["cli.py", "config.py", "contracts.py", "preprocess.py", "source.py", "findings.py", "rank.py", "mapping.py", "ruleset", "policy", "reports.py", "stages.py", "run.py", "provenance.py", "profiling.py"]
+# source.py (P1, 2026-10-13) owns function ranges, enclosing function, bounds, call sites, product files, declaration
+# tables and language aliases; learn no longer imports plane.tasks
 note = "hunter.py is the regex quick-rule pool and should be renamed"
 
 [capability.pairs-and-benchmarks]

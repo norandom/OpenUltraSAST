@@ -9,7 +9,7 @@ what ``ousast scan --mode quick`` runs -- on the case's vulnerable pin and on it
     rule_id, rule_status (enabled | shadow), path, line, function, pin_role (vulnerable | fixed), pin, in_fix_range
 
 ``function`` is the enclosing declaration by the patterns ``repo-facts`` uses (so an alert joins the verify
-candidates' ``path::function``; ``<global>`` outside any function); a language those patterns do not cover keeps the
+candidates' ``path::function``; ``<module>`` outside any function); a language those patterns do not cover keeps the
 scan's own reachability attribution. ``in_fix_range`` says whether the line lies inside the fix: the old-side ranges
 of ``case.json`` on the vulnerable pin, the new-side ``fixed_ranges`` on the fixed pin (null when ``case.json`` has
 none). A fixed-pin alert inside the fix is a false alert on code the fix wrote.
@@ -43,7 +43,8 @@ from ...mapping import analyze_entry_points, attach_reachability_hints
 from ...preprocess import detect_language, preprocess_repository
 from ...rank import rank_targets
 from ...ruleset import DEFAULT_RULESET_DIR, load_ruleset
-from .repo_facts import DECLARATION, GLOBAL, enclosing
+from ...source import DECLARATION, MODULE_FUNCTION
+from ...source import enclosing_at as enclosing
 
 ROLES = ("vulnerable", "fixed")
 DIRS = ("OUSAST_WORKSPACE_DIR", "OUSAST_FIXED_DIR")
@@ -105,12 +106,12 @@ def in_range(ranges: Ranges | None, path: str, line: int | None) -> bool | None:
 
 
 def function_at(root: Path, path: str, line: int | None, fallback: str | None, cache: dict[str, list[str]]) -> str:
-    """The enclosing declaration of ``path:line`` by the ``repo-facts`` patterns, else ``fallback`` (``<global>``)."""
+    """The enclosing declaration of ``path:line`` by the ``repo-facts`` patterns, else ``fallback`` (``<module>``)."""
     lines = cache.setdefault(path, _lines(root / path))
     language = detect_language(root / path)
     if language in DECLARATION and line and 0 < line <= len(lines):
         return enclosing(lines, line - 1, language)
-    return fallback or GLOBAL
+    return fallback or MODULE_FUNCTION
 
 
 def scan(root: Path, role: str, pin: str, ranges: Ranges | None) -> tuple[list[dict[str, Any]], dict[str, Any]]:

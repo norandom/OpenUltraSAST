@@ -31,10 +31,11 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
-from ..plane.tasks.repo_facts import DECLARATION, GLOBAL, KEYWORDS, _declared_name, product_files
 from ..preprocess import detect_language
 from ..ruleset.frameworks import Priors, normalize_priors, tag_of
-from ..semantic.facts import _LANGUAGE_ALIASES, FactLoadError, SanitizerFact, SemanticFacts, SinkFact, SourceFact, load_facts, with_priors
+from ..semantic.facts import FactLoadError, SanitizerFact, SemanticFacts, SinkFact, SourceFact, load_facts, with_priors
+from ..source import DECLARATION, KEYWORDS, MODULE_FUNCTION, _declared_name, canonical_language
+from ..source import product_paths as product_files
 from .schema import OPERATIONS, ORIGINS, SOURCE_KINDS
 
 ROLE_KINDS = ("sink", "source", "sanitizer")
@@ -128,7 +129,7 @@ class RoleSet:
 
 def language_key(language: str) -> str:
     """The semantic-facts language of a detected language (TypeScript shares JavaScript's entries)."""
-    return _LANGUAGE_ALIASES.get(language, language)
+    return canonical_language(language)
 
 
 def _facts(language: str, priors: Priors, facts: SemanticFacts | None) -> SemanticFacts:
@@ -262,7 +263,7 @@ def functions_of(path: str, lines: Sequence[str], language: str, *, dependency: 
         return []
     starts: dict[str, int] = {}
     bodies: dict[str, list[str]] = {}
-    current = GLOBAL
+    current = MODULE_FUNCTION
     stack: list[tuple[int, str]] = []  # Python: the open (indent, name) declarations, innermost last
     for index, line in enumerate(lines):
         declared = _declared_name(pattern, line)
@@ -276,11 +277,11 @@ def functions_of(path: str, lines: Sequence[str], language: str, *, dependency: 
                     stack.pop()
                 if declared:
                     stack.append((indent, declared))
-            owner = stack[-1][1] if stack else GLOBAL
+            owner = stack[-1][1] if stack else MODULE_FUNCTION
         else:
             current = declared or current
             owner = current
-        if owner != GLOBAL:
+        if owner != MODULE_FUNCTION:
             bodies.setdefault(owner, []).append(line)
     out = []
     for name, start in sorted(starts.items(), key=lambda item: item[1]):
@@ -450,7 +451,7 @@ def from_model_roles(payload: Mapping[str, Any]) -> RoleSet:
         roles.append(
             Role(
                 detect_language(Path(path)), kind, name or call, operation if operation in vocabulary else "other", "model_role",
-                0, "", path, str(row.get("function") or GLOBAL),
+                0, "", path, str(row.get("function") or MODULE_FUNCTION),
             )
         )  # fmt: skip
     return RoleSet(tuple(sorted(set(roles))), tuple(sorted(set(payload.get("unclassified_paths") or ()))), ("model_role",))

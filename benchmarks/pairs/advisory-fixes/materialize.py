@@ -106,10 +106,10 @@ def _body(lines: list[str], span: tuple[int, int]) -> str:
 
 
 def extract(source: str, language: str, function: str) -> tuple[list[str], tuple[int, int]] | None:
-    from openultrasast.learn.excerpt import LANGUAGE_ALIASES, function_bounds
+    from openultrasast.source import canonical_language, function_bounds
 
     lines = source.splitlines()
-    span = function_bounds(lines, LANGUAGE_ALIASES.get(language, language), function)
+    span = function_bounds(lines, canonical_language(language), function)
     return (lines, span) if span else None
 
 
@@ -159,14 +159,14 @@ def materialise(pair: dict[str, Any], *, force: bool = False) -> dict[str, Any]:
 
 def verify(pair: dict[str, Any]) -> dict[str, Any]:
     """The label builder's check, from the cached excerpts: declared on both sides, body changed, a real fix."""
-    from openultrasast.learn.excerpt import LANGUAGE_ALIASES, function_bounds
+    from openultrasast.source import canonical_language, function_bounds
 
     result: dict[str, Any] = {"name": pair["name"], "ok": False, "bytes_read": 0}
     commit, parent = str(pair.get("commit", "")), str(pair.get("parent", ""))
     if not (_SHA.fullmatch(commit) and _SHA.fullmatch(parent)) or commit == parent:
         result["reason"] = "fix commit must be a full SHA distinct from its parent"
         return result
-    language = LANGUAGE_ALIASES.get(str(pair["language"]), str(pair["language"]))
+    language = canonical_language(str(pair["language"]))
     spans = {}
     for side, path in zip(("vuln", "fixed"), excerpt_paths(pair), strict=True):
         if not path.is_file():

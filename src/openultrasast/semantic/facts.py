@@ -12,18 +12,9 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from ..ruleset.frameworks import Priors, kept, normalize_priors, read_tag, tag_of
+from ..source import canonical_language
 
 DEFAULT_FACTS_DIR = Path(__file__).resolve().parents[1] / "ruleset" / "semantic"
-
-_LANGUAGE_ALIASES = {
-    "c": "c",
-    "cpp": "c",
-    "python": "python",
-    "javascript": "javascript",
-    "typescript": "javascript",
-    "java": "java",
-}
-
 
 class FactLoadError(ValueError):
     """Raised when semantic fact files are missing or invalid."""
@@ -146,7 +137,11 @@ class SemanticFacts:
     layouts: tuple[LayoutFact, ...] = ()
 
     def for_language(self, language: str) -> SemanticFacts:
-        key = _LANGUAGE_ALIASES.get(language, language)
+        key = canonical_language(language)
+        if key == "cpp":
+            key = "c"
+        elif key == "typescript":
+            key = "javascript"
         return SemanticFacts(
             version=self.version,
             sources=tuple(item for item in self.sources if item.language == key),

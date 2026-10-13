@@ -20,9 +20,11 @@ from pathlib import Path
 from typing import Any
 
 from ..model.taxonomy import load_families
-from ..plane.tasks.repo_facts import _COMMENT_PREFIXES, DECLARATION, GLOBAL, _declared_name, enclosing, product_files
 from ..preprocess import build_file_target, detect_language
 from ..ruleset import PatternRule
+from ..source import _COMMENT_PREFIXES, DECLARATION, MODULE_FUNCTION, _declared_name, function_span
+from ..source import enclosing_at as enclosing
+from ..source import product_paths as product_files
 from .roles import CWE_OPERATION, SOURCE_KIND, VERSION, Function, RoleSet, body_roles, functions_of, origin_of
 from .schema import (
     BY_NAME,
@@ -218,35 +220,15 @@ def engine_part(
 def facts_part(callers: Sequence[Mapping[str, Any]], function: str, version: str | None = None) -> Part:
     """``callers`` are the repo-facts call sites of the candidate's function in other files."""
     files = {str(site.get("path")) for site in callers}
-    return Part("ran", {"facts.callers": len(callers), "facts.caller_files": len(files), "facts.is_global": function == GLOBAL}, version)
-
-
-def function_span(lines: Sequence[str], language: str, function: str) -> int | None:
-    """Lines of the first declaration of ``function`` up to the next declaration (Python: up to the next line indented
-    no deeper), ``None`` when the file does not declare it. ``<global>`` counts the whole file."""
-    if function == GLOBAL:
-        return len(lines)
-    pattern = DECLARATION.get(language)
-    if pattern is None:
-        return None
-    start = next((i for i, line in enumerate(lines) if _declared_name(pattern, line) == function), None)
-    if start is None:
-        return None
-    indent = len(lines[start]) - len(lines[start].lstrip(" \t"))
-    for end in range(start + 1, len(lines)):
-        line = lines[end]
-        if language == "python":
-            if line.strip() and not line.lstrip().startswith("#") and len(line) - len(line.lstrip(" \t")) <= indent:
-                return end - start
-        elif _declared_name(pattern, line):
-            return end - start
-    return len(lines) - start
+    return Part("ran", {"facts.callers": len(callers), "facts.caller_files": len(files), "facts.is_global": function == MODULE_FUNCTION},
+        version,
+    )
 
 
 def source_part(lines: Sequence[str] | None, language: str, function: str) -> Part:
     """The function's span; ``none`` without the file or a declaration pattern for its language (C, say: no coverage,
     not a failure), ``failed`` when a covered file does not declare the function."""
-    if lines is None or (function != GLOBAL and language not in DECLARATION):
+    if lines is None or (function != MODULE_FUNCTION and language not in DECLARATION):
         return NONE
     span = function_span(lines, language, function)
     return Part("ran", {"facts.function_lines": span}) if span is not None else Part("failed")
@@ -310,7 +292,7 @@ def model_sinks_part(roles: RoleSet | None, path: str, function: str, version: s
 
 def function_of(lines: Sequence[str] | None, path: str, language: str, function: str) -> Function | None:
     """The declared function ``function`` of a file (its parameters and body), ``None`` when it is not declared."""
-    if not lines or function == GLOBAL:
+    if not lines or function == MODULE_FUNCTION:
         return None
     return next((f for f in functions_of(path, lines, language) if f.name == function), None)
 
@@ -344,7 +326,7 @@ class SourceIndex:
         language = detect_language(Path(path))
         if lines and language in DECLARATION and line and 0 < line <= len(lines):
             return enclosing(lines, line - 1, language)
-        return fallback or GLOBAL
+        return fallback or MODULE_FUNCTION
 
     def callers(self) -> dict[str, set[str]]:
         """Function name -> the names of the functions that call it anywhere in the product files."""
@@ -421,7 +403,7 @@ def _signals(
 
 def _callers_of(index: SourceIndex, callers: Mapping[str, set[str]], path: str, function: str) -> list[dict[str, Any]]:
     """The call sites of ``function`` in other product files, as repo-facts records them (capped at 40)."""
-    if function == GLOBAL or function not in callers:
+    if function == MODULE_FUNCTION or function not in callers:
         return []
     sites: list[dict[str, Any]] = []
     pattern = re.compile(r"(?<![A-Za-z0-9_$])" + re.escape(function) + r"\s*\(")

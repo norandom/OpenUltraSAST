@@ -45,9 +45,10 @@ from pathlib import Path
 from typing import Any
 
 from ..model.taxonomy import load_families
-from ..plane.tasks.repo_facts import _EXCLUDED_DIRS, _NOT_PRODUCT, DECLARATION, GLOBAL, _declared_name, declared_functions, enclosing
 from ..preprocess import detect_language
 from ..ruleset.frameworks import load_frameworks
+from ..source import _EXCLUDED_DIRS, _NOT_PRODUCT, DECLARATION, MODULE_FUNCTION, _declared_name, declared_functions, module_function
+from ..source import enclosing_at as enclosing
 
 DEFAULT_SOURCES = Path(__file__).resolve().parent / "sources.toml"
 DEFAULT_CACHE = Path.home() / ".cache" / "openultrasast"
@@ -561,7 +562,9 @@ class LabelBuilder:
             vulnerable, fixed = str(case["vulnerable"]), str(case["fixed"])
             old, new = clone.ranges(vulnerable, fixed)
             if source.options.get("matching") == "declared_sites":
-                positives = {(site.partition("::")[0], site.partition("::")[2]) for site in case.get("sites", []) if "::" in site}
+                positives = {
+                    (site.partition("::")[0], module_function(site.partition("::")[2])) for site in case.get("sites", []) if "::" in site
+                }
             else:
                 positives = changed_functions(clone, vulnerable, old)
             fixed_changed = changed_functions(clone, fixed, new)
@@ -670,12 +673,12 @@ class LabelBuilder:
         fix (a fix commit distinct from the vulnerable one): exactly one function the fixed side declares that the
         vulnerable side does not, with the labelled function's parameter list and a changed body (``fixed_side_moved``).
         A different function of the same snapshot (a guard helper, a sibling handler) is never a negative."""
-        from .excerpt import LANGUAGE_ALIASES, function_bounds
+        from ..source import canonical_language, function_bounds
 
         fixed_lines, vuln_lines = self._pair_lines(case.fixed_file), self._pair_lines(case.vuln_file)
         if not fixed_lines:
             return FixedSide(ABSENT_UNREAD)
-        language = LANGUAGE_ALIASES.get(case.language, case.language)
+        language = canonical_language(case.language)
         if function_bounds(fixed_lines, language, function):
             return FixedSide(FIXED_DECLARED)
         vuln_span = function_bounds(vuln_lines or (), language, function)
@@ -721,8 +724,9 @@ class LabelBuilder:
                 if not known.get("in_scope", True) or not known.get("function") or not known.get("file"):
                     self.build.skip("recipes: known entry without an in-scope function")
                     continue
+                candidate = f"{known['file']}::{module_function(str(known['function']))}"
                 self._row(
-                    candidate=f"{known['file']}::{known['function']}", family=str(known.get("family", "unknown")), label=1,
+                    candidate=candidate, family=str(known.get("family", "unknown")), label=1,
                     source=source.id,
                     source_ref=f"{recipe.get('name')}:{known.get('id', '')}", unit="pin", weight=1.0, split=source.id, group=repo_name(url),
                     repo=url, language=_language(str(known["file"])), evidence="reviewed known vulnerability", pin=commit,
@@ -743,11 +747,13 @@ class LabelBuilder:
                     self.build.skip("adjudications: verdict, case or site unreadable")
                     continue
                 population, case = found
-                site_path, line, function = match.group("path"), int(match.group("line")), match.group("function").strip()
+                site_path, line = match.group("path"), int(match.group("line"))
+                function = module_function(match.group("function").strip())
                 if not function:
                     lines = self._clone(population, str(case["id"])).lines(str(case["vulnerable"]), site_path)
                     language = detect_language(Path(site_path))
-                    function = enclosing(lines, line - 1, language) if lines and language in DECLARATION and line <= len(lines) else GLOBAL
+                    covered = lines and language in DECLARATION and line <= len(lines)
+                    function = enclosing(lines, line - 1, language) if covered else MODULE_FUNCTION
                 self._row(
                     candidate=f"{site_path}::{function}", family=str(row.get("family") or case["family"]), label=label, source=source.id,
                     source_ref=f"{Path(path).name}#{key}[{index}]", unit="pin", weight=1.0, split=population.id,

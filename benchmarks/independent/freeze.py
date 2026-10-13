@@ -85,7 +85,7 @@ def php_code(text: str) -> str:
     """`text` with comments, string contents and inline HTML blanked to spaces, newlines kept (line numbers hold).
 
     Enough to find function bodies by brace matching; heredoc/nowdoc bodies are blanked too. Not a parser: a file
-    that defeats it yields no function, and the site falls back to `<global>`, which the freeze record shows."""
+    that defeats it yields no function, and the site falls back to `<module>`, which the freeze record shows."""
     out, i, n, php = list(text), 0, len(text), False
 
     def blank(start: int, end: int) -> None:
@@ -148,10 +148,10 @@ def php_functions(text: str) -> list[tuple[str, int, int]]:
 
 
 def enclosing(spans: list[tuple[str, int, int]], line: int, inserted: bool = False) -> str:
-    """The innermost named function containing `line`, or `<global>`. For a pure insertion, `line` is the line the
+    """The innermost named function containing `line`, or `<module>`. For a pure insertion, `line` is the line the
     new code follows, so a function whose closing brace is on that line does not contain it."""
     inside = [(last - first, name) for name, first, last in spans if first <= line <= last and not (inserted and line == last)]
-    return min(inside)[1] if inside else "<global>"
+    return min(inside)[1] if inside else "<module>"
 
 
 def old_hunks(repo: Path, vulnerable: str, fixed: str, path: str) -> list[tuple[int, int, bool]]:
@@ -166,14 +166,14 @@ def old_hunks(repo: Path, vulnerable: str, fixed: str, path: str) -> list[tuple[
 
 
 def changed_functions(repo: Path, vulnerable: str, fixed: str, path: str) -> list[str]:
-    """The functions (or `<global>`) of `path` at the vulnerable pin that the fix's hunks touch, in hunk order."""
+    """The functions (or `<module>`) of `path` at the vulnerable pin that the fix's hunks touch, in hunk order."""
     text = (blob(repo, vulnerable, path) or b"").decode(errors="replace")
     spans, names = php_functions(text), []
     for first, last, inserted in old_hunks(repo, vulnerable, fixed, path):
         for line in range(first, last + 1):
             name = enclosing(spans, line, inserted)
             # New code added between functions (a new helper) changes no vulnerable-side code: no site.
-            if name not in names and not (inserted and name == "<global>"):
+            if name not in names and not (inserted and name == "<module>"):
                 names.append(name)
     return names
 
@@ -198,12 +198,12 @@ def resolve_sites(repo: Path, case: dict[str, object], changed: list[str]) -> di
 
 
 def fix_changes_sites(repo: Path, case: dict[str, object], sites: list[str]) -> dict[str, bool]:
-    """Per declared site: does the fix's diff change a line inside that function (or the file, for `<global>`)?"""
+    """Per declared site: does the fix's diff change a line inside that function (or the file, for `<module>`)?"""
     result = {}
     for site in sites:
         path, _, name = site.partition("::")
         hunks = old_hunks(repo, str(case["vulnerable"]), str(case["fixed"]), path)
-        if name == "<global>" or not hunks:
+        if name == "<module>" or not hunks:
             result[site] = bool(hunks)
             continue
         spans = php_functions((blob(repo, str(case["vulnerable"]), path) or b"").decode(errors="replace"))
@@ -289,7 +289,7 @@ def verify(case: dict[str, object], cache: Path) -> dict[str, object]:
         # Declared `path::function` sites (population v2) are what the verification reads; the first names the
         # sink file, and every function declared in that file must appear in it.
         sink_file = sites[0].partition("::")[0]
-        functions = [site.partition("::")[2] for site in sites if site.partition("::")[0] == sink_file and not site.endswith("::<global>")]
+        functions = [site.partition("::")[2] for site in sites if site.partition("::")[0] == sink_file and not site.endswith("::<module>")]
     else:
         sink_file, functions = sink_parts(str(case["sink"]))
     record["sink_file"], record["sink_functions"] = sink_file, functions

@@ -32,9 +32,9 @@ from typing import Any
 
 from ...learn.roles import MODEL_ROLE_KINDS
 from ...learn.schema import OPERATIONS, SOURCE_KINDS
+from ...source import MODULE_FUNCTION, product_files
 from ...tool_hunter import ChatClient
 from ..budget import AccountError, BudgetExhausted, MeteredClient
-from .repo_facts import GLOBAL, product_files
 from .verify import build_client
 
 CHUNK_LINES = 400
@@ -52,7 +52,7 @@ PROMPT = (
     "- guard: checks a value and rejects it (allow-list, permission or ownership check);\n"
     "- dispatch: registers or invokes a callback through a string-keyed registry (hooks, events, signals).\n"
     "Answer with JSON only: "
-    '{{"roles": [{{"role": "<sink|source|sanitizer|guard|dispatch>", "function": "<enclosing function, or <global>>", '
+    '{{"roles": [{{"role": "<sink|source|sanitizer|guard|dispatch>", "function": "<enclosing function, or <module>>", '
     '"line": <line number>, "call": "<the call or expression>", "operation": "<the kind>", '
     '"evidence": "<the line, quoted>"}}]}}. Return {{"roles": []}} if there is none.\n\nFile: {path}\n\n{code}'
 )
@@ -80,7 +80,7 @@ def parse_roles(content: str | None, path: str) -> list[dict[str, Any]]:
         vocabulary = SOURCE_KINDS if item["role"] == "source" else OPERATIONS
         operation = item.get("operation") if item.get("operation") in vocabulary else "other"
         named = item.get("function")
-        function = named.strip() if isinstance(named, str) and named.strip() else GLOBAL
+        function = named.strip() if isinstance(named, str) and named.strip() else MODULE_FUNCTION
         line = item["line"] if isinstance(item.get("line"), int) else 0
         out.append(
             {
@@ -154,7 +154,7 @@ def run(
     log = output_dir / "units.jsonl"
     metered = budget if budget is not None else MeteredClient(client)
     model = model or "unbound"
-    wanted = sorted(set(files)) if files is not None else [p.relative_to(workspace).as_posix() for p in product_files(workspace)]
+    wanted = sorted(set(files)) if files is not None else product_files(workspace)
     missing = [p for p in wanted if not (workspace / p).is_file()]
     done = {p: row for p, row in _read_units(log).items() if p in wanted}
     status, reason = ("failed", f"files not in the workspace: {missing[:5]}") if missing else ("done", "")

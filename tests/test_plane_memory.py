@@ -34,7 +34,7 @@ from openultrasast.plane.memory import (
     seed,
     where_sql,
 )
-from openultrasast.plane.tasks.repo_facts import _digest
+from openultrasast.source import _digest
 
 PIN = "0123456789abcdef0123456789abcdef01234567"
 OTHER_PIN = "fedcba9876543210fedcba9876543210fedcba98"

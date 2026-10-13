@@ -93,7 +93,7 @@ def test_cross_file_callers_have_line_and_enclosing_function(tree: Path, tmp_pat
     ]
     assert facts["callers"]["app/util.py::render"] == [
         {"path": "app/handlers.py", "line": 6, "enclosing": "handler"},
-        {"path": "app/handlers.py", "line": 11, "enclosing": "<global>"},
+        {"path": "app/handlers.py", "line": 11, "enclosing": "<module>"},
     ]
     assert facts["counts"] == {"files": 3, "functions": 7, "candidates": 2, "callers": 4}
     summary = json.loads((out / "summary.json").read_text())
@@ -271,4 +271,4 @@ def test_enclosing_function_in_python_respects_indentation() -> None:
     assert repo_facts.enclosing(lines, 1, "python") == "a"
     assert repo_facts.enclosing(lines, 5, "python") == "inner"
     assert repo_facts.enclosing(lines, 6, "python") == "b"
-    assert repo_facts.enclosing(lines, 8, "python") == "<global>"
+    assert repo_facts.enclosing(lines, 8, "python") == "<module>"

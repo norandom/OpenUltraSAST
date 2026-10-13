@@ -1,7 +1,7 @@
 """freeze.py resolves an advisory's file-only site to the function the fix changes (population v3, decision 2).
 
 The resolver reads PHP text only; it must not be fooled by braces in strings, comments or inline HTML, and a line
-outside every function is `<global>`."""
+outside every function is `<module>`."""
 
 from __future__ import annotations
 
@@ -48,12 +48,12 @@ def test_a_line_resolves_to_its_innermost_named_function_or_global() -> None:
     spans = freeze.php_functions(PHP)
     assert freeze.enclosing(spans, 9) == "open"  # inside the closure: the named function owns it
     assert freeze.enclosing(spans, 17) == "close"
-    assert freeze.enclosing(spans, 21) == "<global>"
-    assert freeze.enclosing(spans, 1) == "<global>"
+    assert freeze.enclosing(spans, 21) == "<module>"
+    assert freeze.enclosing(spans, 1) == "<module>"
 
 
 def test_an_insertion_after_a_closing_brace_is_outside_the_function() -> None:
     spans = freeze.php_functions(PHP)
     assert freeze.enclosing(spans, 10) == "open"  # a changed line on the closing brace
-    assert freeze.enclosing(spans, 10, inserted=True) == "<global>"  # new code that follows it
+    assert freeze.enclosing(spans, 10, inserted=True) == "<module>"  # new code that follows it
     assert freeze.enclosing(spans, 8, inserted=True) == "open"

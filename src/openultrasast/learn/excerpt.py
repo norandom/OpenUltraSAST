@@ -32,16 +32,17 @@ import re
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 
-from ..plane.tasks.repo_facts import DECLARATION, GLOBAL, _declared_name
-from .features import function_span
+from ..source import (  # noqa: F401  (re-exported: labels, examples and harvest import them from here)
+    HASH_COMMENTS,
+    SLASH_COMMENTS,
+    _comment_ranges,
+    canonical_language,
+    function_bounds,
+    resolve_language,
+)
 from .labels import _ADVISORY, security_reason
 
 REDACTED = "<redacted>"
-LANGUAGE_ALIASES = {"c_cpp": "cpp", "c++": "cpp", "js": "javascript", "ts": "typescript", "py": "python"}
-HASH_COMMENTS = frozenset({"python", "php", "ruby", "shell", "perl", "yaml", "r"})
-SLASH_COMMENTS = frozenset(
-    {"c", "cpp", "java", "javascript", "typescript", "php", "go", "groovy", "csharp", "kotlin", "rust", "swift", "scala"}
-)  # fmt: skip
 MAX_LINE_CHARS = 240
 _HEX = re.compile(r"\b[0-9a-f]{7,40}\b", re.IGNORECASE)
 
@@ -87,55 +88,6 @@ def excerpt_sha(text: str) -> str:
 # --- comments ---------------------------------------------------------------------------------------------------------
 
 
-def _comment_ranges(line: str, state: str | None, language: str) -> tuple[list[tuple[int, int]], str | None]:
-    """The comment spans of one line and the block state carried to the next (``block`` inside ``/* */``, a triple
-    quote inside a Python docstring). Strings are skipped so a ``#`` in a literal is not a comment."""
-    hashes, slashes, python = language in HASH_COMMENTS, language in SLASH_COMMENTS, language == "python"
-    ranges: list[tuple[int, int]] = []
-    i, n, quote = 0, len(line), None
-    if state is not None:
-        close = "*/" if state == "block" else state
-        j = line.find(close)
-        if j < 0:
-            return [(0, n)], state
-        ranges.append((0, j + len(close)))
-        i, state = j + len(close), None
-    while i < n:
-        c = line[i]
-        if quote:
-            if c == "\\":
-                i += 2
-                continue
-            if c == quote:
-                quote = None
-            i += 1
-            continue
-        if python and line.startswith(('"""', "'''"), i) and not line[:i].strip():
-            delim = line[i : i + 3]
-            j = line.find(delim, i + 3)
-            if j < 0:
-                ranges.append((i, n))
-                return ranges, delim
-            ranges.append((i, j + 3))
-            i = j + 3
-            continue
-        if c in "\"'`":
-            quote = c
-        elif (slashes and line.startswith("//", i)) or (hashes and c == "#"):
-            ranges.append((i, n))
-            break
-        elif slashes and line.startswith("/*", i):
-            j = line.find("*/", i + 2)
-            if j < 0:
-                ranges.append((i, n))
-                return ranges, "block"
-            ranges.append((i, j + 2))
-            i = j + 2
-            continue
-        i += 1
-    return ranges, state
-
-
 _OPEN = ("/**", "/*", "//", "#", '"""', "'''", "*")
 _CLOSE = ("*/", '"""', "'''")
 
@@ -153,7 +105,7 @@ def _redact_comment(text: str) -> str:
 def redact(lines: Sequence[str], language: str, identities: Iterable[str] = ()) -> list[str]:
     """``lines`` with security wording in comments and advisory ids anywhere replaced by ``<redacted>``, and every
     identity string (case-insensitive, at least 4 characters) replaced too."""
-    language = LANGUAGE_ALIASES.get(language, language)
+    language = canonical_language(language)
     names = sorted({i for i in identities if len(i) >= 4}, key=len, reverse=True)
     identity = re.compile("|".join(re.escape(n) for n in names), re.IGNORECASE) if names else None
     out: list[str] = []
@@ -186,135 +138,6 @@ def identities_of(repo: str = "", path: str = "", commits: Iterable[str] = ()) -
 
 
 # --- spans and excerpts -----------------------------------------------------------------------------------------------
-
-
-_UNKNOWN_LANGUAGES = frozenset({"", "other", "unknown"})
-_PERL_LINE = re.compile(r"^\s*(?:sub\s+\w+\s*[{(;]|use\s+strict\s*;|my\s+[$@%]\w+)")
-_RUBY_DEF = re.compile(r"^\s*def\s+(?:self\.)?\w+[?!=]?(?:\s*\(|\s|$)")
-_RUBY_END = re.compile(r"^\s*end\s*$")
-_BODY_SCAN_LINES = 40  # how far past a declaration head the body's ``{`` (or a prototype's ``;``) may be
-_STATEMENT_HEAD = re.compile(r"\s*(return|if|while|for|switch|else|case|throw|await|yield)\b")
-_FUNCTION_EXPR = r"(?:async\s+)?(?:function\b\s*\*?\s*[\w$]*\s*)?(?=\(|[\w$]+\s*=>)"  # function (...) / (...) => / a =>
-
-
-def resolve_language(lines: Sequence[str], language: str) -> str:
-    """The alias-normalised language; a file given as unknown (``other``, the feature vocabulary's bucket for Go, Ruby,
-    C#, Perl, ...) is sniffed for Perl (``sub name {``, ``use strict;``) and Ruby (``def`` ... ``end``), whose
-    declaration forms a brace matcher never finds and whose ``#`` comments must be redacted."""
-    language = LANGUAGE_ALIASES.get(language, language)
-    if language in _UNKNOWN_LANGUAGES and lines:
-        if any(_PERL_LINE.match(line) for line in lines):
-            return "perl"
-        if any(_RUBY_DEF.match(line) for line in lines) and any(_RUBY_END.match(line) for line in lines):
-            return "ruby"
-    return language
-
-
-def _blank_comments(lines: Sequence[str], language: str) -> list[str]:
-    style = language if language in SLASH_COMMENTS or language in HASH_COMMENTS else "c"
-    code: list[str] = []
-    state: str | None = None
-    for line in lines:
-        ranges, state = _comment_ranges(line, state, style)
-        for start, end in reversed(ranges):
-            line = line[:start] + " " * (end - start) + line[end:]
-        code.append(line)
-    return code
-
-
-def _declaration_heads(name: str) -> re.Pattern[str]:
-    """Where a brace language may declare ``name`` (the body follows): ``name(`` (a definition -- or a call, told
-    apart by :func:`_body_start`); Perl ``sub name {``; an object-literal method ``name: function (`` /
-    ``name: (a) =>``; an assignment ``x.y.name = function (`` / ``= (a) =>`` / ``const name = m.name = async a =>``
-    (any chain). ``$`` is an identifier character (``Glance$serveRequest``)."""
-    quoted = re.escape(name)
-    return re.compile(
-        rf"(?<![\w.>$]){quoted}\s*(?:<[^<>(){{}};]*>\s*)?(?=\()"
-        rf"|^\s*sub\s+{quoted}\s*(?=[{{(;])"
-        rf"|(?<![\w$]){quoted}\s*:\s*{_FUNCTION_EXPR}"
-        rf"|(?<![\w$]){quoted}\s*=\s*(?:[\w$.\[\]'\"]+\s*=\s*)*{_FUNCTION_EXPR}"
-    )
-
-
-def _body_start(code: Sequence[str], line: int, column: int) -> tuple[str, int, int] | None:
-    """Scan from a declaration head for its body: ``("brace", line, column)`` of the ``{`` at parenthesis depth 0,
-    ``("expression", line, column)`` of the ``;`` or ``,`` ending an arrow function's expression body, ``None`` for a
-    prototype (``;`` before any body), a call (a ``)`` closing an outer parenthesis, a ``}``) or no body within
-    :data:`_BODY_SCAN_LINES`. Parentheses are tracked so ``f(a, function () {})`` is not a definition of ``f``."""
-    depth, arrow = 0, False
-    for j in range(line, min(line + _BODY_SCAN_LINES, len(code))):
-        text = code[j]
-        k = column if j == line else 0
-        while k < len(text):
-            c = text[k]
-            if c == "(":
-                depth += 1
-            elif c == ")":
-                depth -= 1
-                if depth < 0:
-                    return None
-            elif depth == 0:
-                if c == "{":
-                    return ("brace", j, k)
-                if arrow and c in ";,":
-                    return ("expression", j, k)
-                if c in "};":  # a statement ends (a call, a prototype) before any body opened
-                    return None
-                if text.startswith("=>", k):
-                    arrow = True
-                    k += 1
-            k += 1
-    return None
-
-
-def _brace_bounds(lines: Sequence[str], language: str, function: str) -> tuple[int, int] | None:
-    """A brace language's definition of ``function`` (``Class::name`` and ``a.b`` reduced to the last name): the first
-    declaration head (:func:`_declaration_heads`) whose body :func:`_body_start` finds, to the matching ``}`` (or the
-    end of an expression body). Comments are blanked before anything is matched or counted."""
-    name = re.split(r"::|\.|->", function)[-1]
-    if not re.fullmatch(r"[A-Za-z_$][\w$]*", name):
-        return None
-    heads = _declaration_heads(name)
-    code = _blank_comments(lines, language)
-    for i, line in enumerate(code):
-        if _STATEMENT_HEAD.match(line):
-            continue
-        for found in heads.finditer(line):
-            body = _body_start(code, i, found.end())
-            if body is None:
-                continue
-            kind, j, k = body
-            if kind == "expression":
-                return i, j + 1
-            depth = 0
-            for row in range(j, len(code)):
-                for c in code[row][k:] if row == j else code[row]:
-                    if c == "{":
-                        depth += 1
-                    elif c == "}":
-                        depth -= 1
-                        if depth == 0:
-                            return i, row + 1
-            return i, len(code)
-    return None
-
-
-def function_bounds(lines: Sequence[str], language: str, function: str) -> tuple[int, int] | None:
-    """0-based ``[start, end)`` of the first declaration of ``function`` (the whole file for ``<global>``), or
-    ``None`` when the file does not declare it. Languages without a repo-facts declaration pattern (C, C++, C#, Perl,
-    ...) and brace languages whose pattern misses the name use the brace matcher; an unknown language is sniffed
-    (:func:`resolve_language`)."""
-    language = resolve_language(lines, language)
-    if function == GLOBAL:
-        return (0, len(lines)) if lines else None
-    pattern = DECLARATION.get(language)
-    start = next((i for i, line in enumerate(lines) if _declared_name(pattern, line) == function), None) if pattern else None
-    if start is None:
-        return _brace_bounds(lines, language, function) if language in SLASH_COMMENTS or pattern is None else None
-    span = function_span(lines, language, function)
-    if not span:
-        return None
-    return start, min(start + span, len(lines))
 
 
 def _window(start: int, end: int, focus: Sequence[int], size: int) -> tuple[int, int]:

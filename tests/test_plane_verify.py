@@ -270,10 +270,10 @@ def test_agree_reports_cost_with_the_recorded_triage_and_needs_fix_ranges_to_ass
 
 
 def test_matches_declared_is_the_protocol_v2_rule() -> None:
-    case = {"family": "injection", "sites": ["a.py::run", "b.py::<global>"]}
+    case = {"family": "injection", "sites": ["a.py::run", "b.py::<module>"]}
     ranges = {"a.py": [[50, 52]], "c.py": [[5, 5]]}
     hit = lambda site, family="injection": agree.matches_declared({"site": site, "family": family}, case, ranges)  # noqa: E731
-    assert hit("a.py:0:run") and hit("b.py:0:<global>")  # a declared path::function, whether or not the fix touched it
+    assert hit("a.py:0:run") and hit("b.py:0:<module>")  # a declared path::function, whether or not the fix touched it
     assert not hit("a.py:0:run", "ssrf")  # another family never matches
     assert hit("a.py:62:helper") and not hit("a.py:63:helper") and hit("a.py:40:x") and not hit("a.py:39:x")  # 10-line window
     assert hit("c.py:900:run") and not hit("d.py:1:run")  # a declared function name in a changed file only

@@ -98,13 +98,13 @@ def _produce(world: dict[str, Any], docker: FakeDocker, tmp_path: Path) -> list[
 
 
 def test_recorded_engine_findings_become_alert_rows() -> None:
-    assert parse_site("app/index.php:3:<global>") == ("app/index.php", 3, "<global>")
+    assert parse_site("app/index.php:3:<module>") == ("app/index.php", 3, "<module>")
     assert parse_site("lib/A.php:76:Foo::bar") == ("lib/A.php", 76, "Foo::bar")
     record = read_record(FIXTURE / "probe.json", LOG, 0)
     assert (record["files"], record["bytes"], record["questions"], record["completed"]) == (1, 145, 1, 1)
     rows = engine_rows(record, FIXTURE, "vulnerable", "a" * 40, {"app/index.php": [[3, 3]]})
     assert rows == [
-        {"rule_id": "engine:injection", "rule_status": "enabled", "path": "app/index.php", "line": line, "function": "<global>",
+        {"rule_id": "engine:injection", "rule_status": "enabled", "path": "app/index.php", "line": line, "function": "<module>",
          "pin_role": "vulnerable", "pin": "a" * 40, "in_fix_range": line == 3, "source": "engine"}
         for line in (3, 5)
     ]  # fmt: skip

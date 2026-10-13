@@ -512,12 +512,17 @@ def test_known_limit_pairs_emit_no_improve_signals(tmp_path: Path) -> None:
 
 
 def test_function_at_skips_anonymous_and_module_ranges() -> None:
-    from openultrasast.semantic.overlay import function_at
+    from openultrasast.source import FunctionRange
+    from openultrasast.source import enclosing as function_at
 
-    ranges = (("<module>", 1, 40), ("handler", 3, 20), ("<anon>", 5, 12))
+    ranges = (
+        FunctionRange("<module>", 1, 40, "module"),
+        FunctionRange("handler", 3, 20, "function"),
+        FunctionRange("<anon>", 5, 12, "anonymous"),
+    )
     assert function_at(ranges, 7) == "handler"  # innermost *named* function, never "<anon>"
-    assert function_at(ranges, 25) is None
-    assert function_at((("<anon>", 1, 9),), 4) is None
+    assert function_at(ranges, 25) == "<module>"
+    assert function_at((FunctionRange("<anon>", 1, 9, "anonymous"),), 4) == "<module>"
 
 
 @pytest.mark.semantic
@@ -738,7 +743,8 @@ def test_unresolvable_function_label_is_a_visible_loss_not_a_silent_miss(tmp_pat
 
 def test_named_function_ranges_use_declarator_names() -> None:
     from openultrasast.semantic.extra import has_semantic_extra
-    from openultrasast.semantic.functions import declarator_name, named_function_ranges
+    from openultrasast.source import declarator_name
+    from openultrasast.source import ranges as named_function_ranges
 
     assert declarator_name("const listProcessesOnPort = module.exports.listProcessesOnPort = async port => {") == "listProcessesOnPort"
     assert declarator_name("  exec('df -k ' + path, function(err, stdout) {") is None
@@ -765,8 +771,8 @@ def test_named_function_ranges_use_declarator_names() -> None:
     )
     ranges = named_function_ranges("f.js", src, "javascript")
     assert ranges is not None
-    assert {name for name, _, _ in ranges} >= {"a", "b", "c", "d", "e"}
-    assert "<anon>" not in {name for name, _, _ in ranges}
+    assert {name for name, _, _, _ in ranges} >= {"a", "b", "c", "d", "e"}
+    assert "<anon>" not in {name for name, _, _, _ in ranges}
 
 
 # --- review round 4 remediation (RED first) -----------------------------------
@@ -775,17 +781,18 @@ def test_named_function_ranges_use_declarator_names() -> None:
 @pytest.mark.semantic
 def test_c_function_with_return_type_on_previous_line_keeps_its_parser_name() -> None:
     from openultrasast.semantic.extra import has_semantic_extra
-    from openultrasast.semantic.functions import function_at, named_function_ranges
+    from openultrasast.source import enclosing as function_at
+    from openultrasast.source import ranges as named_function_ranges
 
     if not has_semantic_extra():
         pytest.skip("tree-sitter extra absent")
     ranges = named_function_ranges("a.c", "static int\nfoo(int x)\n{\n  return x;\n}\n", "c")
-    assert ranges is not None and any(name == "foo" and start <= 4 <= end for name, start, end in ranges)
+    assert ranges is not None and any(name == "foo" and start <= 4 <= end for name, start, end, _ in ranges)
     assert function_at(ranges, 4) == "foo"
 
 
 def test_declarator_name_knows_perl_subs_and_never_names_calls() -> None:
-    from openultrasast.semantic.functions import declarator_name
+    from openultrasast.source import declarator_name
 
     assert declarator_name("sub link_hash_cert {") == "link_hash_cert"
     assert declarator_name("    return foo(bar)") is None
@@ -798,7 +805,7 @@ def test_declarator_name_knows_perl_subs_and_never_names_calls() -> None:
 
 
 def test_declarator_name_strips_cpp_qualification_to_match_unqualified_labels() -> None:
-    from openultrasast.semantic.functions import declarator_name
+    from openultrasast.source import declarator_name
 
     assert declarator_name("bool FileReaderLoader::ArrayBufferResult(int a) {") == "ArrayBufferResult"
     assert declarator_name("void ns::Klass::run(const std::string& s) const {") == "run"
@@ -808,7 +815,9 @@ def test_declarator_name_strips_cpp_qualification_to_match_unqualified_labels() 
 @pytest.mark.semantic
 def test_cpp_qualified_method_range_is_found_by_its_unqualified_label() -> None:
     from openultrasast.semantic.extra import has_semantic_extra
-    from openultrasast.semantic.functions import function_at, named_function_ranges, spans_named
+    from openultrasast.source import enclosing as function_at
+    from openultrasast.source import ranges as named_function_ranges
+    from openultrasast.source import spans_named
 
     if not has_semantic_extra():
         pytest.skip("tree-sitter extra absent")

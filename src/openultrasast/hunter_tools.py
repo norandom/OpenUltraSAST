@@ -6,6 +6,7 @@ from collections.abc import Iterator
 from pathlib import Path
 
 from .preprocess import enumerate_source_files
+from .source import callers_of, product_files
 
 
 class PathEscapesRepo(ValueError):
@@ -81,15 +82,13 @@ def grep_repo(root: Path, pattern: str, *, max_matches: int) -> list[dict[str, o
 
 
 def find_refs(root: Path, symbol: str) -> list[dict[str, object]]:
-    resolved_root = root.resolve()
-    refs: list[dict[str, object]] = []
-    if symbol:
-        compiled = re.compile(rf"\b{re.escape(symbol)}\b")
-        for relative, lines in _source_lines(resolved_root):
-            for line_no, line in enumerate(lines, start=1):
-                if compiled.search(line):
-                    refs.append({"path": relative, "name": symbol, "line": line_no, "text": line[:_LINE_CHARS], "source": "text"})
-    return refs
+    if not symbol:
+        return []
+    lines = dict(_source_lines(root))
+    return [
+        {"path": path, "name": symbol, "line": line, "text": lines[path][line - 1][:_LINE_CHARS], "source": "text"}
+        for path, line in callers_of(root, symbol, files=product_files(root))
+    ]
 
 
 def _iter_clamped_source_files(root: Path) -> Iterator[tuple[str, Path]]:

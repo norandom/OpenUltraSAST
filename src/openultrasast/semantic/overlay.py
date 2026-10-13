@@ -10,9 +10,10 @@ from pathlib import Path
 from ..findings import SEVERITY_LABEL, StaticFinding
 from ..policy import load_policy, resolve_severity
 from ..preprocess import FileTarget
+from ..source import FunctionRange, ranges_from_ir
+from ..source import enclosing as function_at
 from .engines import joern_available, joern_flow
 from .facts import FactLoadError, SemanticFacts, load_facts
-from .functions import FunctionRange, function_at, named_ranges_from_ir
 from .ir import parse_file
 from .taint import Demotion, FileFlow, TaintPath, UnadjudicatedFlow, analyze_ir, merge_joern_paths
 
@@ -172,7 +173,7 @@ def _flows_for(
         if not ir.parse_ok:
             flows[target.path] = UnadjudicatedFlow(path=target.path, reason=ir.reason or "parse_failed", engine=ir.engine)
             continue
-        ranges[target.path] = named_ranges_from_ir(ir, text)
+        ranges[target.path] = ranges_from_ir(ir, text)
         analyzed: FileFlow | UnadjudicatedFlow = analyze_ir(ir, facts.for_language(target.language))
         if isinstance(analyzed, FileFlow):
             extra = tuple(joern_extra) if joern_extra is not None else _joern_paths(target.path, text, target.language)

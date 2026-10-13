@@ -13,170 +13,37 @@ declare them.
 
 from __future__ import annotations
 
-import hashlib
 import json
 import os
-import re
 import sys
 import traceback
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
 import yaml
 
-from ...model.layout import is_test_path, is_vendored, layout_facts
-from ...preprocess import IGNORED_DIRS, detect_language
+from ...preprocess import detect_language
+from ...source import (  # noqa: F401  (re-exported: generate, remember and the tests import them from here)
+    DECLARATION,
+    KEYWORDS,
+    MODULE_FUNCTION,
+    _declared_name,
+    _digest,
+    declared_functions,
+)
+from ...source import call_sites_in as call_sites
+from ...source import enclosing_at as enclosing
+from ...source import product_paths as product_files
 
 CALLERS_CAP = 40
-MAX_FILE_BYTES = 1_000_000
-LANGUAGES = frozenset({"python", "php", "javascript", "typescript", "java", "go", "ruby"})
-GLOBAL = "<global>"
 
-_EXCLUDED_DIRS = frozenset(
-    IGNORED_DIRS | {"vendor", "node_modules", "bower_components", "third_party", "third-party", "dist", "build", "out", "target"}
-)
-_NOT_PRODUCT = re.compile(
-    r"(^|/)(tests?|__tests__|__mocks__|spec|specs|docs?|examples?|fixtures?|e2e|cypress|storybook|testdata)/"
-    r"|\.(test|spec|stories|mock|e2e)\.[cm]?[jt]sx?$"
-    r"|_test\.(py|go|rb)$|(^|/)test_[^/]*\.(py|rb)$|Test\.java$|Tests\.java$|_spec\.rb$"
-    r"|\.min\.(js|css)$|\.bundle\.js$"
-)
 
-_JS_MODIFIERS = r"(?:(?:export|default|public|private|protected|static|async|readonly|override)\s+)*"
-_JAVA_MODIFIERS = r"(?:(?:public|private|protected|static|final|abstract|synchronized|native|default|strictfp)\s+)*"
-DECLARATION: dict[str, re.Pattern[str]] = {
-    "python": re.compile(r"^\s*(?:async\s+)?def\s+(\w+)\s*\("),
-    "php": re.compile(r"^\s*(?:(?:public|private|protected|static|final|abstract)\s+)*function\s+&?(\w+)\s*\("),
-    "javascript": re.compile(
-        r"^\s*" + _JS_MODIFIERS + r"function\s*\*?\s*(\w+)\s*\("
-        r"|^\s*" + _JS_MODIFIERS + r"(\w+)\s*\([^;]*\)\s*(?::[^{=]+)?\{\s*$"
-        r"|^\s*(?:export\s+)?(?:const|let|var)\s+(\w+)\s*=\s*(?:async\s*)?(?:function\b|\([^)]*\)\s*(?::[^=]+)?=>|\w+\s*=>)"
-    ),
-    "java": re.compile(
-        r"^\s*" + _JAVA_MODIFIERS + r"(?:<[^>]*>\s+)?(?!return\b|new\b|throw\b)[\w<>\[\],.?]+\s+(\w+)\s*\([^;]*\)\s*"
-        r"(?:throws\s+[\w.,\s]+)?\{?\s*$"
-    ),
-    "go": re.compile(r"^\s*func\s+(?:\([^)]*\)\s*)?(\w+)\s*\("),
-    "ruby": re.compile(r"^\s*def\s+(?:self\.)?(\w+[?!=]?)"),
-}
 DECLARATION["typescript"] = DECLARATION["javascript"]
-KEYWORDS = frozenset(
-    {
-        "if",
-        "for",
-        "while",
-        "switch",
-        "catch",
-        "return",
-        "function",
-        "else",
-        "do",
-        "try",
-        "with",
-        "elif",
-        "except",
-        "new",
-        "throw",
-        "super",
-        "constructor",
-        "foreach",
-        "match",
-        "case",
-        "unless",
-        "until",
-    }
-)
-_COMMENT_PREFIXES = ("#", "//", "/*", "*", "*/", "--")
 
 
 class TaskFailed(RuntimeError):
     """A crash inside `run` that has already been recorded in `summary.json` (status `failed`, traceback)."""
-
-
-def product_files(workspace: Path) -> list[Path]:
-    """Product source files of the supported languages, sorted; tests, vendored trees, build output, minified
-    bundles and dot-directories are not product (the classification of `model_sinks.py` and the layout facts)."""
-    facts = layout_facts()
-    files: list[Path] = []
-    for path in sorted(workspace.rglob("*")):
-        if path.is_symlink() or not path.is_file():
-            continue
-        relative = path.relative_to(workspace)
-        parts = relative.parts
-        if any(part.startswith(".") or part in _EXCLUDED_DIRS for part in parts[:-1]) or parts[-1].startswith("."):
-            continue
-        posix = relative.as_posix()
-        if _NOT_PRODUCT.search(posix) or is_vendored(posix, facts) or is_test_path(posix, facts):
-            continue
-        if detect_language(path) not in LANGUAGES or path.stat().st_size > MAX_FILE_BYTES:
-            continue
-        files.append(path)
-    return files
-
-
-def declared_functions(lines: Sequence[str], language: str) -> list[str]:
-    """The function names a file declares, in source order, each once."""
-    pattern = DECLARATION.get(language)
-    if pattern is None:
-        return []
-    names: list[str] = []
-    for line in lines:
-        name = _declared_name(pattern, line)
-        if name and name not in names:
-            names.append(name)
-    return names
-
-
-def enclosing(lines: Sequence[str], index: int, language: str) -> str:
-    """The nearest declaration at or above line ``index`` (0-based), `<global>` when there is none."""
-    pattern = DECLARATION.get(language)
-    if pattern is None:
-        return GLOBAL
-    indent = _indent(lines[index]) if language == "python" else None
-    for back in range(index, -1, -1):
-        name = _declared_name(pattern, lines[back])
-        if not name:
-            continue
-        if indent is None or back == index or _indent(lines[back]) < indent:
-            return name
-        indent = min(indent, _indent(lines[back]))  # a sibling or deeper def: keep looking for the one that encloses
-    return GLOBAL
-
-
-def _indent(line: str) -> int:
-    return len(line) - len(line.lstrip(" \t"))
-
-
-def call_sites(lines: Sequence[str], language: str, names: Iterable[str]) -> list[dict[str, Any]]:
-    """Calls to any of ``names`` in one file: `{"function", "line", "enclosing"}`, one per name and line, in
-    line order. A declaration line is not a call of the function it declares; comment lines are skipped."""
-    wanted = sorted(set(names), key=lambda n: (-len(n), n))
-    if not wanted:
-        return []
-    token = re.compile(r"(?<![A-Za-z0-9_$])(" + "|".join(re.escape(n) for n in wanted) + r")\s*\(")
-    pattern = DECLARATION.get(language)
-    found: list[dict[str, Any]] = []
-    for index, line in enumerate(lines):
-        if line.lstrip().startswith(_COMMENT_PREFIXES):
-            continue
-        declared = _declared_name(pattern, line) if pattern is not None else ""
-        seen: set[str] = set()
-        for match in token.finditer(line):
-            name = match.group(1)
-            if name == declared or name in seen:
-                continue
-            seen.add(name)
-            found.append({"function": name, "line": index + 1, "enclosing": enclosing(lines, index, language)})
-    return found
-
-
-def _declared_name(pattern: re.Pattern[str], line: str) -> str:
-    match = pattern.match(line)
-    if not match:
-        return ""
-    name = next((g for g in match.groups() if g), "")
-    return "" if name in KEYWORDS else name
 
 
 def _read_lines(path: Path) -> list[str]:
@@ -185,10 +52,6 @@ def _read_lines(path: Path) -> list[str]:
 
 def _candidate_names(candidates: Sequence[Mapping[str, Any]]) -> list[str]:
     return sorted({str(c["function"]) for c in candidates if c.get("function")})
-
-
-def _digest(names: Sequence[str]) -> str:
-    return hashlib.sha256("\n".join(names).encode("utf-8")).hexdigest()[:16]
 
 
 def _load_units(units_path: Path, digest: str) -> dict[str, dict[str, Any]]:
@@ -240,7 +103,7 @@ def assemble_facts(
     for path, row in sorted(rows.items()):
         for call in row.get("calls", ()):
             by_name.setdefault(str(call["function"]), []).append(
-                {"path": path, "line": int(call["line"]), "enclosing": str(call.get("enclosing", GLOBAL))}
+                {"path": path, "line": int(call["line"]), "enclosing": str(call.get("enclosing", MODULE_FUNCTION))}
             )
     callers: dict[str, list[dict[str, Any]]] = {}
     for candidate in sorted(candidates, key=lambda c: (str(c["path"]), str(c["function"]))):

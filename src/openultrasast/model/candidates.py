@@ -20,6 +20,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
+from ..source import canonical_language
+
 if TYPE_CHECKING:
     from .taxonomy import FamilyTaxonomy
 
@@ -46,7 +48,6 @@ FAMILY_SHAPE: dict[str, tuple[CandidateKind, ...]] = {
 # The p90 of the measured distribution is 22 sites per labeled function, so two batches cover all but the tail.
 MAX_CANDIDATES_PER_CALL = 12
 _MAX_TEXT = 400
-_LANGUAGE = {"python": "python", "javascript": "javascript", "typescript": "typescript", "c_cpp": "c", "java": "java"}
 
 
 @dataclass(frozen=True)
@@ -233,7 +234,7 @@ def _line_text(lines: Sequence[str], line: int) -> str:
 def _language_of(path: str) -> str:
     from ..preprocess import detect_language
 
-    return _LANGUAGE.get(detect_language(Path(path)), detect_language(Path(path)))
+    return canonical_language(detect_language(Path(path)))
 
 
 @dataclass(frozen=True)

@@ -86,9 +86,10 @@ def test_read_file_truncates_and_rejects_symlink_escape(tmp_path: Path) -> None:
 
 def test_find_refs_searches_source_text(tmp_path: Path) -> None:
     root = _repo_with_split_sink(tmp_path)
-    refs = find_refs(root, "query")
-    assert [ref["line"] for ref in refs] == [2, 3]
-    assert all(ref["path"] == "app.py" and ref["name"] == "query" and ref["source"] == "text" for ref in refs)
+    refs = find_refs(root, "execute")
+    assert [ref["line"] for ref in refs] == [3]
+    assert all(ref["path"] == "app.py" and ref["name"] == "execute" and ref["source"] == "text" for ref in refs)
+    assert find_refs(root, "query") == []
     assert find_refs(root, "search") == []
     assert find_refs(root, "") == []
 
