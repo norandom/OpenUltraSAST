@@ -10,28 +10,27 @@ Two arms over the same 252 changes (12 verified positives, 240 ordinary pushes f
 repos), as R6 of the requirements asks:
 
 - **(a) push hook as shipped**: quick rules + engine, 300 s deadline, the Docker replay lane, no
-  model key in the container. Still running when this was written: 163 of 252 records done (all 12
-  positives, 151 ordinary). The final numbers land in `MORNING.txt` outside the repo and will replace
-  the `*_interim_163.json` files here.
+  model key in the container. Finished 2026-10-13 15:38: 252 of 252 records (12 positives, 240
+  ordinary).
 - **(b) hunter arm**: the LLM tool hunter (`scan --mode deep`'s search) run off-cluster over the
   changed files at head, every finding classified into the taxonomy by the decision-engine
   classifier. Finished: 252 of 252. Reported twice: raw (every hunter suspicion counts) and
   filtered (only suspicions the classifier judged `vulnerable`).
 
-| Metric | (a) push hook, 163 done | (b) hunter, raw | (b') hunter, classifier-filtered |
-|---|---|---|---|
-| Recall (12 positives) | 0 / 12 = 0% (Wilson 0 to 24.3) | 6 / 12 = 50% (25.4 to 74.6) | 5 / 12 = 41.7% (19.3 to 68.0) |
-| False alarms per 100 ordinary pushes | 1 / 149 = 0.7 (0.1 to 3.7) | 221 / 239 = 92.5 (88.4 to 95.2) | 130 / 239 = 54.4 (48.1 to 60.6) |
-| Precision (flagged pushes that were positives) | 0 / 1 | 6 / 232 = 2.6% | 5 / 139 = 3.6% |
-| Exploit-verified | 0 (no proof run) | 0 (no proof run) | 0 (no proof run) |
-| Instrument failures | 2 / 163 | 1 / 252 | 1 / 252 |
+| Metric | (a) push hook | (b) hunter, raw | (b') hunter, classifier-filtered | (a) + (b') whole tool |
+|---|---|---|---|---|
+| Recall (12 positives) | 0 / 12 = 0% (Wilson 0 to 24.3) | 6 / 12 = 50% (25.4 to 74.6) | 5 / 12 = 41.7% (19.3 to 68.0) | 5 / 12 = 41.7% (19.3 to 68.0) |
+| False alarms per 100 ordinary pushes | 5 / 238 = 2.1 (0.9 to 4.8) | 221 / 239 = 92.5 (88.4 to 95.2) | 130 / 239 = 54.4 (48.1 to 60.6) | 132 / 238 = 55.5 (49.1 to 61.6) |
+| Precision (flagged pushes that were positives) | 0 / 5 | 6 / 232 = 2.6% | 5 / 139 = 3.6% | 5 / 141 = 3.5% |
+| Exploit-verified | 0 (no proof run) | 0 (no proof run) | 0 (no proof run) | 0 (no proof run) |
+| Instrument failures | 2 / 252 | 1 / 252 | 1 / 252 | 2 / 252 |
 
 Neither arm meets the gate (recall at least 90%, false alarms under 10 per 100 pushes). The hook as
 shipped is quiet and blind on this set. The hunter finds about half and alarms on more than half of
 ordinary pushes even after the classifier. The whole-tool number the brief holds the tool to is
-(a) plus (b'); since (a) caught nothing, it equals (b') on recall and adds one false alarm.
+(a) plus (b'): 41.7% recall at 55.5 false alarms per 100 pushes. (a) caught nothing, so recall equals (b'); of its five false alarms, two were on pushes (b') had already flagged and three were new. The denominator is 238, not 239, because (a) has two instrument failures among the ordinary pushes.
 
-Files: `scored_a_interim_163.json`, `metrics_a_interim_163.json`, `scored_b_raw.json`,
+Files: `scored_a.json`, `metrics_a.json`, `scored_combined.json`, `metrics_combined.json`, `scored_b_raw.json`,
 `metrics_b_raw.json`, `scored_b_filtered.json`, `metrics_b_filtered.json`. Scorer:
 `benchmarks/unseen/score.py` (a catch needs the labelled family and a location inside the labelled
 function or within 10 lines of it). Metrics: `benchmarks/valid/metrics.py`.
@@ -59,13 +58,16 @@ strict scorer; note them.
 
 ### Arm (a) detail
 
-- Engine finished inside 300 s on 100 of 163 changes (61%); 61 fell back to quick rules only; 2
-  instrument failures (`contentful` 9e706114, `matrix` 7018468e, nothing readable at the hotspots).
-  On the positives: engine ran on 4 of 12, quick only on 8.
+- Engine finished inside 300 s on 116 of 252 changes (46%); 134 fell back to quick rules only; 2
+  instrument failures (`contentful` d5dac236, push artifact unread; `matrix` fed2acfb, no changed
+  bytes read). On the positives: engine ran on 4 of 12, quick only on 8.
 - Every record proves the instrument: hook exit 0, bytes read per changed file, base and head
   verified.
-- The one false alarm: `bytebase/dbhub` 5bd45460, quick rule `js-command-exec` (CWE-78) at
-  `src/connectors/sqlite/index.ts:132`, "Node child_process command execution needs review".
+- All five false alarms are quick rules; the engine raised none:
+  - `bytebase/dbhub` c10e1269, `js-command-exec` (CWE-78) at `src/connectors/sqlite/index.ts:132`
+  - `nvbn/thefuck` 6e325eb7, `python-os-command` (CWE-78) at `thefuck/entrypoints/shell_logger.py:35`
+  - `zenitram/malla` dea8d513 and 61c4fd5e, `python-sql-injection` (CWE-89) in the repository and analytics modules
+  - `zereight/gitlab-mcp` 3d01ea54, `js-command-exec` (CWE-78) at `scripts/generate-tools-readme.ts:28`
 
 ### Arm (b) detail
 
@@ -172,8 +174,6 @@ change.
 
 ## Not done yet
 
-- Final arm (a) numbers on all 252 changes (replay finishing 2026-10-13 afternoon), then the
-  combined (a)+(b') score with `hunter_arm combine --keep-verdicts vulnerable`.
 - Exploit-verified rate: the proof arm has not run on any of the 26 flagged positive findings.
 - Growing from 12 to the ~40 positives `score.py:required_n` asks for.
 - The 252-change replay at the engine's ~200 s fixed cost is about 17 hours one container at a time

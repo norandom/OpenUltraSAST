@@ -14,26 +14,26 @@
   },
   "false_alarms_per_100_pushes": {
     "cluster95": [
-      0.0,
-      2.027027027027027
+      0.42194092827004215,
+      4.166666666666666
     ],
-    "count": 1,
-    "icc": -0.004445973772031825,
-    "n": 149,
-    "rate": 0.6711409395973155,
+    "count": 5,
+    "icc": 0.004133404058911234,
+    "n": 238,
+    "rate": 2.100840336134454,
     "wilson95": [
-      0.11856820977550406,
-      3.703427895996746
+      0.9005985705189141,
+      4.822817086671577
     ]
   },
-  "headline": "On unseen app repos: recall 0.0% (Wilson 0.0-24.3), false alarms 0.7 per 100 pushes, precision 0.0%; exploit-verified 0 of 0.",
+  "headline": "On unseen app repos: recall 0.0% (Wilson 0.0-24.3), false alarms 2.1 per 100 pushes, precision 0.0%; exploit-verified 0 of 0.",
   "precision": {
     "count": 0,
-    "n": 1,
+    "n": 5,
     "rate": 0.0,
     "wilson95": [
       0,
-      0.7934567085261071
+      0.43449149475208104
     ]
   },
   "recall": {
