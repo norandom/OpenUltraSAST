@@ -142,6 +142,7 @@ def hunt_change(
                     program.bind(root)
                 prediction = program(**inputs)
                 record["parse_failed"] = bool(getattr(prediction, "parse_failed", False))
+                record["loop_parse_failed"] = bool(getattr(prediction, "loop_parse_failed", False))
                 for finding in prediction.findings:
                     if finding.get("path") in texts and not finding.get("function") and (span := _function_at(root, finding)):
                         finding["function"] = span

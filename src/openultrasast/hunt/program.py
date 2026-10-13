@@ -177,6 +177,23 @@ def repository_tools(
     return [dspy.Tool(read_file), dspy.Tool(grep_repo), dspy.Tool(find_refs)]
 
 
+class _Loop(dspy.ReAct):
+    """ReAct where a step the adapter cannot parse ends the loop the way an invalid tool choice does, so the answer
+    is still extracted from what the loop gathered. DSPy 3.4 raises AdapterParseError, which is not the ValueError
+    its loop catches, so one malformed step otherwise discards the whole hunt."""
+
+    loop_parse_failed = False
+
+    def _call_with_potential_trajectory_truncation(self, module, trajectory, **input_args):
+        try:
+            return super()._call_with_potential_trajectory_truncation(module, trajectory, **input_args)
+        except dspy.utils.exceptions.AdapterParseError as error:
+            if module is self.extract:
+                raise
+            self.loop_parse_failed = True
+            raise ValueError("unparseable loop step") from error
+
+
 class HuntProgram(dspy.Module):
     """One hunt over one change. With tools it is a bounded ReAct loop; without, one prediction (tests, dry runs)."""
 
@@ -185,7 +202,7 @@ class HuntProgram(dspy.Module):
         self.mask = tuple(sorted(set(mask)))
         self.seen: dict[str, set[int]] = {}
         signature = signature_for(self.mask)
-        self.hunt = dspy.ReAct(signature, tools=list(tools), max_iters=max_iters) if tools else dspy.Predict(signature)
+        self.hunt = _Loop(signature, tools=list(tools), max_iters=max_iters) if tools else dspy.Predict(signature)
 
     def bind(self, root: Path) -> None:
         """Point the tools at one checkout and start a fresh record of what they show."""
@@ -195,13 +212,19 @@ class HuntProgram(dspy.Module):
                 self.hunt.tools[tool.name] = tool
 
     def forward(self, **inputs: str) -> dspy.Prediction:
+        if isinstance(self.hunt, _Loop):
+            self.hunt.loop_parse_failed = False
         try:
             prediction = self.hunt(**inputs)
         except dspy.utils.exceptions.AdapterParseError:
             # An answer the program could not shape is an empty answer that scores against it, not a broken run.
-            return dspy.Prediction(findings=[], raw=[], parse_failed=True)
+            return dspy.Prediction(findings=[], raw=[], parse_failed=True, loop_parse_failed=self._loop_failed())
         findings = check(getattr(prediction, "findings", []) or [], inputs, self.seen)
-        return dspy.Prediction(findings=findings, raw=getattr(prediction, "findings", []), parse_failed=False)
+        raw = getattr(prediction, "findings", [])
+        return dspy.Prediction(findings=findings, raw=raw, parse_failed=False, loop_parse_failed=self._loop_failed())
+
+    def _loop_failed(self) -> bool:
+        return bool(getattr(self.hunt, "loop_parse_failed", False))
 
 
 def program_id(program: dspy.Module, *, mask: Iterable[str] = ()) -> str:

@@ -115,3 +115,19 @@ def test_an_unparseable_answer_is_an_empty_flagged_answer():
     program = hp.HuntProgram()
     prediction = program(**hp.render_rows(CHANGE, ROWS, TEXT))
     assert prediction.findings == [] and prediction.parse_failed is True
+
+
+def test_a_malformed_loop_step_ends_the_loop_and_the_answer_is_still_extracted(tmp_path):
+    (tmp_path / "app.py").write_text("\n".join(TEXT["app.py"]) + "\n")
+    answer = [{"path": "app.py", "line": 6, "family": "injection", "confidence": 0.8, "rationale": "eval", "cited_lines": [6]}]
+    malformed = {"next_thought": "read it", "tool_name": "read_file", "tool_args": "{}"}  # history headings copied
+    lm = DummyLM([malformed, malformed, {"reasoning": "eval of input", "findings": json.dumps(answer)}])
+    dspy.configure(lm=lm, adapter=dspy.ChatAdapter())
+    program = hp.HuntProgram(tools=hp.repository_tools(tmp_path))
+    program.bind(tmp_path)
+    prediction = program(**hp.render_rows(CHANGE, ROWS, TEXT))
+    assert prediction.parse_failed is False and prediction.loop_parse_failed is True
+    assert [f["line"] for f in prediction.findings] == [6]
+    lm = DummyLM([{"next_thought": "done", "next_tool_name": "finish", "next_tool_args": "{}"}, {"reasoning": "-", "findings": "[]"}])
+    dspy.configure(lm=lm, adapter=dspy.ChatAdapter())
+    assert program(**hp.render_rows(CHANGE, ROWS, TEXT)).loop_parse_failed is False  # reset per hunt
