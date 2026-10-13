@@ -8,8 +8,6 @@ from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from ..findings import StaticFinding
-
 if TYPE_CHECKING:
     from .map import Hotspot
 
@@ -19,8 +17,6 @@ VERDICT_DELTAS = {
     "triggerable": TRIGGERABLE_DELTA,
     "not_triggerable": NOT_TRIGGERABLE_DELTA,
 }
-FORCED_CANDIDATE_SEVERITY = 5
-FORCED_CANDIDATE_REACHABILITY = frozenset({"reachable", "inferred-file-surface"})
 
 
 @dataclass(frozen=True)
@@ -55,27 +51,6 @@ def write_ledger(path: Path, ledger: Mapping[str, LedgerEntry | Mapping[str, obj
         payload[str(key)] = asdict(entry)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
-
-
-def persist_verdicts(path: Path, verdicts: Sequence[object]) -> dict[str, LedgerEntry]:
-    """Record triggerable / not_triggerable outcomes into the loop-owned complexity ledger."""
-    ledger = load_ledger(path)
-    changed = False
-    for item in verdicts:
-        verdict = str(getattr(item, "verdict", ""))
-        if verdict not in VERDICT_DELTAS:
-            continue
-        raw_function = getattr(item, "function_name", None)
-        ledger = record_verdict(
-            ledger,
-            path=str(getattr(item, "path", "")),
-            function_name=raw_function if isinstance(raw_function, str) else None,
-            verdict=verdict,
-        )
-        changed = True
-    if changed:
-        write_ledger(path, ledger)
-    return ledger
 
 
 def record_verdict(
@@ -128,49 +103,6 @@ def apply_overlay(
             )
         )
     return tuple(sorted(adjusted, key=lambda item: (-item.score, item.path, item.function_name or "")))
-
-
-def must_keep_as_candidate(
-    finding: StaticFinding,
-    policy_severity: int | object,
-    reachability: str | None = None,
-) -> bool:
-    status = finding.reachability_status if reachability is None else reachability
-    return _as_severity(policy_severity) >= FORCED_CANDIDATE_SEVERITY and status in FORCED_CANDIDATE_REACHABILITY
-
-
-def select_forced_candidates(
-    findings: Sequence[StaticFinding],
-    policy: Mapping[str, object],
-    *,
-    rule_cwe: Mapping[str, str] | None = None,
-) -> tuple[StaticFinding, ...]:
-    cwe_by_id = rule_cwe or {}
-    return tuple(
-        finding
-        for finding in findings
-        if must_keep_as_candidate(finding, _policy_severity_for(finding, policy, cwe_by_id), finding.reachability_status)
-    )
-
-
-def _policy_severity_for(finding: StaticFinding, policy: Mapping[str, object], cwe_by_id: Mapping[str, str]) -> int:
-    if finding.finding_id in policy:
-        return _as_severity(policy[finding.finding_id])
-    cwe = cwe_by_id.get(finding.finding_id)
-    if cwe is not None and cwe in policy:
-        return _as_severity(policy[cwe])
-    return 0
-
-
-def _as_severity(value: object) -> int:
-    if isinstance(value, bool):
-        return 0
-    if isinstance(value, int):
-        return value
-    severity = getattr(value, "severity", None)
-    if isinstance(severity, bool) or not isinstance(severity, int):
-        return 0
-    return severity
 
 
 def _coerce_entry(value: object) -> LedgerEntry | None:

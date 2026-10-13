@@ -21,7 +21,6 @@ class HunterBudget:
     max_targets: int
     max_findings_per_target: int
     retrieval_budget_chars: int
-    skill_budget_chars: int
 
 
 @dataclass(frozen=True)
@@ -30,7 +29,6 @@ class HunterTask:
     ranking: RankingScore
     tier: HunterTier
     budget: HunterBudget
-    selected_skills: list[str]
     retrieval_context: str
 
 
@@ -40,7 +38,6 @@ class HunterTrajectory:
     target_path: str
     tier: HunterTier
     priority: float
-    selected_skills: list[str]
     retrieval_context_chars: int
     findings: list[str]
     status: str
@@ -53,9 +50,9 @@ class HunterPoolResult:
 
 
 DEFAULT_BUDGETS = {
-    "A": HunterBudget(tier="A", max_targets=20, max_findings_per_target=20, retrieval_budget_chars=6000, skill_budget_chars=2500),
-    "B": HunterBudget(tier="B", max_targets=40, max_findings_per_target=10, retrieval_budget_chars=4000, skill_budget_chars=1500),
-    "C": HunterBudget(tier="C", max_targets=80, max_findings_per_target=5, retrieval_budget_chars=2000, skill_budget_chars=800),
+    "A": HunterBudget(tier="A", max_targets=20, max_findings_per_target=20, retrieval_budget_chars=6000),
+    "B": HunterBudget(tier="B", max_targets=40, max_findings_per_target=10, retrieval_budget_chars=4000),
+    "C": HunterBudget(tier="C", max_targets=80, max_findings_per_target=5, retrieval_budget_chars=2000),
 }
 
 
@@ -93,7 +90,6 @@ def schedule_hunter_tasks(
                 ranking=ranking,
                 tier=tier,
                 budget=budget,
-                selected_skills=select_skill_snippets(target),
                 retrieval_context=retrieval_context_by_path.get(target.path, "")[: budget.retrieval_budget_chars],
             )
         )
@@ -134,13 +130,6 @@ def build_retrieval_context_by_path(root: Path, targets: list[FileTarget], *, ma
     return contexts
 
 
-def select_skill_snippets(target: FileTarget, *, max_snippets: int = 4) -> list[str]:
-    """Route the target to its most relevant Trail of Bits skills (ids), via the skill index."""
-    from .skills import route_skill_ids
-
-    return route_skill_ids(target, max_snippets=max_snippets)
-
-
 def _run_hunter_task(
     root: Path,
     scan_id: str,
@@ -154,7 +143,6 @@ def _run_hunter_task(
         target_path=task.target.path,
         tier=task.tier,
         priority=task.ranking.priority,
-        selected_skills=task.selected_skills,
         retrieval_context_chars=len(task.retrieval_context),
         findings=[finding.finding_id for finding in findings],
         status="completed",

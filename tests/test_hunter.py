@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 
 from openultrasast.cli import main
-from openultrasast.hunter import assign_tier, run_hunter_pool, schedule_hunter_tasks, select_skill_snippets, write_hunter_trajectories
+from openultrasast.hunter import assign_tier, run_hunter_pool, schedule_hunter_tasks, write_hunter_trajectories
 from openultrasast.preprocess import FileTarget
 from openultrasast.rank import RankingScore
 
@@ -13,7 +13,7 @@ def test_assign_tier_uses_priority_bands() -> None:
     assert assign_tier(1.99) == "C"
 
 
-def test_schedule_hunter_tasks_assigns_budget_and_skill_metadata() -> None:
+def test_schedule_hunter_tasks_assigns_budget() -> None:
     target = FileTarget(
         path="parser.c",
         absolute_path="/repo/parser.c",
@@ -39,8 +39,6 @@ def test_schedule_hunter_tasks_assigns_budget_and_skill_metadata() -> None:
     assert tasks[0].tier == "A"
     assert tasks[0].budget.max_findings_per_target == 20
     assert len(tasks[0].retrieval_context) == tasks[0].budget.retrieval_budget_chars
-    assert "address-sanitizer" in tasks[0].selected_skills
-    assert "harness-writing" in tasks[0].selected_skills
 
 
 def test_run_hunter_pool_persists_trajectory_linked_to_finding(tmp_path: Path) -> None:
@@ -76,22 +74,6 @@ def test_run_hunter_pool_persists_trajectory_linked_to_finding(tmp_path: Path) -
     assert line["target_path"] == "app.py"
     assert line["retrieval_context_chars"] > 0
     assert line["status"] == "completed"
-
-
-def test_select_skill_snippets_routes_crypto_and_auth_targets() -> None:
-    target = FileTarget(
-        path="auth/crypto.py",
-        absolute_path="/repo/auth/crypto.py",
-        language="python",
-        loc=20,
-        tags=["crypto", "auth_boundary"],
-        has_fuzz_entry_point=False,
-    )
-
-    snippets = select_skill_snippets(target)
-
-    assert "constant-time-analysis" in snippets
-    assert "sharp-edges" in snippets
 
 
 def test_standard_mode_writes_hunter_trajectory_and_manifest_ref(tmp_path: Path, monkeypatch) -> None:  # type: ignore[no-untyped-def]

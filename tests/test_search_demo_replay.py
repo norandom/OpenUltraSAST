@@ -196,13 +196,6 @@ def test_lane_failure_is_could_not_run(tmp_path, monkeypatch):
     assert "verifier unavailable" in record["reason"]
 
 
-def test_replay_registered_as_standalone():
-    from openultrasast.model.audit import audit
-
-    rows = {r.module: r for r in audit(Path("benchmarks"))}
-    assert rows["search.demo_replay"].classification == "standalone_capability"
-
-
 def test_docker_selection_uses_same_preparation_and_fresh_runs(tmp_path, monkeypatch):
     args, root, fake_lane, events = harness(tmp_path, monkeypatch)
     args.lane = "docker"

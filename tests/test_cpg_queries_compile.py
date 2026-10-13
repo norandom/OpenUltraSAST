@@ -29,7 +29,7 @@ import pytest
 QUERIES = Path("src/openultrasast/cpg/queries")
 
 
-@pytest.mark.parametrize("name", ["taint", "dominance", "config", "census", "overlay", "vocabulary"])
+@pytest.mark.parametrize("name", ["taint", "dominance", "config", "census", "overlay"])
 def test_query_scope_checks_guard_nullable_methods(name: str) -> None:
     """PHP class constants can have no method; one unsafe scope check aborts the batch."""
     script = QUERIES / f"{name}.sc"

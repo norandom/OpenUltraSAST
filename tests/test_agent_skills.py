@@ -41,7 +41,7 @@ def test_scan_skill_states_the_evidence_ladder_as_the_code_defines_it() -> None:
         "--mode quick|standard|deep",
         "--fail-on",
         "cpg_unavailable",
-        "sandbox_unavailable",
+        "regress_retired",
         "report.sarif",
         "harness.json",
         "ousast mcp",

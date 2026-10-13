@@ -17,7 +17,6 @@ def write_markdown_report(
     *,
     redact: bool = True,
     complexity_map: object | None = None,
-    verdicts: Sequence[object] | None = None,
     overlay: Sequence[object] | None = None,
     mechanisms: Mapping[str, Mapping[str, object]] | None = None,
     obligations: Mapping[str, Mapping[str, object]] | None = None,
@@ -103,8 +102,6 @@ def write_markdown_report(
         _append_overlay(lines, overlay)
     if complexity_map is not None:
         _append_complexity_map(lines, complexity_map)
-    if verdicts is not None:
-        _append_worth_fixing(lines, verdicts)
     report = "\n".join(lines).rstrip() + "\n"
     if redact:
         from .redaction import redact_secrets
@@ -147,25 +144,6 @@ def _append_complexity_map(lines: list[str], complexity_map: object) -> None:
             lines.append(f"- Inventory: `{', '.join(str(item) for item in inventory_ids)}`")
         rationale = str(getattr(hotspot, "rationale", "") or "")
         lines.extend(["", rationale, ""] if rationale else [""])
-
-
-def _append_worth_fixing(lines: list[str], verdicts: Sequence[object]) -> None:
-    worth = [item for item in verdicts if getattr(item, "worth_fixing", False)]
-    lines.extend(["## Worth fixing", "", f"Count: {len(worth)}", ""])
-    if not worth:
-        lines.extend(["No worth-fixing verdicts were produced.", ""])
-        return
-    for item in worth:
-        identity = _report_identity(getattr(item, "path", ""), getattr(item, "function_name", None))
-        lines.extend(
-            [
-                f"### `{identity}`",
-                "",
-                f"- Verdict: `{getattr(item, 'verdict', '')}`",
-                f"- Reason: `{getattr(item, 'reason', '')}`",
-                "",
-            ]
-        )
 
 
 def _report_identity(path: object, function_name: object) -> str:
@@ -227,7 +205,6 @@ def write_manifest(
     fusion: list[dict[str, object]] | None = None,
     stages: dict[str, object] | None = None,
     complexity: dict[str, object] | None = None,
-    worth_fixing: dict[str, object] | None = None,
     provenance: dict[str, object] | None = None,
     variants: dict[str, object] | None = None,
     obligations: dict[str, object] | None = None,
@@ -265,8 +242,6 @@ def write_manifest(
         payload["stages"] = stages
     if complexity is not None:
         payload["complexity"] = complexity
-    if worth_fixing is not None:
-        payload["worth_fixing"] = worth_fixing
     if provenance is not None:
         payload["provenance"] = provenance
     if variants is not None:
@@ -282,7 +257,6 @@ def scan_exit_code(
     findings: list[StaticFinding],
     verifications: list[VerificationResult],
     policy: str,
-    worth_fixing_verdicts: Sequence[object] | None = None,
 ) -> int:
     if policy == "never":
         return 0
@@ -290,8 +264,6 @@ def scan_exit_code(
         return 1 if findings else 0
     if policy == "verified":
         return 1 if any(result.verified for result in verifications) else 0
-    if policy == "worth-fixing":
-        return 1 if any(getattr(verdict, "worth_fixing", False) for verdict in worth_fixing_verdicts or ()) else 0
     raise ValueError(f"unknown fail policy: {policy}")
 
 
@@ -463,7 +435,7 @@ _COVERAGE_DEGRADATIONS: dict[str, str] = {
     "policy_invalid": "The `{stage}` policy could not be loaded, so that stage decided nothing. {detail}",
     "max_findings_exceeded": "Only the first {requested} of {actual} findings are reported (`max_findings`).",
     "hunter_model_unavailable": "The `{stage}` stage needs a model and none is available, so it was skipped.",
-    "sandbox_unavailable": "Docker is not available, so no finding was reproduced in the sandbox (REGRESS skipped).",
+    "regress_retired": "the sandboxed snippet stage was retired on 2026-10-13; execution proof comes from the search-with-proof arm",
     "language_not_covered": (
         "language not covered: {language} ({count} files). No quick rules{engine} exist for it, so **silence about "
         "these files is not a clean result**."

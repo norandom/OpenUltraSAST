@@ -125,46 +125,6 @@ def test_prove_filter_drops_demoted_keeps_promoted() -> None:
     assert [item.finding_id for item in promoted_findings(findings, records)] == [promoted_id]
 
 
-def test_deep_scan_offers_only_promotions(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    from openultrasast import cli
-    from openultrasast.sandbox import FakeSandboxRunner, SandboxResult
-
-    repo = tmp_path / "repo"
-    repo.mkdir()
-    (repo / "app.py").write_text("def safe():\n    exec('ls')\n\ndef bad():\n    return eval(request.args)\n")
-    monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", ".runs")
-    monkeypatch.setenv("OPENULTRASAST_SANDBOX_PROBE", "1")
-    fake = FakeSandboxRunner(SandboxResult(exit_code=0, stdout="", stderr="", timed_out=False))
-    monkeypatch.setattr(cli, "resolve_sandbox_runner", lambda: fake)
-    assert main(["scan", str(repo), "--mode", "deep", "--fail-on", "worth-fixing"]) == 0
-    run_dir = _latest_run(repo)
-    overlay = json.loads((run_dir / "overlay.json").read_text())["records"]
-    dispositions = {item["proposal_id"]: item["disposition"] for item in overlay}
-    demoted = [key for key, value in dispositions.items() if value == "demote"]
-    promoted = [key for key, value in dispositions.items() if value == "promote"]
-    assert demoted
-    assert promoted
-    verdicts = json.loads((run_dir / "verdicts.json").read_text())["verdicts"]
-    offered = {finding_id for item in verdicts for finding_id in item["inventory_finding_ids"]}
-    assert offered <= set(promoted)
-    assert not (offered & set(demoted))
-
-
-def test_fail_on_worth_fixing_ignores_unadjudicated(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    repo = tmp_path / "repo"
-    repo.mkdir()
-    (repo / "broken.py").write_text("eval(request.args)\ndef oops(\n")
-    monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", ".runs")
-    monkeypatch.setenv("OPENULTRASAST_SANDBOX_PROBE", "0")
-    assert main(["scan", str(repo), "--mode", "standard", "--fail-on", "worth-fixing"]) == 0
-    run_dir = _latest_run(repo)
-    overlay = json.loads((run_dir / "overlay.json").read_text())["records"]
-    assert overlay
-    assert all(item["disposition"] == "unadjudicated" for item in overlay)
-    report = (run_dir / "report.md").read_text()
-    assert "unadjudicated" in report
-
-
 def test_unlabeled_messy_tree_has_both_dispositions(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     repo = tmp_path / "repo"
     repo.mkdir()

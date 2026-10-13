@@ -38,7 +38,7 @@ uv run ousast mcp                 # the MCP server over stdio, for agent hosts
 | --- | --- | --- | --- |
 | `quick` | language-scoped pattern rules, entry-point hints, ranking, verification, score; deterministic | nothing | - |
 | `standard` | the MAP stage: complexity map, semantic overlay, authorization obligations, the Joern model layer (one code property graph per repository; taint, guard-dominance and configuration questions), deterministic fusion | Joern (shipped in the Docker image, with `php-cli` for PHP); a provider key for the residual LLM question | `cpg_unavailable`; without a key the LLM question is not asked and only the graph's entailed findings are reported |
-| `deep` | REGRESS: promoted candidates run as snippets in a Docker sandbox (no network, read-only source, non-root) and get a `triggerable` / `not_triggerable` / ... verdict in `verdicts.json` | a working `docker` | `sandbox_unavailable` |
+| `deep` | nothing today: REGRESS was retired on 2026-10-13 (degradation `regress_retired`); execution proof belongs to the search-with-proof arm | - | - |
 
 Model stages read `DEEPSEEK_API_KEY` (every LLM call); with only `OPENROUTER_API_KEY` set, chat
 calls fall back to OpenRouter. An exported shell variable wins over `.env` silently. `[models]
@@ -60,7 +60,7 @@ A degradation never changes the exit code. Read `manifest.json` for it.
 Each entry in `manifest.json` `degradations` is `{"stage": ..., "reason": ...}`. The ones to expect:
 
 - `cpg_unavailable` (stage `model`): no Joern on the host; the model layer ran nothing.
-- `sandbox_unavailable` (stage `regress`): no working `docker`; deep mode fell back to standard.
+- `regress_retired` (stage `regress`): deep mode requested the retired snippet stage; the scan equals standard.
 - `learning_endpoint_unavailable` (stage `model`): no provider key resolved. The graph's entailed
   findings are still reported; the residual question is skipped. This is recorded in `manifest.json`
   but has no line in `report.md`'s "What could not be analysed" section.

@@ -15,7 +15,7 @@ The stages each mode requests are listed in `MODE_STAGES` in `src/openultrasast/
 
 - `quick` runs STATIC.
 - `standard` adds MAP.
-- `deep` adds REGRESS.
+- `deep` requests the REGRESS stage, which was retired on 2026-10-13: the scan records a `regress_retired` degradation and otherwise equals `standard`. Execution proof now comes from the search-with-proof arm.
 
 ```mermaid
 flowchart TD
@@ -29,17 +29,14 @@ flowchart TD
     verify --> mapq{"MAP requested?"}
     mapq -- "quick: no" --> out["report.md, report.sarif, manifest.json"]
     mapq -- "standard, deep" --> map["MAP: complexity map, semantic overlay, obligations, Joern model layer"]
-    map --> regq{"REGRESS requested?"}
-    regq -- "standard: no" --> out
-    regq -- "deep" --> reg["REGRESS: snippets in a Docker sandbox, verdicts.json"]
-    reg --> out
+    map --> out
 ```
 
 | Mode | Adds | Needs | Without it |
 | --- | --- | --- | --- |
 | `quick` | pattern rules, entry-point hints, ranking, verification, score | nothing | - |
 | `standard` | MAP: complexity map, semantic overlay, authorization obligations, the Joern model layer; `fusion` (deterministic) | Joern; a provider key for the residual LLM question | `cpg_unavailable` degradation; the LLM's questions are skipped and only the graph's entailed findings are reported |
-| `deep` | REGRESS: promoted candidates loaded in a sandbox with no network, read-only source, non-root | a working `docker` | `sandbox_unavailable` degradation |
+| `deep` | nothing today: REGRESS was retired on 2026-10-13 and is recorded as `regress_retired`; execution proof belongs to the search-with-proof arm | - | - |
 
 Sources: `README.md` (scan modes), `src/openultrasast/cli.py` (`run_stage` calls),
 [Architecture](architecture.md#the-scan-pipeline).

@@ -1,7 +1,6 @@
 import json
 import subprocess
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 
@@ -9,7 +8,6 @@ from openultrasast.cli import main
 from openultrasast.complexity.hints import TestHint
 from openultrasast.complexity.map import ComplexityMap, Hotspot
 from openultrasast.findings import StaticFinding
-from openultrasast.regress import CandidateVerdict
 from openultrasast.reports import scan_exit_code, write_manifest, write_markdown_report, write_sarif_report
 from openultrasast.run import ScanRun
 from openultrasast.stages import Stage, plan_for_mode, record_completed, stages_payload
@@ -99,7 +97,7 @@ def test_markdown_report_includes_verification_status(tmp_path: Path) -> None:
     assert "worth_fixing" not in text.lower()
 
 
-def test_markdown_report_includes_complexity_map_and_worth_fixing_sections(tmp_path: Path) -> None:
+def test_markdown_report_includes_complexity_map(tmp_path: Path) -> None:
     finding = _finding()
     output = tmp_path / "report.md"
     hint = TestHint(
@@ -119,47 +117,21 @@ def test_markdown_report_includes_complexity_map_and_worth_fixing_sections(tmp_p
         test_hint=hint,
         inventory_finding_ids=(finding.finding_id,),
     )
-    verdict = CandidateVerdict(
-        path="app.py",
-        function_name="admin",
-        language="python",
-        verdict="triggerable",
-        reason="crash",
-        inventory_finding_ids=(finding.finding_id,),
-        worth_fixing=True,
-    )
-    skipped = CandidateVerdict(
-        path="safe.py",
-        function_name=None,
-        language="python",
-        verdict="not_triggerable",
-        reason="exit_zero",
-        inventory_finding_ids=(),
-        worth_fixing=False,
-    )
-
     write_markdown_report(
         [finding],
         output,
         [verify_finding(finding)],
         complexity_map=ComplexityMap(hotspots=(hotspot,), heuristic_only=True),
-        verdicts=(verdict, skipped),
     )
 
     text = output.read_text()
     inventory_at = text.index("## Inventory")
     map_at = text.index("## Complexity map")
-    worth_at = text.index("## Worth fixing")
-    assert inventory_at < map_at < worth_at
-    map_section = text[map_at:worth_at]
-    worth_section = text[worth_at:]
+    assert inventory_at < map_at
+    map_section = text[map_at:]
     assert "app.py::admin" in map_section
     assert "Gap: `no_adjacent_test`" in map_section
     assert "Recommended test: `http-contract`" in map_section
-    assert "triggerable" in worth_section
-    assert "crash" in worth_section
-    assert "safe.py" not in worth_section
-    assert "## Inventory" in text
 
 
 def test_markdown_report_labels_hits_as_inventory_not_worth_fixing(tmp_path: Path) -> None:
@@ -178,45 +150,17 @@ def test_markdown_report_labels_hits_as_inventory_not_worth_fixing(tmp_path: Pat
 def test_scan_exit_code_policy() -> None:
     finding = _finding()
     verification = verify_finding(finding)
-    worth_fixing = SimpleNamespace(worth_fixing=True)
 
     assert scan_exit_code([finding], [verification], "never") == 0
     assert scan_exit_code([finding], [verification], "findings") == 1
     assert scan_exit_code([], [], "findings") == 0
     assert scan_exit_code([finding], [verification], "verified") == 1
     assert scan_exit_code([], [], "verified") == 0
-    # findings/verified ignore worth-fixing verdicts
-    assert scan_exit_code([], [], "findings", worth_fixing_verdicts=[worth_fixing]) == 0
-    assert scan_exit_code([], [], "verified", worth_fixing_verdicts=[worth_fixing]) == 0
-    assert scan_exit_code([finding], [verification], "findings", worth_fixing_verdicts=[worth_fixing]) == 1
-    assert scan_exit_code([finding], [verification], "verified", worth_fixing_verdicts=[worth_fixing]) == 1
-
-
-def test_scan_exit_code_worth_fixing() -> None:
-    finding = _finding()
-    verification = verify_finding(finding)
-    worth_fixing = SimpleNamespace(worth_fixing=True)
-    not_worth_fixing = SimpleNamespace(worth_fixing=False)
-
-    assert scan_exit_code([finding], [verification], "worth-fixing") == 0
-    assert scan_exit_code([finding], [verification], "worth-fixing", worth_fixing_verdicts=[]) == 0
-    assert scan_exit_code([finding], [verification], "worth-fixing", worth_fixing_verdicts=[not_worth_fixing]) == 0
-    assert scan_exit_code([finding], [verification], "worth-fixing", worth_fixing_verdicts=[worth_fixing]) == 1
 
 
 def test_scan_exit_code_unknown_policy() -> None:
     with pytest.raises(ValueError, match="unknown fail policy"):
         scan_exit_code([], [], "maybe")
-
-
-def test_scan_help_lists_worth_fixing(capsys: pytest.CaptureFixture[str]) -> None:
-    with pytest.raises(SystemExit) as exc:
-        main(["scan", "--help"])
-    assert exc.value.code == 0
-    help_text = capsys.readouterr().out
-    assert "worth-fixing" in help_text
-    assert "findings" in help_text
-    assert "verified" in help_text
 
 
 def test_cli_scan_writes_sarif_manifest_and_honors_fail_policy(tmp_path: Path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
@@ -236,20 +180,9 @@ def test_cli_scan_writes_sarif_manifest_and_honors_fail_policy(tmp_path: Path, m
     assert manifest["findings"][0]["artifact_refs"]["verification_json"] == "verification.json"
 
 
-def test_cli_scan_fail_on_worth_fixing_exits_zero_without_verdicts(tmp_path: Path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
-    repo = tmp_path / "repo"
-    repo.mkdir()
-    (repo / "app.py").write_text("@app.route('/admin')\ndef admin():\n    return eval(request.data)\n")
-    monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", ".runs")
-
-    assert main(["scan", str(repo), "--mode", "quick", "--fail-on", "worth-fixing"]) == 0
-
-
 def test_quick_scan_report_is_inventory_without_map_or_docker(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     from openultrasast import tool_hunter
     from openultrasast.complexity import map as complexity_map
-    from openultrasast.sandbox import probe as sandbox_probe
-    from openultrasast.sandbox import runner as sandbox_runner
 
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -273,8 +206,6 @@ def test_quick_scan_report_is_inventory_without_map_or_docker(tmp_path: Path, mo
         return _fail
 
     monkeypatch.setattr(subprocess, "run", guarded_run)
-    monkeypatch.setattr(sandbox_runner, "build_docker_argv", fail("quick scan must not build docker argv"))
-    monkeypatch.setattr(sandbox_probe.SandboxProbe, "available", fail("quick scan must not probe docker"))
     monkeypatch.setattr(complexity_map, "build_complexity_map", fail("quick scan must not build a complexity map"))
     monkeypatch.setattr(tool_hunter, "run_tool_hunter", fail("quick scan must not start a hunter model"))
 
@@ -297,8 +228,6 @@ def test_quick_scan_report_is_inventory_without_map_or_docker(tmp_path: Path, mo
 
 
 def test_standard_scan_writes_complexity_map_without_docker(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    from openultrasast.sandbox import probe as sandbox_probe
-    from openultrasast.sandbox import runner as sandbox_runner
 
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -315,15 +244,7 @@ def test_standard_scan_writes_complexity_map_without_docker(tmp_path: Path, monk
             raise AssertionError(f"standard scan must not start docker: {argv}")
         return original_run(command, *args, **kwargs)
 
-    def fail(message: str):  # type: ignore[no-untyped-def]
-        def _fail(*args, **kwargs):  # type: ignore[no-untyped-def]
-            raise AssertionError(message)
-
-        return _fail
-
     monkeypatch.setattr(subprocess, "run", guarded_run)
-    monkeypatch.setattr(sandbox_runner, "build_docker_argv", fail("standard scan must not build docker argv"))
-    monkeypatch.setattr(sandbox_probe.SandboxProbe, "available", fail("standard scan must not probe docker"))
 
     assert main(["scan", str(repo), "--mode", "standard"]) == 0
 
@@ -351,22 +272,11 @@ def test_standard_scan_writes_complexity_map_without_docker(tmp_path: Path, monk
 
 
 def test_standard_scan_records_hunter_model_unavailable_when_model_unset(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    from openultrasast.sandbox import probe as sandbox_probe
-    from openultrasast.sandbox import runner as sandbox_runner
 
     repo = tmp_path / "repo"
     repo.mkdir()
     (repo / "app.py").write_text("@app.route('/admin')\ndef admin():\n    return eval(request.data)\n")
     monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", ".runs")
-
-    def fail(message: str):  # type: ignore[no-untyped-def]
-        def _fail(*args, **kwargs):  # type: ignore[no-untyped-def]
-            raise AssertionError(message)
-
-        return _fail
-
-    monkeypatch.setattr(sandbox_runner, "build_docker_argv", fail("standard scan must not build docker argv"))
-    monkeypatch.setattr(sandbox_probe.SandboxProbe, "available", fail("standard scan must not probe docker"))
 
     assert main(["scan", str(repo), "--mode", "standard"]) == 0
 
@@ -406,38 +316,6 @@ def test_manifest_includes_complexity_summary(tmp_path: Path) -> None:
     payload = json.loads(output.read_text())
     assert payload["complexity"] == {"hotspot_count": 3, "heuristic_only": True}
     assert payload["artifacts"]["complexity_map"] == "complexity_map.json"
-
-
-def test_manifest_includes_worth_fixing_count(tmp_path: Path) -> None:
-    run = ScanRun(scan_id="scan-1", root=tmp_path / "run", target=tmp_path / "repo")
-    run.root.mkdir()
-    finding = _finding()
-    artifacts = {
-        "findings": run.root / "findings.json",
-        "verification": run.root / "verification.json",
-        "markdown": run.root / "report.md",
-        "sarif": run.root / "report.sarif",
-        "verdicts": run.root / "verdicts.json",
-    }
-    output = run.root / "manifest.json"
-
-    write_manifest(
-        run=run,
-        findings=[finding],
-        verifications=[verify_finding(finding)],
-        artifact_paths=artifacts,
-        path=output,
-        stages={"requested": ["static", "map", "regress"], "completed": ["static", "map", "regress"], "skipped": []},
-        worth_fixing={
-            "count": 1,
-            "verdicts": [{"path": "app.py", "function_name": "admin", "verdict": "triggerable", "reason": "crash"}],
-        },
-    )
-
-    payload = json.loads(output.read_text())
-    assert payload["stages"]["completed"] == ["static", "map", "regress"]
-    assert payload["worth_fixing"]["count"] == 1
-    assert payload["worth_fixing"]["verdicts"][0]["verdict"] == "triggerable"
 
 
 def _finding() -> StaticFinding:
@@ -669,7 +547,7 @@ def test_every_recorded_scan_degradation_is_rendered(tmp_path) -> None:  # type:
         {"stage": "model", "reason": "model_withheld_execution_budget"},
         {"stage": "budget", "reason": "max_findings_exceeded", "requested": 5, "actual": 9},
         {"stage": "map", "reason": "hunter_model_unavailable"},
-        {"stage": "regress", "reason": "sandbox_unavailable"},
+        {"stage": "regress", "reason": "regress_retired"},
         {"stage": "x", "reason": "not_yet_described"},
     ]
     path = tmp_path / "report.md"
@@ -684,7 +562,8 @@ def test_every_recorded_scan_degradation_is_rendered(tmp_path) -> None:  # type:
         "time budget leaves no room",
         "first 5 of 9 findings",
         "needs a model and none is available",
-        "Docker is not available",
+        "the sandboxed snippet stage was retired on 2026-10-13",
+        "execution proof comes from the search-with-proof arm",
         "`not_yet_described`",
     ):
         assert needle in text, needle
@@ -697,3 +576,30 @@ def test_quick_scan_names_a_language_nothing_covers(tmp_path, capsys) -> None:  
     assert "notice: language not covered: go (1 files)" in capsys.readouterr().out
     report = next((tmp_path / ".openultrasast" / "runs").iterdir()) / "report.md"
     assert "Not a clean result for go (1 files)" in report.read_text()
+
+
+@pytest.mark.parametrize("fail_on, expected", [("never", 0), ("findings", 1), ("verified", 1)])
+def test_deep_scan_records_retirement_without_running_snippets(tmp_path, monkeypatch, fail_on, expected):
+    (tmp_path / "app.py").write_text("@app.route('/admin')\ndef admin():\n    return eval(request.data)\n")
+
+    def guard(command, *args, **kwargs):
+        argv = list(command) if isinstance(command, list | tuple) else [command]
+        assert not argv or Path(str(argv[0])).name != "docker", "deep scan must not start Docker"
+        return original_run(command, *args, **kwargs)
+
+    original_run = subprocess.run
+    monkeypatch.setattr(subprocess, "run", guard)
+    assert main(["scan", str(tmp_path), "--mode", "deep", "--fail-on", fail_on]) == expected
+    run_dir = next((tmp_path / ".openultrasast" / "runs").iterdir())
+    manifest = json.loads((run_dir / "manifest.json").read_text())
+    retired = {"stage": "regress", "reason": "regress_retired"}
+    assert manifest["stages"] == {
+        "requested": ["static", "map", "regress"],
+        "completed": ["static", "map"],
+        "skipped": [retired],
+    }
+    assert manifest["degradations"].count(retired) == 1
+    assert "verdicts" not in manifest["artifacts"]
+    assert "worth_fixing" not in manifest
+    assert not (run_dir / "verdicts.json").exists()
+    assert "execution proof comes from the search-with-proof arm" in (run_dir / "report.md").read_text()

@@ -25,8 +25,8 @@ _UNREAD_DYNAMIC = "no dynamic or deep tier exists; deep mode will define its own
 _UNREAD_EVIDENCE = "evidence tiers come from the program model's ladder (model/ladder.py), not from configuration"
 _UNREAD_VARIANTS = "the structural variant search it configured was deleted with semantic/variants.py"
 _UNREAD_SANDBOX = (
-    "the sandbox always runs with `--network none` and a read-only workspace (sandbox/runner.py); that is an "
-    "invariant the runner enforces, not a knob"
+    "the search sandbox enforces isolation and read-only source (search/_sandbox.py); that is an "
+    "invariant, not a knob"
 )
 _UNREAD_TOP_K = "no stage read it; `[complexity] max_hunter_hotspots` is the one complexity key the scan reads"
 _UNREAD_EMBEDDINGS = (
@@ -157,13 +157,6 @@ class ComplexityConfig:
 
 
 @dataclass(frozen=True)
-class RegressConfig:
-    # Stage-3 candidate cap and optional per-language sandbox image pins. Isolation limits stay on SandboxConfig.
-    max_candidates: int = 5
-    images: tuple[tuple[str, str], ...] = ()
-
-
-@dataclass(frozen=True)
 class ModelLayerConfig:
     # contributor-scan: the model layer in MAP. Named for the LAYER, not the model: `ModelConfig` is already
     # the `[models]` block (hunter, judge, endpoint) and two meanings of one name is how you get a scan that
@@ -215,7 +208,6 @@ class ResolvedConfig:
     fusion: FusionConfig = FusionConfig()
     hardening: HardeningConfig = HardeningConfig()
     complexity: ComplexityConfig = ComplexityConfig()
-    regress: RegressConfig = RegressConfig()
     obligations: ObligationsConfig = ObligationsConfig()
     model: ModelLayerConfig = ModelLayerConfig()
     push: PushConfig = PushConfig()
@@ -240,7 +232,6 @@ def load_config(config_path: Path | None = None, *, dotenv: bool = True) -> Reso
         fusion=_load_fusion(data.get("fusion", {})),
         hardening=_load_hardening(data.get("hardening", {})),
         complexity=_load_complexity(data.get("complexity", {})),
-        regress=_load_regress(data.get("regress", {})),
         obligations=_load_obligations(data.get("obligations", {})),
         model=_load_model(data.get("model", {})),
         push=PushConfig.from_payload(data.get("push", {})),
@@ -342,24 +333,6 @@ def _load_complexity(value: object) -> ComplexityConfig:
     return ComplexityConfig(
         max_hunter_hotspots=_int_value(data.get("max_hunter_hotspots"), 8),
     )
-
-
-def _load_regress(value: object) -> RegressConfig:
-    data = _section(value)
-    return RegressConfig(
-        max_candidates=_int_value(data.get("max_candidates"), 5),
-        images=_string_map(data.get("images")),
-    )
-
-
-def _string_map(value: object) -> tuple[tuple[str, str], ...]:
-    data = _section(value)
-    images: list[tuple[str, str]] = []
-    for key, item in data.items():
-        pinned = _string(item)
-        if pinned is not None:
-            images.append((str(key), pinned))
-    return tuple(sorted(images))
 
 
 def _float_value(value: object, default: float) -> float:

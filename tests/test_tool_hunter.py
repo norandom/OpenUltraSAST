@@ -198,8 +198,6 @@ def _latest_run(repo: Path) -> Path:
 def _guard_docker(monkeypatch: pytest.MonkeyPatch) -> list[list[str]]:
     import subprocess
 
-    from openultrasast.sandbox import runner as sandbox_runner
-
     docker_argv: list[list[str]] = []
     original_run = subprocess.run
 
@@ -210,11 +208,7 @@ def _guard_docker(monkeypatch: pytest.MonkeyPatch) -> list[list[str]]:
             raise AssertionError(f"hunter scan test must not start docker: {argv}")
         return original_run(command, *args, **kwargs)
 
-    def fail(*args: object, **kwargs: object) -> object:
-        raise AssertionError("hunter scan test must not use DockerCliRunner")
-
     monkeypatch.setattr(subprocess, "run", guarded_run)
-    monkeypatch.setattr(sandbox_runner.DockerCliRunner, "run", fail)
     return docker_argv
 
 

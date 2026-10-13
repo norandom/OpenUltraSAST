@@ -64,16 +64,14 @@ def test_without_the_semantic_extra_an_unsupported_language_is_named_not_guessed
     assert ir.reason == "language_unsupported" and ir.parse_ok is False
 
 
-def test_without_a_sandbox_the_regress_stage_is_skipped_by_name(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """A claim that could not be proved because nothing could run it is not the same as a claim that failed."""
+def test_retired_regress_stage_is_skipped_by_name(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     import json
 
     from openultrasast.cli import main
 
-    monkeypatch.setenv("OPENULTRASAST_SANDBOX_PROBE", "0")
     (tmp_path / "app.py").write_text("import os\n\n\ndef run(cmd):\n    os.system(cmd)\n")
     assert main(["scan", str(tmp_path), "--mode", "deep"]) in {0, 1}
     runs = sorted((tmp_path / ".openultrasast" / "runs").iterdir())
     manifest = json.loads((runs[-1] / "manifest.json").read_text())
     reasons = {item["reason"] for item in manifest.get("degradations", [])}
-    assert "sandbox_unavailable" in reasons
+    assert "regress_retired" in reasons

@@ -16,7 +16,7 @@ The CLI is thin. `HarnessRuntime` owns the lifecycle. It writes an event trace f
 
 - `quick` runs STATIC;
 - `standard` adds MAP;
-- `deep` adds REGRESS.
+- `deep` requests the REGRESS stage, which was retired on 2026-10-13: the scan records a `regress_retired` degradation and otherwise equals `standard`. Execution proof now comes from the search-with-proof arm.
 
 ```
 policy_load ─▶ ruleset_load ─▶ policy_check            (fail loud on an ungoverned CWE)
@@ -31,7 +31,7 @@ policy_load ─▶ ruleset_load ─▶ policy_check            (fail loud on an 
   │     obligations  absence bugs: an obligated operation with no governing guard
   │     model        one Joern CPG per repository; taint, dominance and configuration arbiters
   │     tool hunter  only with `[models] hunter`
-  ─▶ REGRESS (deep)  sandboxed regression snippets ─▶ verdicts.json, worth-fixing
+  ─▶ REGRESS (deep)  retired 2026-10-13, recorded as `regress_retired`
   ─▶ report.md, report.sarif, manifest.json
 ```
 
@@ -67,17 +67,7 @@ nothing, the LLM sees the enumerator's candidates (at most `MAX_JUDGED_CANDIDATE
 Anything it affirms is reported at `suspicion`. Without a provider key, neither question is
 asked. Only the graph's entailed findings are reported then.
 
-**REGRESS** (`regress/`, `sandbox/`) runs only when `docker info` succeeds. Each promoted
-candidate gets a small language recipe (Python, JavaScript, C). The recipe loads the
-candidate's source inside a container with:
-
-- no network;
-- a read-only `/workspace`;
-- a non-root user;
-- the `[sandbox]` limits.
-
-Before anything runs, a structural deny-list rejects snippets that mention sockets, curl, host
-networking or writes under `/workspace`.
+**REGRESS** was retired on 2026-10-13. Deep mode records a `regress_retired` degradation and otherwise equals standard. Execution proof is the search-with-proof arm's job (`search/verify.py`, bubblewrap sandbox, differential runs against owned canaries).
 
 ## Evidence ladder: how a false positive is eliminated
 

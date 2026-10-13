@@ -6,10 +6,7 @@ from .ledger import (
     apply_overlay,
     hotspot_key,
     load_ledger,
-    must_keep_as_candidate,
-    persist_verdicts,
     record_verdict,
-    select_forced_candidates,
     write_ledger,
 )
 from .map import ComplexityMap, Hotspot, build_complexity_map, write_complexity_map
@@ -27,10 +24,7 @@ __all__ = [
     "collect_signals",
     "hotspot_key",
     "load_ledger",
-    "must_keep_as_candidate",
-    "persist_verdicts",
     "record_verdict",
-    "select_forced_candidates",
     "write_complexity_map",
     "write_ledger",
 ]

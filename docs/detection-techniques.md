@@ -542,10 +542,6 @@ reports the worker JVM's heap (`census.sc:17-31`). It is the instrument check of
 settles whether a frontend warning mattered: if the graph holds every expected file, the
 warning is ignored (`backend.py:827-829`).
 
-`vocabulary.sc` is a related query that needs no dataflow. It lists every call not covered by
-the fact tables as a candidate list, "never an ontology" (`vocabulary.sc:72-74`). It feeds
-`benchmarks/push/ontology_gap.py`, not the scan.
-
 ## 5. Regions, ranking and budgets
 
 A repository is too large to ask the graph about everything. So the scan asks about regions in a
@@ -706,69 +702,14 @@ explains how those signals become a decision. A tool-equipped hunter was measure
 overlay on a Python holdout: 12/14 against 5/14 once scoring was class-aware. That gap is in
 `benchmarks/measurements/2026-09-06-vibe-py-holdout-hunter-*.json`.
 
-## 7. REGRESS: sandboxed reproduction
+## 7. REGRESS: retired
 
-```mermaid
-flowchart LR
-    hot["Promoted hotspots, top max_candidates = 5"] --> snip["Snippet: proposed by the finding, else a load-and-compile stub"]
-    snip --> deny{"Structural deny-list"}
-    deny -- "socket, curl, docker.sock, host network, writes under /workspace" --> rej["inconclusive: safety_rejected"]
-    deny -- "clean" --> run["docker run: no network, read-only, tmpfs scratch, cap-drop ALL, uid 65534"]
-    run --> exit["Exit code and output"]
-    exit --> v["triggerable, not_triggerable, already_covered, inconclusive"]
-    v --> worth["worth_fixing if triggerable and reachable"]
-```
-
-REGRESS runs only in `deep` mode (`stages.py:17`) and only when `docker info` succeeds.
-Otherwise the stage records `sandbox_unavailable` (`sandbox/probe.py:24-36`, `cli.py:691-693`).
-
-It selects the top `max_candidates = 5` hotspots by score, plus forced severity-5 reachable
-inventory (`regress/candidate.py:63-88`, `config.py:157-160`). A snippet is the one a finding
-proposed. If there is none, a default only loads the file (`candidate.py:153-174`):
-
-- Python compiles it;
-- JavaScript reads it;
-- C is `int main(void)
-  { return 0; }` (`candidate.py:153-174`).
-
-Recipes exist for Python, JavaScript and C on `python:3.12-alpine`, `node:22-alpine` and
-`gcc:13` (`regress/recipes.py:16-52`, `candidate.py:30-34`). Any other language is
-`inconclusive` with `missing_recipe`.
-
-The deny-list is a regex check before any container starts (`regress/safety.py:63-75`). It
-rejects (`safety.py:21-60`):
-
-- the Docker socket;
-- the word `socket`;
-- the word `curl`;
-- a host-network request;
-- writes under `/workspace` in Python, Node, C and shell forms.
-
-The real boundary is the container (`sandbox/runner.py:113-137`): `--network none --read-only --tmpfs /scratch:rw,exec --memory
-<mb>m --pids-limit <n> --cap-drop ALL --security-opt no-new-privileges --user 65534:65534`. The
-repository is bind-mounted read-only at `/workspace`. The runner also refuses an argv containing
-`--privileged`, the Docker socket or host networking (`runner.py:182-192`). Defaults are 2048 MB,
-300 s and 512 pids (`config.py:104-109`).
-
-Verdicts (`regress/verdict.py:10-26, 64-110`):
-
-- a safety rejection, missing recipe or sandbox, or timeout is `inconclusive`;
-- exit 0 under a covering test is `already_covered`;
-- with an oracle: `triggerable` on `oracle_fired`, else `not_triggerable`;
-- without an oracle: a nonzero exit is `triggerable` with reason `sanitizer_abort`, `assertion`,
-  `crash` or `nonzero_exit`, and exit 0 is `not_triggerable`.
-
-`is_worth_fixing` requires `triggerable` and reachability `reachable` or
-`inferred-file-surface` (`verdict.py:28, 59-61`). Verdicts feed the complexity ledger and
-`rank_obligations`. `rank_obligations` caps every obligation finding strictly below the lowest
-proven finding (`cli.py:724-727`, `rank.py:243-265`).
-
-**What `execution_confirmed` means today.** The rung is defined as "a sandbox reproduced it
-(deferred tier, memory/C first)" (`ladder.py:10, 33`). It is ordered above `model_entailed`. No
-code path assigns it. REGRESS produces the four verdicts above, not a rung. Nothing maps
-`triggerable` onto `Rung.EXECUTION_CONFIRMED`. The default snippets prove that a file loads, not
-that a vulnerability fires. A reproduction needs a finding-proposed snippet or an oracle. Read
-the rung as reserved.
+The sandboxed snippet stage was retired on 2026-10-13 (degradation `regress_retired`). It proved that a file
+loads, not that a vulnerability fires, and never produced a rung. Execution proof is now the search-with-proof
+arm: a finding-proposed demo run under bubblewrap, three runs on the affected revision against three on the
+safe one, owned canary oracles, `demonstrated` only on 3 of 3 against 0 of 3 (`search/verify.py`).
+`Rung.EXECUTION_CONFIRMED` is still assigned by no code path; wiring the verify outcome onto it is the next
+step in that spec.
 
 ## 8. What each technique misses
 
@@ -781,7 +722,6 @@ the rung as reserved.
 | Configuration | A value computed at runtime (reported `CORROBORATED`, never safe) | `config_value.py:75-86` |
 | Ranking | A pinned CVE deep in a tier: PMPro's at position 390 of 4,463 under access rank, with evidence ordering still off by default | `benchmarks/ranking/baselines/2026-09-10-access-rank.json`; `scan.py:98` |
 | The model | Anything the enumerator did not propose (a hard ceiling on recall); the residual question is bounded to 8 candidates per region; a public fix the model may have memorised is indistinguishable from reasoning, which is why labels come from ground truth and the engine block is withheld where it tracks the fix | `candidates.py:7-10`; `pipeline.py:44`; `learn/schema.py:97-109` |
-| REGRESS | Anything without a Python, JavaScript or C recipe; anything the default load-only snippet cannot trigger; no finding reaches `execution_confirmed` today | `recipes.py:16-52`; `candidate.py:153-174`; `ladder.py:33` |
 
 The three representations are kept separate on purpose. A finding carries the rung and the
 degradations of the representation that produced it. So a reader can tell a flow the graph

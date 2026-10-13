@@ -36,15 +36,15 @@ def test_plan_for_mode_requests_ordered_stages() -> None:
 
 def test_skipped_stage_is_structured_degradation_not_exception() -> None:
     plan = plan_for_mode("deep")
-    skipped = record_skip(plan, Stage.REGRESS, "sandbox_unavailable")
+    skipped = record_skip(plan, Stage.REGRESS, "regress_retired")
 
     assert skipped.requested == (Stage.STATIC, Stage.MAP, Stage.REGRESS)
     assert skipped.completed == ()
-    assert skipped.skipped == ({"stage": "regress", "reason": "sandbox_unavailable"},)
+    assert skipped.skipped == ({"stage": "regress", "reason": "regress_retired"},)
     degradations = list(skipped.skipped)
     assert degradations[0]["stage"] == "regress"
-    assert degradations[0]["reason"] == "sandbox_unavailable"
-    assert json.dumps(degradations) == json.dumps([{"stage": "regress", "reason": "sandbox_unavailable"}])
+    assert degradations[0]["reason"] == "regress_retired"
+    assert json.dumps(degradations) == json.dumps([{"stage": "regress", "reason": "regress_retired"}])
 
 
 def test_record_completed_static_for_quick() -> None:

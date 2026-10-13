@@ -147,26 +147,22 @@ def test_write_resolved_config_creates_json(tmp_path: Path) -> None:
     assert not {"dynamic", "evidence", "variants", "embeddings"} & set(payload) and "patcher" not in payload["models"]
 
 
-def test_complexity_and_regress_defaults_when_section_absent() -> None:
+def test_complexity_defaults_when_section_absent() -> None:
     config = load_config(None)
 
     assert config.complexity.max_hunter_hotspots == 8
-    assert config.regress.max_candidates == 5
-    assert config.regress.images == ()
     assert config.sandbox.memory_mb == 2048
     assert config.sandbox.timeout_seconds == 300
     assert config.sandbox.pids_limit == 512
 
 
-def test_override_changes_max_hunter_hotspots_and_max_candidates_only(tmp_path: Path) -> None:
+def test_override_changes_max_hunter_hotspots_only(tmp_path: Path) -> None:
     config_path = tmp_path / "openultrasast.toml"
     config_path.write_text(
         "\n".join(
             [
                 "[complexity]",
                 "max_hunter_hotspots = 3",
-                "[regress]",
-                "max_candidates = 2",
             ]
         )
     )
@@ -174,33 +170,9 @@ def test_override_changes_max_hunter_hotspots_and_max_candidates_only(tmp_path: 
     config = load_config(config_path)
 
     assert config.complexity.max_hunter_hotspots == 3
-    assert config.regress.max_candidates == 2
-    assert config.regress.images == ()
     assert config.sandbox.memory_mb == 2048
     assert config.sandbox.timeout_seconds == 300
     assert config.sandbox.pids_limit == 512
-
-
-def test_load_config_reads_regress_image_pins(tmp_path: Path) -> None:
-    config_path = tmp_path / "openultrasast.toml"
-    config_path.write_text(
-        "\n".join(
-            [
-                "[regress]",
-                "max_candidates = 4",
-                "[regress.images]",
-                'python = "python:3.12-slim"',
-                'javascript = "node:22-slim"',
-            ]
-        )
-    )
-
-    config = load_config(config_path)
-
-    assert config.regress.max_candidates == 4
-    assert dict(config.regress.images) == {"python": "python:3.12-slim", "javascript": "node:22-slim"}
-    assert config.complexity.max_hunter_hotspots == 8
-    assert config.sandbox.memory_mb == 2048
 
 
 def test_load_dotenv_sets_missing_keys_only(tmp_path: Path, monkeypatch) -> None:  # type: ignore[no-untyped-def]

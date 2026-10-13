@@ -11,9 +11,9 @@ It also lists the controls that keep a scan safe to run in CI and safe to share.
   - Standard mode also parses it into a code property graph (a graph of the program's syntax,
     control flow and data flow) with Joern. It uses `joern-parse`, a parser, not a build.
     Standard mode may send code excerpts to the configured model.
-  - Only `deep` mode executes target-derived code. Its REGRESS stage loads promoted candidates
-    inside the Docker sandbox described below. It runs only when `docker
-    info` succeeds (otherwise the stage is skipped and recorded as `sandbox_unavailable`).
+  - No scan mode executes target-derived code any more: the deep-mode REGRESS stage was retired on 2026-10-13
+    and is recorded as `regress_retired`. Execution happens only in the search-with-proof arm's sandbox,
+    described in `.kiro/specs/search-with-proof/`.
 - **The ruleset and CWE policy are trusted, governed data.** They change
   through reviewed commits.
 - **Provider credentials are the operator's.** The core install (PyYAML only) makes no network
@@ -78,7 +78,7 @@ malformed JSON.
 ### Visible degradation & determinism
 A scan is never silently downgraded. When an optional engine is missing, the scan falls back to
 its deterministic equivalent. It records a `degradations` entry in the manifest (Joern:
-`cpg_unavailable`; Docker: `sandbox_unavailable`).
+`cpg_unavailable`; retired snippet stage: `regress_retired`).
 
 Without a provider key, the model layer asks no question. It reports only what the graph
 entailed.
@@ -92,18 +92,6 @@ internal hunter tools. No tool accepts a free-form command argument.
 
 ## Sandbox (deep mode)
 
-The REGRESS stage (`regress/`, `sandbox/runner.py`) runs each snippet with `docker run`. It never
-mounts the host Docker socket.
-
-| Control | Setting |
-|---|---|
-| network | `--network none`, always; a host-network argument is refused |
-| source | the target bind-mounted read-only at `/workspace`; root filesystem `--read-only` |
-| scratch | a tmpfs at `/scratch` for the snippet |
-| user | non-root `65534:65534`, `--cap-drop ALL`, `no-new-privileges` |
-| memory | `[sandbox] memory_mb`, default 2048 MB |
-| pids | `[sandbox] pids_limit`, default 512 |
-| timeout | `[sandbox] timeout_seconds`, default 300 s |
-
-A structural deny-list (`regress/safety.py`) checks each snippet before anything runs. It rejects
-a snippet that mentions sockets, curl, host networking or writes under `/workspace`.
+Retired on 2026-10-13 with the REGRESS stage. The search-with-proof arm runs demos under bubblewrap with
+seccomp, no network unless the oracle needs a namespace, and differential runs against owned canaries;
+see `src/openultrasast/search/_sandbox.py` and `.kiro/specs/search-with-proof/`.

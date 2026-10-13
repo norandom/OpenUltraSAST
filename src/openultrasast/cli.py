@@ -34,7 +34,6 @@ from .calibration import (
     write_ranking_calibrations,
 )
 from .complexity import map as complexity_map
-from .complexity.ledger import persist_verdicts
 from .config import ModelLayerConfig, ObligationsConfig, ResolvedConfig, RetiredConfigError, load_config, load_dotenv
 from .findings import StaticFinding, quick_scan_findings, uncovered_languages, write_findings
 from .fusion import FusionDecision, fuse_findings
@@ -60,7 +59,6 @@ from .preprocess import FileTarget, preprocess_repository, write_preprocess_arti
 from .profiling import start as start_profiling
 from .provenance import fingerprint
 from .rank import rank_obligations, rank_targets, write_rankings
-from .regress import TRIGGERABLE, CandidateVerdict, run_regression, write_verdicts
 from .reports import scan_exit_code, write_manifest, write_markdown_report, write_sarif_report
 from .repos import (
     DEFAULT_REPO_DIR,
@@ -74,12 +72,10 @@ from .repos import select as select_repo
 from .repos import verify as verify_repo
 from .ruleset import DEFAULT_RULESET_DIR, load_ruleset
 from .run import ScanRun, create_scan_run
-from .sandbox import resolve_sandbox_probe, resolve_sandbox_runner
 from .scoring import build_score_artifact
 from .semantic import (
     OverlayRecord,
     adjudicate,
-    filter_promoted_hotspots,
     finding_from_coverage,
     load_facts,
     write_overlay,
@@ -224,7 +220,7 @@ def _main(argv: list[str] | None) -> int:
     scan.add_argument("path", type=Path)
     scan.add_argument("--mode", choices=("quick", "standard", "deep"), default="quick")
     scan.add_argument("--config", type=Path, default=Path("openultrasast.toml"))
-    scan.add_argument("--fail-on", choices=("never", "findings", "verified", "worth-fixing"), default="never")
+    scan.add_argument("--fail-on", choices=("never", "findings", "verified"), default="never")
 
     benchmark = subparsers.add_parser("benchmark", help="run a benchmark manifest and write scoreboard artifacts")
     benchmark.add_argument("manifest", type=Path)
@@ -756,52 +752,9 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
             "hotspot_count": len(built_map.hotspots),
             "heuristic_only": built_map.heuristic_only,
         }
-    verdicts_path = run.root / "verdicts.json"
-    wrote_verdicts = False
-    verdict_records: tuple[CandidateVerdict, ...] = ()
     if Stage.REGRESS in plan.requested:
-        probe = resolve_sandbox_probe()
-        if not probe.available():
-            plan = record_skip(plan, Stage.REGRESS, "sandbox_unavailable")
-            runtime.state["degradations"].append(skip_as_degradation(Stage.REGRESS, "sandbox_unavailable"))
-        else:
-            sandbox = resolve_sandbox_runner()
-            hotspots = built_map.hotspots if built_map is not None else ()
-            hotspots = filter_promoted_hotspots(hotspots, overlay_records, findings)
-            promoted = [
-                finding
-                for finding in findings
-                if finding.finding_id in {record.proposal_id for record in overlay_records if record.disposition == "promote"}
-            ]
-            cwe_by_rule_id = {rule.rule_id: rule.cwe for rule in ruleset}
-            rule_cwe_by_finding = {finding.finding_id: cwe_by_rule_id.get(finding.finding_id.split(":", 1)[0], "") for finding in promoted}
-            languages_by_path = {target.path: target.language for target in targets}
-            records = runtime.run_stage(
-                "regress",
-                lambda: run_regression(
-                    hotspots,
-                    promoted,
-                    max_candidates=config.regress.max_candidates,
-                    policy=policy,
-                    rule_cwe=rule_cwe_by_finding,
-                    languages_by_path=languages_by_path,
-                    repo_root=run.target,
-                    sandbox=sandbox,
-                    sandbox_limits=config.sandbox,
-                    images=dict(config.regress.images),
-                ),
-            )
-            write_verdicts(records, verdicts_path)
-            persist_verdicts(run.target / CALIBRATION_DIR / "complexity_ledger.json", records)
-            # Req 6.4: proof rungs live on verdicts, not on StaticFinding, so obligations re-rank once the sandbox has spoken.
-            proven_ids = {fid for record in records if record.verdict == TRIGGERABLE for fid in record.inventory_finding_ids}
-            if proven_ids and any(finding.finding_id.startswith("obligation:") for finding in findings):
-                findings = rank_obligations(findings, proven_ids=proven_ids)
-                write_findings(findings, findings_path)
-            verdict_records = records
-            wrote_verdicts = True
-            plan = record_completed(plan, Stage.REGRESS)
-    worth_fixing_payload = _worth_fixing_payload(verdict_records) if wrote_verdicts else None
+        runtime.state["degradations"].append(skip_as_degradation(Stage.REGRESS, "regress_retired"))
+        plan = record_skip(plan, Stage.REGRESS, "regress_retired")
     # Req 5.6: what each family could see, for the report. Absent when the model layer did not run --
     # and a scan with no model layer states no limits because it made no claims.
     coverage_rows = model_payload.get("coverage") if isinstance(model_payload, dict) else None
@@ -814,7 +767,6 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
             verifications,
             redact=config.hardening.redact_secrets,
             complexity_map=built_map,
-            verdicts=verdict_records if wrote_verdicts else None,
             overlay=overlay_records if wrote_overlay else None,
             obligations=obligations_cited or None,
             obligations_summary=obligations_payload or None,
@@ -851,7 +803,6 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
                 fusion=fusion_path if fusion_decisions else None,
                 complexity_map=complexity_map_path if complexity_payload is not None else None,
                 overlay=overlay_path if wrote_overlay else None,
-                verdicts=verdicts_path if wrote_verdicts else None,
             ),
             path=manifest_path,
             score=score_artifact.to_dict(),
@@ -859,7 +810,6 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
             fusion=[_fusion_summary(decision) for decision in fusion_decisions] or None,
             stages=stages_payload(plan),
             complexity=complexity_payload,
-            worth_fixing=worth_fixing_payload,
             provenance=provenance.to_dict(),
             obligations=obligations_payload,
             model=model_payload,
@@ -873,7 +823,7 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
         ranked_target_count=len(rankings),
         finding_count=len(findings),
         calibrations_applied=len(applied_calibrations),
-        exit_code=scan_exit_code(findings, verifications, fail_on, worth_fixing_verdicts=verdict_records),
+        exit_code=scan_exit_code(findings, verifications, fail_on),
         notices=tuple(
             f"language not covered: {item['language']} ({item['count']} files)"
             for item in runtime.state["degradations"]
@@ -964,23 +914,6 @@ def _load_static_hints(sarif_paths: tuple[str, ...]) -> list[object]:
         if path.exists():
             hints.extend(ingest_sarif(path))
     return hints
-
-
-def _worth_fixing_payload(verdicts: tuple[CandidateVerdict, ...]) -> dict[str, object]:
-    worth = [record for record in verdicts if record.worth_fixing]
-    return {
-        "count": len(worth),
-        "verdicts": [
-            {
-                "path": record.path,
-                "function_name": record.function_name,
-                "verdict": record.verdict,
-                "reason": record.reason,
-                "worth_fixing": True,
-            }
-            for record in worth
-        ],
-    }
 
 
 def _artifact_paths(**paths: Path | None) -> dict[str, Path]:

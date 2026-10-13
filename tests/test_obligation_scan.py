@@ -92,19 +92,3 @@ def test_quick_scan_and_disabled_config_skip_obligations(tmp_path: Path, monkeyp
     assert not any(f["finding_id"].startswith("obligation:") for f in findings)
 
 
-def test_deep_scan_never_offers_obligation_findings_to_the_sandbox(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    from openultrasast import cli
-    from openultrasast.sandbox import FakeSandboxRunner, SandboxResult
-
-    repo = _repo(tmp_path, monkeypatch)
-    (repo / "openultrasast.toml").write_text("[obligations]\nmin_siblings = 2\n")
-    monkeypatch.setenv("OPENULTRASAST_SANDBOX_PROBE", "1")
-    fake = FakeSandboxRunner(SandboxResult(exit_code=0, stdout="", stderr="", timed_out=False))
-    monkeypatch.setattr(cli, "resolve_sandbox_runner", lambda: fake)
-    assert main(["scan", str(repo), "--mode", "deep", "--config", str(repo / "openultrasast.toml")]) == 0
-    run_dir = _run_dir(repo)
-    verdicts = json.loads((run_dir / "verdicts.json").read_text())["verdicts"]
-    offered = {finding_id for item in verdicts for finding_id in item["inventory_finding_ids"]}
-    assert not any(finding_id.startswith("obligation:") for finding_id in offered)
-    findings = json.loads((run_dir / "findings.json").read_text())["findings"]
-    assert any(f["finding_id"].startswith("obligation:") for f in findings)  # still reported

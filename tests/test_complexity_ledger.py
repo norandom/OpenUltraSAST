@@ -1,6 +1,5 @@
 import json
 from pathlib import Path
-from types import SimpleNamespace
 
 from openultrasast.complexity.ledger import (
     NOT_TRIGGERABLE_DELTA,
@@ -9,15 +8,11 @@ from openultrasast.complexity.ledger import (
     apply_overlay,
     hotspot_key,
     load_ledger,
-    must_keep_as_candidate,
-    persist_verdicts,
     record_verdict,
-    select_forced_candidates,
     write_ledger,
 )
 from openultrasast.complexity.map import Hotspot, build_complexity_map
 from openultrasast.findings import StaticFinding
-from openultrasast.policy import CwePolicy
 from openultrasast.preprocess import FileTarget
 
 
@@ -129,7 +124,7 @@ def test_not_triggerable_overlay_drops_score_and_keeps_inventory_hit() -> None:
     assert demoted.function_name == hotspot.function_name
 
 
-def test_not_triggerable_overlay_drops_map_score_and_sev5_reachable_stays_candidate(tmp_path: Path) -> None:
+def test_not_triggerable_overlay_drops_map_score_and_keeps_inventory(tmp_path: Path) -> None:
     auth = _target(
         "src/auth.py",
         loc=80,
@@ -168,49 +163,6 @@ def test_not_triggerable_overlay_drops_map_score_and_sev5_reachable_stays_candid
     assert sev5.severity == "critical"
     assert sev5.rationale == ("Static pattern cmd (CWE-78) matched os.system on line 12; manual verification still required.")
 
-    policy = {
-        sev5.finding_id: 5,
-        noise.finding_id: 2,
-    }
-    forced = select_forced_candidates([sev5, noise], policy)
-    assert forced == (sev5,)
-    assert must_keep_as_candidate(sev5, 5, "reachable") is True
-    assert must_keep_as_candidate(noise, 2, "unknown") is False
-
-
-def test_must_keep_as_candidate_requires_sev5_and_reachable_surface() -> None:
-    reachable = _hit("a.py", "a:1", reachability="reachable")
-    inferred = _hit("b.py", "b:1", reachability="inferred-file-surface")
-    unknown = _hit("c.py", "c:1", reachability="unknown")
-
-    assert must_keep_as_candidate(reachable, 5, "reachable") is True
-    assert must_keep_as_candidate(inferred, 5, "inferred-file-surface") is True
-    assert must_keep_as_candidate(unknown, 5, "unknown") is False
-    assert must_keep_as_candidate(reachable, 4, "reachable") is False
-    assert must_keep_as_candidate(reachable, 5, None) is True
-
-
-def test_select_forced_candidates_resolves_policy_severity() -> None:
-    sev5 = _hit("src/auth.py", "cmd:src/auth.py:12", reachability="reachable")
-    inferred = _hit("src/upload.py", "sql:src/upload.py:4", reachability="inferred-file-surface")
-    mild = _hit("src/helper.py", "print:src/helper.py:1", reachability="reachable")
-    policy = {
-        "CWE-78": CwePolicy("Command Injection", 5, True, False),
-        "CWE-89": CwePolicy("SQL Injection", 5, True, False),
-        "CWE-116": CwePolicy("Encode Output", 2, True, False),
-    }
-
-    forced = select_forced_candidates(
-        [mild, sev5, inferred],
-        policy,
-        rule_cwe={
-            sev5.finding_id: "CWE-78",
-            inferred.finding_id: "CWE-89",
-            mild.finding_id: "CWE-116",
-        },
-    )
-
-    assert forced == (sev5, inferred)
 
 
 def test_ledger_round_trip_matches_design_schema(tmp_path: Path) -> None:
@@ -248,25 +200,6 @@ def test_overlay_reorders_and_rebands_without_dropping_hits() -> None:
     assert demoted.band == "low"
     assert demoted.inventory_finding_ids == ("sev5:1",)
     assert overlaid[0].inventory_finding_ids == ("low:1",)
-
-
-def test_persist_verdicts_records_triggerable_and_skips_inconclusive(tmp_path: Path) -> None:
-    path = tmp_path / ".openultrasast" / "calibration" / "complexity_ledger.json"
-    persist_verdicts(
-        path,
-        [
-            SimpleNamespace(path="app.py", function_name="admin", verdict="triggerable"),
-            SimpleNamespace(path="safe.py", function_name=None, verdict="not_triggerable"),
-            SimpleNamespace(path="other.py", function_name="skip", verdict="inconclusive"),
-        ],
-    )
-    loaded = load_ledger(path)
-
-    assert loaded[hotspot_key("app.py", "admin")].last_verdict == "triggerable"
-    assert loaded[hotspot_key("app.py", "admin")].score_delta == TRIGGERABLE_DELTA
-    assert loaded[hotspot_key("safe.py", None)].last_verdict == "not_triggerable"
-    assert loaded[hotspot_key("safe.py", None)].score_delta == NOT_TRIGGERABLE_DELTA
-    assert hotspot_key("other.py", "skip") not in loaded
 
 
 def test_build_complexity_map_without_ledger_path_skips_overlay(tmp_path: Path) -> None:

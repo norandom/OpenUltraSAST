@@ -119,12 +119,7 @@ ousast-with-judge scan . --mode standard            # network on, the model is a
 `docker compose build` and `TARGET=/path/to/repo docker compose run --rm ousast scan /target` do
 the same without the wrapper.
 
-`deep` adds REGRESS. REGRESS runs each reproduction snippet with `docker run` from wherever the
-scan runs. The engine container has no Docker socket. So run `deep` in one of two ways:
-
-- from a host install with Joern on the PATH (`pyinfra @local ops/joern.py`, pinned and checksum-
-  verified) and a working `docker`;
-- or accept the recorded `sandbox_unavailable` degradation.
+`deep` requests the REGRESS stage, which was retired on 2026-10-13: the scan records a `regress_retired` degradation and otherwise equals `standard`. Execution proof now comes from the search-with-proof arm.
 
 Details, including the host install, are in [ops/README.md](ops/README.md).
 
@@ -179,10 +174,9 @@ There are three modes. Each adds to the one before.
   taint, guard-dominance and configuration questions on that graph. A model is asked only the
   residual question. Without a key, that question is skipped and only the graph's entailed
   findings are reported.
-- `deep` adds REGRESS. Promoted candidates are loaded by a small snippet in a Docker sandbox. Each
-  gets a `triggerable` or `not_triggerable` verdict.
+- `deep` requests the REGRESS stage, which was retired on 2026-10-13: the scan records a `regress_retired` degradation and otherwise equals `standard`. Execution proof now comes from the search-with-proof arm.
 
-A missing engine is a recorded degradation (`cpg_unavailable`, `sandbox_unavailable`), never a
+A missing engine is a recorded degradation (`cpg_unavailable`, `regress_retired`), never a
 clean result.
 
 `--fail-on never|findings|verified|worth-fixing` sets the exit code. `--config openultrasast.toml`
