@@ -1,0 +1,79 @@
+{
+  "exploit_verified": {
+    "count": 0,
+    "flagged_positive_pushes": 9,
+    "flagged_positives": 26,
+    "n": 0,
+    "not_yet_proved": [
+      "contentful-contentful-mcp-server-22e8b2fc09c3b2c4",
+      "contentful-contentful-mcp-server-df53a40a29ee8d8d",
+      "i18next-i18next-http-middleware-f3e2a6886951f36a",
+      "imzbf-md-editor-v3-14658213915dbde5",
+      "imzbf-md-editor-v3-b9c833a3524a57a9",
+      "jupyter-lsp-jupyterlab-lsp-59f9a8b80b133f6f",
+      "nvbn-thefuck-456ad18acb14f1b2",
+      "nvbn-thefuck-74126de049d52d8c",
+      "ondata-ckan-mcp-server-01a3f68f84397eb4",
+      "ondata-ckan-mcp-server-b0b05cdc830b1f8b",
+      "webpack-webpack-bundle-analyzer-8e07af8a5ee1cc52",
+      "zenitram-malla-15753fae1999978e",
+      "zenitram-malla-45807117f798f314",
+      "zenitram-malla-4c7ce7ae0b9dd0cf",
+      "zenitram-malla-5b8f3116fefd595b",
+      "zenitram-malla-72b8d4dc93a566fb",
+      "zenitram-malla-73c0175a1009ffbf",
+      "zenitram-malla-825a0f3ce563c373",
+      "zenitram-malla-858255cb6145e104",
+      "zenitram-malla-92e437caca55290b",
+      "zenitram-malla-aeb1d1e3d40815a8",
+      "zenitram-malla-bf4b3bcd2652952c",
+      "zenitram-malla-c3ab7f5f4e769cc6",
+      "zenitram-malla-f3535c03a02fa0e3",
+      "zereight-gitlab-mcp-2367b459f8c3802b",
+      "zereight-gitlab-mcp-768c7d5a32ccc95b"
+    ],
+    "rate": null,
+    "status": "not yet proved",
+    "wilson95": [
+      null,
+      null
+    ]
+  },
+  "false_alarms_per_100_pushes": {
+    "cluster95": [
+      47.083333333333336,
+      61.66666666666667
+    ],
+    "count": 130,
+    "icc": 0.022377467632178107,
+    "n": 239,
+    "rate": 54.39330543933054,
+    "wilson95": [
+      48.0589907402735,
+      60.58862153044123
+    ]
+  },
+  "headline": "On unseen app repos: recall 41.7% (Wilson 19.3-68.0), false alarms 54.4 per 100 pushes, precision 3.6%; exploit-verified 0 of 26 (26 not yet proved).",
+  "precision": {
+    "count": 5,
+    "n": 139,
+    "rate": 0.03597122302158273,
+    "wilson95": [
+      0.015460613110063436,
+      0.08144112979956511
+    ]
+  },
+  "recall": {
+    "cluster95": [
+      0.16666666666666666,
+      0.6666666666666666
+    ],
+    "count": 5,
+    "n": 12,
+    "rate": 0.4166666666666667,
+    "wilson95": [
+      0.19325746190524656,
+      0.6804926643446272
+    ]
+  }
+}
