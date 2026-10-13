@@ -75,8 +75,18 @@
   and Perl grammars that ours handles by regex today. Adopt it as the grammar packaging in `semantic/extra.py`;
   map `.c` to the c grammar first (20 of the 56 rejections clear); cache the parser. `tree-sitter-languages` is
   ABI-broken under tree-sitter 0.26; universal-ctags has no pip build.
-- **Pending**: the Semgrep CE and Opengrep brief (`~/ousast-results/fossil/semgrep-brief.md`). Producers land behind
-  the same contract; the ablation decides whether their columns stay.
+- **Result, Semgrep CE and Opengrep (benchmarks/measurements/2026-10-13-semgrep-brief/BRIEF.md)**: the engine is
+  LGPL-2.1 and shelling out carries no obligation, but every Semgrep-maintained registry rule has been under the
+  Semgrep Rules License since 2024-12-13 (internal use only, no distribution, not in competing products), so
+  nothing but our own converted rules could ship. Measured here: 4.7 s startup floor and about 5 to 10 ms per
+  file after it (the regex tier runs in-process under a second); converted regex and taint rules fire with
+  traces for Python, PHP and JavaScript; C propagation through `strcpy` does not (propagators are Pro); Groovy has
+  no parser; a Semgrep sanitizer silenced the `ORDER BY` shape our `quoted_only` flag refuses on purpose; guards,
+  dispatch facts, obligations, shadow status and emit floors have no equivalent. A swap would retire about 1,250
+  lines. Recommendation taken from the brief: option C first, a Semgrep arm on the valid pilot
+  (`benchmarks/valid/semgrep_arm.py`, our rules converted, scored by the same scorer) before any decision on the
+  quick tier; adopting it later means amending the "no second engine" rule in safety-net.md with that measurement.
+  For this spec, Semgrep findings are a candidate feature column like any other producer.
 - **Research needed**: Semgrep registry rule licence terms for an open-source tool.
 
 ### Training data apart from the pilot
