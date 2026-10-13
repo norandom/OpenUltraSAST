@@ -1,0 +1,362 @@
+rules:
+- id: ousast.java.regex.java-command-exec
+  languages:
+  - java
+  severity: WARNING
+  message: Java runtime command execution needs review
+  metadata:
+    family: injection
+    cwe: CWE-78
+    origin: java-command-exec
+    precision_estimate: '0.0'
+    kind: regex
+    tags:
+    - syscall_entry
+    status: enabled
+    version: '1'
+  pattern-regex: \b(exec)\s*\(
+- id: ousast.java.regex.java-deserialization
+  languages:
+  - java
+  severity: WARNING
+  message: Java unsafe deserialization needs review
+  metadata:
+    family: deserialization
+    cwe: CWE-502
+    origin: java-deserialization
+    precision_estimate: '0.0'
+    kind: regex
+    tags:
+    - deserialization
+    status: enabled
+    version: '1'
+  pattern-regex: \.(readObject)\s*\(
+- id: ousast.java.regex.java-sql-injection
+  languages:
+  - java
+  severity: WARNING
+  message: Java SQL string composition needs review
+  metadata:
+    family: injection
+    cwe: CWE-89
+    origin: java-sql-injection
+    precision_estimate: '0.0'
+    kind: regex
+    tags:
+    - injection
+    status: enabled
+    version: '1'
+  pattern-regex: (?i)\"\s*(select|insert|update|delete)\b[^\"]*\"\s*\+
+- id: ousast.java.regex.java-weak-hash
+  languages:
+  - java
+  severity: WARNING
+  message: Java weak hash needs review
+  metadata:
+    family: config_secrets
+    cwe: CWE-327
+    origin: java-weak-hash
+    precision_estimate: '0.0'
+    kind: regex
+    tags:
+    - crypto
+    status: enabled
+    version: '1'
+  pattern-regex: MessageDigest\.getInstance\s*\(\s*\"(MD5|SHA-1)\"
+- id: ousast.java.weak.MessageDigest
+  languages: &id001
+  - java
+  severity: WARNING
+  message: 'MessageDigest: a weak literal reaches getInstance'
+  metadata:
+    family: config_secrets
+    cwe: CWE-327
+    origin: sink:java:MessageDigest
+    precision_estimate: unmeasured
+    kind: weak_literal
+    weak_literals:
+    - MD5
+    - SHA-1
+    - SHA1
+  pattern-either:
+  - patterns:
+    - pattern: getInstance($ALGORITHM, ...)
+    - metavariable-regex:
+        metavariable: $ALGORITHM
+        regex: ^["']?(MD5|SHA\-1|SHA1)["']?$
+  - patterns:
+    - pattern: $OBJ.getInstance($ALGORITHM, ...)
+    - metavariable-regex:
+        metavariable: $ALGORITHM
+        regex: ^["']?(MD5|SHA\-1|SHA1)["']?$
+- id: ousast.java.taint.exec
+  mode: taint
+  languages: *id001
+  severity: ERROR
+  message: 'exec: untrusted input reaches exec'
+  metadata:
+    family: injection
+    cwe: CWE-78
+    origin: sink:java:exec
+    precision_estimate: unmeasured
+    kind: taint
+    calls:
+    - exec
+  pattern-sources:
+  - pattern-either: &id002
+    - pattern: getParameter
+    - pattern: $OBJ.getParameter
+    - pattern: getParameter(...)
+    - pattern: $OBJ.getParameter(...)
+    - pattern: getHeader
+    - pattern: $OBJ.getHeader
+    - pattern: getHeader(...)
+    - pattern: $OBJ.getHeader(...)
+    - pattern: getCookies
+    - pattern: $OBJ.getCookies
+    - pattern: getCookies(...)
+    - pattern: $OBJ.getCookies(...)
+    - pattern: getQueryString
+    - pattern: $OBJ.getQueryString
+    - pattern: getQueryString(...)
+    - pattern: $OBJ.getQueryString(...)
+    - pattern: readLine
+    - pattern: $OBJ.readLine
+    - pattern: readLine(...)
+    - pattern: $OBJ.readLine(...)
+  pattern-sinks:
+  - pattern-either:
+    - pattern: exec(...)
+    - pattern: $OBJ.exec(...)
+  pattern-sanitizers:
+  - pattern-either:
+    - &id003
+      pattern: getCanonicalPath(...)
+    - &id004
+      pattern: $OBJ.getCanonicalPath(...)
+    - &id005
+      pattern: normalize(...)
+    - &id006
+      pattern: $OBJ.normalize(...)
+    - &id007
+      pattern: URLEncoder.encode(...)
+    - &id008
+      pattern: ESAPI.encoder(...)
+    - &id009
+      pattern: encodeForHTML(...)
+    - &id010
+      pattern: $OBJ.encodeForHTML(...)
+    - &id011
+      pattern: encodeForURL(...)
+    - &id012
+      pattern: $OBJ.encodeForURL(...)
+    - &id013
+      pattern: StringEscapeUtils.escapeHtml4(...)
+- id: ousast.java.taint.executeQuery
+  mode: taint
+  languages: *id001
+  severity: ERROR
+  message: 'executeQuery: untrusted input reaches execute, executeQuery, prepareCall'
+  metadata:
+    family: injection
+    cwe: CWE-89
+    origin: sink:java:executeQuery
+    precision_estimate: unmeasured
+    kind: taint
+    calls:
+    - execute
+    - executeQuery
+    - prepareCall
+  pattern-sources:
+  - pattern-either: *id002
+  pattern-sinks:
+  - pattern-either:
+    - pattern: execute(...)
+    - pattern: $OBJ.execute(...)
+    - pattern: executeQuery(...)
+    - pattern: $OBJ.executeQuery(...)
+    - pattern: prepareCall(...)
+    - pattern: $OBJ.prepareCall(...)
+  pattern-sanitizers:
+  - pattern-either:
+    - *id003
+    - *id004
+    - *id005
+    - *id006
+    - *id007
+    - *id008
+    - *id009
+    - *id010
+    - *id011
+    - *id012
+    - *id013
+- id: ousast.java.taint.file-open
+  mode: taint
+  languages: *id001
+  severity: ERROR
+  message: 'file.open: untrusted input reaches File, FileInputStream, FileOutputStream, FileReader, FileWriter, Files.newInputStream, Files.readAllBytes, Paths.get, RandomAccessFile'
+  metadata:
+    family: path
+    cwe: CWE-22
+    origin: sink:java:file.open
+    precision_estimate: unmeasured
+    kind: taint
+    calls:
+    - File
+    - FileInputStream
+    - FileOutputStream
+    - FileReader
+    - FileWriter
+    - Files.newInputStream
+    - Files.readAllBytes
+    - Paths.get
+    - RandomAccessFile
+  pattern-sources:
+  - pattern-either: *id002
+  pattern-sinks:
+  - pattern-either:
+    - pattern: new File(...)
+    - pattern: new FileInputStream(...)
+    - pattern: new FileOutputStream(...)
+    - pattern: new FileReader(...)
+    - pattern: new FileWriter(...)
+    - pattern: Files.newInputStream(...)
+    - pattern: Files.readAllBytes(...)
+    - pattern: Paths.get(...)
+    - pattern: new RandomAccessFile(...)
+  pattern-sanitizers:
+  - pattern-either:
+    - *id003
+    - *id004
+    - *id005
+    - *id006
+    - *id007
+    - *id008
+    - *id009
+    - *id010
+    - *id011
+    - *id012
+    - *id013
+- id: ousast.java.taint.outbound-request
+  mode: taint
+  languages: *id001
+  severity: ERROR
+  message: 'outbound.request: untrusted input reaches exchange, getForObject, openConnection, openStream, sendRedirect'
+  metadata:
+    family: untrusted_destination
+    cwe: CWE-918
+    origin: sink:java:outbound.request
+    precision_estimate: unmeasured
+    kind: taint
+    calls:
+    - exchange
+    - getForObject
+    - openConnection
+    - openStream
+    - sendRedirect
+  pattern-sources:
+  - pattern-either: *id002
+  pattern-sinks:
+  - pattern-either:
+    - pattern: exchange(...)
+    - pattern: $OBJ.exchange(...)
+    - pattern: getForObject(...)
+    - pattern: $OBJ.getForObject(...)
+    - pattern: openConnection(...)
+    - pattern: $OBJ.openConnection(...)
+    - pattern: openStream(...)
+    - pattern: $OBJ.openStream(...)
+    - pattern: sendRedirect(...)
+    - pattern: $OBJ.sendRedirect(...)
+  pattern-sanitizers:
+  - pattern-either:
+    - *id003
+    - *id004
+    - *id005
+    - *id006
+    - *id007
+    - *id008
+    - *id009
+    - *id010
+    - *id011
+    - *id012
+    - *id013
+- id: ousast.java.taint.readObject
+  mode: taint
+  languages: *id001
+  severity: ERROR
+  message: 'readObject: untrusted input reaches readObject'
+  metadata:
+    family: deserialization
+    cwe: CWE-502
+    origin: sink:java:readObject
+    precision_estimate: unmeasured
+    kind: taint
+    calls:
+    - readObject
+  pattern-sources:
+  - pattern-either: *id002
+  pattern-sinks:
+  - pattern-either:
+    - pattern: readObject(...)
+    - pattern: $OBJ.readObject(...)
+  pattern-sanitizers:
+  - pattern-either:
+    - *id003
+    - *id004
+    - *id005
+    - *id006
+    - *id007
+    - *id008
+    - *id009
+    - *id010
+    - *id011
+    - *id012
+    - *id013
+- id: ousast.java.taint.response-write
+  mode: taint
+  languages: *id001
+  severity: ERROR
+  message: 'response.write: untrusted input reaches addHeader, getWriter, print, println, setHeader, write'
+  metadata:
+    family: output_encoding
+    cwe: CWE-79
+    origin: sink:java:response.write
+    precision_estimate: unmeasured
+    kind: taint
+    calls:
+    - addHeader
+    - getWriter
+    - print
+    - println
+    - setHeader
+    - write
+  pattern-sources:
+  - pattern-either: *id002
+  pattern-sinks:
+  - pattern-either:
+    - pattern: addHeader(...)
+    - pattern: $OBJ.addHeader(...)
+    - pattern: getWriter(...)
+    - pattern: $OBJ.getWriter(...)
+    - pattern: print(...)
+    - pattern: $OBJ.print(...)
+    - pattern: println(...)
+    - pattern: $OBJ.println(...)
+    - pattern: setHeader(...)
+    - pattern: $OBJ.setHeader(...)
+    - pattern: write(...)
+    - pattern: $OBJ.write(...)
+  pattern-sanitizers:
+  - pattern-either:
+    - *id003
+    - *id004
+    - *id005
+    - *id006
+    - *id007
+    - *id008
+    - *id009
+    - *id010
+    - *id011
+    - *id012
+    - *id013

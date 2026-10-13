@@ -1,0 +1,233 @@
+{
+  "facts": {
+    "converted": [
+      "sink:c:printf",
+      "sink:c:strcpy",
+      "sink:c:system",
+      "sink:java:MessageDigest",
+      "sink:java:exec",
+      "sink:java:executeQuery",
+      "sink:java:file.open",
+      "sink:java:outbound.request",
+      "sink:java:readObject",
+      "sink:java:response.write",
+      "sink:javascript:eval",
+      "sink:javascript:exec",
+      "sink:javascript:html.response",
+      "sink:javascript:html.unescaped",
+      "sink:javascript:outbound.request",
+      "sink:javascript:path.open",
+      "sink:javascript:prototype.merge",
+      "sink:javascript:query",
+      "sink:javascript:redirect",
+      "sink:javascript:vm.eval",
+      "sink:php:code_eval",
+      "sink:php:command",
+      "sink:php:echo",
+      "sink:php:file_inclusion",
+      "sink:php:filesystem",
+      "sink:php:outbound_request",
+      "sink:php:redirect",
+      "sink:php:sql",
+      "sink:php:unserialize",
+      "sink:php:wpdb",
+      "sink:python:eval",
+      "sink:python:execute",
+      "sink:python:hashlib",
+      "sink:python:html.unescaped",
+      "sink:python:orm.raw",
+      "sink:python:os.system",
+      "sink:python:outbound.request",
+      "sink:python:path.open",
+      "sink:python:pickle.loads",
+      "sink:python:redirect"
+    ],
+    "lossy": [
+      {
+        "loss": "prefix_fixes_origin: a value appended after a fixed origin still counts as tainted",
+        "origin": "sink:javascript:outbound.request"
+      },
+      {
+        "loss": "prefix_fixes_origin: a value appended after a fixed origin still counts as tainted",
+        "origin": "sink:javascript:redirect"
+      },
+      {
+        "loss": "quoted_only escape treated as a full sanitizer (silences the CVE-2024-1071 shape)",
+        "origin": "sanitizer:php:sql_escape"
+      },
+      {
+        "loss": "prefix_fixes_origin: a value appended after a fixed origin still counts as tainted",
+        "origin": "sink:python:outbound.request"
+      },
+      {
+        "loss": "prefix_fixes_origin: a value appended after a fixed origin still counts as tainted",
+        "origin": "sink:python:redirect"
+      }
+    ],
+    "skipped": [
+      {
+        "origin": "sanitizer:c:literal_format",
+        "reason": "literal_format_arg: a shape; a literal format is never tainted at the focused sink argument"
+      },
+      {
+        "origin": "sanitizer:java:parameterized_statement",
+        "reason": "parameterized: a call shape, not a cleansing; expressed as the single-argument sink form"
+      },
+      {
+        "origin": "sanitizer:javascript:parameterized_query",
+        "reason": "parameterized: a call shape, not a cleansing; expressed as the single-argument sink form"
+      },
+      {
+        "origin": "layout:javascript:javascript_first_party_tests",
+        "reason": "layout: scope policy (vendored, tests), not a rule"
+      },
+      {
+        "origin": "sink:javascript:html.unescaped:v-html",
+        "reason": "template directive, not a call"
+      },
+      {
+        "origin": "sanitizer:php:allowlist",
+        "reason": "guard: a check whose safety depends on dominance; Semgrep has no equivalent"
+      },
+      {
+        "origin": "sanitizer:php:prepared_statement",
+        "reason": "parameterized: a call shape, not a cleansing; expressed as the single-argument sink form"
+      },
+      {
+        "origin": "dispatch:php:wordpress_hooks",
+        "reason": "dispatch: string-keyed hook registry routing; no Semgrep equivalent"
+      },
+      {
+        "origin": "layout:php:php_layout",
+        "reason": "layout: scope policy (vendored, tests), not a rule"
+      },
+      {
+        "origin": "sanitizer:python:parameterized_execute",
+        "reason": "parameterized: a call shape, not a cleansing; expressed as the single-argument sink form"
+      },
+      {
+        "origin": "sanitizer:python:url_allowlist",
+        "reason": "guard: a check whose safety depends on dominance; Semgrep has no equivalent"
+      }
+    ]
+  },
+  "files": {
+    "c.yaml": 9,
+    "groovy.yaml": 1,
+    "java.yaml": 11,
+    "javascript.yaml": 21,
+    "php.yaml": 19,
+    "python.yaml": 20
+  },
+  "not_carried": [
+    "comment skipping: the quick engine drops a regex match inside a comment; pattern-regex does not",
+    "framework priors and fallback rules: the tagged rule is emitted, its language-level fallback is not",
+    "min_evidence_level, ranking priority, the rung: post-match policy on our side"
+  ],
+  "obligations": {
+    "reason": "an obligation finds a missing guard (an absence), which no pattern expresses",
+    "skipped_tables": 37
+  },
+  "regex": {
+    "converted": [
+      "c-exec-family",
+      "c-shell-exec",
+      "c-unsafe-copy",
+      "c-unsafe-format",
+      "c-unsafe-memory-copy",
+      "c-unsafe-scanf",
+      "groovy-xss-unescaped",
+      "java-command-exec",
+      "java-deserialization",
+      "java-sql-injection",
+      "java-weak-hash",
+      "js-command-exec",
+      "js-deserialize",
+      "js-dom-xss",
+      "js-eval",
+      "js-function-constructor",
+      "js-path-traversal",
+      "js-spawn-shell",
+      "js-sql-injection",
+      "js-ssrf",
+      "js-weak-hash",
+      "js-xss-response",
+      "php-wpdb-sql-composition",
+      "php-sql-unquoted-concat",
+      "php-sql-unquoted-interpolation",
+      "php-sql-sprintf-unescaped",
+      "php-command-injection",
+      "php-file-inclusion-input",
+      "php-path-input",
+      "php-ssrf-input",
+      "php-open-redirect",
+      "python-flask-debug",
+      "python-os-command",
+      "python-path-traversal",
+      "python-shell-true",
+      "python-sql-injection",
+      "python-ssrf",
+      "python-ssti",
+      "python-unsafe-deserialization",
+      "python-unsafe-eval",
+      "python-weak-hash"
+    ],
+    "rewritten": [
+      {
+        "origin": "php-sql-sprintf-unescaped",
+        "rewrite": "bounded lazy group repeat {0,N}? widened to *? (PCRE2 size limit)"
+      }
+    ],
+    "skipped": [
+      {
+        "origin": "js-ssrf-language",
+        "reason": "fallback for js-ssrf: the tagged rule is active"
+      },
+      {
+        "origin": "php-sql-call-composition",
+        "reason": "shadow status (precision_estimate 0.25); not admitted by the hook"
+      },
+      {
+        "origin": "php-sql-unquoted-concat-language",
+        "reason": "fallback for php-sql-unquoted-concat: the tagged rule is active"
+      },
+      {
+        "origin": "php-sql-unquoted-interpolation-language",
+        "reason": "fallback for php-sql-unquoted-interpolation: the tagged rule is active"
+      },
+      {
+        "origin": "php-sql-sprintf-unescaped-language",
+        "reason": "fallback for php-sql-sprintf-unescaped: the tagged rule is active"
+      },
+      {
+        "origin": "php-code-eval",
+        "reason": "shadow status (precision_estimate 0.333); not admitted by the hook"
+      },
+      {
+        "origin": "php-unserialize",
+        "reason": "shadow status (precision_estimate 0.25); not admitted by the hook"
+      },
+      {
+        "origin": "php-maybe-unserialize",
+        "reason": "shadow status (precision_estimate 0.25); not admitted by the hook"
+      },
+      {
+        "origin": "php-xss-echo-input",
+        "reason": "shadow status (precision_estimate 0.333); not admitted by the hook"
+      },
+      {
+        "origin": "php-xss-echo-input-language",
+        "reason": "fallback for php-xss-echo-input: the tagged rule is active"
+      },
+      {
+        "origin": "python-unsafe-deserialization-language",
+        "reason": "fallback for python-unsafe-deserialization: the tagged rule is active"
+      }
+    ]
+  },
+  "validation": {
+    "exit": 0,
+    "stderr": "Configuration is valid - found 0 configuration error(s), and 81 rule(s).\n",
+    "stdout": ""
+  }
+}

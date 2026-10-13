@@ -1,0 +1,558 @@
+rules:
+- id: ousast.python.regex.python-flask-debug
+  languages:
+  - python
+  severity: WARNING
+  message: Flask debug mode enabled needs review
+  metadata:
+    family: config_secrets
+    cwe: CWE-489
+    origin: python-flask-debug
+    precision_estimate: '0.0'
+    kind: regex
+    tags:
+    - insecure_default
+    status: enabled
+    version: '1'
+  pattern-regex: \.run\s*\([^\n]*(debug)\s*=\s*True
+- id: ousast.python.regex.python-os-command
+  languages:
+  - python
+  severity: WARNING
+  message: Python OS command execution needs review
+  metadata:
+    family: injection
+    cwe: CWE-78
+    origin: python-os-command
+    precision_estimate: '0.0'
+    kind: regex
+    tags:
+    - syscall_entry
+    status: enabled
+    version: '1'
+  pattern-regex: \b(os\.system|os\.popen|os\.execl|os\.execlp|os\.execv|os\.execvp)\s*\(
+- id: ousast.python.regex.python-path-traversal
+  languages:
+  - python
+  severity: WARNING
+  message: Python file open with external input needs review
+  metadata:
+    family: path
+    cwe: CWE-22
+    origin: python-path-traversal
+    precision_estimate: '0.0'
+    kind: regex
+    tags:
+    - filesystem_entry
+    status: enabled
+    version: '1'
+  pattern-regex: \b(open)\s*\(\s*[^\n]*(?:request\.|req\.|argv|input\s*\(|params\[|GET\[|POST\[)
+- id: ousast.python.regex.python-shell-true
+  languages:
+  - python
+  severity: WARNING
+  message: Subprocess shell execution needs review
+  metadata:
+    family: injection
+    cwe: CWE-78
+    origin: python-shell-true
+    precision_estimate: '0.0'
+    kind: regex
+    tags:
+    - syscall_entry
+    status: enabled
+    version: '1'
+  pattern-regex: subprocess\.[a-zA-Z_]+\s*\([^\n]*shell\s*=\s*True
+- id: ousast.python.regex.python-sql-injection
+  languages:
+  - python
+  severity: WARNING
+  message: Python SQL string composition needs review
+  metadata:
+    family: injection
+    cwe: CWE-89
+    origin: python-sql-injection
+    precision_estimate: '0.0'
+    kind: regex
+    tags:
+    - injection
+    status: enabled
+    version: '1'
+  pattern-regex: (\.execute)\s*\(\s*[^\n]*(?:[\"']\s*%\s*[(A-Za-z_]|\.format\s*\(|[\"']\s*\+|\bf[\"'])
+- id: ousast.python.regex.python-ssrf
+  languages:
+  - python
+  severity: WARNING
+  message: Python outbound request with external input needs review
+  metadata:
+    family: untrusted_destination
+    cwe: CWE-918
+    origin: python-ssrf
+    precision_estimate: '0.0'
+    kind: regex
+    tags:
+    - network_entry
+    status: enabled
+    version: '1'
+  pattern-regex: \b(requests\.(?:get|post|put|delete|head|patch)|urllib\.request\.urlopen|urlopen)\s*\(\s*[^\n]*(?:request\.|req\.|argv|input\s*\()
+- id: ousast.python.regex.python-ssti
+  languages:
+  - python
+  severity: WARNING
+  message: Python server-side template injection needs review
+  metadata:
+    family: injection
+    cwe: CWE-94
+    origin: python-ssti
+    precision_estimate: '0.0'
+    kind: regex
+    tags:
+    - injection
+    status: enabled
+    version: '1'
+  pattern-regex: \b(render_template_string)\s*\(
+- id: ousast.python.regex.python-unsafe-deserialization
+  languages:
+  - python
+  severity: WARNING
+  message: Unsafe Python deserialization needs review
+  metadata:
+    family: deserialization
+    cwe: CWE-502
+    origin: python-unsafe-deserialization
+    precision_estimate: '0.0'
+    kind: regex
+    tags:
+    - deserialization
+    status: enabled
+    version: '1'
+  pattern-regex: \b(pickle\.loads|pickle\.load|cPickle\.loads|yaml\.load|marshal\.loads)\s*\(
+- id: ousast.python.regex.python-unsafe-eval
+  languages:
+  - python
+  severity: WARNING
+  message: Dynamic Python execution needs review
+  metadata:
+    family: injection
+    cwe: CWE-95
+    origin: python-unsafe-eval
+    precision_estimate: '0.0'
+    kind: regex
+    tags:
+    - syscall_entry
+    status: enabled
+    version: '1'
+  pattern-regex: \b(eval|exec)\s*\(
+- id: ousast.python.regex.python-weak-hash
+  languages:
+  - python
+  severity: WARNING
+  message: Python weak hash needs review
+  metadata:
+    family: config_secrets
+    cwe: CWE-327
+    origin: python-weak-hash
+    precision_estimate: '0.0'
+    kind: regex
+    tags:
+    - crypto
+    status: enabled
+    version: '1'
+  pattern-regex: \bhashlib\.(md5|sha1)\s*\(
+- id: ousast.python.taint.eval
+  mode: taint
+  languages: &id001
+  - python
+  severity: ERROR
+  message: 'eval: untrusted input reaches eval, exec'
+  metadata:
+    family: injection
+    cwe: CWE-95
+    origin: sink:python:eval
+    precision_estimate: unmeasured
+    kind: taint
+    calls:
+    - eval
+    - exec
+  pattern-sources:
+  - pattern-either: &id002
+    - pattern: request.args
+    - pattern: request.args(...)
+    - pattern: request.form
+    - pattern: request.form(...)
+    - pattern: request.data
+    - pattern: request.data(...)
+    - pattern: request.json
+    - pattern: request.json(...)
+    - pattern: request.cookies
+    - pattern: request.cookies(...)
+    - pattern: request.values
+    - pattern: request.values(...)
+    - pattern: request.get_json
+    - pattern: request.get_json(...)
+    - pattern: request.headers
+    - pattern: request.headers(...)
+    - pattern: request.files
+    - pattern: request.files(...)
+    - pattern: request.get
+    - pattern: request.get(...)
+    - pattern: request.GET
+    - pattern: request.GET(...)
+    - pattern: request.POST
+    - pattern: request.POST(...)
+    - pattern: request.body
+    - pattern: request.body(...)
+    - pattern: request.COOKIES
+    - pattern: request.COOKIES(...)
+    - pattern: request.FILES
+    - pattern: request.FILES(...)
+    - pattern: request.META
+    - pattern: request.META(...)
+    - pattern: request.query_params
+    - pattern: request.query_params(...)
+    - pattern: cleaned_data
+    - pattern: $OBJ.cleaned_data
+    - pattern: cleaned_data(...)
+    - pattern: $OBJ.cleaned_data(...)
+    - pattern: sys.argv
+    - pattern: sys.argv(...)
+    - pattern: sys.stdin
+    - pattern: sys.stdin(...)
+    - pattern: stdin.read
+    - pattern: stdin.read(...)
+    - pattern: input(...)
+  pattern-sinks:
+  - pattern-either:
+    - pattern: eval(...)
+    - pattern: $OBJ.eval(...)
+    - pattern: exec(...)
+    - pattern: $OBJ.exec(...)
+  pattern-sanitizers:
+  - pattern-either:
+    - &id003
+      pattern: ast.literal_eval(...)
+    - &id004
+      pattern: yaml.safe_load(...)
+    - &id005
+      pattern: safe_load(...)
+    - &id006
+      pattern: $OBJ.safe_load(...)
+- id: ousast.python.taint.execute
+  mode: taint
+  languages: *id001
+  severity: ERROR
+  message: 'execute: untrusted input reaches execute, executemany'
+  metadata:
+    family: injection
+    cwe: CWE-89
+    origin: sink:python:execute
+    precision_estimate: unmeasured
+    kind: taint
+    calls:
+    - execute
+    - executemany
+  pattern-sources:
+  - pattern-either: *id002
+  pattern-sinks:
+  - pattern-either:
+    - patterns:
+      - pattern: execute($QUERY)
+      - focus-metavariable: $QUERY
+    - patterns:
+      - pattern: $OBJ.execute($QUERY)
+      - focus-metavariable: $QUERY
+    - patterns:
+      - pattern: executemany($QUERY)
+      - focus-metavariable: $QUERY
+    - patterns:
+      - pattern: $OBJ.executemany($QUERY)
+      - focus-metavariable: $QUERY
+  pattern-sanitizers:
+  - pattern-either:
+    - *id003
+    - *id004
+    - *id005
+    - *id006
+- id: ousast.python.weak.hashlib
+  languages: *id001
+  severity: WARNING
+  message: 'hashlib: a weak literal reaches hashlib.md5, hashlib.new, hashlib.sha1'
+  metadata:
+    family: config_secrets
+    cwe: CWE-327
+    origin: sink:python:hashlib
+    precision_estimate: unmeasured
+    kind: weak_literal
+    weak_literals:
+    - MD5
+    - SHA1
+    - md5
+    - sha-1
+    - sha1
+  pattern-either:
+  - pattern: hashlib.md5(...)
+  - patterns:
+    - pattern: hashlib.new($ALGORITHM, ...)
+    - metavariable-regex:
+        metavariable: $ALGORITHM
+        regex: ^["']?(MD5|SHA1|md5|sha\-1|sha1)["']?$
+  - pattern: hashlib.sha1(...)
+- id: ousast.python.taint.html-unescaped
+  mode: taint
+  languages: *id001
+  severity: ERROR
+  message: 'html.unescaped: untrusted input reaches HttpResponse, Markup, format_html, mark_safe, render_template_string'
+  metadata:
+    family: output_encoding
+    cwe: CWE-79
+    origin: sink:python:html.unescaped
+    precision_estimate: unmeasured
+    kind: taint
+    calls:
+    - HttpResponse
+    - Markup
+    - format_html
+    - mark_safe
+    - render_template_string
+  pattern-sources:
+  - pattern-either: *id002
+  pattern-sinks:
+  - pattern-either:
+    - pattern: HttpResponse(...)
+    - pattern: $OBJ.HttpResponse(...)
+    - pattern: Markup(...)
+    - pattern: $OBJ.Markup(...)
+    - pattern: format_html(...)
+    - pattern: $OBJ.format_html(...)
+    - pattern: mark_safe(...)
+    - pattern: $OBJ.mark_safe(...)
+    - pattern: render_template_string(...)
+    - pattern: $OBJ.render_template_string(...)
+  pattern-sanitizers:
+  - pattern-either:
+    - *id003
+    - *id004
+    - *id005
+    - *id006
+- id: ousast.python.taint.orm-raw
+  mode: taint
+  languages: *id001
+  severity: ERROR
+  message: 'orm.raw: untrusted input reaches RawSQL, extra, from_statement, objects.raw, raw, text'
+  metadata:
+    family: injection
+    cwe: CWE-89
+    origin: sink:python:orm.raw
+    precision_estimate: unmeasured
+    kind: taint
+    calls:
+    - RawSQL
+    - extra
+    - from_statement
+    - objects.raw
+    - raw
+    - text
+  pattern-sources:
+  - pattern-either: *id002
+  pattern-sinks:
+  - pattern-either:
+    - pattern: RawSQL(...)
+    - pattern: $OBJ.RawSQL(...)
+    - pattern: extra(...)
+    - pattern: $OBJ.extra(...)
+    - pattern: from_statement(...)
+    - pattern: $OBJ.from_statement(...)
+    - pattern: objects.raw(...)
+    - pattern: raw(...)
+    - pattern: $OBJ.raw(...)
+    - pattern: text(...)
+    - pattern: $OBJ.text(...)
+  pattern-sanitizers:
+  - pattern-either:
+    - *id003
+    - *id004
+    - *id005
+    - *id006
+- id: ousast.python.taint.os-system
+  mode: taint
+  languages: *id001
+  severity: ERROR
+  message: 'os.system: untrusted input reaches os.popen, os.system, subprocess.Popen, subprocess.call, subprocess.check_output, subprocess.run'
+  metadata:
+    family: injection
+    cwe: CWE-78
+    origin: sink:python:os.system
+    precision_estimate: unmeasured
+    kind: taint
+    calls:
+    - os.popen
+    - os.system
+    - subprocess.Popen
+    - subprocess.call
+    - subprocess.check_output
+    - subprocess.run
+  pattern-sources:
+  - pattern-either: *id002
+  pattern-sinks:
+  - pattern-either:
+    - pattern: os.popen(...)
+    - pattern: os.system(...)
+    - pattern: subprocess.Popen(...)
+    - pattern: subprocess.call(...)
+    - pattern: subprocess.check_output(...)
+    - pattern: subprocess.run(...)
+  pattern-sanitizers:
+  - pattern-either:
+    - *id003
+    - *id004
+    - *id005
+    - *id006
+- id: ousast.python.taint.outbound-request
+  mode: taint
+  languages: *id001
+  severity: ERROR
+  message: 'outbound.request: untrusted input reaches httpx.get, httpx.post, requests.get, requests.post, requests.request, urlopen, urlretrieve'
+  metadata:
+    family: untrusted_destination
+    cwe: CWE-918
+    origin: sink:python:outbound.request
+    precision_estimate: unmeasured
+    kind: taint
+    calls:
+    - httpx.get
+    - httpx.post
+    - requests.get
+    - requests.post
+    - requests.request
+    - urlopen
+    - urlretrieve
+  pattern-sources:
+  - pattern-either: *id002
+  pattern-sinks:
+  - pattern-either:
+    - pattern: httpx.get(...)
+    - pattern: httpx.post(...)
+    - pattern: requests.get(...)
+    - pattern: requests.post(...)
+    - pattern: requests.request(...)
+    - pattern: urlopen(...)
+    - pattern: $OBJ.urlopen(...)
+    - pattern: urlretrieve(...)
+    - pattern: $OBJ.urlretrieve(...)
+  pattern-sanitizers:
+  - pattern-either:
+    - *id003
+    - *id004
+    - *id005
+    - *id006
+- id: ousast.python.taint.path-open
+  mode: taint
+  languages: *id001
+  severity: ERROR
+  message: 'path.open: untrusted input reaches FileResponse, open, os.remove, os.unlink, send_file, send_from_directory, shutil.copy, shutil.move, shutil.rmtree'
+  metadata:
+    family: path
+    cwe: CWE-22
+    origin: sink:python:path.open
+    precision_estimate: unmeasured
+    kind: taint
+    calls:
+    - FileResponse
+    - open
+    - os.remove
+    - os.unlink
+    - send_file
+    - send_from_directory
+    - shutil.copy
+    - shutil.move
+    - shutil.rmtree
+  pattern-sources:
+  - pattern-either: *id002
+  pattern-sinks:
+  - pattern-either:
+    - pattern: FileResponse(...)
+    - pattern: $OBJ.FileResponse(...)
+    - pattern: open(...)
+    - pattern: $OBJ.open(...)
+    - pattern: os.remove(...)
+    - pattern: os.unlink(...)
+    - pattern: send_file(...)
+    - pattern: $OBJ.send_file(...)
+    - pattern: send_from_directory(...)
+    - pattern: $OBJ.send_from_directory(...)
+    - pattern: shutil.copy(...)
+    - pattern: shutil.move(...)
+    - pattern: shutil.rmtree(...)
+  pattern-sanitizers:
+  - pattern-either:
+    - *id003
+    - *id004
+    - *id005
+    - *id006
+- id: ousast.python.taint.pickle-loads
+  mode: taint
+  languages: *id001
+  severity: ERROR
+  message: 'pickle.loads: untrusted input reaches cPickle.loads, marshal.loads, pickle.load, pickle.loads, yaml.load'
+  metadata:
+    family: deserialization
+    cwe: CWE-502
+    origin: sink:python:pickle.loads
+    precision_estimate: unmeasured
+    kind: taint
+    calls:
+    - cPickle.loads
+    - marshal.loads
+    - pickle.load
+    - pickle.loads
+    - yaml.load
+  pattern-sources:
+  - pattern-either: *id002
+  pattern-sinks:
+  - pattern-either:
+    - pattern: cPickle.loads(...)
+    - pattern: marshal.loads(...)
+    - pattern: pickle.load(...)
+    - pattern: pickle.loads(...)
+    - pattern: yaml.load(...)
+  pattern-sanitizers:
+  - pattern-either:
+    - *id003
+    - *id004
+    - *id005
+    - *id006
+- id: ousast.python.taint.redirect
+  mode: taint
+  languages: *id001
+  severity: ERROR
+  message: 'redirect: untrusted input reaches HttpResponseRedirect, redirect, url_for'
+  metadata:
+    family: untrusted_destination
+    cwe: CWE-601
+    origin: sink:python:redirect
+    precision_estimate: unmeasured
+    kind: taint
+    calls:
+    - HttpResponseRedirect
+    - redirect
+    - url_for
+  pattern-sources:
+  - pattern-either: *id002
+  pattern-sinks:
+  - pattern-either:
+    - pattern: HttpResponseRedirect(...)
+    - pattern: $OBJ.HttpResponseRedirect(...)
+    - pattern: redirect(...)
+    - pattern: $OBJ.redirect(...)
+    - pattern: url_for(...)
+    - pattern: $OBJ.url_for(...)
+  pattern-sanitizers:
+  - pattern-either:
+    - *id003
+    - *id004
+    - *id005
+    - *id006
+    - pattern: reverse(...)
+    - pattern: $OBJ.reverse(...)
+    - pattern: reverse_lazy(...)
+    - pattern: $OBJ.reverse_lazy(...)

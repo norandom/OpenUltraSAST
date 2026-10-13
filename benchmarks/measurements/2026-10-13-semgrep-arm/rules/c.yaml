@@ -1,0 +1,216 @@
+rules:
+- id: ousast.c.regex.c-exec-family
+  languages:
+  - c
+  - cpp
+  severity: WARNING
+  message: C exec command execution needs review
+  metadata:
+    family: injection
+    cwe: CWE-78
+    origin: c-exec-family
+    precision_estimate: '0.0'
+    kind: regex
+    tags:
+    - syscall_entry
+    status: enabled
+    version: '1'
+  pattern-regex: \b(execl|execlp|execle|execv|execvp|execvpe)\s*\(
+- id: ousast.c.regex.c-shell-exec
+  languages:
+  - c
+  - cpp
+  severity: WARNING
+  message: C shell execution needs review
+  metadata:
+    family: injection
+    cwe: CWE-78
+    origin: c-shell-exec
+    precision_estimate: '0.0'
+    kind: regex
+    tags:
+    - syscall_entry
+    status: enabled
+    version: '1'
+  pattern-regex: \b(system|popen)\s*\(
+- id: ousast.c.regex.c-unsafe-copy
+  languages:
+  - c
+  - cpp
+  severity: WARNING
+  message: Unsafe C string copy needs review
+  metadata:
+    family: memory
+    cwe: CWE-121
+    origin: c-unsafe-copy
+    precision_estimate: '0.0'
+    kind: regex
+    tags:
+    - memory_unsafe
+    status: enabled
+    version: '1'
+  pattern-regex: \b(gets|strcpy|strcat|sprintf)\s*\(
+- id: ousast.c.regex.c-unsafe-format
+  languages:
+  - c
+  - cpp
+  severity: WARNING
+  message: Unsafe C format string needs review
+  metadata:
+    family: memory
+    cwe: CWE-134
+    origin: c-unsafe-format
+    precision_estimate: '0.0'
+    kind: regex
+    tags:
+    - memory_unsafe
+    status: enabled
+    version: '1'
+  pattern-regex: \b(printf|vprintf|vsprintf|vsnprintf|vfprintf|syslog)\s*\(\s*[A-Za-z_]
+- id: ousast.c.regex.c-unsafe-memory-copy
+  languages:
+  - c
+  - cpp
+  severity: WARNING
+  message: Unsafe C memory copy needs review
+  metadata:
+    family: memory
+    cwe: CWE-121
+    origin: c-unsafe-memory-copy
+    precision_estimate: '0.0'
+    kind: regex
+    tags:
+    - memory_unsafe
+    status: enabled
+    version: '1'
+  pattern-regex: \b(memcpy|memmove|bcopy)\s*\(
+- id: ousast.c.regex.c-unsafe-scanf
+  languages:
+  - c
+  - cpp
+  severity: WARNING
+  message: Unbounded C scanf needs review
+  metadata:
+    family: memory
+    cwe: CWE-121
+    origin: c-unsafe-scanf
+    precision_estimate: '0.0'
+    kind: regex
+    tags:
+    - memory_unsafe
+    status: enabled
+    version: '1'
+  pattern-regex: \b(scanf|fscanf|sscanf)\s*\([^\n]*%s
+- id: ousast.c.taint.printf
+  mode: taint
+  languages: &id001
+  - c
+  - cpp
+  severity: ERROR
+  message: 'printf: untrusted input reaches fprintf, printf, sprintf, syslog, vprintf, vsprintf'
+  metadata:
+    family: memory
+    cwe: CWE-134
+    origin: sink:c:printf
+    precision_estimate: unmeasured
+    kind: taint
+    calls:
+    - fprintf
+    - printf
+    - sprintf
+    - syslog
+    - vprintf
+    - vsprintf
+  pattern-sources:
+  - pattern-either: &id002
+    - pattern: argv
+    - pattern: argv(...)
+    - pattern: getenv
+    - pattern: getenv(...)
+    - pattern: fgets
+    - pattern: fgets(...)
+    - pattern: gets
+    - pattern: gets(...)
+    - pattern: scanf
+    - pattern: scanf(...)
+    - pattern: fscanf
+    - pattern: fscanf(...)
+  pattern-sinks:
+  - pattern-either:
+    - patterns:
+      - pattern: fprintf($FORMAT, ...)
+      - focus-metavariable: $FORMAT
+    - patterns:
+      - pattern: printf($FORMAT, ...)
+      - focus-metavariable: $FORMAT
+    - patterns:
+      - pattern: sprintf($FORMAT, ...)
+      - focus-metavariable: $FORMAT
+    - patterns:
+      - pattern: syslog($FORMAT, ...)
+      - focus-metavariable: $FORMAT
+    - patterns:
+      - pattern: vprintf($FORMAT, ...)
+      - focus-metavariable: $FORMAT
+    - patterns:
+      - pattern: vsprintf($FORMAT, ...)
+      - focus-metavariable: $FORMAT
+- id: ousast.c.taint.strcpy
+  mode: taint
+  languages: *id001
+  severity: ERROR
+  message: 'strcpy: untrusted input reaches gets, sprintf, strcat, strcpy'
+  metadata:
+    family: memory
+    cwe: CWE-121
+    origin: sink:c:strcpy
+    precision_estimate: unmeasured
+    kind: taint
+    calls:
+    - gets
+    - sprintf
+    - strcat
+    - strcpy
+  pattern-sources:
+  - pattern-either: *id002
+  pattern-sinks:
+  - pattern-either:
+    - pattern: gets(...)
+    - pattern: $OBJ.gets(...)
+    - pattern: sprintf(...)
+    - pattern: $OBJ.sprintf(...)
+    - pattern: strcat(...)
+    - pattern: $OBJ.strcat(...)
+    - pattern: strcpy(...)
+    - pattern: $OBJ.strcpy(...)
+- id: ousast.c.taint.system
+  mode: taint
+  languages: *id001
+  severity: ERROR
+  message: 'system: untrusted input reaches execl, execv, execvp, popen, system'
+  metadata:
+    family: injection
+    cwe: CWE-78
+    origin: sink:c:system
+    precision_estimate: unmeasured
+    kind: taint
+    calls:
+    - execl
+    - execv
+    - execvp
+    - popen
+    - system
+  pattern-sources:
+  - pattern-either: *id002
+  pattern-sinks:
+  - pattern-either:
+    - pattern: execl(...)
+    - pattern: $OBJ.execl(...)
+    - pattern: execv(...)
+    - pattern: $OBJ.execv(...)
+    - pattern: execvp(...)
+    - pattern: $OBJ.execvp(...)
+    - pattern: popen(...)
+    - pattern: $OBJ.popen(...)
+    - pattern: system(...)
+    - pattern: $OBJ.system(...)

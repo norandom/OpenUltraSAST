@@ -1,0 +1,679 @@
+rules:
+- id: ousast.javascript.regex.js-command-exec
+  languages:
+  - javascript
+  - typescript
+  severity: WARNING
+  message: Node child_process command execution needs review
+  metadata:
+    family: injection
+    cwe: CWE-78
+    origin: js-command-exec
+    precision_estimate: '0.0'
+    kind: regex
+    tags:
+    - syscall_entry
+    status: enabled
+    version: '1'
+  pattern-regex: \b(exec|execSync)\s*\(
+- id: ousast.javascript.regex.js-deserialize
+  languages:
+  - javascript
+  - typescript
+  severity: WARNING
+  message: JavaScript unsafe deserialization needs review
+  metadata:
+    family: deserialization
+    cwe: CWE-502
+    origin: js-deserialize
+    precision_estimate: '0.0'
+    kind: regex
+    tags:
+    - deserialization
+    status: enabled
+    version: '1'
+  pattern-regex: \b(unserialize)\s*\(
+- id: ousast.javascript.regex.js-dom-xss
+  languages:
+  - javascript
+  - typescript
+  severity: WARNING
+  message: DOM sink with untrusted input needs review
+  metadata:
+    family: output_encoding
+    cwe: CWE-79
+    origin: js-dom-xss
+    precision_estimate: '0.0'
+    kind: regex
+    tags:
+    - injection
+    status: enabled
+    version: '1'
+  pattern-regex: \.(innerHTML|outerHTML)\s*=\s*[^\n]*\b(?:req|request|location|document\.location)
+- id: ousast.javascript.regex.js-eval
+  languages:
+  - javascript
+  - typescript
+  severity: WARNING
+  message: Dynamic JavaScript evaluation needs review
+  metadata:
+    family: injection
+    cwe: CWE-95
+    origin: js-eval
+    precision_estimate: '0.0'
+    kind: regex
+    tags:
+    - syscall_entry
+    status: enabled
+    version: '1'
+  pattern-regex: \b(eval)\s*\(
+- id: ousast.javascript.regex.js-function-constructor
+  languages:
+  - javascript
+  - typescript
+  severity: WARNING
+  message: JavaScript Function constructor needs review
+  metadata:
+    family: injection
+    cwe: CWE-95
+    origin: js-function-constructor
+    precision_estimate: '0.0'
+    kind: regex
+    tags:
+    - syscall_entry
+    status: enabled
+    version: '1'
+  pattern-regex: new\s+(Function)\s*\(
+- id: ousast.javascript.regex.js-path-traversal
+  languages:
+  - javascript
+  - typescript
+  severity: WARNING
+  message: Node filesystem access with external input needs review
+  metadata:
+    family: path
+    cwe: CWE-22
+    origin: js-path-traversal
+    precision_estimate: '0.0'
+    kind: regex
+    tags:
+    - filesystem_entry
+    status: enabled
+    version: '1'
+  pattern-regex: \bfs\.(readFile|readFileSync|writeFile|writeFileSync|createReadStream|unlink|unlinkSync)\s*\(\s*[^\n]*\b(?:req|request)\.
+- id: ousast.javascript.regex.js-spawn-shell
+  languages:
+  - javascript
+  - typescript
+  severity: WARNING
+  message: Node spawn with shell needs review
+  metadata:
+    family: injection
+    cwe: CWE-78
+    origin: js-spawn-shell
+    precision_estimate: '0.0'
+    kind: regex
+    tags:
+    - syscall_entry
+    status: enabled
+    version: '1'
+  pattern-regex: \b(spawn|spawnSync)\s*\([^\n]*shell\s*:\s*true
+- id: ousast.javascript.regex.js-sql-injection
+  languages:
+  - javascript
+  - typescript
+  severity: WARNING
+  message: JavaScript SQL string composition needs review
+  metadata:
+    family: injection
+    cwe: CWE-89
+    origin: js-sql-injection
+    precision_estimate: '0.0'
+    kind: regex
+    tags:
+    - injection
+    status: enabled
+    version: '1'
+  pattern-regex: \.(query|execute)\s*\(\s*[^\n]*(?:\$\{|\+\s*[A-Za-z_$])
+- id: ousast.javascript.regex.js-ssrf
+  languages:
+  - javascript
+  - typescript
+  severity: WARNING
+  message: JavaScript outbound request with external input needs review
+  metadata:
+    family: untrusted_destination
+    cwe: CWE-918
+    origin: js-ssrf
+    precision_estimate: '0.0'
+    kind: regex
+    tags:
+    - network_entry
+    status: enabled
+    version: '1'
+  pattern-regex: \b(axios|fetch|got)\s*[.(][^\n]*\b(?:req|request)\.
+- id: ousast.javascript.regex.js-weak-hash
+  languages:
+  - javascript
+  - typescript
+  severity: WARNING
+  message: JavaScript weak hash needs review
+  metadata:
+    family: config_secrets
+    cwe: CWE-327
+    origin: js-weak-hash
+    precision_estimate: '0.0'
+    kind: regex
+    tags:
+    - crypto
+    status: enabled
+    version: '1'
+  pattern-regex: createHash\s*\(\s*[\"'](md5|sha1)[\"']
+- id: ousast.javascript.regex.js-xss-response
+  languages:
+  - javascript
+  - typescript
+  severity: WARNING
+  message: Unsanitized HTTP response reflection needs review
+  metadata:
+    family: output_encoding
+    cwe: CWE-79
+    origin: js-xss-response
+    precision_estimate: '0.0'
+    kind: regex
+    tags:
+    - injection
+    status: enabled
+    version: '1'
+  pattern-regex: \.(send|write|end)\s*\(\s*[^\n]*\b(?:req|request)\.(?:query|params|body)
+- id: ousast.javascript.taint.eval
+  mode: taint
+  languages: &id001
+  - javascript
+  - typescript
+  severity: ERROR
+  message: 'eval: untrusted input reaches eval'
+  metadata:
+    family: injection
+    cwe: CWE-95
+    origin: sink:javascript:eval
+    precision_estimate: unmeasured
+    kind: taint
+    calls:
+    - eval
+  pattern-sources:
+  - pattern-either: &id002
+    - pattern: req.query
+    - pattern: req.query(...)
+    - pattern: req.body
+    - pattern: req.body(...)
+    - pattern: req.params
+    - pattern: req.params(...)
+    - pattern: req.cookies
+    - pattern: req.cookies(...)
+    - pattern: req.headers
+    - pattern: req.headers(...)
+    - pattern: request.query
+    - pattern: request.query(...)
+    - pattern: req.url
+    - pattern: req.url(...)
+    - pattern: request.url
+    - pattern: request.url(...)
+    - pattern: req.rawHeaders
+    - pattern: req.rawHeaders(...)
+    - pattern: url.parse
+    - pattern: url.parse(...)
+    - pattern: parsedUrl
+    - pattern: $OBJ.parsedUrl
+    - pattern: parsedUrl(...)
+    - pattern: $OBJ.parsedUrl(...)
+  pattern-sinks:
+  - pattern-either:
+    - pattern: eval(...)
+    - pattern: $OBJ.eval(...)
+  pattern-sanitizers:
+  - pattern-either:
+    - &id003
+      pattern: path.normalize(...)
+    - &id004
+      pattern: path.resolve(...)
+    - &id005
+      pattern: encodeURIComponent(...)
+    - &id006
+      pattern: $OBJ.encodeURIComponent(...)
+    - &id007
+      pattern: encodeURI(...)
+    - &id008
+      pattern: $OBJ.encodeURI(...)
+    - &id009
+      pattern: escape(...)
+    - &id010
+      pattern: $OBJ.escape(...)
+    - &id011
+      pattern: escapeHtml(...)
+    - &id012
+      pattern: $OBJ.escapeHtml(...)
+    - &id013
+      pattern: sanitizeHtml(...)
+    - &id014
+      pattern: $OBJ.sanitizeHtml(...)
+    - &id015
+      pattern: DOMPurify.sanitize(...)
+- id: ousast.javascript.taint.exec
+  mode: taint
+  languages: *id001
+  severity: ERROR
+  message: 'exec: untrusted input reaches exec, execSync'
+  metadata:
+    family: injection
+    cwe: CWE-78
+    origin: sink:javascript:exec
+    precision_estimate: unmeasured
+    kind: taint
+    calls:
+    - exec
+    - execSync
+  pattern-sources:
+  - pattern-either: *id002
+  pattern-sinks:
+  - pattern-either:
+    - pattern: exec(...)
+    - pattern: $OBJ.exec(...)
+    - pattern: execSync(...)
+    - pattern: $OBJ.execSync(...)
+  pattern-sanitizers:
+  - pattern-either:
+    - *id003
+    - *id004
+    - *id005
+    - *id006
+    - *id007
+    - *id008
+    - *id009
+    - *id010
+    - *id011
+    - *id012
+    - *id013
+    - *id014
+    - *id015
+- id: ousast.javascript.taint.html-response
+  mode: taint
+  languages: *id001
+  severity: ERROR
+  message: 'html.response: untrusted input reaches res.end, res.send, res.write, response.end, response.send, response.write'
+  metadata:
+    family: output_encoding
+    cwe: CWE-79
+    origin: sink:javascript:html.response
+    precision_estimate: unmeasured
+    kind: taint
+    calls:
+    - res.end
+    - res.send
+    - res.write
+    - response.end
+    - response.send
+    - response.write
+  pattern-sources:
+  - pattern-either: *id002
+  pattern-sinks:
+  - pattern-either:
+    - pattern: res.end(...)
+    - pattern: res.send(...)
+    - pattern: res.write(...)
+    - pattern: response.end(...)
+    - pattern: response.send(...)
+    - pattern: response.write(...)
+  pattern-sanitizers:
+  - pattern-either:
+    - *id003
+    - *id004
+    - *id005
+    - *id006
+    - *id007
+    - *id008
+    - *id009
+    - *id010
+    - *id011
+    - *id012
+    - *id013
+    - *id014
+    - *id015
+- id: ousast.javascript.taint.html-unescaped
+  mode: taint
+  languages: *id001
+  severity: ERROR
+  message: 'html.unescaped: untrusted input reaches dangerouslySetInnerHTML, document.write, innerHTML, insertAdjacentHTML, outerHTML, v-html'
+  metadata:
+    family: output_encoding
+    cwe: CWE-79
+    origin: sink:javascript:html.unescaped
+    precision_estimate: unmeasured
+    kind: taint
+    calls:
+    - dangerouslySetInnerHTML
+    - document.write
+    - innerHTML
+    - insertAdjacentHTML
+    - outerHTML
+    - v-html
+  pattern-sources:
+  - pattern-either: *id002
+  pattern-sinks:
+  - pattern-either:
+    - patterns:
+      - pattern: '{__html: $VALUE}'
+      - focus-metavariable: $VALUE
+    - pattern: document.write(...)
+    - patterns:
+      - pattern: $OBJ.innerHTML = $VALUE
+      - focus-metavariable: $VALUE
+    - pattern: insertAdjacentHTML(...)
+    - pattern: $OBJ.insertAdjacentHTML(...)
+    - patterns:
+      - pattern: $OBJ.outerHTML = $VALUE
+      - focus-metavariable: $VALUE
+  pattern-sanitizers:
+  - pattern-either:
+    - *id003
+    - *id004
+    - *id005
+    - *id006
+    - *id007
+    - *id008
+    - *id009
+    - *id010
+    - *id011
+    - *id012
+    - *id013
+    - *id014
+    - *id015
+- id: ousast.javascript.taint.outbound-request
+  mode: taint
+  languages: *id001
+  severity: ERROR
+  message: 'outbound.request: untrusted input reaches axios, fetch, got, http.get, http.request, https.get, https.request, needle, request, superagent, undici, unirest'
+  metadata:
+    family: untrusted_destination
+    cwe: CWE-918
+    origin: sink:javascript:outbound.request
+    precision_estimate: unmeasured
+    kind: taint
+    calls:
+    - axios
+    - fetch
+    - got
+    - http.get
+    - http.request
+    - https.get
+    - https.request
+    - needle
+    - request
+    - superagent
+    - undici
+    - unirest
+  pattern-sources:
+  - pattern-either: *id002
+  pattern-sinks:
+  - pattern-either:
+    - pattern: axios(...)
+    - pattern: $OBJ.axios(...)
+    - pattern: fetch(...)
+    - pattern: $OBJ.fetch(...)
+    - pattern: got(...)
+    - pattern: $OBJ.got(...)
+    - pattern: http.get(...)
+    - pattern: http.request(...)
+    - pattern: https.get(...)
+    - pattern: https.request(...)
+    - pattern: needle(...)
+    - pattern: $OBJ.needle(...)
+    - pattern: request(...)
+    - pattern: $OBJ.request(...)
+    - pattern: superagent(...)
+    - pattern: $OBJ.superagent(...)
+    - pattern: undici(...)
+    - pattern: $OBJ.undici(...)
+    - pattern: unirest(...)
+    - pattern: $OBJ.unirest(...)
+  pattern-sanitizers:
+  - pattern-either:
+    - *id003
+    - *id004
+    - *id005
+    - *id006
+    - *id007
+    - *id008
+    - *id009
+    - *id010
+    - *id011
+    - *id012
+    - *id013
+    - *id014
+    - *id015
+- id: ousast.javascript.taint.path-open
+  mode: taint
+  languages: *id001
+  severity: ERROR
+  message: 'path.open: untrusted input reaches createReadStream, readFile, readFileSync, sendFile, unlink, unlinkSync'
+  metadata:
+    family: path
+    cwe: CWE-22
+    origin: sink:javascript:path.open
+    precision_estimate: unmeasured
+    kind: taint
+    calls:
+    - createReadStream
+    - readFile
+    - readFileSync
+    - sendFile
+    - unlink
+    - unlinkSync
+  pattern-sources:
+  - pattern-either: *id002
+  pattern-sinks:
+  - pattern-either:
+    - pattern: createReadStream(...)
+    - pattern: $OBJ.createReadStream(...)
+    - pattern: readFile(...)
+    - pattern: $OBJ.readFile(...)
+    - pattern: readFileSync(...)
+    - pattern: $OBJ.readFileSync(...)
+    - pattern: sendFile(...)
+    - pattern: $OBJ.sendFile(...)
+    - pattern: unlink(...)
+    - pattern: $OBJ.unlink(...)
+    - pattern: unlinkSync(...)
+    - pattern: $OBJ.unlinkSync(...)
+  pattern-sanitizers:
+  - pattern-either:
+    - *id003
+    - *id004
+    - *id005
+    - *id006
+    - *id007
+    - *id008
+    - *id009
+    - *id010
+    - *id011
+    - *id012
+    - *id013
+    - *id014
+    - *id015
+- id: ousast.javascript.taint.prototype-merge
+  mode: taint
+  languages: *id001
+  severity: ERROR
+  message: 'prototype.merge: untrusted input reaches Object.assign, defaultsDeep, extend, merge, mergeDeep, set, setWith'
+  metadata:
+    family: prototype
+    cwe: CWE-1321
+    origin: sink:javascript:prototype.merge
+    precision_estimate: unmeasured
+    kind: taint
+    calls:
+    - Object.assign
+    - defaultsDeep
+    - extend
+    - merge
+    - mergeDeep
+    - set
+    - setWith
+  pattern-sources:
+  - pattern-either: *id002
+  pattern-sinks:
+  - pattern-either:
+    - pattern: Object.assign(...)
+    - pattern: defaultsDeep(...)
+    - pattern: $OBJ.defaultsDeep(...)
+    - pattern: extend(...)
+    - pattern: $OBJ.extend(...)
+    - pattern: merge(...)
+    - pattern: $OBJ.merge(...)
+    - pattern: mergeDeep(...)
+    - pattern: $OBJ.mergeDeep(...)
+    - pattern: set(...)
+    - pattern: $OBJ.set(...)
+    - pattern: setWith(...)
+    - pattern: $OBJ.setWith(...)
+  pattern-sanitizers:
+  - pattern-either:
+    - *id003
+    - *id004
+    - *id005
+    - *id006
+    - *id007
+    - *id008
+    - *id009
+    - *id010
+    - *id011
+    - *id012
+    - *id013
+    - *id014
+    - *id015
+- id: ousast.javascript.taint.query
+  mode: taint
+  languages: *id001
+  severity: ERROR
+  message: 'query: untrusted input reaches execute, query'
+  metadata:
+    family: injection
+    cwe: CWE-89
+    origin: sink:javascript:query
+    precision_estimate: unmeasured
+    kind: taint
+    calls:
+    - execute
+    - query
+  pattern-sources:
+  - pattern-either: *id002
+  pattern-sinks:
+  - pattern-either:
+    - patterns:
+      - pattern: execute($QUERY)
+      - focus-metavariable: $QUERY
+    - patterns:
+      - pattern: $OBJ.execute($QUERY)
+      - focus-metavariable: $QUERY
+    - patterns:
+      - pattern: query($QUERY)
+      - focus-metavariable: $QUERY
+    - patterns:
+      - pattern: $OBJ.query($QUERY)
+      - focus-metavariable: $QUERY
+  pattern-sanitizers:
+  - pattern-either:
+    - *id003
+    - *id004
+    - *id005
+    - *id006
+    - *id007
+    - *id008
+    - *id009
+    - *id010
+    - *id011
+    - *id012
+    - *id013
+    - *id014
+    - *id015
+- id: ousast.javascript.taint.redirect
+  mode: taint
+  languages: *id001
+  severity: ERROR
+  message: 'redirect: untrusted input reaches location.assign, location.replace, redirect'
+  metadata:
+    family: untrusted_destination
+    cwe: CWE-601
+    origin: sink:javascript:redirect
+    precision_estimate: unmeasured
+    kind: taint
+    calls:
+    - location.assign
+    - location.replace
+    - redirect
+  pattern-sources:
+  - pattern-either: *id002
+  pattern-sinks:
+  - pattern-either:
+    - pattern: location.assign(...)
+    - pattern: location.replace(...)
+    - pattern: redirect(...)
+    - pattern: $OBJ.redirect(...)
+  pattern-sanitizers:
+  - pattern-either:
+    - *id003
+    - *id004
+    - *id005
+    - *id006
+    - *id007
+    - *id008
+    - *id009
+    - *id010
+    - *id011
+    - *id012
+    - *id013
+    - *id014
+    - *id015
+- id: ousast.javascript.taint.vm-eval
+  mode: taint
+  languages: *id001
+  severity: ERROR
+  message: 'vm.eval: untrusted input reaches compileFunction, runInContext, runInNewContext, runInThisContext'
+  metadata:
+    family: injection
+    cwe: CWE-95
+    origin: sink:javascript:vm.eval
+    precision_estimate: unmeasured
+    kind: taint
+    calls:
+    - compileFunction
+    - runInContext
+    - runInNewContext
+    - runInThisContext
+  pattern-sources:
+  - pattern-either: *id002
+  pattern-sinks:
+  - pattern-either:
+    - pattern: compileFunction(...)
+    - pattern: $OBJ.compileFunction(...)
+    - pattern: runInContext(...)
+    - pattern: $OBJ.runInContext(...)
+    - pattern: runInNewContext(...)
+    - pattern: $OBJ.runInNewContext(...)
+    - pattern: runInThisContext(...)
+    - pattern: $OBJ.runInThisContext(...)
+  pattern-sanitizers:
+  - pattern-either:
+    - *id003
+    - *id004
+    - *id005
+    - *id006
+    - *id007
+    - *id008
+    - *id009
+    - *id010
+    - *id011
+    - *id012
+    - *id013
+    - *id014
+    - *id015

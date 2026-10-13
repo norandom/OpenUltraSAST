@@ -1,0 +1,647 @@
+rules:
+- id: ousast.php.regex.php-wpdb-sql-composition
+  languages:
+  - php
+  severity: WARNING
+  message: WordPress $wpdb query composed from a variable without $wpdb->prepare
+  metadata:
+    family: injection
+    cwe: CWE-89
+    origin: php-wpdb-sql-composition
+    precision_estimate: '0.032'
+    kind: regex
+    tags:
+    - injection
+    status: enabled
+    version: '1'
+  pattern-regex: \$wpdb->(get_var|get_results|get_row|get_col|query|replace)\s*\(\s*(?!\$wpdb->prepare)(?:"[^"\n]*\{?\$(?!wpdb->)[A-Za-z_]|[^\n;]*?["']\s*\.\s*\$(?!wpdb->)[A-Za-z_]|[^\n;]*?\$_(?:GET|POST|REQUEST|COOKIE)\b)
+- id: ousast.php.regex.php-sql-unquoted-concat
+  languages:
+  - php
+  severity: WARNING
+  message: PHP SQL literal concatenates a variable into an unquoted position
+  metadata:
+    family: injection
+    cwe: CWE-89
+    origin: php-sql-unquoted-concat
+    precision_estimate: '0.034'
+    kind: regex
+    tags:
+    - injection
+    status: enabled
+    version: '1'
+  pattern-regex: (?<![$\w>])(?=(VALUES|IN|ORDER|GROUP|LIMIT|OFFSET|WHERE|AND|OR|SET|HAVING)\b)(?:(?:VALUES|IN)\s*\(|(?:ORDER|GROUP)\s+BY\b[^"'\n]*|(?:LIMIT|OFFSET)\s+(?:\d+\s*,\s*)?|(?:WHERE|AND|OR|SET|HAVING)\s+[\w.`]+\s*(?:=|<>|!=|<=|>=|<|>|LIKE)\s*)["']\s*\.\s*\$(?!wpdb->)(?!\w*(?:format|placeholder))[A-Za-z_]
+- id: ousast.php.regex.php-sql-unquoted-interpolation
+  languages:
+  - php
+  severity: WARNING
+  message: PHP SQL string interpolates a variable into an unquoted position
+  metadata:
+    family: injection
+    cwe: CWE-89
+    origin: php-sql-unquoted-interpolation
+    precision_estimate: '0.129'
+    kind: regex
+    tags:
+    - injection
+    status: enabled
+    version: '1'
+  pattern-regex: (?<![$\w>])(?=(VALUES|IN|ORDER|GROUP|LIMIT|OFFSET|WHERE|AND|OR|SET|HAVING)\b)(?:(?:VALUES|IN)\s*\(\s*|(?:ORDER|GROUP)\s+BY\b[^"'\n;]*?|(?:LIMIT|OFFSET)\s+(?:\d+\s*,\s*)?|(?:WHERE|AND|OR|SET|HAVING)\s+[\w.`]+\s*(?:=|<>|!=|<=|>=|<|>|LIKE)\s*)\{?\$(?!wpdb->)(?!\w*(?:format|placeholder))[A-Za-z_]
+- id: ousast.php.regex.php-sql-sprintf-unescaped
+  languages:
+  - php
+  severity: WARNING
+  message: PHP sprintf-built SQL with an unescaped %s value
+  metadata:
+    family: injection
+    cwe: CWE-89
+    origin: php-sql-sprintf-unescaped
+    precision_estimate: '0.109'
+    kind: regex
+    tags:
+    - injection
+    status: enabled
+    version: '1'
+  pattern-regex: (sprintf)\(\s*["']\s*(?:SELECT|INSERT|UPDATE|DELETE|REPLACE)\b(?=(?:(?!\);)[\s\S])*?'%s')(?=(?:(?![Ee]scape|quote\(|intval\(|absint\(|\(int\)|esc_sql\()[\s\S])*?\);)
+- id: ousast.php.regex.php-command-injection
+  languages:
+  - php
+  severity: WARNING
+  message: PHP shell command built from a variable without escapeshellarg
+  metadata:
+    family: injection
+    cwe: CWE-78
+    origin: php-command-injection
+    precision_estimate: '1.0'
+    kind: regex
+    tags:
+    - syscall_entry
+    status: enabled
+    version: '1'
+  pattern-regex: (?<![\w>:$\\])(?<!function )(system|exec|shell_exec|passthru|popen|proc_open|pcntl_exec)\s*\((?![^\n]*escapeshell(?:arg|cmd)\s*\()[^,\n;]*\$[A-Za-z_]
+- id: ousast.php.regex.php-file-inclusion-input
+  languages:
+  - php
+  severity: WARNING
+  message: PHP include/require of a path from request input
+  metadata:
+    family: path
+    cwe: CWE-98
+    origin: php-file-inclusion-input
+    precision_estimate: '0.5'
+    kind: regex
+    tags:
+    - filesystem_entry
+    status: enabled
+    version: '1'
+  pattern-regex: (?m)^(?![^\n]*\b(?:basename|realpath)\s*\()[^\n]*?(?<![\w'"$>:-])(include|include_once|require|require_once)\b(?!['"\]])\s*\(?[^\n;]*\$_(?:GET|POST|REQUEST|COOKIE)\b
+- id: ousast.php.regex.php-path-input
+  languages:
+  - php
+  severity: WARNING
+  message: PHP filesystem call on a path from request input
+  metadata:
+    family: path
+    cwe: CWE-22
+    origin: php-path-input
+    precision_estimate: '1.0'
+    kind: regex
+    tags:
+    - filesystem_entry
+    status: enabled
+    version: '1'
+  pattern-regex: (?m)^(?![^\n]*\b(?:basename|realpath)\s*\()[^\n]*?(?<![\w>:$\\])(fopen|file_get_contents|file_put_contents|readfile|unlink|copy|rename|scandir|opendir|mkdir|rmdir|move_uploaded_file)\s*\([^\n;]*\$_(?:GET|POST|REQUEST|COOKIE)\b
+- id: ousast.php.regex.php-ssrf-input
+  languages:
+  - php
+  severity: WARNING
+  message: PHP outbound request to a URL from request input
+  metadata:
+    family: untrusted_destination
+    cwe: CWE-918
+    origin: php-ssrf-input
+    precision_estimate: '1.0'
+    kind: regex
+    tags:
+    - network_entry
+    status: enabled
+    version: '1'
+  pattern-regex: (?<![\w>:$\\])(curl_init|curl_setopt|fsockopen|stream_socket_client|get_headers)\s*\([^\n;]*\$_(?:GET|POST|REQUEST|COOKIE)\b
+- id: ousast.php.regex.php-open-redirect
+  languages:
+  - php
+  severity: WARNING
+  message: PHP Location header from request input
+  metadata:
+    family: untrusted_destination
+    cwe: CWE-601
+    origin: php-open-redirect
+    precision_estimate: '1.0'
+    kind: regex
+    tags:
+    - injection
+    status: enabled
+    version: '1'
+  pattern-regex: (?<![\w>:$\\])(header)\s*\(\s*["']Location:[^\n;]*(?:\$_(?:GET|POST|REQUEST|COOKIE)\b|HTTP_REFERER)
+- id: ousast.php.taint.code_eval
+  mode: taint
+  languages: &id001
+  - php
+  severity: ERROR
+  message: 'code_eval: untrusted input reaches assert, create_function, eval'
+  metadata:
+    family: injection
+    cwe: CWE-95
+    origin: sink:php:code_eval
+    precision_estimate: unmeasured
+    kind: taint
+    calls:
+    - assert
+    - create_function
+    - eval
+  pattern-sources:
+  - pattern-either: &id002
+    - pattern: $_GET
+    - pattern: $_GET[...]
+    - pattern: $_POST
+    - pattern: $_POST[...]
+    - pattern: $_REQUEST
+    - pattern: $_REQUEST[...]
+    - pattern: $_COOKIE
+    - pattern: $_COOKIE[...]
+    - pattern: $_FILES
+    - pattern: $_FILES[...]
+    - pattern: $_SERVER
+    - pattern: $_SERVER[...]
+    - pattern: file_get_contents("php://input")
+  pattern-sinks:
+  - pattern-either:
+    - pattern: assert(...)
+    - pattern: create_function(...)
+    - pattern: eval(...)
+  pattern-sanitizers:
+  - pattern-either:
+    - &id003
+      pattern: htmlspecialchars(...)
+    - &id004
+      pattern: htmlentities(...)
+    - &id005
+      pattern: html_entity_decode_safe(...)
+    - &id006
+      pattern: mysqli_real_escape_string(...)
+    - &id007
+      pattern: mysql_real_escape_string(...)
+    - &id008
+      pattern: pg_escape_string(...)
+    - &id009
+      pattern: esc_sql(...)
+    - &id010
+      pattern: pg_escape_literal(...)
+    - &id011
+      pattern: $wpdb->prepare(...)
+    - &id012
+      pattern: escapeshellarg(...)
+    - &id013
+      pattern: escapeshellcmd(...)
+    - &id014
+      pattern: basename(...)
+    - &id015
+      pattern: realpath(...)
+    - &id016
+      pattern: intval(...)
+    - &id017
+      pattern: floatval(...)
+    - &id018
+      pattern: filter_var(...)
+    - &id019
+      pattern: settype(...)
+    - &id020
+      pattern: absint(...)
+- id: ousast.php.taint.command
+  mode: taint
+  languages: *id001
+  severity: ERROR
+  message: 'command: untrusted input reaches exec, passthru, pcntl_exec, popen, proc_open, shell_exec, system'
+  metadata:
+    family: injection
+    cwe: CWE-78
+    origin: sink:php:command
+    precision_estimate: unmeasured
+    kind: taint
+    calls:
+    - exec
+    - passthru
+    - pcntl_exec
+    - popen
+    - proc_open
+    - shell_exec
+    - system
+  pattern-sources:
+  - pattern-either: *id002
+  pattern-sinks:
+  - pattern-either:
+    - pattern: exec(...)
+    - pattern: passthru(...)
+    - pattern: pcntl_exec(...)
+    - pattern: popen(...)
+    - pattern: proc_open(...)
+    - pattern: shell_exec(...)
+    - pattern: system(...)
+  pattern-sanitizers:
+  - pattern-either:
+    - *id003
+    - *id004
+    - *id005
+    - *id006
+    - *id007
+    - *id008
+    - *id009
+    - *id010
+    - *id011
+    - *id012
+    - *id013
+    - *id014
+    - *id015
+    - *id016
+    - *id017
+    - *id018
+    - *id019
+    - *id020
+- id: ousast.php.taint.echo
+  mode: taint
+  languages: *id001
+  severity: ERROR
+  message: 'echo: untrusted input reaches echo, fwrite, print, print_r, printf, var_dump, vprintf'
+  metadata:
+    family: output_encoding
+    cwe: CWE-79
+    origin: sink:php:echo
+    precision_estimate: unmeasured
+    kind: taint
+    calls:
+    - echo
+    - fwrite
+    - print
+    - print_r
+    - printf
+    - var_dump
+    - vprintf
+  pattern-sources:
+  - pattern-either: *id002
+  pattern-sinks:
+  - pattern-either:
+    - pattern: echo $VALUE;
+    - pattern: fwrite(...)
+    - pattern: print $VALUE;
+    - pattern: print_r(...)
+    - pattern: printf(...)
+    - pattern: var_dump(...)
+    - pattern: vprintf(...)
+  pattern-sanitizers:
+  - pattern-either:
+    - *id003
+    - *id004
+    - *id005
+    - *id006
+    - *id007
+    - *id008
+    - *id009
+    - *id010
+    - *id011
+    - *id012
+    - *id013
+    - *id014
+    - *id015
+    - *id016
+    - *id017
+    - *id018
+    - *id019
+    - *id020
+- id: ousast.php.taint.file_inclusion
+  mode: taint
+  languages: *id001
+  severity: ERROR
+  message: 'file_inclusion: untrusted input reaches include, include_once, require, require_once'
+  metadata:
+    family: path
+    cwe: CWE-98
+    origin: sink:php:file_inclusion
+    precision_estimate: unmeasured
+    kind: taint
+    calls:
+    - include
+    - include_once
+    - require
+    - require_once
+  pattern-sources:
+  - pattern-either: *id002
+  pattern-sinks:
+  - pattern-either:
+    - pattern: include ...
+    - pattern: include_once ...
+    - pattern: require ...
+    - pattern: require_once ...
+  pattern-sanitizers:
+  - pattern-either:
+    - *id003
+    - *id004
+    - *id005
+    - *id006
+    - *id007
+    - *id008
+    - *id009
+    - *id010
+    - *id011
+    - *id012
+    - *id013
+    - *id014
+    - *id015
+    - *id016
+    - *id017
+    - *id018
+    - *id019
+    - *id020
+- id: ousast.php.taint.filesystem
+  mode: taint
+  languages: *id001
+  severity: ERROR
+  message: 'filesystem: untrusted input reaches copy, file_get_contents, file_put_contents, fopen, mkdir, move_uploaded_file, opendir, readfile, rename, rmdir, scandir, unlink'
+  metadata:
+    family: path
+    cwe: CWE-22
+    origin: sink:php:filesystem
+    precision_estimate: unmeasured
+    kind: taint
+    calls:
+    - copy
+    - file_get_contents
+    - file_put_contents
+    - fopen
+    - mkdir
+    - move_uploaded_file
+    - opendir
+    - readfile
+    - rename
+    - rmdir
+    - scandir
+    - unlink
+  pattern-sources:
+  - pattern-either: *id002
+  pattern-sinks:
+  - pattern-either:
+    - pattern: copy(...)
+    - pattern: file_get_contents(...)
+    - pattern: file_put_contents(...)
+    - pattern: fopen(...)
+    - pattern: mkdir(...)
+    - pattern: move_uploaded_file(...)
+    - pattern: opendir(...)
+    - pattern: readfile(...)
+    - pattern: rename(...)
+    - pattern: rmdir(...)
+    - pattern: scandir(...)
+    - pattern: unlink(...)
+  pattern-sanitizers:
+  - pattern-either:
+    - *id003
+    - *id004
+    - *id005
+    - *id006
+    - *id007
+    - *id008
+    - *id009
+    - *id010
+    - *id011
+    - *id012
+    - *id013
+    - *id014
+    - *id015
+    - *id016
+    - *id017
+    - *id018
+    - *id019
+    - *id020
+- id: ousast.php.taint.outbound_request
+  mode: taint
+  languages: *id001
+  severity: ERROR
+  message: 'outbound_request: untrusted input reaches curl_exec, curl_setopt, fsockopen, get_headers, stream_socket_client'
+  metadata:
+    family: untrusted_destination
+    cwe: CWE-918
+    origin: sink:php:outbound_request
+    precision_estimate: unmeasured
+    kind: taint
+    calls:
+    - curl_exec
+    - curl_setopt
+    - fsockopen
+    - get_headers
+    - stream_socket_client
+  pattern-sources:
+  - pattern-either: *id002
+  pattern-sinks:
+  - pattern-either:
+    - pattern: curl_exec(...)
+    - pattern: curl_setopt(...)
+    - pattern: fsockopen(...)
+    - pattern: get_headers(...)
+    - pattern: stream_socket_client(...)
+  pattern-sanitizers:
+  - pattern-either:
+    - *id003
+    - *id004
+    - *id005
+    - *id006
+    - *id007
+    - *id008
+    - *id009
+    - *id010
+    - *id011
+    - *id012
+    - *id013
+    - *id014
+    - *id015
+    - *id016
+    - *id017
+    - *id018
+    - *id019
+    - *id020
+- id: ousast.php.taint.redirect
+  mode: taint
+  languages: *id001
+  severity: ERROR
+  message: 'redirect: untrusted input reaches header'
+  metadata:
+    family: untrusted_destination
+    cwe: CWE-601
+    origin: sink:php:redirect
+    precision_estimate: unmeasured
+    kind: taint
+    calls:
+    - header
+  pattern-sources:
+  - pattern-either: *id002
+  pattern-sinks:
+  - pattern-either:
+    - pattern: header(...)
+  pattern-sanitizers:
+  - pattern-either:
+    - *id003
+    - *id004
+    - *id005
+    - *id006
+    - *id007
+    - *id008
+    - *id009
+    - *id010
+    - *id011
+    - *id012
+    - *id013
+    - *id014
+    - *id015
+    - *id016
+    - *id017
+    - *id018
+    - *id019
+    - *id020
+- id: ousast.php.taint.sql
+  mode: taint
+  languages: *id001
+  severity: ERROR
+  message: 'sql: untrusted input reaches mysql_query, mysqli_multi_query, mysqli_query, mysqli_real_query, pg_query, pg_send_query, sqlite_query, sqlite_unbuffered_query'
+  metadata:
+    family: injection
+    cwe: CWE-89
+    origin: sink:php:sql
+    precision_estimate: unmeasured
+    kind: taint
+    calls:
+    - mysql_query
+    - mysqli_multi_query
+    - mysqli_query
+    - mysqli_real_query
+    - pg_query
+    - pg_send_query
+    - sqlite_query
+    - sqlite_unbuffered_query
+  pattern-sources:
+  - pattern-either: *id002
+  pattern-sinks:
+  - pattern-either:
+    - pattern: mysql_query(...)
+    - pattern: mysqli_multi_query(...)
+    - pattern: mysqli_query(...)
+    - pattern: mysqli_real_query(...)
+    - pattern: pg_query(...)
+    - pattern: pg_send_query(...)
+    - pattern: sqlite_query(...)
+    - pattern: sqlite_unbuffered_query(...)
+  pattern-sanitizers:
+  - pattern-either:
+    - *id003
+    - *id004
+    - *id005
+    - *id006
+    - *id007
+    - *id008
+    - *id009
+    - *id010
+    - *id011
+    - *id012
+    - *id013
+    - *id014
+    - *id015
+    - *id016
+    - *id017
+    - *id018
+    - *id019
+    - *id020
+- id: ousast.php.taint.unserialize
+  mode: taint
+  languages: *id001
+  severity: ERROR
+  message: 'unserialize: untrusted input reaches maybe_unserialize, unserialize'
+  metadata:
+    family: deserialization
+    cwe: CWE-502
+    origin: sink:php:unserialize
+    precision_estimate: unmeasured
+    kind: taint
+    calls:
+    - maybe_unserialize
+    - unserialize
+  pattern-sources:
+  - pattern-either: *id002
+  pattern-sinks:
+  - pattern-either:
+    - pattern: maybe_unserialize(...)
+    - pattern: unserialize(...)
+  pattern-sanitizers:
+  - pattern-either:
+    - *id003
+    - *id004
+    - *id005
+    - *id006
+    - *id007
+    - *id008
+    - *id009
+    - *id010
+    - *id011
+    - *id012
+    - *id013
+    - *id014
+    - *id015
+    - *id016
+    - *id017
+    - *id018
+    - *id019
+    - *id020
+- id: ousast.php.taint.wpdb
+  mode: taint
+  languages: *id001
+  severity: ERROR
+  message: 'wpdb: untrusted input reaches $wpdb->get_col, $wpdb->get_results, $wpdb->get_row, $wpdb->get_var, $wpdb->query, $wpdb->replace'
+  metadata:
+    family: injection
+    cwe: CWE-89
+    origin: sink:php:wpdb
+    precision_estimate: unmeasured
+    kind: taint
+    calls:
+    - $wpdb->get_col
+    - $wpdb->get_results
+    - $wpdb->get_row
+    - $wpdb->get_var
+    - $wpdb->query
+    - $wpdb->replace
+  pattern-sources:
+  - pattern-either: *id002
+  pattern-sinks:
+  - pattern-either:
+    - pattern: $wpdb->get_col(...)
+    - pattern: $wpdb->get_results(...)
+    - pattern: $wpdb->get_row(...)
+    - pattern: $wpdb->get_var(...)
+    - pattern: $wpdb->query(...)
+    - pattern: $wpdb->replace(...)
+  pattern-sanitizers:
+  - pattern-either:
+    - *id003
+    - *id004
+    - *id005
+    - *id006
+    - *id007
+    - *id008
+    - *id009
+    - *id010
+    - *id011
+    - *id012
+    - *id013
+    - *id014
+    - *id015
+    - *id016
+    - *id017
+    - *id018
+    - *id019
+    - *id020

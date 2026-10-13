@@ -1,0 +1,21 @@
+rules:
+- id: ousast.groovy.regex.groovy-xss-unescaped
+  languages:
+  - generic
+  severity: WARNING
+  message: Groovy template unescaped output needs review
+  metadata:
+    family: output_encoding
+    cwe: CWE-79
+    origin: groovy-xss-unescaped
+    precision_estimate: '0.0'
+    kind: regex
+    tags:
+    - injection
+    status: enabled
+    version: '1'
+  pattern-regex: (yieldUnescaped)\s+[A-Za-z_]
+  paths:
+    include:
+    - '*.groovy'
+    - '*.tpl'

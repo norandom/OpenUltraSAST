@@ -1,0 +1,58 @@
+{
+  "exploit_verified": {
+    "count": 0,
+    "flagged_positive_pushes": 3,
+    "flagged_positives": 5,
+    "n": 0,
+    "not_yet_proved": [
+      "bytebase-dbhub-f2624a2ead8d31ca",
+      "imzbf-md-editor-v3-14658213915dbde5",
+      "imzbf-md-editor-v3-b9c833a3524a57a9",
+      "zereight-gitlab-mcp-2367b459f8c3802b",
+      "zereight-gitlab-mcp-768c7d5a32ccc95b"
+    ],
+    "rate": null,
+    "status": "not yet proved",
+    "wilson95": [
+      null,
+      null
+    ]
+  },
+  "false_alarms_per_100_pushes": {
+    "cluster95": [
+      3.75,
+      23.430962343096233
+    ],
+    "count": 30,
+    "icc": 0.27735846730536884,
+    "n": 239,
+    "rate": 12.552301255230125,
+    "wilson95": [
+      8.93573620529521,
+      17.35366396337441
+    ]
+  },
+  "headline": "On unseen app repos: recall 0.0% (Wilson 0.0-24.3), false alarms 12.6 per 100 pushes, precision 0.0%; exploit-verified 0 of 5 (5 not yet proved).",
+  "precision": {
+    "count": 0,
+    "n": 33,
+    "rate": 0.0,
+    "wilson95": [
+      0,
+      0.10427343003561192
+    ]
+  },
+  "recall": {
+    "cluster95": [
+      0.0,
+      0.0
+    ],
+    "count": 0,
+    "n": 12,
+    "rate": 0.0,
+    "wilson95": [
+      0,
+      0.2425007574992425
+    ]
+  }
+}
