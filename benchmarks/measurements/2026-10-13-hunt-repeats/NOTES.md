@@ -77,3 +77,20 @@ Neither arm ever caught three of the changes (dbhub, matrix-appservice-bridge, g
 - `analyse.py`: the pre-registered analysis.
 - `analysis.json`: its output on the five repeats.
 - Raw runs (records, logs, per-run caches): `~/ousast-results/hunt/repeats/{dspy,hunter}-{1..5}`.
+
+## After the loop parse fix (455637b)
+
+DSPy runs 1-4 were re-run with the fix, each on a copy of its own response cache (`~/ousast-results/hunt/repeats/fixed-{1..4}`).
+Run 5 had no failures. This is a follow-up, not part of the pre-registered comparison above.
+
+- **Replay check:** every change that had not failed replayed from the cache with the same outcome as before. The cache
+  replay is exact, and the fix changes nothing else.
+- **The 7 failed hunts:**
+  - 6 now end the loop early and still give an answer (`loop_parse_failed` set).
+  - 2 of those answers are hits (415e1c7c and a318f3e3, both in run 2).
+  - 1 hunt (fe1cccd1 in run 4) also produced an unreadable final answer, so it is still empty (`parse_failed`).
+- **DSPy recall with the fix:** 20/60 = 33%, against 52% for the pilot hunter. The conclusion above stands.
+- **Cost of the re-run:** 163k prompt tokens (110k from the provider's cache) and 78k completion tokens, about $0.13.
+
+fe1cccd1 failed in 3 of 5 runs. It is the change with the 453 KB `index.ts`, where the model writes a fake step history
+instead of a step.
