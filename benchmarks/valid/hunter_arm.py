@@ -351,7 +351,7 @@ def _extend_defects(existing, extra):
     return merged
 
 
-def combine(replay_out, hunter_out, out):
+def combine(replay_out, hunter_out, out, *, keep_verdicts=None):
     """Preserve replay coverage while adding independently detected hunter defects."""
     a = _joined(replay_out)
     b = _joined(hunter_out) if (hunter_out / "inputs.json").exists() else {}
@@ -359,13 +359,30 @@ def combine(replay_out, hunter_out, out):
     for identity, left in a.items():
         right = b.get(identity, {})
         has_a, has_b = "push" in left, "push" in right
+        hunter_defects = right.get("push", {}).get("admission", {}).get("defects", [])
+        hunter_defects_total = sum(defect.get("source") == "hunter" for defect in hunter_defects)
+        kept_defects = [
+            defect
+            for defect in hunter_defects
+            if keep_verdicts is None
+            or defect.get("source") != "hunter"
+            or (defect.get("classifier") or {}).get("verdict", "unsure") in keep_verdicts
+        ]
+        hunter_defects_kept = sum(defect.get("source") == "hunter" for defect in kept_defects)
         merged = deepcopy(left if has_a or not has_b else right)
         if has_a and has_b:
             admission = merged["push"].setdefault("admission", {})
             admission["defects"] = _extend_defects(
                 admission.get("defects", []),
-                right["push"].get("admission", {}).get("defects", []),
+                kept_defects,
             )
+        elif has_b and hunter_defects_kept != hunter_defects_total:
+            merged["push"]["admission"]["defects"] = deepcopy(kept_defects)
+        merged.setdefault("combine", {}).update(
+            keep_verdicts=list(keep_verdicts) if keep_verdicts is not None else None,
+            hunter_defects_total=hunter_defects_total,
+            hunter_defects_kept=hunter_defects_kept,
+        )
         merged["arms"] = {
             "a": left.get("status", "missing") if has_a else "missing",
             "b": right.get("status", "missing") if has_b else "missing",
@@ -373,6 +390,13 @@ def combine(replay_out, hunter_out, out):
         combined.append(merged)
     _write_json(out, combined)
     return combined
+
+
+def _keep_verdicts(value):
+    verdicts = list(dict.fromkeys(verdict.strip() for verdict in value.split(",")))
+    if any(verdict not in ("vulnerable", "not_vulnerable", "unsure") for verdict in verdicts):
+        raise argparse.ArgumentTypeError("Expected a comma-separated list of vulnerable, not_vulnerable, unsure")
+    return verdicts
 
 
 def main(argv=None):
@@ -391,9 +415,12 @@ def main(argv=None):
     join.add_argument("replay_out", type=Path)
     join.add_argument("hunter_out", type=Path)
     join.add_argument("--out", type=Path, required=True)
+    join.add_argument(
+        "--keep-verdicts", type=_keep_verdicts, help="Keep hunter defects with these comma-separated classifier verdicts (default: all)"
+    )
     args = parser.parse_args(argv)
     if args.command == "combine":
-        combine(args.replay_out, args.hunter_out, args.out)
+        combine(args.replay_out, args.hunter_out, args.out, keep_verdicts=args.keep_verdicts)
         return 0
     return run(
         args.manifest,

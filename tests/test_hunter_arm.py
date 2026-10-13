@@ -423,6 +423,85 @@ def write_arm(out, entries, records):
         record_path(out, item_id).write_text(json.dumps(record))
 
 
+@pytest.fixture
+def combine_arms(tmp_path):
+    change = {"id": "combine-fixture", "kind": "ordinary"}
+    entry = {"item_id": change["id"], "change": change, "input_digest": "fixture-digest"}
+    replay_defect = {"defect_id": "replay", "source": "engine", "family": "injection", "locations": [["app.py", 1]]}
+    hunter_defects = [
+        {
+            "defect_id": verdict,
+            "source": "hunter",
+            "family": "injection",
+            "locations": [["app.py", line]],
+            "classifier": {"verdict": verdict},
+        }
+        for line, verdict in enumerate(("vulnerable", "not_vulnerable", "unsure"), start=2)
+    ]
+    other_defect = {"defect_id": "other", "source": "engine", "family": "path", "locations": [["app.py", 5]]}
+    a = {
+        "status": "quick_only",
+        "input_digest": entry["input_digest"],
+        "push": {"admission": {"defects": [replay_defect], "dispositions": [{"sentinel": "keep"}]}},
+        "combine": {"sentinel": "keep"},
+    }
+    b = {
+        "status": "hunter_covered",
+        "input_digest": entry["input_digest"],
+        "push": {"admission": {"defects": [*hunter_defects, other_defect]}},
+        "combine": {"sentinel": "keep"},
+    }
+    replay_out, hunter_out, combined = tmp_path / "a", tmp_path / "b", tmp_path / "combined.json"
+    write_arm(replay_out, [entry], {change["id"]: a})
+    write_arm(hunter_out, [entry], {change["id"]: b})
+    return replay_out, hunter_out, combined, entry, a, b
+
+
+def test_combine_default_keeps_all_verdicts(combine_arms):
+    replay_out, hunter_out, combined, _, a, b = combine_arms
+    assert hunter_arm.main(["combine", str(replay_out), str(hunter_out), "--out", str(combined)]) == 0
+    (row,) = score.load_records(combined)
+    assert row["push"]["admission"]["defects"] == a["push"]["admission"]["defects"] + b["push"]["admission"]["defects"]
+    assert row["combine"] == {"sentinel": "keep", "keep_verdicts": None, "hunter_defects_total": 3, "hunter_defects_kept": 3}
+
+
+@pytest.mark.parametrize("with_replay", [True, False])
+def test_combine_keeps_only_vulnerable_hunter_defects(combine_arms, with_replay):
+    replay_out, hunter_out, combined, entry, a, b = combine_arms
+    if not with_replay:
+        record_path(replay_out, entry["item_id"]).unlink()
+    assert hunter_arm.main(["combine", str(replay_out), str(hunter_out), "--out", str(combined), "--keep-verdicts", "vulnerable"]) == 0
+    (row,) = score.load_records(combined)
+    expected = a["push"]["admission"]["defects"] if with_replay else []
+    assert row["push"]["admission"]["defects"] == [
+        *expected,
+        b["push"]["admission"]["defects"][0],
+        b["push"]["admission"]["defects"][-1],
+    ]
+    if with_replay:
+        assert row["push"]["admission"]["dispositions"] == a["push"]["admission"]["dispositions"]
+    assert row["combine"] == {"sentinel": "keep", "keep_verdicts": ["vulnerable"], "hunter_defects_total": 3, "hunter_defects_kept": 1}
+
+
+@pytest.mark.parametrize("classification", [{}, {"classifier": None}, {"classifier": {"error": "empty_excerpt"}}])
+@pytest.mark.parametrize("keep_verdicts", ["vulnerable", "unsure,not_vulnerable"])
+def test_combine_missing_classifier_counts_as_unsure(combine_arms, classification, keep_verdicts):
+    replay_out, hunter_out, combined, entry, a, b = combine_arms
+    defect = {"defect_id": "unclassified", "source": "hunter", "family": "path", "locations": [["app.py", 6]], **classification}
+    b["push"]["admission"]["defects"] = [defect]
+    record_path(hunter_out, entry["item_id"]).write_text(json.dumps(b))
+    assert hunter_arm.main(["combine", str(replay_out), str(hunter_out), "--out", str(combined), "--keep-verdicts", keep_verdicts]) == 0
+    (row,) = score.load_records(combined)
+    kept = int("unsure" in keep_verdicts.split(","))
+    assert row["push"]["admission"]["defects"] == [*a["push"]["admission"]["defects"], *([defect] if kept else [])]
+    assert row["combine"] == {
+        "sentinel": "keep",
+        "keep_verdicts": keep_verdicts.split(","),
+        "hunter_defects_total": 1,
+        "hunter_defects_kept": kept,
+    }
+
+
 def test_combine_preserves_a_and_scores_b(fixture, tmp_path):
     _, change, _, _, _ = fixture
     changes = [{**change, "id": name} for name in ("both", "a-only", "b-only")]
@@ -459,7 +538,12 @@ def test_combine_preserves_a_and_scores_b(fixture, tmp_path):
     assert both["arms"] == {"a": "quick_only", "b": "hunter_covered"}
     assert both["push"]["quick_tier"] == a["push"]["quick_tier"]
     assert both["push"]["admission"]["dispositions"] == [{"sentinel": "keep"}]
-    assert a_only == {**changes[1], **a, "arms": {"a": "quick_only", "b": "missing"}}
+    assert a_only == {
+        **changes[1],
+        **a,
+        "arms": {"a": "quick_only", "b": "missing"},
+        "combine": {"keep_verdicts": None, "hunter_defects_total": 0, "hunter_defects_kept": 0},
+    }
     assert b_only["arms"] == {"a": "missing", "b": "hunter_covered"}
     a["push"]["admission"]["defects"] = [{**defect, "defect_id": "a-defect", "source": "engine"}]
     record_path(replay_out, "replay-both").write_text(json.dumps(a))
@@ -496,7 +580,14 @@ def test_combine_without_hunter_index_keeps_replay(fixture, tmp_path, directory_
         hunter_out.mkdir()
     combined = tmp_path / "combined.json"
     hunter_arm.combine(replay_out, hunter_out, combined)
-    assert score.load_records(combined) == [{**change, **a, "arms": {"a": "quick_only", "b": "missing"}}]
+    assert score.load_records(combined) == [
+        {
+            **change,
+            **a,
+            "arms": {"a": "quick_only", "b": "missing"},
+            "combine": {"keep_verdicts": None, "hunter_defects_total": 0, "hunter_defects_kept": 0},
+        }
+    ]
 
 
 def test_build_caller_classifies_through_the_real_deepseek_wrapper(tmp_path, monkeypatch):
