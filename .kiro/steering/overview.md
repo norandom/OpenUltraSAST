@@ -1,6 +1,35 @@
 # Overview — what this is, and what is actually true of it
 
-## Current state, 2026-10-04
+## Current state, 2026-10-13
+
+Everything below this section is dated history; where it disagrees with this section, this section wins.
+
+- **Goal, unchanged.** A pre-push safety net that works on repositories it has never seen, judged by recall on
+  real vulnerability changes and false alarms per 100 ordinary pushes, measured on a valid benchmark.
+- **The valid benchmark exists and ran** (`valid-detection-benchmark`, `benchmarks/valid/`, pilot frozen at
+  `benchmarks/valid/pilot/`; numbers in `benchmarks/measurements/2026-10-12-valid-benchmark-pilot/NOTES.md`).
+  12 verified fix-site positives, 240 ordinary pushes, 12 unseen app repos. Push hook as shipped: 0 of 12,
+  0.7 false alarms per 100. LLM hunter: 5 to 6 of 12, 54 false alarms per 100 after the classifier. Neither
+  meets the gate. The SZZ pool (`pool-p1`) and its spec are retired; no number from it is quoted.
+- **What the numbers say.** The hook has no LLM detection tier and catches nothing on unseen code. The hunter
+  finds about half but searches whole files, so it re-reports old code on every push (250 of 343 "vulnerable"
+  suspicions on ordinary pushes sit more than 10 lines from the diff). Thresholds on that output are not a fix.
+- **Active work, in order.** (1) `hunter-learning-loop`: an annotation model for the hunter (diff hunks,
+  enclosing function and callers, entry points, roles, framework facts, closed families) chosen by statistical
+  ablation under the learn harness; requirements written 2026-10-13, design next. (2) `pre-push-safety-net`:
+  the LLM tier on pre-push once the search is good. (3) `search-with-proof` / `proof-arm-opencode`: proof on
+  what survives the search, as the block gate. (4) `engine-change-scoped-analysis`: the deterministic facts
+  that feed the hunter's annotations.
+- **Everything else is history or parked.** Retired spec directories were removed from the tree on 2026-10-13
+  (`git show <commit>:.kiro/specs/<name>/` still has them): `harnessx-removal` (51d064e),
+  `harnessx-self-improving-rulesets` and `openrouter-sast-harness` (c8d2fef), `learning-harness`,
+  `constrained-detector`, `three-stage-scan`, `real-world-vfc-slice` (39a1873), `unseen-repo-evaluation`
+  (abb2058). The learn harness code (`src/openultrasast/learn/`) stays; `hunter-learning-loop` builds on it.
+- **Rules that stay in force.** Plain English in every document, commit and comment. Standard metrics only.
+  Prove the instrument before believing a zero. Train on one set, report on another. Research runs locally;
+  deployed behaviour is observed, not re-measured by hand.
+
+## Current state, 2026-10-04 (superseded by the section above)
 
 Everything below this section is dated history; where it disagrees with this section, this section wins. The
 direction lives in `roadmap.md`, section of 2026-10-04 (phases G0-G5).
@@ -217,14 +246,14 @@ Counted 2026-10-02 from each spec's `tasks.md` checkboxes and `spec.json`.
 | `pre-push-safety-net` | implementation | 67 of 79 tasks done |
 | `contributor-scan` | paused | 27 of 51 tasks done; paused since 2026-09-23 (`v1.2.0-alpha.1` NO-GO), waits on pre-push M2/M3 |
 | `ai-service-plane` | complete | 11 of 11; the ax plane is the agentic path |
-| `harnessx-removal` | complete | 8 of 8; HarnessX removed 2026-09-30 |
+| `harnessx-removal` | complete, directory removed 2026-10-13 | 8 of 8; HarnessX removed 2026-09-30 |
 | `finding-feedback-loop` | dormant | requirements approved, design unapproved since 2026-09-09; depends on `contributor-scan` |
 | `model-grounded-detection` | complete | 16 of 16; built the arbiter this all rests on |
 | `authorization-obligations` | dormant | tasks approved, 0 of 24 started; superseded in practice by the dominance arbiter |
 | `reachability-flow-model` | dormant | 23 tasks generated, nothing approved; largely delivered by adopting Joern |
 | `flow-aware-ranking`, `zero-with-a-reason`, `ir-consolidation` | dormant | brief only, unapproved |
 | four others | complete | `pair-corpus-honesty`, `corpus-seeded-mechanisms`, `propose-adjudicate-prove`, `tree-sitter-overlay-extra` |
-| six others | retired or superseded | `openrouter-sast-harness`, `three-stage-scan`, `harnessx-self-improving-rulesets`, `learning-harness` (retired with HarnessX), `constrained-detector`, `real-world-vfc-slice` (superseded) |
+| six others | retired or superseded, directories removed 2026-10-13 | `openrouter-sast-harness`, `three-stage-scan`, `harnessx-self-improving-rulesets`, `learning-harness` (retired with HarnessX), `constrained-detector`, `real-world-vfc-slice` (superseded) |
 
 > **Retired 2026-09-30:** HarnessX was removed by `harnessx-removal`; the agentic plane is ax (`ai-service-plane`),
 > and evolutionary proposals come from the plane memory. The HarnessX specs in the table above are history.

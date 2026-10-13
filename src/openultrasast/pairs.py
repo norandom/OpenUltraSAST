@@ -1168,11 +1168,6 @@ def _mechanisms(case: PairCase) -> tuple[str, ...]:
 # --- metrics ---------------------------------------------------------------
 
 
-def _scorable(outcomes: Sequence[PairOutcome]) -> tuple[PairOutcome, ...]:
-    """Rows that could be scored. An unscorable row leaves every rate rather than counting as a miss (Req 4.1)."""
-    return tuple(item for item in outcomes if item.unscorable is None)
-
-
 def _metrics(outcomes: Sequence[PairOutcome]) -> PairCorpusMetrics:
     pairs = len(outcomes)
     detected = sum(1 for item in outcomes if item.detected_vuln)

@@ -226,10 +226,3 @@ def _extract_message(payload: object) -> dict[str, object]:
     if not isinstance(message, dict):
         raise OpenRouterError("OpenRouter choice did not include a message")
     return message
-
-
-def _extract_message_content(payload: object) -> str:
-    content = _extract_message(payload).get("content")
-    if not isinstance(content, str) or not content.strip():
-        raise OpenRouterError("OpenRouter message content was empty")
-    return content

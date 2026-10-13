@@ -1473,13 +1473,6 @@ def _check_obligations(
     return statics, payload, cited
 
 
-def _first_source(root: Path) -> str:
-    from .preprocess import preprocess_repository
-
-    _, targets = preprocess_repository(root)
-    return targets[0].path if targets else "."
-
-
 def _print_improve_outcomes(outcomes: list[RoundOutcome], manifest_path: Path, target: Path, ledger_path: Path, *, dry_run: bool) -> None:
     print(f"manifest={manifest_path}")
     print(f"target={target}")
