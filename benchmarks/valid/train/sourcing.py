@@ -179,28 +179,64 @@ class ZipOSV:
         return self.records.get(identifier, {})
 
 
+def family_exclusions() -> dict[str, set[str]]:
+    """Collect strict, pilot, tree and earlier batch exclusions before GitHub checks."""
+    from benchmarks.unseen.eligibility import normalize
+
+    def normalized(names) -> set[str]:
+        out = set()
+        for name in names:
+            try:
+                out.add(normalize(name))
+            except ValueError:
+                continue  # a link fragment that is not a repository name excludes nothing
+        return out
+
+    groups = {
+        "pilot": normalized(pilot_accepted()),
+        "named_elsewhere": normalized(named_elsewhere()),
+        "used_strict": normalized(json.loads((WORK / "used_strict.json").read_text())) if (WORK / "used_strict.json").is_file() else set(),
+        "already_sourced": set(),
+    }
+    for directory in (WORK, HERE):
+        paths = {directory / "sources.json", *directory.glob("sources_batch*.json")}
+        for path in sorted(paths):
+            if not path.is_file() or path.stem.endswith("_log"):
+                continue
+            groups["already_sourced"].update(normalize(row["repository"]) for row in json.loads(path.read_text()))
+    return groups
+
+
 def cmd_sources(args) -> int:
     from benchmarks.unseen import source
     from benchmarks.unseen.eligibility import RepositoryNotFound, normalize
     from openultrasast.model.taxonomy import load_families
 
     taxonomy = load_families()
-    accepted = pilot_accepted()
-    pilot = pilot_sources()
+    family = args.family
+    if family:
+        log(f"family {family}: {', '.join(sorted(taxonomy.by_id(family).cwes))}")
+    accepted = {normalize(name) for name in pilot_accepted()}
+    pilot = [] if family else pilot_sources()
     pilot_advisories = {row["advisory"] for row in pilot}
     pilot_repos = {normalize(row["repository"]) for row in pilot}
-    public = pool_public()
+    public = [] if family else pool_public()
     pool_repos = {normalize(row["repository"]) for row in public}
-    used = set(json.loads((WORK / "used.json").read_text()))
+    used = set() if family else set(json.loads((WORK / "used.json").read_text()))
     excluded_repos = accepted | pilot_repos | pool_repos | used
-    log(
-        f"exclusion set: pilot accepted {len(accepted)}, pilot sourced {len(pilot_repos)}, pool public {len(pool_repos)}, used {len(used)} -> {len(excluded_repos)} names"  # noqa: E501
-    )
+    exclusion_groups = family_exclusions() if family else {"repository": excluded_repos}
+    excluded_repos |= set().union(*exclusion_groups.values())
+    if family:
+        log(f"exclusion set: { {reason: len(names) for reason, names in exclusion_groups.items()} } -> {len(excluded_repos)} names")
+    else:
+        log(
+            f"exclusion set: pilot accepted {len(accepted)}, pilot sourced {len(pilot_repos)}, pool public {len(pool_repos)}, used {len(used)} -> {len(excluded_repos)} names"  # noqa: E501
+        )
 
     osv_api = source.OSV()
     rows: list[dict] = []
     counts: Counter = Counter()
-    if args.extend:
+    if args.extend and not family:
         # Second batch: only OSV, continuing the same seeded order past every repository already sourced.
         earlier = json.loads((WORK / "sources.json").read_text())
         excluded_repos |= {normalize(row["repository"]) for row in earlier}
@@ -247,11 +283,11 @@ def cmd_sources(args) -> int:
     pre: dict[str, dict] = {}
     records: dict[str, dict] = {}
     for eco_name, eco in OSV_ECOSYSTEMS.items():
-        archive = zipfile.ZipFile(Path(args.osv_dir) / f"{eco_name}.zip")
-        names = [n for n in archive.namelist() if n.startswith("GHSA-") and n.endswith(".json")]
-        counts[f"osv:{eco}:ghsa_records"] += len(names)
-        for name in names:
-            record = json.loads(archive.read(name))
+        archive_path = Path(args.osv_dir) / f"{eco_name}.zip"
+        counts[f"osv:{eco}:ghsa_records"] = 0
+        counts[f"osv:{eco}:prefilter_pass"] = 0
+        for record in dump_records(archive_path):
+            counts[f"osv:{eco}:ghsa_records"] += 1
             row = github_row(record)
             try:
                 if date.fromisoformat(row["published_at"][:10]) < date(2019, 1, 1):
@@ -263,12 +299,15 @@ def cmd_sources(args) -> int:
                 families = {f.id for c in row["cwes"] if (f := taxonomy.family_of_cwe(c["cwe_id"])) and f.id in source.FAMILIES}
                 if len(families) != 1:
                     raise source.Rejected("family")
+                if family and families != {family}:
+                    raise source.Rejected("family_mismatch")
                 links = source.fix_links(row)
                 if len(links) != 1:
                     raise source.Rejected("fix_links")
                 ((repo, _),) = links
                 if repo in excluded_repos:
-                    raise source.Rejected("excluded_repository")
+                    reason = next(reason for reason, names in exclusion_groups.items() if repo in names)
+                    raise source.Rejected(f"excluded_{reason}")
             except source.Rejected as exc:
                 counts[f"osv:{eco}:{exc}"] += 1
                 continue
@@ -278,16 +317,24 @@ def cmd_sources(args) -> int:
             current = pre.get(repo)
             if current is None or row["published_at"] > current["published_at"]:
                 pre[repo] = {**row, "_eco": eco}
+        log(json.dumps({k: v for k, v in sorted(counts.items()) if k.startswith(f"osv:{eco}:")}))
     log(f"OSV prefilter: {len(pre)} repositories with a candidate advisory")
     counts["osv:prefilter_repositories"] = len(pre)
 
-    token = subprocess.run(["gh", "auth", "token"], capture_output=True, text=True, check=True).stdout.strip()
-    github = source.GitHub(token)
+    github = None
+    if not args.prefilter_only:
+        token = subprocess.run(["gh", "auth", "token"], capture_output=True, text=True, check=True).stdout.strip()
+        github = source.GitHub(token)
+    else:
+        log("PREFILTER ONLY: GitHub checks did not run; no advisories are accepted.")
     osv_stub = ZipOSV(records)
     ordered = source.ordered_advisories(list(pre.values()), args.seed)
-    target = args.target
+    target = args.target if args.target is not None else (120 if family else 75)
+    counts["target"] = target
+    counts["github_checks_run"] = int(github is not None)
+    counts["accepted"] = 0
     picked = 0
-    for row in ordered:
+    for row in ordered if github is not None else []:
         if picked >= target:
             break
         try:
@@ -328,22 +375,33 @@ def cmd_sources(args) -> int:
         excluded_repos.add(cand.repository)
         picked += 1
         counts["osv"] += 1
+        counts["accepted"] += 1
         log(f"osv pick {picked}/{target}: {cand.repository} {cand.advisory} {cand.ecosystem} {cand.family} {cand.license_spdx}")
-    counts["github_api_calls"] = github.calls
+    counts["github_api_calls"] = github.calls if github is not None else 0
     counts["osv_api_calls"] = osv_api.calls
     # the candidate list must not contain a held-out repository, whatever the origin
     assert not {row["repository"] for row in rows} & accepted
-    stem = "sources_extend" if args.extend else "sources"
-    (WORK / f"{stem}.json").write_text(json.dumps(rows, indent=1, ensure_ascii=False) + "\n")
-    (WORK / f"{stem}_log.json").write_text(json.dumps(dict(sorted(counts.items())), indent=2) + "\n")
-    log(
-        json.dumps(
-            {k: v for k, v in counts.items() if not k.startswith("osv:") or "check" in k or "pass" in k or "repositories" in k},
-            sort_keys=True,
-        )
-    )
-    log(f"sources.json: {len(rows)} advisories, {len({r['repository'] for r in rows})} repositories")
+    stem = f"sources_{family}" if family else ("sources_extend" if args.extend else "sources")
+    output = HERE if family else WORK
+    (output / f"{stem}.json").write_text(json.dumps(rows, indent=1, ensure_ascii=False) + "\n")
+    (output / f"{stem}_log.json").write_text(json.dumps(dict(sorted(counts.items())), indent=2) + "\n")
+    log(json.dumps(dict(sorted(counts.items()))))
+    log(f"{stem}.json: {len(rows)} advisories, {len({r['repository'] for r in rows})} repositories")
     return 0
+
+
+def dump_records(path: Path):
+    """Read GHSA records from a dump and report the bytes read from the first record."""
+    with zipfile.ZipFile(path) as archive:
+        first = True
+        for name in archive.namelist():
+            if not name.startswith("GHSA-") or not name.endswith(".json"):
+                continue
+            data = archive.read(name)
+            if first:
+                log(f"read {path}: {name}, {len(data)} bytes")
+                first = False
+            yield json.loads(data)
 
 
 # ----------------------------------------------------------------------------- clone
@@ -688,18 +746,26 @@ def cmd_overlap(args) -> int:
     from openultrasast.learn.labels import repo_name
 
     elsewhere = named_elsewhere()
+    if args.family:
+        for reason, names in family_exclusions().items():
+            for name in names:
+                elsewhere.setdefault(name, set()).add(reason)
     rows = [row for name in args.batches for row in json.loads((WORK / name).read_text())]
     kept, dropped = [], []
     for row in rows:
+        if args.family and row["family"] != args.family:
+            continue
         where = sorted(elsewhere.get(repo_name(row["repository"]), ()))
         if where:
             dropped.append({"repository": row["repository"], "advisory": row["advisory"], "origin": row["origin"], "named_in": where})
         else:
             kept.append(row)
     assert not {repo_name(r["repository"]) for r in kept} & pilot_accepted()
-    (WORK / "overlap_dropped.json").write_text(json.dumps(dropped, indent=1) + "\n")
-    (WORK / "sources.json").write_text(json.dumps(kept, indent=1, ensure_ascii=False) + "\n")
-    (HERE / "sources.json").write_text(json.dumps(kept, indent=1, ensure_ascii=False) + "\n")
+    suffix = f"_{args.family}" if args.family else ""
+    (WORK / f"overlap{suffix}_dropped.json").write_text(json.dumps(dropped, indent=1) + "\n")
+    if not args.family:
+        (WORK / "sources.json").write_text(json.dumps(kept, indent=1, ensure_ascii=False) + "\n")
+    (HERE / f"sources{suffix}.json").write_text(json.dumps(kept, indent=1, ensure_ascii=False) + "\n")
     log(
         f"overlap: {len(rows)} sources, {len(dropped)} dropped (named elsewhere), {len(kept)} kept; by origin dropped {dict(Counter(d['origin'] for d in dropped))}"  # noqa: E501
     )
@@ -711,7 +777,8 @@ def cmd_merge(args) -> int:
     from benchmarks.valid.catalog import write_catalog
     from benchmarks.valid.verify import write_records
 
-    advisories = {row["advisory"] for row in json.loads((HERE / "sources.json").read_text())}
+    suffix = f"_{args.family}" if args.family else ""
+    advisories = {row["advisory"] for row in json.loads((HERE / f"sources{suffix}.json").read_text())}
     cases = [c for name in args.catalogs for c in tomllib.loads((WORK / name).read_text()).get("case", []) if c["advisory"] in advisories]
     # A site whose code or advisory text links a repository the tree already names (a pair-corpus or reserved
     # repository in a code comment, say) would put that name back into benchmarks/: drop the site, record why.
@@ -725,11 +792,11 @@ def cmd_merge(args) -> int:
         if hits:
             cases.remove(case)
             dropped.append({"id": case["id"], "repo": case["repo"], "names": hits})
-    (WORK / "merge_dropped_sites.json").write_text(json.dumps(dropped, indent=1) + "\n")
+    (WORK / f"merge{suffix}_dropped_sites.json").write_text(json.dumps(dropped, indent=1) + "\n")
     ids = {c["id"] for c in cases}
     records = [r for name in args.verifications for r in json.loads((WORK / name).read_text())["cases"] if r["id"] in ids]
-    write_catalog(HERE / "catalog.toml", cases)
-    write_records(HERE / "verification.json", records)
+    write_catalog(HERE / f"catalog{suffix}.toml", cases)
+    write_records(HERE / f"verification{suffix}.json", records)
     log(f"merge: {len(cases)} sites, {len(records)} verification records, {len(dropped)} sites dropped for naming a used repository")
     return 0
 
@@ -783,14 +850,21 @@ def cmd_precheck(args) -> int:
 
 
 def main(argv=None) -> int:
+    from benchmarks.unseen.source import FAMILIES
+
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("used")
     p = sub.add_parser("sources")
     p.add_argument("--osv-dir", required=True)
-    p.add_argument("--target", type=int, default=75, help="OSV advisories to accept after the GitHub checks")
+    p.add_argument("--target", type=int, help="OSV advisories to accept after GitHub checks (default: 120 with --family, otherwise 75)")
     p.add_argument("--seed", type=int, default=1)
-    p.add_argument("--extend", action="store_true", help="second OSV batch into sources_extend.json, excluding sources.json")
+    mode = p.add_mutually_exclusive_group()
+    mode.add_argument("--extend", action="store_true", help="second OSV batch into sources_extend.json, excluding sources.json")
+    mode.add_argument("--family", choices=sorted(FAMILIES), help="source one family into sources_<family>.json in the training directory")
+    p.add_argument(
+        "--prefilter-only", action="store_true", help="with --family, read dumps and exclusions without GitHub checks or accepts"
+    )
     p = sub.add_parser("clone")
     p.add_argument("--sources", help="sources file to clone (default sources.json)")
     p = sub.add_parser("filter")
@@ -807,8 +881,10 @@ def main(argv=None) -> int:
     p.add_argument("catalog")
     p.add_argument("--out", required=True)
     p = sub.add_parser("overlap")
+    p.add_argument("--family", choices=sorted(FAMILIES))
     p.add_argument("batches", nargs="+", help="source batch files in the work directory")
     p = sub.add_parser("merge")
+    p.add_argument("--family", choices=sorted(FAMILIES))
     p.add_argument("--catalogs", nargs="+", required=True)
     p.add_argument("--verifications", nargs="+", required=True)
     p = sub.add_parser("precheck")
@@ -816,6 +892,8 @@ def main(argv=None) -> int:
     p.add_argument("catalog")
     p.add_argument("--repos", required=True)
     args = parser.parse_args(argv)
+    if args.command == "sources" and args.prefilter_only and not args.family:
+        parser.error("--prefilter-only requires --family")
     return {
         "used": cmd_used,
         "sources": cmd_sources,

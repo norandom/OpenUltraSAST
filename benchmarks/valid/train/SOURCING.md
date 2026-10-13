@@ -192,3 +192,35 @@ python $B candidates benchmarks/valid/train/verification.json benchmarks/valid/t
 
 The verifier ran before the overlap check, so 137 of the 553 calls went to locations that were dropped later
 (134 by the overlap check, 3 by the merge). A fresh run should call `overlap` before `clone`.
+
+## Grow one family
+
+To source another access-control batch from the existing ecosystem dumps:
+
+```sh
+.venv/bin/python -m benchmarks.valid.train.sourcing sources \
+  --family access_control --osv-dir /path/to/dumps --target 120
+```
+
+The directory must contain `PyPI.zip`, `npm.zip`, `Maven.zip` and `Packagist.zip`. The family comes from
+`taxonomy.family_of_cwe`; the command prints its CWE ids at startup. Family runs use only OSV records,
+keep the existing single-family rule, and exclude the strict used set, the pilot's accepted repositories,
+every repository named elsewhere in the development tree, and repositories in `sources.json` and
+`sources_batch*.json` in both the work and training directories. These exclusions happen before GitHub checks.
+
+The target defaults to 120 accepted advisories for a family run, or 75 without `--family`. Acceptance still
+requires the existing GitHub repository, commit-parent and licence checks. Family output goes to
+`benchmarks/valid/train/sources_access_control.json` and `sources_access_control_log.json`; the earlier
+source files are unchanged. Repeating a family run replaces that family's output. `--family` and `--extend`
+are mutually exclusive. Cloning, catalog building and verification remain separate maintainer steps.
+
+For a network-free dump inspection, add `--prefilter-only`. It reads the same dumps and exclusions, prints
+per-ecosystem record, rejection and prefilter counts, and writes an empty source list with `accepted: 0`
+and `github_checks_run: 0` in the log. Prefilter passes are not accepted advisories. Missing exclusion files
+or unreadable dumps fail the run rather than silently weakening the exclusions.
+
+`overlap --family access_control <batch>` also writes only that family's source file; a batch can be an
+absolute path to the family output. `merge --family access_control --catalogs ... --verifications ...`
+uses that family's sources and writes `catalog_access_control.toml` and `verification_access_control.json`.
+Both commands keep their drop logs in the work directory with the family in the filename. Use the same
+`--family` throughout to preserve the original training batch.
