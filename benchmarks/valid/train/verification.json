@@ -65,11 +65,15 @@
       "confidence": 0.9,
       "entry_point": "startWebServer -> app.listen(PORT) binding all interfaces; HTTP routes GET /api/documents, POST /api/documents, DELETE /api/documents/:id, POST /api/search-all, GET /api/config",
       "fix_addresses_it": true,
-      "human_spot_check": null,
+      "human_spot_check": {
+        "date": "2026-10-13",
+        "decision": "accept",
+        "reviewer": "mc"
+      },
       "id": "andrea9293-mcp-documentation-server-0913a4303cf82c9a",
       "model": "deepseek-flash",
       "reachable_in_repo": true,
-      "verdict": "pending_human",
+      "verdict": "accepted",
       "vulnerable_pre_fix": true
     },
     {
@@ -1361,11 +1365,15 @@
       "confidence": 0.9,
       "entry_point": "CLI --http-mode --port 3000 binds Express app to 0.0.0.0 and exposes POST /mcp Streamable HTTP endpoint without authentication",
       "fix_addresses_it": true,
-      "human_spot_check": null,
+      "human_spot_check": {
+        "date": "2026-10-13",
+        "decision": "accept",
+        "reviewer": "mc"
+      },
       "id": "dtwang-line-desktop-mcp-11072dcfdfa41a45",
       "model": "deepseek-flash",
       "reachable_in_repo": true,
-      "verdict": "pending_human",
+      "verdict": "accepted",
       "vulnerable_pre_fix": true
     },
     {
@@ -1373,11 +1381,15 @@
       "confidence": 0.9,
       "entry_point": "Express app.all('/mcp') handler in LineDesktopMCPServer.run() invoked via CLI --http-mode --port; attacker-controlled source is the unauthenticated HTTP POST to /mcp (req.body initialize / mcp-session-id header) reaching transport.handleRequest and MCP tools",
       "fix_addresses_it": true,
-      "human_spot_check": null,
+      "human_spot_check": {
+        "date": "2026-10-13",
+        "decision": "accept",
+        "reviewer": "mc"
+      },
       "id": "dtwang-line-desktop-mcp-b9429141072345c4",
       "model": "deepseek-flash",
       "reachable_in_repo": true,
-      "verdict": "pending_human",
+      "verdict": "accepted",
       "vulnerable_pre_fix": true
     },
     {
@@ -2465,11 +2477,15 @@
       "confidence": 0.85,
       "entry_point": "Jenkins Stapler HTTP endpoint doCheckDependencyTrackFrontendUrl (and doTestConnection) invoked via form validation request; attacker-controlled source is the @QueryParameter value / dependencyTrackApiKey and credentials ID",
       "fix_addresses_it": true,
-      "human_spot_check": null,
+      "human_spot_check": {
+        "date": "2026-10-13",
+        "decision": "accept",
+        "reviewer": "mc"
+      },
       "id": "jenkinsci-dependency-track-plugin-673cc48b4f75ebf5",
       "model": "deepseek-flash",
       "reachable_in_repo": true,
-      "verdict": "pending_human",
+      "verdict": "accepted",
       "vulnerable_pre_fix": true
     },
     {
@@ -2477,11 +2493,15 @@
       "confidence": 0.85,
       "entry_point": "Jenkins HTTP endpoint doCheckDependencyTrackUrl (and doTestConnection) reachable via Stapler form validation; attacker-controlled source: @QueryParameter value / dependencyTrackUrl and dependencyTrackApiKey",
       "fix_addresses_it": true,
-      "human_spot_check": null,
+      "human_spot_check": {
+        "date": "2026-10-13",
+        "decision": "accept",
+        "reviewer": "mc"
+      },
       "id": "jenkinsci-dependency-track-plugin-90b566be2c3aebff",
       "model": "deepseek-flash",
       "reachable_in_repo": true,
-      "verdict": "pending_human",
+      "verdict": "accepted",
       "vulnerable_pre_fix": true
     },
     {
@@ -2489,11 +2509,15 @@
       "confidence": 0.85,
       "entry_point": "Jenkins Stapler HTTP endpoint doTestConnection (descriptor form validation endpoint, e.g. /descriptorByName/.../testConnection) with attacker-controlled dependencyTrackUrl and dependencyTrackApiKey query parameters",
       "fix_addresses_it": true,
-      "human_spot_check": null,
+      "human_spot_check": {
+        "date": "2026-10-13",
+        "decision": "accept",
+        "reviewer": "mc"
+      },
       "id": "jenkinsci-dependency-track-plugin-9e8488d96f7c0424",
       "model": "deepseek-flash",
       "reachable_in_repo": true,
-      "verdict": "pending_human",
+      "verdict": "accepted",
       "vulnerable_pre_fix": true
     },
     {
@@ -2561,11 +2585,15 @@
       "confidence": 0.85,
       "entry_point": "Jenkins Stapler HTTP endpoint doFillJenkinsSitesItems on JobImportActionDescriptor (fill field for Jenkins sites), reachable by any authenticated user with Overall/Read permission",
       "fix_addresses_it": true,
-      "human_spot_check": null,
+      "human_spot_check": {
+        "date": "2026-10-13",
+        "decision": "accept",
+        "reviewer": "mc"
+      },
       "id": "jenkinsci-job-import-plugin-07e0e7023a46cf4d",
       "model": "deepseek-flash",
       "reachable_in_repo": true,
-      "verdict": "pending_human",
+      "verdict": "accepted",
       "vulnerable_pre_fix": true
     },
     {
@@ -2573,11 +2601,15 @@
       "confidence": 0.85,
       "entry_point": "Jenkins Stapler HTTP endpoint /jobImport/fillCredentialIdItems (doFillCredentialIdItems on JobImportActionDescriptor), reachable by any authenticated user with Overall/Read permission",
       "fix_addresses_it": true,
-      "human_spot_check": null,
+      "human_spot_check": {
+        "date": "2026-10-13",
+        "decision": "accept",
+        "reviewer": "mc"
+      },
       "id": "jenkinsci-job-import-plugin-5509a356384e862e",
       "model": "deepseek-flash",
       "reachable_in_repo": true,
-      "verdict": "pending_human",
+      "verdict": "accepted",
       "vulnerable_pre_fix": true
     },
     {
@@ -2633,11 +2665,15 @@
       "confidence": 0.9,
       "entry_point": "Stapler HTTP endpoint doChangeSubmit (P4Hook) reachable via Jenkins Stapler routing; attacker-controlled source: StaplerRequest parameters (_.p4port) and submitted form",
       "fix_addresses_it": true,
-      "human_spot_check": null,
+      "human_spot_check": {
+        "date": "2026-10-13",
+        "decision": "accept",
+        "reviewer": "mc"
+      },
       "id": "jenkinsci-p4-plugin-5022afedadfe8449",
       "model": "deepseek-flash",
       "reachable_in_repo": true,
-      "verdict": "pending_human",
+      "verdict": "accepted",
       "vulnerable_pre_fix": true
     },
     {
@@ -2645,11 +2681,15 @@
       "confidence": 0.9,
       "entry_point": "P4Hook.doChange (HTTP endpoint /p4/change via StaplerRequest)",
       "fix_addresses_it": true,
-      "human_spot_check": null,
+      "human_spot_check": {
+        "date": "2026-10-13",
+        "decision": "accept",
+        "reviewer": "mc"
+      },
       "id": "jenkinsci-p4-plugin-65a59903d43924ee",
       "model": "deepseek-flash",
       "reachable_in_repo": true,
-      "verdict": "pending_human",
+      "verdict": "accepted",
       "vulnerable_pre_fix": true
     },
     {
@@ -2657,11 +2697,15 @@
       "confidence": 0.85,
       "entry_point": "HTTP endpoint doBuild/doBuildSubmit on ReviewAction (urlName 'review') via StaplerRequest parameters",
       "fix_addresses_it": true,
-      "human_spot_check": null,
+      "human_spot_check": {
+        "date": "2026-10-13",
+        "decision": "accept",
+        "reviewer": "mc"
+      },
       "id": "jenkinsci-p4-plugin-85c3775c29eb0c5c",
       "model": "deepseek-flash",
       "reachable_in_repo": true,
-      "verdict": "pending_human",
+      "verdict": "accepted",
       "vulnerable_pre_fix": true
     },
     {
@@ -2669,11 +2713,15 @@
       "confidence": 0.85,
       "entry_point": "HTTP endpoint /review/buildSubmit (Stapler doBuildSubmit) reachable via Overall/Read authenticated user submitting form data",
       "fix_addresses_it": true,
-      "human_spot_check": null,
+      "human_spot_check": {
+        "date": "2026-10-13",
+        "decision": "accept",
+        "reviewer": "mc"
+      },
       "id": "jenkinsci-p4-plugin-a1c0ab5c3582fc3b",
       "model": "deepseek-flash",
       "reachable_in_repo": true,
-      "verdict": "pending_human",
+      "verdict": "accepted",
       "vulnerable_pre_fix": true
     },
     {
@@ -2681,11 +2729,15 @@
       "confidence": 0.9,
       "entry_point": "UnprotectedRootAction P4Hook at URL /p4, HTTP endpoint doEvent (and doChange) reachable without authentication; attacker-controlled source is the HTTP request body/JSON payload (req.getInputStream)",
       "fix_addresses_it": true,
-      "human_spot_check": null,
+      "human_spot_check": {
+        "date": "2026-10-13",
+        "decision": "accept",
+        "reviewer": "mc"
+      },
       "id": "jenkinsci-p4-plugin-fdef12ac487474fb",
       "model": "deepseek-flash",
       "reachable_in_repo": true,
-      "verdict": "pending_human",
+      "verdict": "accepted",
       "vulnerable_pre_fix": true
     },
     {
@@ -3773,11 +3825,15 @@
       "confidence": 0.85,
       "entry_point": "Livewire component packages/admin/src/Livewire/Components/Products/Form/Inventory.php store() method, invoked via Livewire request from the admin product inventory form; attacker-controlled source is the authenticated low-privilege panel user's Livewire action call and form state",
       "fix_addresses_it": true,
-      "human_spot_check": null,
+      "human_spot_check": {
+        "date": "2026-10-13",
+        "decision": "accept",
+        "reviewer": "mc"
+      },
       "id": "shopperlabs-shopper-02254beed509364c",
       "model": "deepseek-flash",
       "reachable_in_repo": true,
-      "verdict": "pending_human",
+      "verdict": "accepted",
       "vulnerable_pre_fix": true
     },
     {
@@ -3785,11 +3841,15 @@
       "confidence": 0.6,
       "entry_point": "Livewire component Shopper\\Admin\\Livewire\\Components\\Customers\\Orders (public $customer property, table()/render()); attacker-controlled source: Livewire client-side property tampering of the unlocked public ShopperUser $customer",
       "fix_addresses_it": true,
-      "human_spot_check": null,
+      "human_spot_check": {
+        "date": "2026-10-13",
+        "decision": "accept",
+        "reviewer": "mc"
+      },
       "id": "shopperlabs-shopper-047e62abed0b91fa",
       "model": "deepseek-flash",
       "reachable_in_repo": true,
-      "verdict": "pending_human",
+      "verdict": "accepted",
       "vulnerable_pre_fix": true
     },
     {
@@ -3797,11 +3857,15 @@
       "confidence": 0.85,
       "entry_point": "Livewire component Shopper\\Livewire\\Components\\Orders\\OrderNotes::leaveNotes(), invoked via Livewire update request from the order detail admin panel; attacker-controlled source is the public $notes property and the Livewire-callable leaveNotes action",
       "fix_addresses_it": true,
-      "human_spot_check": null,
+      "human_spot_check": {
+        "date": "2026-10-13",
+        "decision": "accept",
+        "reviewer": "mc"
+      },
       "id": "shopperlabs-shopper-052f88a347caf2eb",
       "model": "deepseek-flash",
       "reachable_in_repo": true,
-      "verdict": "pending_human",
+      "verdict": "accepted",
       "vulnerable_pre_fix": true
     },
     {
@@ -3809,11 +3873,15 @@
       "confidence": 0.75,
       "entry_point": "Livewire admin component Settings/Team/Index (table recordActions DeleteAction) reachable by any authenticated panel user",
       "fix_addresses_it": true,
-      "human_spot_check": null,
+      "human_spot_check": {
+        "date": "2026-10-13",
+        "decision": "accept",
+        "reviewer": "mc"
+      },
       "id": "shopperlabs-shopper-064f0b5f8937aae5",
       "model": "deepseek-flash",
       "reachable_in_repo": true,
-      "verdict": "pending_human",
+      "verdict": "accepted",
       "vulnerable_pre_fix": true
     },
     {
@@ -3833,11 +3901,15 @@
       "confidence": 0.85,
       "entry_point": "Livewire admin Order Detail component action markCompleteAction (Filament action callable by authenticated low-privilege panel user with read_orders)",
       "fix_addresses_it": true,
-      "human_spot_check": null,
+      "human_spot_check": {
+        "date": "2026-10-13",
+        "decision": "accept",
+        "reviewer": "mc"
+      },
       "id": "shopperlabs-shopper-0fd6e8d87dd0ed82",
       "model": "deepseek-flash",
       "reachable_in_repo": true,
-      "verdict": "pending_human",
+      "verdict": "accepted",
       "vulnerable_pre_fix": true
     },
     {
@@ -3845,11 +3917,15 @@
       "confidence": 0.85,
       "entry_point": "Livewire component Settings/Team/RolePermission::save() invoked via Livewire update request from the admin panel route (shopper settings team role page); attacker-controlled source is the authenticated low-privilege panel user's Livewire action call and form state",
       "fix_addresses_it": true,
-      "human_spot_check": null,
+      "human_spot_check": {
+        "date": "2026-10-13",
+        "decision": "accept",
+        "reviewer": "mc"
+      },
       "id": "shopperlabs-shopper-1112cc61420816ff",
       "model": "deepseek-flash",
       "reachable_in_repo": true,
-      "verdict": "pending_human",
+      "verdict": "accepted",
       "vulnerable_pre_fix": true
     },
     {
@@ -3869,11 +3945,15 @@
       "confidence": 0.85,
       "entry_point": "Livewire component Products\\Form\\Edit::store() invoked via Livewire update request from the admin product edit form; attacker-controlled source is the Livewire form state (data) submitted by an authenticated low-privilege panel user",
       "fix_addresses_it": true,
-      "human_spot_check": null,
+      "human_spot_check": {
+        "date": "2026-10-13",
+        "decision": "accept",
+        "reviewer": "mc"
+      },
       "id": "shopperlabs-shopper-13fdb238d0d8e573",
       "model": "deepseek-flash",
       "reachable_in_repo": true,
-      "verdict": "pending_human",
+      "verdict": "accepted",
       "vulnerable_pre_fix": true
     },
     {
@@ -3881,11 +3961,15 @@
       "confidence": 0.85,
       "entry_point": "Livewire admin component packages/admin/src/Livewire/Pages/Order/Detail.php::capturePaymentAction (Filament action 'capturePayment' invoked by an authenticated low-privilege panel user with read_orders permission)",
       "fix_addresses_it": true,
-      "human_spot_check": null,
+      "human_spot_check": {
+        "date": "2026-10-13",
+        "decision": "accept",
+        "reviewer": "mc"
+      },
       "id": "shopperlabs-shopper-22487ec06a8cf50a",
       "model": "deepseek-flash",
       "reachable_in_repo": true,
-      "verdict": "pending_human",
+      "verdict": "accepted",
       "vulnerable_pre_fix": true
     },
     {
@@ -3893,11 +3977,15 @@
       "confidence": 0.85,
       "entry_point": "Livewire admin component packages/admin/src/Livewire/Pages/Order/Shipments.php::table() record actions (markDelivered, edit) invoked via Livewire request by an authenticated low-privilege panel user with browse_orders/read_orders permission",
       "fix_addresses_it": true,
-      "human_spot_check": null,
+      "human_spot_check": {
+        "date": "2026-10-13",
+        "decision": "accept",
+        "reviewer": "mc"
+      },
       "id": "shopperlabs-shopper-2405022067cc6870",
       "model": "deepseek-flash",
       "reachable_in_repo": true,
-      "verdict": "pending_human",
+      "verdict": "accepted",
       "vulnerable_pre_fix": true
     },
     {
@@ -3905,11 +3993,15 @@
       "confidence": 0.85,
       "entry_point": "Livewire admin component Order/Detail markPaidAction (Filament action 'markPaid') invoked by an authenticated low-privilege panel user with read_orders permission",
       "fix_addresses_it": true,
-      "human_spot_check": null,
+      "human_spot_check": {
+        "date": "2026-10-13",
+        "decision": "accept",
+        "reviewer": "mc"
+      },
       "id": "shopperlabs-shopper-29811dac402a0d13",
       "model": "deepseek-flash",
       "reachable_in_repo": true,
-      "verdict": "pending_human",
+      "verdict": "accepted",
       "vulnerable_pre_fix": true
     },
     {
@@ -3917,11 +4009,15 @@
       "confidence": 0.85,
       "entry_point": "Livewire admin component Order/Detail archiveAction (Filament action 'archive') invoked via Livewire request to the admin order detail page; attacker-controlled source is the authenticated low-privilege panel user's Livewire action call",
       "fix_addresses_it": true,
-      "human_spot_check": null,
+      "human_spot_check": {
+        "date": "2026-10-13",
+        "decision": "accept",
+        "reviewer": "mc"
+      },
       "id": "shopperlabs-shopper-2aeaefee52274ee8",
       "model": "deepseek-flash",
       "reachable_in_repo": true,
-      "verdict": "pending_human",
+      "verdict": "accepted",
       "vulnerable_pre_fix": true
     },
     {
@@ -3929,11 +4025,15 @@
       "confidence": 0.85,
       "entry_point": "Livewire component packages/admin/src/Livewire/Components/Products/Form/Files.php store() action, invoked via Livewire request to the product edit page; attacker-controlled source is the Livewire action call and form state from any authenticated panel user",
       "fix_addresses_it": true,
-      "human_spot_check": null,
+      "human_spot_check": {
+        "date": "2026-10-13",
+        "decision": "accept",
+        "reviewer": "mc"
+      },
       "id": "shopperlabs-shopper-5481a94c34f42fbf",
       "model": "deepseek-flash",
       "reachable_in_repo": true,
-      "verdict": "pending_human",
+      "verdict": "accepted",
       "vulnerable_pre_fix": true
     },
     {
@@ -3941,11 +4041,15 @@
       "confidence": 0.85,
       "entry_point": "Livewire component Products\\Form\\Shipping::store() invoked via Livewire update request from the admin product shipping form; attacker-controlled source is the Livewire action call and form state ($this->data) submitted by any authenticated panel user",
       "fix_addresses_it": true,
-      "human_spot_check": null,
+      "human_spot_check": {
+        "date": "2026-10-13",
+        "decision": "accept",
+        "reviewer": "mc"
+      },
       "id": "shopperlabs-shopper-5a3dcf2a6b6b16c8",
       "model": "deepseek-flash",
       "reachable_in_repo": true,
-      "verdict": "pending_human",
+      "verdict": "accepted",
       "vulnerable_pre_fix": true
     },
     {
@@ -3953,11 +4057,15 @@
       "confidence": 0.85,
       "entry_point": "Livewire component Settings/Team/RolePermission::createPermissionAction (admin panel route for role permissions), invoked by an authenticated low-privilege panel user with view_users permission",
       "fix_addresses_it": true,
-      "human_spot_check": null,
+      "human_spot_check": {
+        "date": "2026-10-13",
+        "decision": "accept",
+        "reviewer": "mc"
+      },
       "id": "shopperlabs-shopper-5e6161ace0cb4b97",
       "model": "deepseek-flash",
       "reachable_in_repo": true,
-      "verdict": "pending_human",
+      "verdict": "accepted",
       "vulnerable_pre_fix": true
     },
     {
@@ -3965,11 +4073,15 @@
       "confidence": 0.75,
       "entry_point": "Livewire component Shopper\\Admin\\Livewire\\Pages\\Settings\\Carriers::createCarrierAction (admin panel route rendering the Carriers Livewire component); attacker-controlled source: authenticated low-privilege panel user invoking the createCarrier Filament action with form data",
       "fix_addresses_it": true,
-      "human_spot_check": null,
+      "human_spot_check": {
+        "date": "2026-10-13",
+        "decision": "accept",
+        "reviewer": "mc"
+      },
       "id": "shopperlabs-shopper-61e951b6bcd03186",
       "model": "deepseek-flash",
       "reachable_in_repo": true,
-      "verdict": "pending_human",
+      "verdict": "accepted",
       "vulnerable_pre_fix": true
     },
     {
@@ -3977,11 +4089,15 @@
       "confidence": 0.75,
       "entry_point": "Livewire component packages/admin/src/Livewire/Pages/Collection/Edit.php store() action, invoked via Livewire update request from the admin collection edit page by an authenticated low-privilege panel user",
       "fix_addresses_it": true,
-      "human_spot_check": null,
+      "human_spot_check": {
+        "date": "2026-10-13",
+        "decision": "accept",
+        "reviewer": "mc"
+      },
       "id": "shopperlabs-shopper-7cc69fb293ec0e10",
       "model": "deepseek-flash",
       "reachable_in_repo": true,
-      "verdict": "pending_human",
+      "verdict": "accepted",
       "vulnerable_pre_fix": true
     },
     {
@@ -3989,11 +4105,15 @@
       "confidence": 0.85,
       "entry_point": "Livewire admin component Settings/Team/RolePermission::generatePermissionsAction (Filament action 'generatePermissions'), invoked by an authenticated panel user with only view_users permission; source is the Livewire action request payload (resource/group_name)",
       "fix_addresses_it": true,
-      "human_spot_check": null,
+      "human_spot_check": {
+        "date": "2026-10-13",
+        "decision": "accept",
+        "reviewer": "mc"
+      },
       "id": "shopperlabs-shopper-8769d9915b8295a9",
       "model": "deepseek-flash",
       "reachable_in_repo": true,
-      "verdict": "pending_human",
+      "verdict": "accepted",
       "vulnerable_pre_fix": true
     },
     {
@@ -4001,11 +4121,15 @@
       "confidence": 0.75,
       "entry_point": "Livewire component Shopper\\Admin\\Livewire\\Pages\\Settings\\Currencies (route /settings/currencies) - table() ToggleColumn is_enabled, EditAction edit, and grouped bulk actions enable/disable; attacker-controlled Livewire method calls (e.g. updateTableColumnState, mountTableAction, callTableBulkAction) from an authenticated low-privilege panel user",
       "fix_addresses_it": true,
-      "human_spot_check": null,
+      "human_spot_check": {
+        "date": "2026-10-13",
+        "decision": "accept",
+        "reviewer": "mc"
+      },
       "id": "shopperlabs-shopper-88497bd11908cf4a",
       "model": "deepseek-flash",
       "reachable_in_repo": true,
-      "verdict": "pending_human",
+      "verdict": "accepted",
       "vulnerable_pre_fix": true
     },
     {
@@ -4013,11 +4137,15 @@
       "confidence": 0.6,
       "entry_point": "Livewire component AddVariant (packages/admin/src/Livewire/SlideOvers/AddVariant.php) form() barcode TextInput; attacker-controlled source is the barcode form field submitted via the Livewire save() action, rendered through DNS1DFacade::getBarcodeHTML() with {!! !!}",
       "fix_addresses_it": true,
-      "human_spot_check": null,
+      "human_spot_check": {
+        "date": "2026-10-13",
+        "decision": "accept",
+        "reviewer": "mc"
+      },
       "id": "shopperlabs-shopper-8b7021ee40c51b56",
       "model": "deepseek-flash",
       "reachable_in_repo": true,
-      "verdict": "pending_human",
+      "verdict": "accepted",
       "vulnerable_pre_fix": true
     },
     {
@@ -4025,11 +4153,15 @@
       "confidence": 0.75,
       "entry_point": "Livewire component Settings\\Legal\\PolicyForm::store() invoked via Livewire update request from the admin panel; attacker-controlled source is the authenticated low-privilege panel user's Livewire request payload (form state) reaching $this->legal->update()",
       "fix_addresses_it": true,
-      "human_spot_check": null,
+      "human_spot_check": {
+        "date": "2026-10-13",
+        "decision": "accept",
+        "reviewer": "mc"
+      },
       "id": "shopperlabs-shopper-91023b586e4ab747",
       "model": "deepseek-flash",
       "reachable_in_repo": true,
-      "verdict": "pending_human",
+      "verdict": "accepted",
       "vulnerable_pre_fix": true
     },
     {
@@ -4049,11 +4181,15 @@
       "confidence": 0.75,
       "entry_point": "Livewire component Shopper\\Admin\\Livewire\\Pages\\Settings\\PaymentMethods::createPaymentAction (admin panel route for payment methods settings); attacker-controlled source: authenticated low-privilege panel user invoking the createPayment Livewire action",
       "fix_addresses_it": true,
-      "human_spot_check": null,
+      "human_spot_check": {
+        "date": "2026-10-13",
+        "decision": "accept",
+        "reviewer": "mc"
+      },
       "id": "shopperlabs-shopper-a413505de3d037f8",
       "model": "deepseek-flash",
       "reachable_in_repo": true,
-      "verdict": "pending_human",
+      "verdict": "accepted",
       "vulnerable_pre_fix": true
     },
     {
@@ -4061,11 +4197,15 @@
       "confidence": 0.85,
       "entry_point": "Livewire component packages/admin/src/Livewire/Components/Products/Form/Seo.php store() action, invoked via Livewire request to the product SEO form; attacker-controlled source is the Livewire component action call and form state from any authenticated panel user",
       "fix_addresses_it": true,
-      "human_spot_check": null,
+      "human_spot_check": {
+        "date": "2026-10-13",
+        "decision": "accept",
+        "reviewer": "mc"
+      },
       "id": "shopperlabs-shopper-a82b452965e2ffe5",
       "model": "deepseek-flash",
       "reachable_in_repo": true,
-      "verdict": "pending_human",
+      "verdict": "accepted",
       "vulnerable_pre_fix": true
     },
     {
@@ -4073,11 +4213,15 @@
       "confidence": 0.6,
       "entry_point": "Livewire component packages/admin/src/Livewire/SlideOvers/AddProduct.php::store() invoked via Livewire request to the AddProduct slide-over (form submit wire:target=\"store\"); attacker-controlled source is the Livewire-bound $data form state including the barcode field",
       "fix_addresses_it": true,
-      "human_spot_check": null,
+      "human_spot_check": {
+        "date": "2026-10-13",
+        "decision": "accept",
+        "reviewer": "mc"
+      },
       "id": "shopperlabs-shopper-ab37699016e7189c",
       "model": "deepseek-flash",
       "reachable_in_repo": true,
-      "verdict": "pending_human",
+      "verdict": "accepted",
       "vulnerable_pre_fix": true
     },
     {
@@ -4085,11 +4229,15 @@
       "confidence": 0.85,
       "entry_point": "Livewire component Shopper\\Admin\\Livewire\\Pages\\Product\\Variant::updateStockAction (admin panel product variant page); attacker-controlled source: Livewire action call with form data (sku, barcode) from an authenticated low-privilege user",
       "fix_addresses_it": true,
-      "human_spot_check": null,
+      "human_spot_check": {
+        "date": "2026-10-13",
+        "decision": "accept",
+        "reviewer": "mc"
+      },
       "id": "shopperlabs-shopper-b37cd0c75b594760",
       "model": "deepseek-flash",
       "reachable_in_repo": true,
-      "verdict": "pending_human",
+      "verdict": "accepted",
       "vulnerable_pre_fix": true
     },
     {
@@ -4109,11 +4257,15 @@
       "confidence": 0.85,
       "entry_point": "Livewire admin component Shopper\\Livewire\\Pages\\Order\\Detail::cancelOrderAction invoked via Livewire action call on the order detail page (route shopper.orders.detail); attacker-controlled source is the authenticated low-privilege panel user's Livewire action request, which only required read_orders",
       "fix_addresses_it": true,
-      "human_spot_check": null,
+      "human_spot_check": {
+        "date": "2026-10-13",
+        "decision": "accept",
+        "reviewer": "mc"
+      },
       "id": "shopperlabs-shopper-cd45e0d6604bb846",
       "model": "deepseek-flash",
       "reachable_in_repo": true,
-      "verdict": "pending_human",
+      "verdict": "accepted",
       "vulnerable_pre_fix": true
     },
     {
@@ -4121,11 +4273,15 @@
       "confidence": 0.85,
       "entry_point": "Livewire component Settings/Locations/InventoryForm::store() invoked via Livewire update request from the admin panel route shopper.settings.locations; attacker-controlled source is the Livewire form state ($this->form->getState()) submitted by an authenticated low-privilege panel user",
       "fix_addresses_it": true,
-      "human_spot_check": null,
+      "human_spot_check": {
+        "date": "2026-10-13",
+        "decision": "accept",
+        "reviewer": "mc"
+      },
       "id": "shopperlabs-shopper-d05ad8c2776691be",
       "model": "deepseek-flash",
       "reachable_in_repo": true,
-      "verdict": "pending_human",
+      "verdict": "accepted",
       "vulnerable_pre_fix": true
     },
     {
@@ -4133,11 +4289,15 @@
       "confidence": 0.85,
       "entry_point": "Livewire component PaymentMethods (Settings/PaymentMethods) table actions: ToggleColumn is_enabled, EditAction edit, DeleteAction delete; invoked via Livewire update endpoint by any authenticated panel user",
       "fix_addresses_it": true,
-      "human_spot_check": null,
+      "human_spot_check": {
+        "date": "2026-10-13",
+        "decision": "accept",
+        "reviewer": "mc"
+      },
       "id": "shopperlabs-shopper-d26bdca35566e799",
       "model": "deepseek-flash",
       "reachable_in_repo": true,
-      "verdict": "pending_human",
+      "verdict": "accepted",
       "vulnerable_pre_fix": true
     },
     {
@@ -4145,11 +4305,15 @@
       "confidence": 0.85,
       "entry_point": "Livewire admin component Order/Detail::startProcessingAction (Filament action 'startProcessing') invoked by an authenticated low-privilege panel user with read_orders permission",
       "fix_addresses_it": true,
-      "human_spot_check": null,
+      "human_spot_check": {
+        "date": "2026-10-13",
+        "decision": "accept",
+        "reviewer": "mc"
+      },
       "id": "shopperlabs-shopper-deb90b541bcac1aa",
       "model": "deepseek-flash",
       "reachable_in_repo": true,
-      "verdict": "pending_human",
+      "verdict": "accepted",
       "vulnerable_pre_fix": true
     },
     {
@@ -4157,11 +4321,15 @@
       "confidence": 0.85,
       "entry_point": "Livewire component Shopper\\Admin\\Livewire\\Pages\\Settings\\Team\\Index (route: shopper.settings.team.index) - createRoleAction invoked by any authenticated panel user; source: Livewire action call from client",
       "fix_addresses_it": true,
-      "human_spot_check": null,
+      "human_spot_check": {
+        "date": "2026-10-13",
+        "decision": "accept",
+        "reviewer": "mc"
+      },
       "id": "shopperlabs-shopper-df2391064e3c3332",
       "model": "deepseek-flash",
       "reachable_in_repo": true,
-      "verdict": "pending_human",
+      "verdict": "accepted",
       "vulnerable_pre_fix": true
     },
     {
@@ -4181,11 +4349,15 @@
       "confidence": 0.85,
       "entry_point": "Livewire component Customers\\Create::store() invoked via admin panel route shopper.customers.create (Livewire POST to /admin/customers/create); attacker-controlled source is the Livewire form state ($this->form->getState()) submitted by an authenticated low-privilege panel user",
       "fix_addresses_it": true,
-      "human_spot_check": null,
+      "human_spot_check": {
+        "date": "2026-10-13",
+        "decision": "accept",
+        "reviewer": "mc"
+      },
       "id": "shopperlabs-shopper-f3cb66743db8d5f1",
       "model": "deepseek-flash",
       "reachable_in_repo": true,
-      "verdict": "pending_human",
+      "verdict": "accepted",
       "vulnerable_pre_fix": true
     },
     {
@@ -4193,11 +4365,15 @@
       "confidence": 0.75,
       "entry_point": "Livewire component packages/admin/src/Livewire/Pages/Settings/Carriers.php (table actions: ToggleColumn is_enabled, EditAction, DeleteAction) invoked via Livewire update requests by any authenticated panel user",
       "fix_addresses_it": true,
-      "human_spot_check": null,
+      "human_spot_check": {
+        "date": "2026-10-13",
+        "decision": "accept",
+        "reviewer": "mc"
+      },
       "id": "shopperlabs-shopper-fddd0d6c3c4501aa",
       "model": "deepseek-flash",
       "reachable_in_repo": true,
-      "verdict": "pending_human",
+      "verdict": "accepted",
       "vulnerable_pre_fix": true
     },
     {
@@ -4349,11 +4525,15 @@
       "confidence": 0.55,
       "entry_point": "POST /api/v1/schedules/:scheduleId/deactivate (action in apps/webapp/app/routes/api.v1.schedules.$scheduleId.deactivate.ts), authenticated via authenticateApiRequest using an environment-scoped secret API key",
       "fix_addresses_it": true,
-      "human_spot_check": null,
+      "human_spot_check": {
+        "date": "2026-10-13",
+        "decision": "accept",
+        "reviewer": "mc"
+      },
       "id": "triggerdotdev-trigger.dev-0eb72665259b13c2",
       "model": "deepseek-flash",
       "reachable_in_repo": true,
-      "verdict": "pending_human",
+      "verdict": "accepted",
       "vulnerable_pre_fix": true
     },
     {
@@ -4361,11 +4541,15 @@
       "confidence": 0.55,
       "entry_point": "POST /api/v1/schedules/:scheduleId/activate (action in apps/webapp/app/routes/api.v1.schedules.$scheduleId.activate.ts), authenticated via authenticateApiRequest using an environment-scoped secret API key",
       "fix_addresses_it": true,
-      "human_spot_check": null,
+      "human_spot_check": {
+        "date": "2026-10-13",
+        "decision": "accept",
+        "reviewer": "mc"
+      },
       "id": "triggerdotdev-trigger.dev-124d417d0ae18fbe",
       "model": "deepseek-flash",
       "reachable_in_repo": true,
-      "verdict": "pending_human",
+      "verdict": "accepted",
       "vulnerable_pre_fix": true
     },
     {
@@ -4409,11 +4593,15 @@
       "confidence": 0.75,
       "entry_point": "POST /api/v1/deployments/:deploymentId/cancel (api.v1.deployments.$deploymentId.cancel.ts) -> DeploymentService.cancelDeployment -> getDeployment(projectId, friendlyId); attacker-controlled source: deploymentId path param + secret API key of a lower-trust environment",
       "fix_addresses_it": true,
-      "human_spot_check": null,
+      "human_spot_check": {
+        "date": "2026-10-13",
+        "decision": "accept",
+        "reviewer": "mc"
+      },
       "id": "triggerdotdev-trigger.dev-2240070f2c86924b",
       "model": "deepseek-flash",
       "reachable_in_repo": true,
-      "verdict": "pending_human",
+      "verdict": "accepted",
       "vulnerable_pre_fix": true
     },
     {
@@ -4469,11 +4657,15 @@
       "confidence": 0.9,
       "entry_point": "POST /api/v1/deployments/:deploymentId/cancel (action in apps/webapp/app/routes/api.v1.deployments.$deploymentId.cancel.ts); attacker-controlled source: API key in request headers via authenticateRequest, plus deploymentId path param",
       "fix_addresses_it": true,
-      "human_spot_check": null,
+      "human_spot_check": {
+        "date": "2026-10-13",
+        "decision": "accept",
+        "reviewer": "mc"
+      },
       "id": "triggerdotdev-trigger.dev-30dec4b7031de737",
       "model": "deepseek-flash",
       "reachable_in_repo": true,
-      "verdict": "pending_human",
+      "verdict": "accepted",
       "vulnerable_pre_fix": true
     },
     {
@@ -4613,11 +4805,15 @@
       "confidence": 0.85,
       "entry_point": "POST /api/v1/deployments/:deploymentId/cancel (apps/webapp/app/routes/api.v1.deployments.$deploymentId.cancel.ts) with attacker-controlled secret API key (dev/preview env) and deploymentId param",
       "fix_addresses_it": true,
-      "human_spot_check": null,
+      "human_spot_check": {
+        "date": "2026-10-13",
+        "decision": "accept",
+        "reviewer": "mc"
+      },
       "id": "triggerdotdev-trigger.dev-5b0c0ef74fdf5bc3",
       "model": "deepseek-flash",
       "reachable_in_repo": true,
-      "verdict": "pending_human",
+      "verdict": "accepted",
       "vulnerable_pre_fix": true
     },
     {
@@ -4637,11 +4833,15 @@
       "confidence": 0.9,
       "entry_point": "POST /api/v1/deployments/:deploymentId/cancel (apps/webapp/app/routes/api.v1.deployments.$deploymentId.cancel.ts) -> DeploymentService.cancelDeployment -> getDeployment; attacker-controlled source: authenticated secret API key (environment) and deploymentId path param",
       "fix_addresses_it": true,
-      "human_spot_check": null,
+      "human_spot_check": {
+        "date": "2026-10-13",
+        "decision": "accept",
+        "reviewer": "mc"
+      },
       "id": "triggerdotdev-trigger.dev-5f1cf28e3ac84980",
       "model": "deepseek-flash",
       "reachable_in_repo": true,
-      "verdict": "pending_human",
+      "verdict": "accepted",
       "vulnerable_pre_fix": true
     },
     {
@@ -4853,11 +5053,15 @@
       "confidence": 0.9,
       "entry_point": "POST /api/v1/deployments/$deploymentId/cancel (apps/webapp/app/routes/api.v1.deployments.$deploymentId.cancel.ts) -> DeploymentService.cancelDeployment; attacker-controlled source: authenticated environment secret API key (dev/preview key) plus deploymentId path param",
       "fix_addresses_it": true,
-      "human_spot_check": null,
+      "human_spot_check": {
+        "date": "2026-10-13",
+        "decision": "accept",
+        "reviewer": "mc"
+      },
       "id": "triggerdotdev-trigger.dev-eebfca9646e01b1c",
       "model": "deepseek-flash",
       "reachable_in_repo": true,
-      "verdict": "pending_human",
+      "verdict": "accepted",
       "vulnerable_pre_fix": true
     },
     {
