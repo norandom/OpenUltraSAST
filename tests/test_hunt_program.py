@@ -43,7 +43,7 @@ def test_signature_drops_masked_inputs_and_keeps_the_order():
 def test_render_rows_numbers_the_function_and_omits_masked_inputs():
     inputs = hp.render_rows(CHANGE, ROWS, TEXT)
     assert inputs["change_summary"] == "app.py::second"
-    assert json.loads(inputs["hunks"]) == {"app.py": [[3, 3]]}
+    assert json.loads(inputs["hunks"]) == {"app.py": {"changed": [[3, 3]], "removed_after_line": []}}
     assert "    5  def second():" in inputs["function_text"] and "    6  " in inputs["function_text"]
     assert "input()" not in inputs["function_text"]  # only the span is shown
     assert inputs["families"].startswith("injection: ")

@@ -169,9 +169,15 @@ def _full_checkout(root: Path) -> None:
     try:
         sparse = _git(root, "config", "--get", "core.sparseCheckout").strip()
     except subprocess.CalledProcessError:
-        return
+        sparse = "false"
     if sparse == "true":
         _git(root, "sparse-checkout", "disable")
+    # The proof: a fresh worktree has nothing modified. Truncated files (seen once while two processes checked out
+    # from the same clone) show up here as modified; restore them once, then refuse rather than read an unread tree.
+    if _git(root, "status", "--porcelain", "--untracked-files=no").strip():
+        _git(root, "checkout", "--", ".")
+        if _git(root, "status", "--porcelain", "--untracked-files=no").strip():
+            raise InstrumentFailure("checkout_incomplete")
 
 
 def _function_at(root: Path, finding: Mapping[str, Any]) -> str | None:

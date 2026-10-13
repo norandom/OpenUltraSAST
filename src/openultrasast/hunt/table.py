@@ -13,7 +13,7 @@ SCHEMA_VERSION = 1
 KEY_COLUMNS = ("change_id", "repo", "head", "path", "line", "kind", "fold")
 LABEL_COLUMNS = ("label", "family", "fix_span", "label_ref", "verification")
 FEATURE_NAMES = {
-    "diff": ("hunks", "on_changed_line", "distance"),
+    "diff": ("hunks", "deletions", "on_changed_line", "distance"),
     "source": ("function", "span", "callers", "entry_points", "language"),
     "semantic": ("roles", "def_use", "obligations"),
     "taxonomy": ("families",),

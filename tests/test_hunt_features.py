@@ -20,6 +20,7 @@ ROW = {
     "label": 1,
     "family": "injection",
     "feature.diff.hunks": [[3, 3], [10, 12]],
+    "feature.diff.deletions": [9],
     "feature.diff.on_changed_line": False,
     "feature.diff.distance": 2,
     "feature.source.function": "second",
@@ -56,7 +57,7 @@ def test_feature_frame_engineers_counts_distances_and_flags():
     frame = features.feature_frame([ROW, absent])
     first = frame.iloc[0]
     assert first["diff.distance"] == 2 and first["diff.on_changed_line"] == 0
-    assert first["diff.hunk_count"] == 2 and first["diff.hunk_lines"] == 4
+    assert first["diff.hunk_count"] == 2 and first["diff.hunk_lines"] == 4 and first["diff.deletion_count"] == 1
     assert first["source.span_lines"] == 3 and first["source.is_module"] == 0
     assert first["source.caller_count"] == 3 and first["source.caller_files"] == 2 and first["source.entry_point_count"] == 1
     assert (first["semantic.sources"], first["semantic.sinks"], first["semantic.sanitizers"]) == (1, 2, 1)

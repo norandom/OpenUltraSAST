@@ -108,3 +108,22 @@ def test_instrument_failure_is_recorded_with_a_type_only(repository, tmp_path):
     assert record["status"] == "instrument_failure"
     assert record["instrument"]["failure"] == "CalledProcessError"
     assert record["push"]["admission"]["defects"] == []
+
+
+def test_full_checkout_restores_a_truncated_file_and_refuses_an_unread_tree(repository, tmp_path, monkeypatch):
+    root, _manifest, changes = repository
+    worktree = tmp_path / "head"
+    subprocess.run(
+        ["git", "-C", str(root), "worktree", "add", "--detach", str(worktree), changes[0]["head"]], check=True, capture_output=True
+    )
+    (worktree / "app.py").write_bytes(b"")
+    runner._full_checkout(worktree)
+    assert (worktree / "app.py").read_bytes()  # the truncated file was restored, not read as empty
+    real = runner._git
+
+    def still_dirty(target, *args):
+        return " M app.py\n" if args[:2] == ("status", "--porcelain") else real(target, *args)
+
+    monkeypatch.setattr(runner, "_git", still_dirty)
+    with pytest.raises(runner.InstrumentFailure, match="checkout_incomplete"):
+        runner._full_checkout(worktree)

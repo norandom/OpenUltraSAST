@@ -31,7 +31,11 @@ BASELINE_INSTRUCTION = (
 # Input name -> (feature column, renderer). Order is the order the model sees them in; masked columns are absent.
 INPUTS: tuple[tuple[str, str, str], ...] = (
     ("change_summary", "", "The files and functions the push touched."),
-    ("hunks", "feature.diff.hunks", "Changed line ranges per file at head, as [start, end] pairs."),
+    (
+        "hunks",
+        "feature.diff.hunks",
+        "Per file at head: changed line ranges as [start, end] pairs, and the lines after which the push removed code.",
+    ),
     ("function_text", "feature.source.span", "The enclosing function at head, numbered lines."),
     ("callers", "feature.source.callers", "Where the enclosing function is called from: path and line."),
     ("entry_points", "feature.source.entry_points", "In-repository entry points that reach the file."),
@@ -82,7 +86,13 @@ def render_rows(
         touched = sorted({(row["path"], str(row.get("feature.source.function") or "<module>")) for row in rows})
         out["change_summary"] = "\n".join(f"{path}::{function}" for path, function in touched) or "(nothing readable)"
     if "hunks" in wanted:
-        hunks = {row["path"]: row.get("feature.diff.hunks") for row in rows if row.get("feature.diff.hunks")}
+        hunks: dict[str, dict[str, list]] = {}
+        for row in rows:
+            if row.get("feature.diff.hunks") or row.get("feature.diff.deletions"):
+                hunks[row["path"]] = {
+                    "changed": row.get("feature.diff.hunks") or [],
+                    "removed_after_line": row.get("feature.diff.deletions") or [],
+                }
         out["hunks"] = json.dumps(hunks, sort_keys=True) if hunks else "(no hunks)"
     if "function_text" in wanted:
         blocks = []

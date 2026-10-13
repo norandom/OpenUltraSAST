@@ -96,6 +96,19 @@ class Context:
 
     @cached_property
     def hunks(self) -> dict[str, list[list[int]]]:
+        """Line ranges per file that the push changed or added, at head."""
+        return self._patch[0]
+
+    @cached_property
+    def deletions(self) -> dict[str, list[int]]:
+        """Per file, the head lines after which the push removed lines (0 when it removed the top of the file).
+
+        A fix that adds a guard is a push that removes it when replayed base-to-head, and that push has no added
+        line at head: without this column the diff features are blind to exactly that shape."""
+        return self._patch[1]
+
+    @cached_property
+    def _patch(self) -> tuple[dict[str, list[list[int]]], dict[str, list[int]]]:
         self.verify_head()
         # Exclude private files before git opens the patch; only hunk coordinates become features.
         patch = _git(
@@ -112,6 +125,7 @@ class Context:
         )
         self.diff_bytes = len(patch.encode("utf-8"))
         result: dict[str, list[list[int]]] = {}
+        removed: dict[str, list[int]] = {}
         path = None
         for text in patch.splitlines():
             if text.startswith("+++ "):
@@ -122,7 +136,9 @@ class Context:
                 start, count = int(match[1]), int(match[2] or "1")
                 if count:
                     result.setdefault(path, []).append([start, start + count - 1])
-        return result
+                else:
+                    removed.setdefault(path, []).append(start)
+        return result, removed
 
     def ir(self, path: str) -> FileIR:
         if path not in self.irs:
@@ -143,7 +159,7 @@ class Producer:
     compute: Compute
 
 
-def _producer(name: str, compute: Compute) -> Producer:
+def _producer(name: str, compute: Compute, version: str = "1") -> Producer:
     columns = tuple(f"feature.{name}.{column}" for column in FEATURE_NAMES[name])
     provenance = tuple(f"provenance.{name}.{column}" for column in ("ok", "reason", "version", "bytes_read"))
 
@@ -167,19 +183,22 @@ def _producer(name: str, compute: Compute) -> Producer:
             {
                 f"provenance.{name}.ok": reason is None,
                 f"provenance.{name}.reason": reason,
-                f"provenance.{name}.version": "1",
+                f"provenance.{name}.version": version,
                 f"provenance.{name}.bytes_read": bytes_read,
             }
         )
         return result
 
-    return Producer(name, "1", columns + provenance, guarded)
+    return Producer(name, version, columns + provenance, guarded)
 
 
 def _diff(root: Path, change: Change, path: str, line: int, ctx: Context) -> dict[str, object]:
     hunks = ctx.hunks.get(path, [])
-    distance = min((max(start - line, 0, line - end) for start, end in hunks), default=None)
-    return {"hunks": hunks, "on_changed_line": distance == 0, "distance": distance}
+    deletions = ctx.deletions.get(path, [])
+    # A removal sits between head lines `after` and `after + 1`; both lines count as touched.
+    ranges = hunks + [[max(after, 1), max(after, 1) + 1] for after in deletions]
+    distance = min((max(start - line, 0, line - end) for start, end in ranges), default=None)
+    return {"hunks": hunks, "deletions": deletions, "on_changed_line": distance == 0, "distance": distance}
 
 
 def _source(root: Path, change: Change, path: str, line: int, ctx: Context) -> dict[str, object]:
@@ -279,7 +298,12 @@ def _taxonomy(root: Path, change: Change, path: str, line: int, ctx: Context) ->
     return {"families": [{"id": f.id, "definition": " ".join(f.description.split())} for f in load_families().families]}
 
 
-PRODUCERS = (_producer("diff", _diff), _producer("source", _source), _producer("semantic", _semantic), _producer("taxonomy", _taxonomy))
+PRODUCERS = (
+    _producer("diff", _diff, version="2"),
+    _producer("source", _source),
+    _producer("semantic", _semantic),
+    _producer("taxonomy", _taxonomy),
+)
 
 
 def _candidates(root: Path, change: Change, ctx: Context) -> list[dict[str, Any]]:

@@ -20,8 +20,7 @@ def repository(tmp_path):
     git("init", "-q")
     git("config", "user.name", "Fixture")
     git("config", "user.email", "fixture@example.invalid")
-    initial = ('def first():\n    value = input()\n    return value\n\n'
-               'def second():\n    value = first()\n    return value\n')
+    initial = "def first():\n    value = input()\n    return value\n\ndef second():\n    value = first()\n    return value\n"
     (tmp_path / "app.py").write_text(initial)
     (tmp_path / "notes.txt").write_text("GHSA-xxxx-xxxx-xxxx CVE-2024-0001\n")
     (tmp_path / "unknown.zzz").write_text("opaque\n")
@@ -33,10 +32,22 @@ def repository(tmp_path):
     git("add", "app.py", "unknown.zzz")
     git("commit", "-qm", "fix XSS CVE-2024-0001")
     head = git("rev-parse", "HEAD")
-    data = {"id": "change", "repo": "fixture/repo", "base": base, "head": head, "kind": "vulnerability", "fold": 1,
-            "path": "app.py", "function": "second", "function_lines": [5, 7], "family": "injection", "case_id": "verified",
-            "advisory": "GHSA-xxxx-xxxx-xxxx", "commit_message": "fix XSS CVE-2024-0001",
-            "files": [{"path": "app.py", "head_lines": [[3, 3]]}]}
+    data = {
+        "id": "change",
+        "repo": "fixture/repo",
+        "base": base,
+        "head": head,
+        "kind": "vulnerability",
+        "fold": 1,
+        "path": "app.py",
+        "function": "second",
+        "function_lines": [5, 7],
+        "family": "injection",
+        "case_id": "verified",
+        "advisory": "GHSA-xxxx-xxxx-xxxx",
+        "commit_message": "fix XSS CVE-2024-0001",
+        "files": [{"path": "app.py", "head_lines": [[3, 3]]}],
+    }
     return tmp_path, data
 
 
@@ -55,10 +66,11 @@ def test_every_column_candidates_and_cached_work(repository, monkeypatch):
     rows = compute_rows(root, change)
     assert len(calls) == 1
     table = FeatureTable(rows)
-    assert len(table.feature_columns()) == 12
+    assert len(table.feature_columns()) == 13
     assert [r["label"] for r in rows] == [None, 1]
     first, second = rows
     assert first["feature.diff.hunks"] == [[3, 3]]
+    assert first["feature.diff.deletions"] == [] and first["provenance.diff.version"] == "2"
     assert first["feature.diff.distance"] == 2
     assert not first["feature.diff.on_changed_line"]
     assert first["feature.source.function"] == "first"
@@ -149,10 +161,38 @@ def test_head_mismatch_is_not_a_clean_measurement(repository):
 
 def test_obligation_result_uses_dominance_not_absence_of_findings(repository, monkeypatch):
     root, change = repository
-    text = ('from flask import request\n@app.route("/item")\ndef first():\n'
-            '    return User.query.get(request.args["id"])\n')
+    text = 'from flask import request\n@app.route("/item")\ndef first():\n    return User.query.get(request.args["id"])\n'
     (root / "app.py").write_text(text)
     monkeypatch.setattr(module, "_git", lambda *args: change["head"])
     row = compute_rows(root, {**change, "kind": "ordinary", "files": [{"path": "app.py", "head_lines": [[4, 4]]}]})[0]
     assert row["feature.semantic.obligations"]
     assert row["feature.semantic.obligations"][0]["discharged"] is False
+
+
+def test_a_removed_guard_anchors_the_function_it_left(tmp_path):
+    """Replayed base-to-head, a fix that added a check is a push that removes it: no added line, one deletion anchor."""
+
+    def git(*args):
+        return subprocess.run(["git", "-C", str(tmp_path), *args], check=True, capture_output=True, text=True).stdout.strip()
+
+    git("init", "-q")
+    git("config", "user.name", "Fixture")
+    git("config", "user.email", "fixture@example.invalid")
+    check = "    if not user.is_admin:\n        raise PermissionError\n"
+    guarded = "def first():\n    return 1\n\n\ndef admin(user):\n" + check + "    return delete_everything()\n"
+    (tmp_path / "app.py").write_text(guarded)
+    git("add", "app.py")
+    git("commit", "-qm", "fix: require admin")
+    base = git("rev-parse", "HEAD")
+    (tmp_path / "app.py").write_text(guarded.replace(check, ""))
+    git("add", "app.py")
+    git("commit", "-qm", "unguarded")
+    head = git("rev-parse", "HEAD")
+    change = {"id": "c", "case_id": "c-1", "repo": "fixture/repo", "base": base, "head": head, "kind": "ordinary", "fold": 1,
+              "files": [{"path": "app.py", "head_lines": [[1, 1], [5, 6]]}]}  # fmt: skip
+    rows = compute_rows(tmp_path, change)
+    row = next(r for r in rows if r["feature.source.function"] == "admin")
+    assert row["feature.diff.hunks"] == [] and row["feature.diff.deletions"] == [5]
+    assert row["feature.diff.on_changed_line"] and row["feature.diff.distance"] == 0
+    first = next(r for r in rows if r["feature.source.function"] == "first")
+    assert first["feature.diff.distance"] == 4 and not first["feature.diff.on_changed_line"]
