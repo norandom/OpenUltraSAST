@@ -6,7 +6,6 @@ import logging
 import os
 import subprocess
 import sys
-import tempfile
 import time
 from collections.abc import Mapping, Sequence
 from dataclasses import asdict, dataclass, replace
@@ -39,10 +38,8 @@ from .complexity.ledger import persist_verdicts
 from .config import ModelLayerConfig, ObligationsConfig, ResolvedConfig, RetiredConfigError, load_config, load_dotenv
 from .findings import StaticFinding, quick_scan_findings, uncovered_languages, write_findings
 from .fusion import FusionDecision, fuse_findings
-from .gate import FALSE_POSITIVE_CEILING, RECALL_FLOOR
 from .harness import HarnessRuntime, HarnessTraceWriter, write_harness_config
 from .hunter import run_hunter_pool, write_hunter_trajectories
-from .improve import RoundOutcome, run_improvement
 from .learn.cli import add_commands as add_learn_commands
 from .learn.cli import run as run_learn
 from .mapping import analyze_entry_points, attach_reachability_hints, ingest_sarif, write_entry_points, write_static_hints
@@ -234,55 +231,9 @@ def _main(argv: list[str] | None) -> int:
     benchmark.add_argument("--mode", choices=("quick", "standard", "deep"), default="quick")
     benchmark.add_argument("--config", type=Path, default=Path("openultrasast.toml"))
 
-    improve = subparsers.add_parser(
-        "improve",
-        help="run the bounded self-improvement loop against a benchmark manifest and update the loop-owned ruleset ledger",
-    )
-    improve.add_argument("manifest", type=Path)
-    improve.add_argument("--max-rounds", type=int, default=5)
-    improve.add_argument("--recall-floor", type=float, default=RECALL_FLOOR)
-    improve.add_argument("--fp-ceiling", type=float, default=FALSE_POSITIVE_CEILING)
-    improve.add_argument(
-        "--ledger", type=Path, default=None, help="ruleset ledger path (default: <target>/.openultrasast/calibration/rule_policy.json)"
-    )
-    improve.add_argument("--journal", type=Path, default=None, help="improvement journal path (default: alongside the ledger)")
-    improve.add_argument(
-        "--ruleset-dir", type=Path, default=DEFAULT_RULESET_DIR, help="ruleset directory to improve (default: the bundled ruleset)"
-    )
-    improve.add_argument("--dry-run", action="store_true", help="run rounds against a throwaway ledger; never touch the target's ledger")
-    improve.add_argument(
-        "--pair-catalog",
-        type=Path,
-        default=DEFAULT_CATALOG,
-        help="pair catalog whose holdout split gates every round per provenance profile",
-    )
-    improve.add_argument(
-        "--no-pair-gate", action="store_true", help="skip the per-profile holdout clause (faster; not for accepted ledgers)"
-    )
-    improve.add_argument(
-        "--profile-tolerance", type=float, default=0.0, help="allowed per-profile drop in pair_correct/Youden before rejecting"
-    )
-    improve.add_argument("--min-holdout-pairs", type=int, default=5, help="profiles with fewer holdout pairs are reported, not gated")
-    improve.add_argument(
-        "--memory",
-        nargs="?",
-        const="",
-        default=None,
-        metavar="STORE",
-        help="also propose rule-status edits from the plane memory store (a directory, file:// or s3:// URL; "
-        "no value: OUSAST_MEMORY or the default store); off by default",
-    )
-    improve.add_argument(
-        "--qualify-population",
-        action="append",
-        default=[],
-        metavar="NAME",
-        help="population a memory proposal will be qualified on; its rows never propose (repeatable)",
-    )
-
     pairs = subparsers.add_parser(
         "pairs",
-        help="scan isolated vuln-vs-fixed pairs (TP on vuln, silent on fix) and emit improve-loop signals",
+        help="scan isolated vuln-vs-fixed pairs (TP on vuln, silent on fix) and report misses and fixed-side false positives",
     )
     pairs.add_argument("--catalog", type=Path, default=DEFAULT_CATALOG)
     pairs.add_argument("--slice", choices=SLICE_NAMES, default="all")
@@ -392,17 +343,6 @@ def _main(argv: list[str] | None) -> int:
     plane_ws.add_argument(
         "--runner-image", type=Path, help="with --validation-set: re-pin the task templates to the image in this file (ops/ax/up.sh)"
     )
-    plane_ws.add_argument(
-        "--loop", action="store_true",
-        help="with --validation-set: append the improvement loop (alerts per case, then snapshot, measure, propose, improve)",
-    )  # fmt: skip
-    plane_ws.add_argument("--loop-commit", help="with --loop: the commit under test the gate runs at (default: git rev-parse HEAD)")
-    plane_ws.add_argument("--loop-repo", help="with --loop: this repository's URL (default: git remote get-url origin)")
-    plane_ws.add_argument("--loop-manifest", help="with --loop: the benchmark manifest the proposals are gated on")
-    plane_ws.add_argument(
-        "--qualify-population", action="append", default=[], metavar="NAME", help="with --loop: a population whose rows never propose"
-    )
-
     raw = list(argv if argv is not None else sys.argv[1:])
     if _advisory_hook(raw):
         # Git hook mode (stdin) without an explicit blocking opt-in: a check that cannot run must
@@ -430,23 +370,6 @@ def _main(argv: list[str] | None) -> int:
         return _scan(args.path, args.config, args.mode, args.fail_on)
     if args.command == "benchmark":
         return _benchmark(args.manifest, args.config, args.mode)
-    if args.command == "improve":
-        return _improve(
-            args.manifest,
-            max_rounds=args.max_rounds,
-            recall_floor=args.recall_floor,
-            fp_ceiling=args.fp_ceiling,
-            ledger=args.ledger,
-            journal=args.journal,
-            ruleset_dir=args.ruleset_dir,
-            dry_run=args.dry_run,
-            pair_catalog=None if args.no_pair_gate else args.pair_catalog,
-            profile_tolerance=args.profile_tolerance,
-            min_holdout_pairs=args.min_holdout_pairs,
-            memory=args.memory,
-            qualify_populations=tuple(args.qualify_population),
-            guard_catalog=args.pair_catalog,
-        )
     if args.command == "pairs":
         return _pairs(
             args.catalog,
@@ -1103,75 +1026,6 @@ def _benchmark(manifest_path: Path, config_path: Path, mode: str) -> int:
     return 0
 
 
-def _improve(
-    manifest_path: Path,
-    *,
-    max_rounds: int,
-    recall_floor: float,
-    fp_ceiling: float,
-    ledger: Path | None,
-    journal: Path | None,
-    ruleset_dir: Path,
-    dry_run: bool,
-    pair_catalog: Path | None = None,
-    profile_tolerance: float = 0.0,
-    min_holdout_pairs: int = 5,
-    memory: str | None = None,
-    qualify_populations: tuple[str, ...] = (),
-    guard_catalog: Path | None = None,
-) -> int:
-    if not manifest_path.exists() or not manifest_path.is_file():
-        raise SystemExit(f"benchmark manifest is not a file: {manifest_path}")
-    pair_cases: tuple[object, ...] = ()
-    if pair_catalog is not None:
-        if not pair_catalog.is_file():
-            raise SystemExit(f"pair catalog is not a file: {pair_catalog} (pass --no-pair-gate to skip the per-profile holdout clause)")
-        pair_cases = select_split(load_pair_catalog(pair_catalog), "holdout")
-    manifest = load_benchmark_manifest(manifest_path)
-    target = resolve_benchmark_source(manifest_path, manifest)
-    policy = load_policy()
-    session = _memory_session(memory, manifest, target, ruleset_dir, qualify_populations, guard_catalog) if memory is not None else None
-
-    # The loop writes its accepted ledger where `scan`/`benchmark` read it, so a
-    # subsequent scan of this target automatically picks up the improved ruleset.
-    default_ledger = target / CALIBRATION_DIR / "rule_policy.json"
-    with tempfile.TemporaryDirectory(prefix="ousast-improve-") as scratch:
-        if dry_run:
-            ledger_path = Path(scratch) / "rule_policy.json"
-            journal_path = Path(scratch) / "improve_journal.json"
-        else:
-            ledger_path = ledger or default_ledger
-            journal_path = journal or ledger_path.with_name("improve_journal.json")
-
-        outcomes = run_improvement(
-            target,
-            manifest,
-            ledger_path=ledger_path,
-            journal_path=journal_path,
-            ruleset_dir=ruleset_dir,
-            policy=policy,
-            max_rounds=max_rounds,
-            recall_floor=recall_floor,
-            fp_ceiling=fp_ceiling,
-            pair_cases=pair_cases,
-            profile_tolerance=profile_tolerance,
-            min_holdout_pairs=min_holdout_pairs,
-            proposals=session.proposals(ledger_path, journal_path) if session else (),
-        )
-        _print_improve_outcomes(outcomes, manifest_path, target, ledger_path, dry_run=dry_run)
-        if session is not None:
-            session.finish(outcomes, journal_path, dry_run=dry_run)
-    return 0
-
-
-def _memory_session(
-    memory: str, manifest: object, target: Path, ruleset_dir: Path, populations: tuple[str, ...], catalog: Path | None
-) -> Any:
-    from .improve.memory import MemorySession  # lazy: the default `improve` path never touches the store
-
-    return MemorySession.open(memory, manifest, target, ruleset_dir, populations, catalog)
-
-
 def _pairs(
     catalog: Path,
     slice_name: str,
@@ -1473,29 +1327,6 @@ def _check_obligations(
     return statics, payload, cited
 
 
-def _print_improve_outcomes(outcomes: list[RoundOutcome], manifest_path: Path, target: Path, ledger_path: Path, *, dry_run: bool) -> None:
-    print(f"manifest={manifest_path}")
-    print(f"target={target}")
-    accepted = [o for o in outcomes if o.accepted]
-    for outcome in outcomes:
-        edits = ", ".join(f"{e.rule_id}:{e.from_status}->{e.to_status}" for e in outcome.edits) or "-"
-        print(
-            f"round {outcome.round}: {outcome.reason} | "
-            f"recall {outcome.recall_before:.2%}->{outcome.recall_after:.2%} "
-            f"fp {outcome.fp_before:.2%}->{outcome.fp_after:.2%} "
-            f"score {outcome.score_before}->{outcome.score_after} | edits: {edits}"
-        )
-        if outcome.profile_regressions or outcome.profiles_under_minimum:
-            print(f"  profiles: regressed={outcome.profile_regressions or '-'} under_minimum={outcome.profiles_under_minimum or '-'}")
-    print(f"rounds={len(outcomes)} accepted={len(accepted)}")
-    if dry_run:
-        print("dry_run=true (no ledger or mechanism store written)")
-    elif accepted:
-        print(f"ledger={ledger_path}")
-    else:
-        print("ledger=unchanged (no round accepted)")
-
-
 def _load_scan_findings(run_dir: Path) -> list[StaticFinding]:
     return load_findings(run_dir / "findings.json")
 
@@ -1644,7 +1475,7 @@ def _plane_memory(
             assert run_manifest is not None
             seeded = memory.seed(run_manifest, store)
             if seeded:
-                print(f"memory {store.describe()}: seeded {len(seeded)} tasks (reused facts, loop snapshot): {', '.join(seeded)}")
+                print(f"memory {store.describe()}: seeded {len(seeded)} tasks (reused facts): {', '.join(seeded)}")
             return 0
         annotations: dict[str, str] = {}
         if run_manifest is not None:
@@ -1665,7 +1496,7 @@ def _plane_memory(
 
 
 def _plane_increment(args: argparse.Namespace, atespace: str) -> int:
-    from .plane.generate import LOOP_MANIFEST, Loop, increment
+    from .plane.generate import increment
 
     if args.candidates is None or args.triage is None:
         print("--validation-set needs --candidates and --triage", file=sys.stderr)
@@ -1679,18 +1510,9 @@ def _plane_increment(args: argparse.Namespace, atespace: str) -> int:
     )
     if args.runner_image is not None:
         command += f" --runner-image {str(args.runner_image).replace(home, '~', 1)}"
-    loop = None
-    if args.loop:
-        git = lambda *a: subprocess.run(["git", *a], capture_output=True, text=True, check=True).stdout.strip()  # noqa: E731
-        loop = Loop(
-            repo=args.loop_repo or git("remote", "get-url", "origin"), commit=args.loop_commit or git("rev-parse", "HEAD"),
-            manifest=args.loop_manifest or LOOP_MANIFEST, populations=tuple(args.qualify_population),
-        )  # fmt: skip
-        command += f" --loop --loop-commit {loop.commit} --loop-repo {loop.repo} --loop-manifest {loop.manifest}"
-        command += "".join(f" --qualify-population {p}" for p in loop.populations)
     written = increment(
         args.population, args.validation_set, args.candidates, args.triage, plane=args.plane, run_name=args.run, command=command,
-        repos=args.repos, runner_image=args.runner_image, loop=loop, atespace=atespace,
+        repos=args.repos, runner_image=args.runner_image, atespace=atespace,
     )  # fmt: skip
     print(f"{len(written)} manifests written under {args.plane} (Run {args.run})")
     return 0

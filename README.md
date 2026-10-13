@@ -217,8 +217,7 @@ checks, plus a configuration census. A model answers only the residual question.
   code it comes from and what it misses.
 - [docs/architecture.md](docs/architecture.md) gives the stage order and the evidence ladder (a
   state machine, not a label a model may assign). It also covers the central CWE policy, the
-  project score and the self-improving loops (`ousast improve`, with `--memory` for proposals from
-  plane rows).
+  project score.
 
 Quick rules cover C/C++, Python, JavaScript/TypeScript, Java with Groovy templates, and PHP. Each
 rule runs only against files of its language.
@@ -311,7 +310,6 @@ the fold discipline that keeps learned decisions out of their own training data.
 uv run ousast benchmark benchmarks/manifests/python-vulnerable.toml --mode quick
 uv run ousast pairs --slice sast                     # fire on the vulnerable side, stay silent on the fix
 uv run python -m openultrasast.pair_gate             # CI: local pairs must all pass
-uv run ousast improve benchmarks/manifests/java-spring-boot-vulnerable.toml --dry-run --memory
 ```
 
 ## Token economics

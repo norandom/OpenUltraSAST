@@ -13,12 +13,12 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from test_plane_loop import LOOP, _templates, _write
+import yaml
 
 from openultrasast import cli
 from openultrasast.plane import engine_alerts
 from openultrasast.plane.engine_alerts import EngineAlertsError, alerts_engine, engine_rows, parse_site, read_record
-from openultrasast.plane.generate import CaseInputs, render
+from openultrasast.plane.manifests import RUN_API_VERSION
 
 FIXTURE = Path(__file__).parent / "fixtures" / "plane-engine"
 CASE = "php-probe"
@@ -44,17 +44,29 @@ def world(tmp_path: Path) -> dict[str, Any]:
     (repo / "app" / "index.php").write_text(text)
     _git(repo, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-qam", "fixed")
     fixed = _git(repo, "rev-parse", "HEAD")
-    record = {"id": CASE, "repo": "https://example.com/reserved/probe", "family": "injection", "vulnerable": vulnerable, "fixed": fixed}
-    candidate = ("app/index.php", "<global>", 3)
-    case = CaseInputs(
-        record, (candidate,), (candidate,), {}, 0.0, ranges={"app/index.php": [(3, 3)]}, fixed_ranges={"app/index.php": [(3, 3)]}
-    )
-    files = render([case], _templates(), "validation-46", "t", population="p", split="s", loop=LOOP)
+    plane = tmp_path / "plane"
+    for name in ("tasks", "workspaces", "runs"):
+        (plane / name).mkdir(parents=True)
+    task = yaml.safe_load((Path(__file__).resolve().parents[1] / "plane/tasks/alerts.yaml").read_text())
+    task["metadata"]["name"] = f"{CASE}-alerts"
+    task["spec"]["env"] = [{"name": f"OUSAST_{role.upper()}_PIN", "value": pin} for role, pin in
+                            (("vulnerable", vulnerable), ("fixed", fixed))]
+    task["spec"]["workspaces"] = [{"name": "case", "path": "/workspace/case"}]
+    (plane / "tasks/alerts.yaml").write_text(yaml.safe_dump(task))
+    case = {"family": "injection", "ranges": {"app/index.php": [[3, 3]]}, "fixed_ranges": {"app/index.php": [[3, 3]]}}
+    workspace = {"apiVersion": task["apiVersion"], "kind": "Workspace", "metadata": {"name": "case"}, "spec": {
+        "git": [{"name": "repo", "repo": "https://example.com/reserved/probe", "dir": "repo"}],
+        "files": [{"path": "case.json", "content": json.dumps(case)}],
+    }}
+    (plane / "workspaces/case.yaml").write_text(yaml.safe_dump(workspace))
+    run = plane / "runs/validation-46.yaml"
+    run.write_text(yaml.safe_dump({"apiVersion": RUN_API_VERSION, "kind": "Run", "metadata": {"name": "validation-46"},
+                                  "spec": {"tasks": [{"name": f"{CASE}-alerts", "task": f"{CASE}-alerts",
+                                                      "outputs": ["alerts.jsonl", "summary.json"], "budget": {"usd": 0, "calls": 0}}]}}))
     source = tmp_path / "frozen"
     (source / "src" / "openultrasast").mkdir(parents=True)
     (source / "benchmarks" / "push").mkdir(parents=True)
     (source / "benchmarks" / "push" / "finding_dump.py").write_text("")
-    run = _write(tmp_path / "plane", files)
     return {"run": run, "source": source, "cache": tmp_path / "cache", "pins": (vulnerable, fixed), "results": tmp_path / "results"}
 
 

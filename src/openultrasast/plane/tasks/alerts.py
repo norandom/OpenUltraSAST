@@ -1,6 +1,6 @@
 """`alerts` (harnessx-removal Requirement 6.3, design section 6): what the deterministic rules say about a case.
 
-No model, budget ``{usd: 0, calls: 0}``, one per case in a ``--loop`` Run, serialized like ``repo-facts`` (a full-tree
+No model, budget ``{usd: 0, calls: 0}``, serialized like ``repo-facts`` (a full-tree
 scan per pin). It runs the quick-mode scan -- ``preprocess_repository``, the entry-point reachability hints,
 ``rank_targets`` and ``quick_scan_findings`` over the image's bundled ruleset, enabled and shadow rules alike, exactly
 what ``ousast scan --mode quick`` runs -- on the case's vulnerable pin and on its fixed pin, and writes one row per
@@ -12,8 +12,7 @@ what ``ousast scan --mode quick`` runs -- on the case's vulnerable pin and on it
 candidates' ``path::function``; ``<global>`` outside any function); a language those patterns do not cover keeps the
 scan's own reachability attribution. ``in_fix_range`` says whether the line lies inside the fix: the old-side ranges
 of ``case.json`` on the vulnerable pin, the new-side ``fixed_ranges`` on the fixed pin (null when ``case.json`` has
-none). A fixed-pin alert inside the fix is a false alert on code the fix wrote: rule M1 of ``improve/memory.py``
-counts it.
+none). A fixed-pin alert inside the fix is a false alert on code the fix wrote.
 
 **Coverage** (an honest zero): quick mode has rules only for the languages its ruleset declares
 (:func:`quick_languages`, derived from the bundled ruleset directory, never listed by hand). ``summary.json`` records

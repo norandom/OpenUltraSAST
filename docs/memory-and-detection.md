@@ -149,37 +149,6 @@ Calibration **holds** when the slope interval contains 1, the intercept interval
 **BLOCK** is offered only when calibration holds and a fold reaches the required precision. Otherwise
 the engine offers **ADVISORY** only.
 
-## The loop: memory improves decisions without retraining
-
-```mermaid
-flowchart LR
-    new["New labels and adjudications"] --> labels["ousast learn labels"]
-    labels --> build["ousast learn memory build, embed"]
-    build --> mem[("Memory store: example rows")]
-    mem --> retr["Retrieved per candidate at decision time"]
-    retr --> prog["Same compiled program"]
-    prog --> dec["Decision"]
-    runs["Plane runs: alert, verdict, coverage rows"] --> mem2[("Memory store: run rows")]
-    mem2 --> imp["ousast improve --memory: M1, M2 proposals"]
-    imp --> gate{"Unchanged validator and gate"}
-    gate -- "accepted round" --> ledger["Rule status in the ledger"]
-```
-
-- **Decisions.**
-  - The compiled part of the program is its instruction and demonstrations.
-  - The examples are retrieved from memory for each candidate.
-  - So a new `example` row is eligible for retrieval in the next decision without recompiling. The same
-    evaluation boundary applies.
-  - `ousast learn curve` measures the metric over memory size on a fixed candidate subset.
-- **Rules.** `ousast improve --memory` reads the run rows (alerts, verdicts, coverage). It proposes
-  rule-status edits only:
-  - shadow a rule that is repeatedly false across repositories;
-  - re-enable a shadow rule that keeps hitting agreed declared sites.
-
-  Some rows are dropped first: rows from holdout pairs, the gated manifest's own cases and any
-  `--qualify-population`. Every proposal goes through the same validator and gate as any other edit
-  (`improve/memory.py`).
-
 ## What the first slice measured
 
 Record: `benchmarks/measurements/2026-10-01-decision-engine-injection-slice/record.json` (counts

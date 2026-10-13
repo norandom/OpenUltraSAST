@@ -14,10 +14,8 @@ It also lists the controls that keep a scan safe to run in CI and safe to share.
   - Only `deep` mode executes target-derived code. Its REGRESS stage loads promoted candidates
     inside the Docker sandbox described below. It runs only when `docker
     info` succeeds (otherwise the stage is skipped and recorded as `sandbox_unavailable`).
-- **The ruleset and CWE policy are trusted, governed data.** They change in only two ways:
-  through reviewed commits, or through the bounded self-improvement loop (`ousast improve`). The
-  loop can flip rule *status* and tune score constants. It can never edit pattern text or the
-  authoritative 0–5 severity. See [architecture.md](architecture.md#self-improvement).
+- **The ruleset and CWE policy are trusted, governed data.** They change
+  through reviewed commits.
 - **Provider credentials are the operator's.** The core install (PyYAML only) makes no network
   calls on its own.
   - A local scan calls a model only in standard or deep mode, and only when a key is available.

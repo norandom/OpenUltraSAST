@@ -132,8 +132,6 @@ GOVERNANCE_SCORING_BENCHMARK_PLANES = (
     "openultrasast.scoring.project_score",
     "openultrasast.ruleset",
     "openultrasast.ruleset.store",
-    "openultrasast.improve",
-    "openultrasast.improve.evolve",
     "openultrasast.fusion",
     "openultrasast.skills",
     "openultrasast.redaction",

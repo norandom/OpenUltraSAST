@@ -64,32 +64,6 @@ def test_the_removed_modules_are_gone_from_the_tree() -> None:
         assert not (SRC / relative).exists(), f"{relative} still exists"
 
 
-def test_the_mechanism_lever_is_gone_from_the_retained_improve_loop() -> None:
-    """`improve/` survives with its lever removed, not deleted.
-
-    The design's Removed list named `improve/evolve.py` whole, but the file is a mix: the mechanism lever
-    (deleted here) and the deterministic rule-status loop that `ousast improve` still runs from benchmark
-    evidence, which has no LLM in it and is not what this feature supersedes. Deleting the file would have
-    taken a retained capability with it, so the lever is stripped and the loop stays — asserted by symbol so
-    the lever cannot creep back.
-    """
-    evolve = (SRC / "improve" / "evolve.py").read_text()
-    validator = (SRC / "improve" / "validator.py").read_text()
-    for symbol in (
-        "MechanismEdit",
-        "MechanismStore",
-        "apply_mechanism_edits",
-        "evaluate_mechanism_profiles",
-        "propose_mechanism_edits",
-        "validate_mechanism",
-        "mechanism_store",
-        "mechanism_candidates",
-    ):
-        assert symbol not in evolve, f"{symbol} survives in improve/evolve.py"
-        assert symbol not in validator, f"{symbol} survives in improve/validator.py"
-    assert "def run_improvement(" in evolve and "def propose_status_edits(" in evolve, "the rule-status loop must survive"
-
-
 def test_the_re_homed_modules_are_where_the_model_layer_expects_them() -> None:
     for relative in ("model/taxonomy.py", "model/candidates.py", "model/endpoint.py", "model/specs.py"):
         assert (SRC / relative).is_file(), f"{relative} is missing"

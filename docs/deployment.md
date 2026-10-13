@@ -77,8 +77,7 @@ Terms in the table:
 - **gVisor** is a sandbox runtime that isolates each actor from the node's kernel.
 - An **actor** is one running Task inside a sandbox.
 
-Only the reconciler talks to the memory store. A sandboxed task cannot read it. So the reconciler seeds
-the loop's `memory-snapshot` before the Run starts ([The plane on ax](plane.md)).
+Only the reconciler talks to the memory store. A sandboxed task cannot read it.
 
 ## A. This host: the local setup (implemented)
 
@@ -478,7 +477,7 @@ Each Task manifest under `plane/tasks/` names the same image by digest. The pin 
 `~/.cache/ousast/ax-src/runner-image`. The manifest picks its work with `spec.command`. The runner
 starts `python -m openultrasast.plane.tasks.<command[0]>` (`runner.py`, `task_module`).
 
-`repo-facts`, `verify`, `agree`, `features`, `remember`, `alerts`, `loop` and `roles` are modules in
+`repo-facts`, `verify`, `agree`, `features`, `remember`, `alerts` and `roles` are modules in
 that image. They are not images of their own. The engine would be the second image (planned).
 
 So the production answer to "how many containers" is:
@@ -594,7 +593,7 @@ The worker is the unit. Every Task's `limits` fit the 1 CPU / 1.5 GiB worker of
 | `verify` | 250m / 384Mi | 1 CPU / 1Gi | 2 (`va`, `vb`), plus 1 (`vc`) on disputed candidates |
 | `agree` | 100m / 256Mi | 1 CPU / 512Mi | 1 (`agree`; `final` reuses it after `vc`) |
 | `features`, `remember` | 250m / 512Mi; 100m / 256Mi | 1 CPU / 1Gi; 1 CPU / 512Mi | optional, for the decision engine and the memory |
-| `alerts`, `loop` | 250m / 512Mi | 1 CPU / 1280Mi | not in a push Run (loop Runs only) |
+| `alerts` | 250m / 512Mi | 1 CPU / 1280Mi | not in a push Run |
 | `roles` | 250m / 384Mi | 1 CPU / 1Gi | not in a push Run (harvest Runs only) |
 | `engine` (planned) | from a measured run | above 3 GiB (the host run uses `--memory 3g`) | its own pool, not the default one |
 

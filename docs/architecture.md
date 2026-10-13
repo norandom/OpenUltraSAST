@@ -5,7 +5,7 @@ This page covers four things:
 - how a scan works;
 - how a finding earns its place;
 - how severity and the project score are decided;
-- how the ruleset improves itself.
+- how scan calibration works.
 
 State as of 2026-10-02; module paths are under `src/openultrasast/`.
 
@@ -141,9 +141,7 @@ deleted. The score gate works like this:
 
 The `score` stage writes `score.json` and merges it into `manifest.json`.
 
-## Self-improvement
-
-### Scoped calibration (every scan)
+## Scoped calibration (every scan)
 
 ```
 scan ─▶ verify ─▶ non-accepted findings ─▶ scoped learnings
@@ -158,54 +156,3 @@ next scan ─▶ rank ─▶ calibrate (demote rejected scopes) ─▶ findings
 
 Demotion is scoped and reversible (`tests/test_pipeline_calibration.py`).
 
-### Rule-level loop: `ousast improve`
-
-Each round (`improve/evolve.py`) runs these steps:
-
-1. benchmark with the current ledger;
-2. per-rule signals (`rule_signals.json`);
-3. bounded proposals;
-4. validation (`improve/validator.py`);
-5. replay smoke;
-6. re-benchmark;
-7. a hard gate.
-
-The levers are rule status (`enabled -> shadow` before `disabled`) and score constants. The
-loop can never edit pattern text or the authoritative CWE severity. A round is accepted only if
-all of these hold:
-
-- recall >= 90%;
-- FP < 10%;
-- the project score did not regress;
-- no matched finding was lost.
-
-Otherwise the ledger is not written. With `--pair-catalog`, each round is also gated per
-provenance profile on the catalog's holdout pairs. `--no-pair-gate` skips this check; do not
-use it for accepted ledgers. The same detection gate runs in CI (`python -m openultrasast.gate`).
-
-### Proposals from plane memory
-
-With `--memory [STORE]`, `ousast improve` also reads the rows that plane runs stored per
-repository and pin (`improve/memory.py`). Two deterministic rules turn these rows into
-rule-status proposals:
-
-- a rule whose alerts are repeatedly false across repositories is shadowed;
-- a shadow rule that keeps hitting agreed, declared vulnerable sites is re-enabled.
-
-Some rows are dropped before any rule sees them: rows from holdout pairs, from the gated
-manifest's own cases and from any `--qualify-population`. Each proposal records the rows it
-came from (`memory_proposals.jsonl` next to the journal). It then goes through the same
-validator and gate.
-
-### The loop as a plane Run
-
-`ousast plane workspaces <population> --validation-set ... --loop` appends the improvement loop
-to a generated Run. The Run holds `alerts` per case: the quick scan on the vulnerable and fixed
-pins. Then come the steps `snapshot` (task `memory-snapshot`), `measure`, `propose` and
-`improve` (`plane/tasks/loop.py`). Each step is model-free with a zero budget. The snapshot
-applies the same train-on-test guard before any row leaves the store. A recorded live run:
-`benchmarks/measurements/2026-09-30-harnessx-removal-loop/`.
-
-When that run was made, quick mode covered PHP with zero rules. So for PHP, `ousast plane
-alerts-engine` produces a Run's `alerts` from the engine image on the host instead
-(`benchmarks/measurements/2026-09-30-php-engine-alerts/`).

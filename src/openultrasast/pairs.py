@@ -1,8 +1,8 @@
 """Vuln-vs-fixed pair corpus: TP on the vuln tree, silent on the fix tree.
 
 Isolated trees keep the two sides from contaminating each other (a `safe.py`
-sitting next to `app.py` cannot measure false positives). Pair outcomes feed
-the improvement loop as miss (vuln) and fp (fix) signals.
+sitting next to `app.py` cannot measure false positives). Pair outcomes report
+misses on vulnerable code and false positives on fixed code.
 
 pair-corpus-honesty: the overlay scorer counts ``coverage`` records with a
 source as detections and as leaks, matches by function when a label names one,
@@ -61,7 +61,7 @@ FunctionRanges = dict[str, tuple[tuple[str, int, int], ...]]
 SLICE_NAMES = ("all", "local", "github", "sast", "vfc", "vibe-py", "vfc-js", "agent-vfc", "owasp")
 PROVENANCES = frozenset({"human", "agent", "mixed", "synthetic"})
 SPLITS = frozenset({"train", "holdout"})
-# Req 9: how a label was established. Only seeded and reviewed pairs steer the improve loop.
+# Req 9: how a label was established.
 REVIEW_TIERS = frozenset({"seeded", "advisory", "title", "reviewed"})
 GATING_TIERS = frozenset({"seeded", "reviewed"})
 # Req 10: pointer pairs are harvested into a cache outside the repository, never vendored.
@@ -442,7 +442,7 @@ def evaluate_catalog(
     inventory_sidecar: bool = True,
     pointers: bool | None = None,
 ) -> PairEvalResult:
-    """Score every case. ``ruleset`` lets the improve loop score a candidate ledger; ``inventory_sidecar=False`` skips the second scan.
+    """Score every case. ``ruleset`` selects the rules to score; ``inventory_sidecar=False`` skips the second scan.
 
     Pointer pairs (``vendored = false``) are harvested into the cache when ``pointers`` (or OPENULTRASAST_PAIRS_NETWORK=1) allows the
     network, otherwise skipped with a ``pointer_pair_skipped`` degradation (Req 10.2, 10.3).
@@ -497,14 +497,14 @@ def evaluate_catalog(
 
 
 def build_pair_signals(outcomes: Sequence[PairOutcome], *, split: str | None = None) -> list[dict[str, object]]:
-    """Same miss/fp vocabulary as ``build_rule_signals``, tagged with the pair name, profile, and mechanisms.
+    """Miss and false-positive signals, tagged with the pair name, profile, and mechanisms.
 
     ``split`` restricts the signals to one split, so a learning path teaches from the train rows only (Req 5.1).
     """
     signals: list[dict[str, object]] = []
     for outcome in outcomes:
         if outcome.known_limit is not None:
-            continue  # unachievable by construction; the loop must not chase it
+            continue  # excluded from the achievable metrics
         if split is not None and outcome.split != split:
             continue
         common: dict[str, object] = {
@@ -653,7 +653,7 @@ def select_slice(cases: Sequence[PairCase], slice_name: str | None) -> tuple[Pai
 
 
 def select_tier(cases: Sequence[PairCase], tiers: Iterable[str]) -> tuple[PairCase, ...]:
-    """Pairs whose review tier is in ``tiers`` (the improve loop passes GATING_TIERS)."""
+    """Pairs whose review tier is in ``tiers``."""
     wanted = frozenset(tiers)
     return tuple(case for case in cases if case.review_tier in wanted)
 

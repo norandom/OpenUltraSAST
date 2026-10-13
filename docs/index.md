@@ -28,9 +28,6 @@ flowchart LR
     scan --> report["Report: findings with evidence, SARIF, score"]
     scan -- "alerts on vulnerable and fixed pins" --> plane["Plane on ax: repo-facts, verify a/b/c, agree, features"]
     plane -- "remember" --> mem[("Memory store: rows, facts, examples, blobs")]
-    mem -- "improve --memory: rule-status proposals" --> gate{"Validator and detection gate"}
-    gate -- "accepted round" --> ledger["Ruleset ledger: rule status"]
-    ledger --> scan
     labels["Labels from ground truth"] --> mem
     mem -- "retrieval of similar labelled cases" --> engine["Decision engine: compiled AI classifier"]
     engine -. "intended, not adopted: BLOCK / ADVISORY" .-> report
@@ -41,10 +38,7 @@ flowchart LR
 - The **plane** runs model work per case: verify passes and roles. It also runs model-free
   bookkeeping per case: facts, agreement and feature records. Its `remember` task turns a case's
   artifacts into rows of the [memory store](memory.md).
-- Memory feeds two consumers:
-  1. `ousast improve --memory` turns stored rows into rule-status proposals. They pass through the
-     same validator and gate as every other edit.
-  2. The decision engine retrieves labelled examples from the same store.
+- The decision engine retrieves labelled examples from the memory store.
 - The decision engine's output (dotted line) is the intended path. Nothing user-facing reads it
   today.
 

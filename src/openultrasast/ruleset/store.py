@@ -20,8 +20,8 @@ class RulesetError(ValueError):
 class PatternRule:
     """A detection rule expressed as governed data (no rule-local severity).
 
-    ``pattern`` is human-PR-only; the self-improvement loop may only change
-    ``status``/``min_evidence_level``/``precision_estimate`` via the ledger.
+    Patterns change through reviewed commits. The ledger overlays
+    ``status``, ``min_evidence_level`` and ``precision_estimate``.
     """
 
     rule_id: str
@@ -42,10 +42,10 @@ class PatternRule:
 
 
 def load_ruleset(directory: Path = DEFAULT_RULESET_DIR, ledger: Path | None = None, *, priors: Priors = "all") -> tuple[PatternRule, ...]:
-    """Load every ``*.toml`` rule file under ``directory`` and apply the loop ledger.
+    """Load every ``*.toml`` rule file under ``directory`` and apply the rule policy ledger.
 
     Rules are returned sorted by ``rule_id`` for determinism. The optional ledger
-    (``rule_policy.json``) overlays loop-owned ``status``/``min_evidence_level``/
+    (``rule_policy.json``) overlays ``status``/``min_evidence_level``/
     ``precision_estimate`` per ``rule_id``.
 
     ``priors`` keeps or drops the rules tagged ``framework``/``library``: ``"all"`` (the default, today's rules),
@@ -103,12 +103,12 @@ def write_ruleset(path: Path, rules: Iterable[PatternRule]) -> None:
 
 
 def read_rule_ledger(path: Path) -> dict[str, dict[str, object]]:
-    """Read the loop-owned ``rule_policy.json`` overlay (status/floors per rule_id)."""
+    """Read the ``rule_policy.json`` overlay (status/floors per rule_id)."""
     return _load_ledger(path)
 
 
 def write_rule_ledger(path: Path, entries: dict[str, dict[str, object]]) -> None:
-    """Write the loop-owned ``rule_policy.json`` overlay (used by the evolve loop)."""
+    """Write the ``rule_policy.json`` overlay."""
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(entries, indent=2, sort_keys=True) + "\n")
 

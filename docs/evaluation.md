@@ -143,5 +143,5 @@ per-family tables are on [decision-engine.md](decision-engine.md).
 ## Removal of the earlier agentic extra
 
 The earlier agentic extra was removed on 2026-09-30. The removal was checked for byte-identical
-deterministic outputs: pair replay, quick benchmark, standard scan, `improve --dry-run`. Records:
+deterministic outputs: pair replay, quick benchmark, standard scan. Records:
 `benchmarks/measurements/2026-09-30-harnessx-removal-baseline/` and `-equality/`.

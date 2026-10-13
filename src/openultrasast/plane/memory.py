@@ -2,7 +2,7 @@
 
 One store, keyed by repository and pin, holds what plane runs learned: repository facts by content hash, and rows
 of the kinds in ``KINDS`` (``facts``, ``verdict``, ``unit_cost``, ``alert``, ``coverage``, ``features``, ...) that
-``remember`` (:mod:`.tasks.remember`) derives from a run's delivered artifacts, plus the loop's and the decision
+``remember`` (:mod:`.tasks.remember`) derives from a run's delivered artifacts, plus the decision
 engine's own. Layout, identical for both backends::
 
     index.jsonl                               one row per ingested (run, task): sha256 of its rows, row count
@@ -34,10 +34,6 @@ Fact reuse: a facts entry is valid for (repo, pin, candidates digest, runner ima
 writes as the Task annotation ``openultrasast.io/memory-key``. :func:`seed` runs before a Run: for every entry whose
 Task carries a key with stored facts and no state yet, it writes ``<run>/<task>/facts.json`` and a ``done``
 summary and marks the task done under the run lock (``reconciler.mark_done``), so the reconciler skips it.
-
-The loop's ``memory-snapshot`` (a Task annotated ``openultrasast.io/memory-snapshot`` with the train-on-test guard's
-parameters) is seeded the same way: a sandboxed task cannot read this store, so :func:`seed` writes the store's rows
-after the guard into ``<run>/memory-snapshot/`` (:func:`.tasks.loop.write_snapshot`) and marks it done.
 """
 
 from __future__ import annotations
@@ -62,7 +58,6 @@ log = logging.getLogger(__name__)
 MEMORY_KEY_ANNOTATION = "openultrasast.io/memory-key"
 POPULATION_ANNOTATION = "openultrasast.io/population"
 SPLIT_ANNOTATION = "openultrasast.io/split"
-SNAPSHOT_ANNOTATION = "openultrasast.io/memory-snapshot"  # the loop's guard: {"catalog", "manifest", "populations"}
 # The decision engine's kinds (learned-decision-engine, Data Models): `features` from the `features` task through
 # `remember`; `label`, `decision`, `experiment`, `arm_outcome` and `experiment_result` for the later tasks; `example`
 # (a labelled case of the local memory: label + feature record + excerpt sha) from `ousast learn memory build`.
@@ -984,8 +979,7 @@ def ingest(run_dir: Path, store: MemoryStore | None = None) -> list[IngestResult
 def seed(run_manifest: Path, store: MemoryStore | None = None, *, results_root: Path | None = None) -> list[str]:
     """Reuse stored facts for a Run's tasks whose ``openultrasast.io/memory-key`` matches (Req 6.1): each such task
     without a directory or a state gets ``facts.json`` and a ``done`` summary and is marked done under the run
-    lock. Returns the seeded task names. A changed pin, candidate set or runner image finds nothing and recomputes.
-    A ``memory-snapshot`` Task gets the store's rows after the guard its annotation names, marked done likewise."""
+    lock. Returns the seeded task names. A changed pin, candidate set or runner image finds nothing and recomputes."""
     from . import reconciler
 
     run_spec, manifests = reconciler.load_run(Path(run_manifest))
@@ -995,16 +989,8 @@ def seed(run_manifest: Path, store: MemoryStore | None = None, *, results_root: 
     seeded: list[str] = []
     for entry in run_spec.tasks:
         annotations = manifests.tasks[entry.task].metadata.annotations
-        text, snapshot = annotations.get(MEMORY_KEY_ANNOTATION), annotations.get(SNAPSHOT_ANNOTATION)
-        if not (text or snapshot) or (base / entry.name).exists() or state.get(entry.name, {}).get("status", "pending") != "pending":
-            continue
-        if snapshot:
-            from .tasks.loop import write_snapshot  # lazy: the guard reads the pair catalog and the benchmark manifest
-
-            info = write_snapshot(base / entry.name, store, json.loads(snapshot))
-            reused = {"snapshot": store.describe(), **{k: info[k] for k in ("rows", "kept", "index_digest")}}
-            reconciler.mark_done(run_spec.metadata.name, entry.name, reused=reused, results_root=results_root)
-            seeded.append(entry.name)
+        text = annotations.get(MEMORY_KEY_ANNOTATION)
+        if not text or (base / entry.name).exists() or state.get(entry.name, {}).get("status", "pending") != "pending":
             continue
         key = parse_memory_key(str(text))
         where = {"candidates_digest": key["candidates"], "image": key["image"]}
@@ -1037,7 +1023,6 @@ __all__ = [
     "POPULATION_ANNOTATION",
     "QUERYABLE",
     "QUERY_FIELDS",
-    "SNAPSHOT_ANNOTATION",
     "SPLIT_ANNOTATION",
     "FileStore",
     "IngestResult",

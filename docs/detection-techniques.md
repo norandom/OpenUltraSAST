@@ -46,8 +46,7 @@ Rules live in `ruleset/<language>/rules.toml` as `[[rule]]` tables. Each has the
 - optional `framework`/`library`/`fallback_for` tags.
 
 The fields are defined in `ruleset/store.py` (`ruleset/store.py:12,
-19-41`). The self-improvement loop may change only `status`, `min_evidence_level` and
-`precision_estimate`. The pattern is "human-PR-only" (`store.py:23-25`). There are 52 rules:
+19-41`). Patterns and rule policy change through reviewed commits. There are 52 rules:
 C 6, Groovy 1, Java 4, JavaScript 12, Python 11, PHP 18, of which 6 PHP rules are `shadow`.
 Shadow rules are written to `shadow_findings.json` and removed from the report
 (`cli.py:538-543`).

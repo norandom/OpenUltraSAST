@@ -103,11 +103,10 @@ What each step guarantees:
     The first resume of a new image can time out while the snapshot is built. So the reconciler retries it
     for up to `OUSAST_RESUME_TIMEOUT` seconds (900).
 
-## The Runs: validation and loop
+## Validation Runs
 
 `ousast plane workspaces POPULATION --validation-set ...` (`generate.py`) writes one chain per case.
-`--loop` adds the `alerts` step per case and the loop's singleton steps. Every step is model-free
-except the verify passes (and `roles` in harvest Runs).
+Every step is model-free except the verify passes (and `roles` in harvest Runs).
 
 ### Per case
 
@@ -122,33 +121,15 @@ flowchart LR
     vb --> final
     vc --> final
     final --> features["features: one record per candidate"]
-    alerts["alerts: quick scan on vulnerable and fixed pins (--loop)"] -.-> features
     features --> remember["remember: memory.jsonl"]
-    alerts -.-> remember
     final --> remember
-```
-
-### The loop (with `--loop`)
-
-```mermaid
-flowchart LR
-    store[("Memory store")] -- "seeded before the Run, after the train-on-test guard" --> snap["memory-snapshot"]
-    rem["remember of every case"] --> measure["loop-measure"]
-    snap --> measure
-    measure --> propose["loop-propose: rules M1 and M2, M3 advisory"]
-    snap -- "index.json" --> propose
-    propose --> improve["loop-improve: one evolve round, unchanged validator and gate"]
-    improve --> outcome["gate.json, journal.json, and rule_policy.json only if accepted"]
 ```
 
 - **Before the Run**, `ousast plane run` seeds from the store (`memory.seed`).
   - Each task has an `openultrasast.io/memory-key`: repository, pin, candidates digest and runner image digest.
   - If the store has facts for that key, the task gets them and is marked done.
-  - The sandboxed `memory-snapshot` task gets the store's rows after the guard.
 - **After the Run**, it ingests every delivered `memory.jsonl`. `ousast plane remember RUN` repeats
   this by hand. See [Memory](memory.md).
-- [Architecture](architecture.md#proposals-from-plane-memory) describes the loop's rules and its guard.
-  Adopting an accepted ledger stays a maintainer commit (`src/openultrasast/plane/tasks/loop.py`).
 - `ousast plane harvest` writes the decision engine's harvest Runs (verify a/b with agree, and
   model `roles`).
 - `ousast plane alerts-engine` produces a Run's `alerts` from the Joern engine image on the host. It
@@ -174,8 +155,7 @@ draws it and sizes the pre-push hook at scale.
 | `agree` | none | a and b agreed or disputed; after pass c on the disputed, 2-of-3 (the step `final`) |
 | `features` | none | one feature record per candidate for the decision engine |
 | `remember` | none | the case's artifacts as memory rows |
-| `alerts` | none | the quick scan on the vulnerable and fixed pins (loop Runs) |
-| `loop` | none | the steps `snapshot`, `measure`, `propose`, `improve` |
+| `alerts` | none | the quick scan on the vulnerable and fixed pins |
 | `roles` | `deepseek-flash` | per-repository source, sink and sanitizer roles without a vocabulary |
 
 Source: [ax on this host](ops/ax/README.md#tasks).

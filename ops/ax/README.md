@@ -74,12 +74,11 @@ and to the hosts the bound Model declares (`openultrasast.io/egress-hosts`). The
 | `agree` | none | a and b agreed or disputed; after pass c on the disputed, 2-of-3 (the step `final`) |
 | `features` | none | one feature record per candidate for the decision engine |
 | `remember` | none | the case's artifacts as memory rows (`facts`, `verdict`, `unit_cost`, `alert`, `coverage`, `features`) |
-| `alerts` | none | the quick scan on the vulnerable and fixed pins (loop Runs) |
-| `loop` | none | the steps `snapshot`, `measure`, `propose`, `improve`: the improvement loop as a Run |
+| `alerts` | none | the quick scan on the vulnerable and fixed pins |
 | `roles` | `deepseek-flash` | per-repository source, sink and sanitizer roles without a vocabulary (decision-engine harvest) |
 
 Generators: `ousast plane workspaces <population> --validation-set ...` writes the per-case chain
-(`facts -> va, vb -> agree -> vc -> final -> features -> remember`, plus `alerts` and the loop with `--loop`);
+(`facts -> va, vb -> agree -> vc -> final -> features -> remember`);
 `ousast plane harvest --labels ... --plane DIR` writes the decision engine's harvest Runs; `ousast plane
 alerts-engine` produces a Run's `alerts` from the Joern engine image on the host, for PHP and other languages
 quick mode does not cover.
@@ -98,7 +97,7 @@ is skipped by the index. A facts entry is reused for the same repository, pin, c
   tested one). Endpoint and credentials come from `.env` or the environment (`S3_ENDPOINT`, `AWS_ACCESS_KEY_ID`,
   `AWS_SECRET_ACCESS_KEY`), never from a manifest, and are never printed.
 
-`ousast improve --memory [STORE]` and the `ousast learn` commands (`--memory`) read the same store.
+The `ousast learn` commands (`--memory`) read the same store.
 
 ## Measured footprint (2026-09-29, idle, two workers)
 

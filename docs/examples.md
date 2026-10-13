@@ -55,19 +55,10 @@ uv run python -m openultrasast.pair_gate         # CI: local pairs must all pass
 Each case is two isolated trees: the vuln file and the patched file, at the same relative path.
 
 - `pair_correct` means the harness fired on the vuln side and stayed silent on the fix.
-- Misses become `miss` signals and fix-side leaks become `fp` signals for `ousast improve`.
+- Misses become `miss` signals and fix-side leaks become `fp` signals in the pair report.
 - The catalog and public dataset pointers live in `benchmarks/pairs/`.
 
-## 6. Self-improve the ruleset from benchmark feedback
-
-```bash
-uv run ousast improve benchmarks/manifests/java-spring-boot-vulnerable.toml --dry-run  # preview
-uv run ousast improve benchmarks/manifests/java-spring-boot-vulnerable.toml            # apply
-# Accepted edits land in <target>/.openultrasast/calibration/rule_policy.json,
-# which the next scan/benchmark of that target loads automatically.
-```
-
-## 7. Running the agentic plane
+## 6. Running the agentic plane
 
 Model work over whole repositories runs as a Run manifest on ax. Each task gets one isolated
 actor. Bring-up is in [ops/ax/README.md](ops/ax/README.md).
@@ -80,9 +71,6 @@ uv run ousast plane doctor                               # kind, Agent Substrate
 uv run ousast plane run plane/runs/validation-46.yaml    # per case: repo-facts, verify a/b/c, agree, final, features, remember
 uv run ousast plane status validation-46                 # per-task status and token attribution
 uv run ousast plane remember validation-46               # re-ingest the run's memory rows (OUSAST_MEMORY)
-
-# Feed the stored rows back into the ruleset loop (same validator and gate)
-uv run ousast improve benchmarks/manifests/java-spring-boot-vulnerable.toml --dry-run --memory
 ```
 
 Each task in the Run carries its own Model and `budget: {usd, calls}`.
@@ -92,7 +80,7 @@ Each task in the Run carries its own Model and `budget: {usd, calls}`.
 - `ousast plane status` prints the token attribution table. It shows calls, prompt, cache-hit and
   output tokens, and USD per task.
 
-## 8. Drive it from an MCP client (OpenCode / IDE)
+## 7. Drive it from an MCP client (OpenCode / IDE)
 
 MCP (Model Context Protocol) lets an editor or agent call the tool's functions.
 
