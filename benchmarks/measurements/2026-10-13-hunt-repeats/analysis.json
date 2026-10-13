@@ -1,0 +1,122 @@
+{
+  "units": 60,
+  "repeats": [
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "hunter": {
+    "hits": 31,
+    "units": 60,
+    "recall": 0.5166666666666667,
+    "wilson95": [
+      0.39307810032592494,
+      0.6382495046026722
+    ],
+    "instrument_failures": 0,
+    "parse_failures": 0,
+    "suspicions_mean": 5.766666666666667
+  },
+  "dspy": {
+    "hits": 18,
+    "units": 60,
+    "recall": 0.3,
+    "wilson95": [
+      0.19898166138769108,
+      0.42508707946914487
+    ],
+    "instrument_failures": 0,
+    "parse_failures": 7,
+    "suspicions_mean": 0.6333333333333333
+  },
+  "dspy_minus_hunter": {
+    "diff": -0.21666666666666673,
+    "ci95": [
+      -0.3833333333333334,
+      -0.050000000000000044
+    ],
+    "changes": 12
+  },
+  "mcnemar": {
+    "only_hunter": 14,
+    "only_dspy": 1,
+    "concordant": 45,
+    "p": 0.0009765625
+  },
+  "per_change": [
+    {
+      "change": "a70b5501fedbfaf33aed49d3edc8534353aa6b05adccbb36019170b7f99fcdfe",
+      "repo": "bytebase/dbhub",
+      "dspy": 0.0,
+      "hunter": 0.0
+    },
+    {
+      "change": "090e3500634d126cae6d9fccb5902647295875403e69bdb0389c86b4fa3c0086",
+      "repo": "contentful/contentful-mcp-server",
+      "dspy": 0.2,
+      "hunter": 0.2
+    },
+    {
+      "change": "6d3b0736e6d91fc5f182954e2e19565dfb328931fb85952695a5895eb0471a9d",
+      "repo": "fastapi-users/fastapi-users",
+      "dspy": 0.0,
+      "hunter": 0.6
+    },
+    {
+      "change": "c7978d72ecdfaa6cf9c71f6a9baea3f6a64d922b25ab78279e3fc116c25b0c4b",
+      "repo": "i18next/i18next-http-middleware",
+      "dspy": 0.0,
+      "hunter": 0.2
+    },
+    {
+      "change": "1ad15598b335ce9ebfca883925fa2dcd5031908c8dfbba5f5e0f4d86794255af",
+      "repo": "imzbf/md-editor-v3",
+      "dspy": 1.0,
+      "hunter": 1.0
+    },
+    {
+      "change": "415e1c7c5676cba1813e6c0a26ef89ead75e579d4c3ed27ebb1831865c6c8981",
+      "repo": "jupyter-lsp/jupyterlab-lsp",
+      "dspy": 0.4,
+      "hunter": 1.0
+    },
+    {
+      "change": "59611a8c4ee8d9d6e12b9e38b79ea374fe8a33657d51e262a3953327d180aaae",
+      "repo": "matrix-org/matrix-appservice-bridge",
+      "dspy": 0.0,
+      "hunter": 0.0
+    },
+    {
+      "change": "545fcc9756f7ea72eaa4971fd8bc654cf8c7bacf519388057ad8c5236ff656fa",
+      "repo": "nvbn/thefuck",
+      "dspy": 1.0,
+      "hunter": 0.8
+    },
+    {
+      "change": "a318f3e3f4f42ec2ba58bec37fe98d50baf5cd7ad8d5e30fc96b880b930114eb",
+      "repo": "ondata/ckan-mcp-server",
+      "dspy": 0.2,
+      "hunter": 1.0
+    },
+    {
+      "change": "cc735ccb90a5cdbe8f59f2f9336261efffaae75aa115e09d2a15ca5e3ddca894",
+      "repo": "webpack/webpack-bundle-analyzer",
+      "dspy": 0.0,
+      "hunter": 0.4
+    },
+    {
+      "change": "8cb82ba93a6a146417537fdebbd7c23a97513cbc9fa8f7457309b3823375bf7f",
+      "repo": "zenitram/malla",
+      "dspy": 0.8,
+      "hunter": 1.0
+    },
+    {
+      "change": "fe1cccd1401bd6412f5f4d8559f6498156a9813a3ba6bca83d1c84c669c40e70",
+      "repo": "zereight/gitlab-mcp",
+      "dspy": 0.0,
+      "hunter": 0.0
+    }
+  ]
+}
