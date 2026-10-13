@@ -77,12 +77,12 @@
   - Done when a fixture run is marked contaminated after its repository is added to a report list
   - _Requirements: 2.7_
 
-- [ ] 5. Core: proposals and acceptance
-- [ ] 5.1 Propose candidates with the program runtime's optimisers
+- [x] 5. Core: proposals and acceptance
+- [x] 5.1 Propose candidates with the program runtime's optimisers
   - One change per round: an instruction proposal, a demonstration set, or a mask; proposals score on compile folds with the search metric; the proposer never sees held-out results; rejected candidates stay visible to the next round
   - Done when a round on a fixture produces a candidate with its compile-fold score and the proposer's inputs are shown to exclude held-out data
   - _Requirements: 5.4, 6.6, 6.8_
-- [ ] 5.2 Accept or reject by the rule
+- [x] 5.2 Accept or reject by the rule
   - Compile-fold and held-out results per family; accepted only when both are non-negative, one strictly positive, no family below its regression budget, instruction under the length cap; ties rejected; the comparison is recorded in the new artifact
   - Done when every clause of the rule has a synthetic fold-result test that flips the decision
   - _Requirements: 5.6, 6.1, 6.2, 6.3, 6.4, 6.5, 6.7_
