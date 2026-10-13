@@ -1,0 +1,85 @@
+{
+  "catalog_digest": "a1dd63a8a8c1f7f677b50958d180abc27069c096b7f0870da3c59ccc0dfe6097",
+  "dropped_count": 0,
+  "freeze_digest": "53f9f36449632ffc026d08643c16700cfcad38dfbfb00b97551b4e2fe5ef43d5",
+  "guard_result": 0,
+  "history_heads": {
+    "jenkinsci/dependency-track-plugin": "133a4aed4c3d9c3037e618ac67943f03b5457627",
+    "jenkinsci/job-import-plugin": "a00f3771b84d01f2dd1b5613ba5ba884721a6ac2",
+    "jenkinsci/p4-plugin": "eb18a55402d4631c90063e9615b0f381e647e46f",
+    "shopperlabs/shopper": "86da81306a7f3b0f981ccd196182fb15481dea6c",
+    "triggerdotdev/trigger.dev": "3d54889ac14a28159e156278cfd91bff7adfac98"
+  },
+  "history_limit": 1500,
+  "label_check_counts": {
+    "confirmed": 48,
+    "refactor": 0,
+    "unchecked": 0,
+    "unclear": 0
+  },
+  "negative_ratio": 20,
+  "ordinary_exclusions": {
+    "jenkinsci/dependency-track-plugin": {
+      "advisory_fix": 1,
+      "dependency": 50,
+      "eligible": 93,
+      "manifest_only": 65,
+      "merge_or_root": 261,
+      "no_source": 114,
+      "security": 4,
+      "size_cap": 1,
+      "vulnerable_function": 5
+    },
+    "jenkinsci/job-import-plugin": {
+      "advisory_fix": 1,
+      "dependency": 14,
+      "eligible": 20,
+      "manifest_only": 45,
+      "merge_or_root": 17,
+      "no_source": 14,
+      "security": 3,
+      "size_cap": 1,
+      "vulnerable_function": 2
+    },
+    "jenkinsci/p4-plugin": {
+      "dependency": 5,
+      "eligible": 556,
+      "manifest_only": 332,
+      "merge_or_root": 173,
+      "no_source": 215,
+      "revert": 7,
+      "security": 12,
+      "size_cap": 11,
+      "vulnerable_function": 18
+    },
+    "shopperlabs/shopper": {
+      "advisory_fix": 1,
+      "dependency": 7,
+      "eligible": 493,
+      "generated": 15,
+      "manifest_only": 33,
+      "merge_or_root": 109,
+      "no_source": 121,
+      "revert": 1,
+      "security": 23,
+      "size_cap": 127,
+      "vulnerable_function": 41
+    },
+    "triggerdotdev/trigger.dev": {
+      "advisory_fix": 1,
+      "dependency": 121,
+      "eligible": 722,
+      "generated": 1,
+      "manifest_only": 19,
+      "merge_or_root": 4,
+      "no_source": 279,
+      "revert": 3,
+      "security": 103,
+      "size_cap": 162,
+      "vulnerable_function": 85
+    }
+  },
+  "ordinary_floor": 20,
+  "used_set_digest": "14384b95b7ca47862f9cc04c707377c9a0d01321f947e8cf00282697a31280fd",
+  "verification_digest": "28c624c406904b60bd20884429a6b673fa45c87693a9abcf5dbca0973648c7ea"
+}
