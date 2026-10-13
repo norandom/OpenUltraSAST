@@ -20,6 +20,8 @@ from pathlib import Path
 from typing import Any
 
 from .. import source
+from ..model.endpoint import _PRICES
+from ..plane.budget import cost_of
 from ..preprocess import detect_language
 from .artifact import RunArtifact, UsageLedger
 from .labels import label_rows
@@ -161,6 +163,33 @@ def hunt_change(
     return record
 
 
+def spent_since(history: list[Mapping[str, Any]] | None, start: int) -> float:
+    """Dollars of the LM calls appended to a DSPy LM history since `start`, at the registered prices.
+
+    Before this the runner booked 0.0 per change and `--budget-usd` never stopped anything: the first full
+    access-control run was flagged at 5 dollars and cost 6.13."""
+    total = 0.0
+    for entry in (history or [])[start:]:
+        usage = entry.get("usage") or {}
+        prices = _PRICES.get(str(entry.get("model") or "").split("/")[-1])
+        if not prices or not isinstance(usage, Mapping):
+            continue
+        merged = dict(usage)
+        details = usage.get("prompt_tokens_details")
+        if "prompt_cache_hit_tokens" not in merged and isinstance(details, Mapping) and details.get("cached_tokens") is not None:
+            merged["prompt_cache_hit_tokens"] = details["cached_tokens"]
+        total += cost_of(merged, prices)
+    return total
+
+
+def _lm_history() -> list[Mapping[str, Any]] | None:
+    try:
+        import dspy
+    except ImportError:  # pragma: no cover
+        return None
+    return getattr(getattr(dspy.settings, "lm", None), "history", None)
+
+
 def _full_checkout(root: Path) -> None:
     """Undo a sparse-checkout a worktree inherits from a clone whose working tree was emptied to save disk.
 
@@ -238,6 +267,8 @@ def run(
         if budget and ledger.exhausted(budget):
             print("budget exhausted; stopping before the next change", flush=True)
             break
+        history = _lm_history()
+        first_call = len(history) if history is not None else 0
         record = hunt_change(
             change,
             Path(repos[change["repo"]]).expanduser(),
@@ -248,7 +279,8 @@ def run(
             tools_for=tools_for,
         )
         record["input_digest"] = digest
-        ledger.add({"calls": 1, "usd": 0.0})
+        record["usd"] = round(spent_since(history, first_call), 6)
+        ledger.add({"calls": 1, "usd": record["usd"]})
         _write_json(path, record)
         _write_json(inputs_path, entries)
     _write_json(inputs_path, entries)

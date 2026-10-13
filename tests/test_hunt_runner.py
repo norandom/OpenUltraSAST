@@ -127,3 +127,17 @@ def test_full_checkout_restores_a_truncated_file_and_refuses_an_unread_tree(repo
     monkeypatch.setattr(runner, "_git", still_dirty)
     with pytest.raises(runner.InstrumentFailure, match="checkout_incomplete"):
         runner._full_checkout(worktree)
+
+
+def test_spent_since_prices_only_the_new_calls_of_a_registered_model():
+    history = [
+        {"model": "openai/deepseek-flash", "usage": {"prompt_tokens": 10, "completion_tokens": 10}},
+        {
+            "model": "openai/deepseek-flash",
+            "usage": {"prompt_tokens": 1_000_000, "completion_tokens": 100_000, "prompt_tokens_details": {"cached_tokens": 500_000}},
+        },
+        {"model": "other/unregistered", "usage": {"prompt_tokens": 1_000_000, "completion_tokens": 1_000_000}},
+        {"model": "openai/deepseek-flash", "usage": None},
+    ]
+    assert runner.spent_since(history, 1) == pytest.approx(0.5 * 0.44 + 0.5 * 0.014 + 0.1 * 1.32)
+    assert runner.spent_since(None, 0) == 0.0

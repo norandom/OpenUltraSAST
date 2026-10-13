@@ -1,0 +1,126 @@
+{
+  "dspy": {
+    "pushes": 105,
+    "instrument_failures": {
+      "count": 11,
+      "types": {
+        "LMInvalidRequestError": 11
+      }
+    },
+    "parse_failures": 2,
+    "loop_parse_failures": 12,
+    "push_recall": {
+      "hits": 2,
+      "n": 5,
+      "wilson95": [
+        0.11762077423264788,
+        0.7692757187239871
+      ]
+    },
+    "location_recall": {
+      "hits": 4,
+      "n": 48,
+      "wilson95": [
+        0.032883756818091775,
+        0.19553301790367283
+      ],
+      "per_repository": {
+        "jenkinsci/dependency-track-plugin": "0/3",
+        "jenkinsci/job-import-plugin": "2/2",
+        "jenkinsci/p4-plugin": "2/5",
+        "shopperlabs/shopper": "0/31",
+        "triggerdotdev/trigger.dev": "0/7"
+      }
+    },
+    "false_alarms": {
+      "flagged_ordinary_pushes": 14,
+      "ordinary_pushes_scanned": 90,
+      "per_100_pushes": 15.555555555555555,
+      "wilson95_per_100": [
+        9.498275594910814,
+        24.432845277298366
+      ]
+    },
+    "suspicions": {
+      "total": 25,
+      "true": 3,
+      "precision": 0.12,
+      "by_family": {
+        "untrusted_destination": 7,
+        "output_encoding": 5,
+        "access_control": 10,
+        "injection": 3
+      },
+      "true_by_family": {
+        "access_control": 3
+      }
+    },
+    "cost": {
+      "openai/deepseek-flash": {
+        "prompt_tokens": 28944829,
+        "cached_tokens": 17681920,
+        "completion_tokens": 700915,
+        "usd": 6.12843464
+      }
+    }
+  },
+  "hunter": {
+    "pushes": 105,
+    "instrument_failures": {
+      "count": 0,
+      "types": {}
+    },
+    "parse_failures": 0,
+    "loop_parse_failures": 0,
+    "push_recall": {
+      "hits": 2,
+      "n": 5,
+      "wilson95": [
+        0.11762077423264788,
+        0.7692757187239871
+      ]
+    },
+    "location_recall": {
+      "hits": 4,
+      "n": 48,
+      "wilson95": [
+        0.032883756818091775,
+        0.19553301790367283
+      ],
+      "per_repository": {
+        "jenkinsci/dependency-track-plugin": "2/3",
+        "jenkinsci/job-import-plugin": "0/2",
+        "jenkinsci/p4-plugin": "0/5",
+        "shopperlabs/shopper": "2/31",
+        "triggerdotdev/trigger.dev": "0/7"
+      }
+    },
+    "false_alarms": {
+      "flagged_ordinary_pushes": 99,
+      "ordinary_pushes_scanned": 100,
+      "per_100_pushes": 99.0,
+      "wilson95_per_100": [
+        94.55138038212945,
+        99.82325679358594
+      ]
+    },
+    "suspicions": {
+      "total": 594,
+      "true": 3,
+      "precision": 0.005050505050505051,
+      "by_family": {
+        "access_control": 77,
+        "config_secrets": 21,
+        "unknown": 348,
+        "output_encoding": 21,
+        "path": 26,
+        "untrusted_destination": 66,
+        "injection": 30,
+        "prototype": 5
+      },
+      "true_by_family": {
+        "access_control": 3
+      }
+    }
+  }
+}

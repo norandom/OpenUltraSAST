@@ -1,0 +1,96 @@
+{
+  "exploit_verified": {
+    "count": 0,
+    "flagged_positive_pushes": 4,
+    "flagged_positives": 43,
+    "n": 0,
+    "not_yet_proved": [
+      "jenkinsci-dependency-track-plugin-673cc48b4f75ebf5",
+      "jenkinsci-dependency-track-plugin-90b566be2c3aebff",
+      "jenkinsci-dependency-track-plugin-9e8488d96f7c0424",
+      "jenkinsci-job-import-plugin-07e0e7023a46cf4d",
+      "jenkinsci-job-import-plugin-5509a356384e862e",
+      "shopperlabs-shopper-02254beed509364c",
+      "shopperlabs-shopper-047e62abed0b91fa",
+      "shopperlabs-shopper-052f88a347caf2eb",
+      "shopperlabs-shopper-064f0b5f8937aae5",
+      "shopperlabs-shopper-0fd6e8d87dd0ed82",
+      "shopperlabs-shopper-1112cc61420816ff",
+      "shopperlabs-shopper-13fdb238d0d8e573",
+      "shopperlabs-shopper-22487ec06a8cf50a",
+      "shopperlabs-shopper-2405022067cc6870",
+      "shopperlabs-shopper-29811dac402a0d13",
+      "shopperlabs-shopper-2aeaefee52274ee8",
+      "shopperlabs-shopper-5481a94c34f42fbf",
+      "shopperlabs-shopper-5a3dcf2a6b6b16c8",
+      "shopperlabs-shopper-5e6161ace0cb4b97",
+      "shopperlabs-shopper-61e951b6bcd03186",
+      "shopperlabs-shopper-7cc69fb293ec0e10",
+      "shopperlabs-shopper-8769d9915b8295a9",
+      "shopperlabs-shopper-88497bd11908cf4a",
+      "shopperlabs-shopper-8b7021ee40c51b56",
+      "shopperlabs-shopper-91023b586e4ab747",
+      "shopperlabs-shopper-a413505de3d037f8",
+      "shopperlabs-shopper-a82b452965e2ffe5",
+      "shopperlabs-shopper-ab37699016e7189c",
+      "shopperlabs-shopper-b37cd0c75b594760",
+      "shopperlabs-shopper-cd45e0d6604bb846",
+      "shopperlabs-shopper-d05ad8c2776691be",
+      "shopperlabs-shopper-d26bdca35566e799",
+      "shopperlabs-shopper-deb90b541bcac1aa",
+      "shopperlabs-shopper-df2391064e3c3332",
+      "shopperlabs-shopper-f3cb66743db8d5f1",
+      "shopperlabs-shopper-fddd0d6c3c4501aa",
+      "triggerdotdev-trigger.dev-0eb72665259b13c2",
+      "triggerdotdev-trigger.dev-124d417d0ae18fbe",
+      "triggerdotdev-trigger.dev-2240070f2c86924b",
+      "triggerdotdev-trigger.dev-30dec4b7031de737",
+      "triggerdotdev-trigger.dev-5b0c0ef74fdf5bc3",
+      "triggerdotdev-trigger.dev-5f1cf28e3ac84980",
+      "triggerdotdev-trigger.dev-eebfca9646e01b1c"
+    ],
+    "rate": null,
+    "status": "not yet proved",
+    "wilson95": [
+      null,
+      null
+    ]
+  },
+  "false_alarms_per_100_pushes": {
+    "cluster95": [
+      97.0,
+      100.0
+    ],
+    "count": 99,
+    "icc": 2.602085213965208e-17,
+    "n": 100,
+    "rate": 99.0,
+    "wilson95": [
+      94.55124752390654,
+      99.82326134344525
+    ]
+  },
+  "headline": "On unseen app repos: recall 40.0% (Wilson 11.8-76.9), false alarms 99.0 per 100 pushes, precision 1.9%; exploit-verified 0 of 43 (43 not yet proved).",
+  "precision": {
+    "count": 2,
+    "n": 103,
+    "rate": 0.019417475728155338,
+    "wilson95": [
+      0.005341113332198465,
+      0.06805351947000593
+    ]
+  },
+  "recall": {
+    "cluster95": [
+      0.0,
+      0.8
+    ],
+    "count": 2,
+    "n": 5,
+    "rate": 0.4,
+    "wilson95": [
+      0.1176182311592533,
+      0.769280067791163
+    ]
+  }
+}
