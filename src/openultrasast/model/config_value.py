@@ -87,12 +87,6 @@ def verdicts(cpg: CpgResult, spec: ConfigSpec, *, function: str = "", file: str 
     return []
 
 
-def verdict(cpg: CpgResult, spec: ConfigSpec, *, function: str = "", file: str = "") -> Verdict | None:
-    """The strongest single verdict, kept for callers that ask one question and want one answer."""
-    answers = verdicts(cpg, spec, function=function, file=file)
-    return answers[0] if answers else None
-
-
 def _location(row: Mapping[str, object], file: str) -> str:
     """``path:line:function`` of the setting, when the region named a file.
 
@@ -156,4 +150,4 @@ def _settings(rows: object, spec: ConfigSpec, *, function: str) -> list[dict[str
     return sorted(kept, key=lambda row: (str(row["method"]), _line(row), str(row["setting"])))
 
 
-__all__ = ["request_params", "verdict", "verdicts"]
+__all__ = ["request_params", "verdicts"]

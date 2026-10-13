@@ -36,16 +36,6 @@ class VerificationResult:
     context_sources: list[str]
 
 
-def validate_evidence_transition(current: EvidenceLevel | str, target: EvidenceLevel | str) -> EvidenceLevel:
-    current_level = EvidenceLevel(current)
-    target_level = EvidenceLevel(target)
-    if _EVIDENCE_ORDER[target_level] < _EVIDENCE_ORDER[current_level]:
-        raise ValueError(f"cannot move evidence level backward: {current_level} -> {target_level}")
-    if _EVIDENCE_ORDER[target_level] - _EVIDENCE_ORDER[current_level] > 1:
-        raise ValueError(f"cannot skip evidence levels: {current_level} -> {target_level}")
-    return target_level
-
-
 def is_report_verified(evidence_level: EvidenceLevel | str, status: VerificationStatus | str) -> bool:
     level = EvidenceLevel(evidence_level)
     verification_status = VerificationStatus(status)

@@ -4,13 +4,7 @@ from pathlib import Path
 from openultrasast.mapping import (
     analyze_entry_points,
     attach_reachability_hints,
-    attach_static_hints,
-    codeql_mapping_tasks,
-    differential_mapping_record,
     ingest_sarif,
-    semgrep_mapping_tasks,
-    sharp_edge_record,
-    verifier_evidence_candidates,
     write_entry_points,
     write_static_hints,
 )
@@ -30,56 +24,6 @@ def test_ingest_sarif_normalizes_semgrep_hints(tmp_path: Path) -> None:
     assert hints[0].start_line == 7
     assert hints[0].severity == "high"
     assert hints[0].provenance == "sarif:semgrep:python.lang.security.audit.eval"
-
-
-def test_static_hints_attach_to_file_targets_and_evidence_candidates(tmp_path: Path) -> None:
-    repo = tmp_path / "repo"
-    repo.mkdir()
-    (repo / "app.py").write_text("eval(user_input)\n")
-    hints = ingest_sarif(_write_sarif(tmp_path, "CodeQL", "py/code-injection", "app.py"))
-    _, targets = preprocess_repository(repo, static_hints=hints)
-
-    enriched = attach_static_hints(targets, hints)
-    evidence = verifier_evidence_candidates(hints, path="app.py")
-
-    assert enriched[0].static_hints[0]["analyzer"] == "codeql"
-    assert evidence == [
-        {
-            "source": "codeql",
-            "rule_id": "py/code-injection",
-            "path": "app.py",
-            "line": 7,
-            "severity": "high",
-            "message": "Potential injection",
-            "provenance": "sarif:codeql:py/code-injection",
-        }
-    ]
-
-
-def test_mapping_task_records_cover_disciplines(tmp_path: Path) -> None:
-    semgrep_hints = ingest_sarif(_write_sarif(tmp_path, "Semgrep", "sg.rule", "parser.c"))
-    codeql_hints = ingest_sarif(_write_sarif(tmp_path, "CodeQL", "cpp/overflow", "parser.c"))
-
-    assert semgrep_mapping_tasks(semgrep_hints)[0].task == "pattern_variant_review"
-    assert codeql_mapping_tasks(codeql_hints)[0].task == "source_sink_sanitizer_path_review"
-    assert (
-        differential_mapping_record(
-            "parser.c",
-            change_kind="modified_function",
-            trust_boundary="network_input",
-            rationale="Parser changed behind a socket boundary.",
-        ).trust_boundary
-        == "network_input"
-    )
-    assert (
-        sharp_edge_record(
-            "config.py",
-            category="insecure_default",
-            surface="debug mode",
-            rationale="Debug default changes production risk.",
-        ).category
-        == "insecure_default"
-    )
 
 
 def test_write_static_hints_artifact(tmp_path: Path) -> None:

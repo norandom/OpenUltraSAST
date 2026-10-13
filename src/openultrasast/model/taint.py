@@ -5,7 +5,7 @@ graph establishes it and the LLM's claim is no longer load-bearing. A path a san
 `CORROBORATED`: the flow is real, but whether the sanitizer is *sufficient* is a semantic judgement the model
 cannot make, and that residual is the LLM's — checked against this verdict rather than averaged over runs.
 
-No path at all yields `None`, not a negative verdict: the caller reports `suspicion`. And a query that failed
+No path at all yields an empty list, not a negative verdict: the caller reports `suspicion`. And a query that failed
 yields `None` too, because "the engine could not decide" is not "there is no flow" — conflating them is how a
 missing engine would silently become a clean bill of health.
 """
@@ -69,37 +69,6 @@ def request_params(
     }
 
 
-def verdict(
-    cpg: CpgResult, spec: TaintSpec, *, function: str = "", file: str = "", parameter_sources: bool = False, call_depth: int = 0
-) -> Verdict | None:
-    """The strongest verdict the taint query supports for ``spec`` in ``function``, or ``None`` to stay at suspicion.
-
-    ``parameter_sources`` additionally treats the labeled function's own parameters as untrusted. That is right
-    for a function-level pair, where the function boundary *is* the trust boundary, and wrong for a whole
-    repository, where most parameters carry internal values — so it is off by default and the caller opts in.
-    An ENTRY POINT is the case where both are true at once: its parameters are attacker input by definition,
-    which is what the driver uses to decide.
-
-    ``call_depth`` admits sinks that many call-graph levels below the labeled method. Zero keeps the old
-    function-local question; above zero is what lets a handler's parameter reach a sink in another module,
-    which is the shape VAmPI's SQL injection has and the shape a function-scoped question cannot see.
-    """
-    # The strongest of the per-site verdicts, which is what this always meant. It used to run its own
-    # selection over the union of flows, and two copies of "which flow decides" is the duplication this
-    # module has been bitten by before: the per-site preference added to `verdicts` did not reach here, so
-    # the two entry points disagreed about the same rows.
-    #
-    # A flow the graph cannot see a discharge for is the finding; a sanitized or BOUNDED one is a question.
-    # libpng bounds `strcpy(outname+len, ".png")` with `(len = strlen(inname)) > 250` against a char[256],
-    # and entailing it is a claim the code contradicts. But the bound reaches the sink through an `error`
-    # flag rather than by dominating it, so the graph has not shown the copy is guarded either -- and a
-    # bound is no proof of safety in any case, off-by-one being the classic way they fail. Corroborated is
-    # the honest rung: the model cannot assert this, so the judge is asked instead of the site being
-    # silenced.
-    answers = verdicts(cpg, spec, function=function, file=file, parameter_sources=parameter_sources, call_depth=call_depth)
-    return answers[0] if answers else None
-
-
 def _usable_flows(
     cpg: CpgResult,
     spec: TaintSpec,
@@ -137,17 +106,7 @@ def verdicts(
     parameter_sources: bool = False,
     call_depth: int = 0,
 ) -> list[Verdict]:
-    """One verdict per distinct SINK SITE, strongest first.
-
-    ``verdict`` answers "what is the strongest thing to say about this region", which is the right question
-    for a pair: one labelled function, one bug, one answer. It is the wrong question for a region that spans
-    a file. A PHP file with an SQL injection on line 6 and a command injection on line 13 got ONE injection
-    verdict, and `system` won it on flow length -- so the SQL injection went unreported, by construction
-    rather than by any failure of the analysis.
-
-    The first element is exactly what ``verdict`` returns, so the pair path and the committed measurements
-    that rest on it are unchanged.
-    """
+    """One verdict per distinct sink site, strongest first."""
     flows = _usable_flows(cpg, spec, function=function, file=file, parameter_sources=parameter_sources, call_depth=call_depth)
     if not flows:
         return []
@@ -164,7 +123,7 @@ def verdicts(
         preferred = [flow for flow in site_flows if _from_modelled_source(flow, spec)] or list(site_flows)
         open_flows = [flow for flow in preferred if not flow["sanitized"] and not flow["bounded"]]
         chosen.append(min(open_flows or preferred, key=lambda flow: _rank(flow, spec)))
-    # Same total order the single-verdict path uses, so `verdicts(...)[0] == verdict(...)`.
+    # Sort strongest first, then by site for stable results.
     chosen.sort(key=lambda flow: (bool(flow["sanitized"]) or bool(flow["bounded"]), _rank(flow, spec)))
     return [_verdict_for(flow, spec) for flow in chosen]
 
@@ -309,4 +268,4 @@ def _location(flow: Mapping[str, object]) -> str:
     return f"{where}:{line}:{flow.get('sinkMethod') or '?'}"
 
 
-__all__ = ["request_params", "verdict"]
+__all__ = ["request_params", "verdicts"]

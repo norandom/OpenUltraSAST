@@ -13,7 +13,6 @@ from __future__ import annotations
 import tomllib
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
 
 FAMILY_IDS = (
     "injection",
@@ -28,7 +27,6 @@ FAMILY_IDS = (
     "unknown",
 )
 VERIFIER_KINDS = ("canary", "static", "none")
-Relation = Literal["same", "parent_child", "lateral", "fabricated"]
 DEFAULT_FAMILIES_PATH = Path(__file__).resolve().parents[1] / "ruleset" / "families.toml"
 
 _FAMILY_FIELDS = frozenset({"id", "description", "cwes", "mechanisms", "verifier", "parent", "limits"})
@@ -71,24 +69,6 @@ class FamilyTaxonomy:
 
     def family_of_mechanism(self, mechanism: str) -> Family | None:
         return next((family for family in self.families if mechanism in family.mechanisms), None)
-
-    @property
-    def hierarchical(self) -> bool:
-        """True when some family declares a parent. While this is False, partial credit can never be earned."""
-        return any(family.parent for family in self.families)
-
-    def related(self, left: str, right: str) -> Relation:
-        """How two family answers relate. Abstention is not partial credit: ``unknown`` against a real
-        family is ``lateral``, never ``parent_child``."""
-        known = {family.id: family for family in self.families}
-        if left not in known or right not in known:
-            return "fabricated"
-        if left == right:
-            return "same"
-        if known[left].parent == right or known[right].parent == left:
-            return "parent_child"
-        return "lateral"
-
 
 def _load_families_uncached(path: Path | None = None, *, require_all: bool = True) -> FamilyTaxonomy:
     """Load the taxonomy. ``require_all`` demands the full closed set in order (the shipped file);
@@ -189,7 +169,6 @@ __all__ = [
     "FamiliesError",
     "Family",
     "FamilyTaxonomy",
-    "Relation",
     "load_families",
 ]
 

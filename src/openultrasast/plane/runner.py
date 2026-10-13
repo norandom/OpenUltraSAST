@@ -25,8 +25,7 @@ The command runs as a child process, ``python -m openultrasast.plane.tasks.<spec
 in its own process group, with the first workspace as its working directory and ``AX_METADATA_URL`` pointing at
 this server. ax has no artifact channel and never reports that a command finished, so after the child exits the
 runner reads ``summary.json`` (a crash without one becomes ``failed`` with the exit code and the stderr tail),
-PUTs the whole ``OUSAST_OUTPUT_DIR`` as a tar to ``delivery.put`` (or POSTs it to ``OUSAST_ARTIFACT_URL``, the receiver
-path kept until task 2.6 removes it) -- that delivery is the task's
+PUTs the whole ``OUSAST_OUTPUT_DIR`` as a tar to ``delivery.put`` -- that delivery is the task's
 completion (Requirement 4.4); a failed one is reported ``failed``, never done -- and writes the completion marker
 ``<OUSAST_STATE_DIR>/<task>.done.json`` (``exit``, ``status``, ``delivered``). Then it keeps serving until SIGTERM,
 as ax requires of PID 1. A boot that finds the marker never reruns the command (a resumed actor must not repeat
@@ -48,13 +47,9 @@ Environment the runner reads, all optional except the two ax variables:
     OUSAST_TERM_GRACE                  seconds between SIGTERM and SIGKILL of the command's group, default 10
     OUSAST_CASE_CACHE                  a directory of git checkouts (``benchmarks/independent`` cache layout)
     OUSAST_GIT_PINS                    JSON ``{"<workspace>/<git name>": "<40-hex commit>"}`` from the reconciler
-    OUSAST_ARTIFACT_URL, OUSAST_RUN    where to deliver, and the run name carried in ``X-Ousast-Run``
-    OUSAST_ARTIFACT_DIAL               ``host:port`` to connect to instead of the URL's host, which is sent as
-                                       ``Host`` (the egress gateway decides on and resolves that name)
     OUSAST_DELIVERY_BACKOFF            seconds before the second delivery attempt, doubled per retry
     OUSAST_INPUTS                      JSON ``{"<NAME>": "<producer>/<artifact>"}``: after the start and before the
-                                       command each is fetched from ``delivery.inputs[NAME]`` (else from
-                                       ``<OUSAST_ARTIFACT_URL>/inputs/<ref>`` with the receiver's dial and headers)
+                                       command each is fetched from ``delivery.inputs[NAME]``
                                        to ``OUSAST_INPUT_<NAME>``, with the same retries as delivery; a failed
                                        fetch delivers a failed summary naming the input, the command never runs
 
@@ -700,16 +695,6 @@ def build_tar(output_dir: Path) -> bytes:
     return buffer.getvalue()
 
 
-def _dialled(url: str, headers: Mapping[str, str], dial: str | None) -> tuple[str, dict[str, str]]:
-    """(URL to connect to, headers): with ``dial`` the connection goes there and the URL's host is sent as ``Host``."""
-    out = dict(headers)
-    if not dial:
-        return url, out
-    parts = urlsplit(url)
-    out["Host"] = parts.netloc
-    return parts._replace(netloc=dial).geturl(), out
-
-
 def safe_url(url: str) -> str:
     """``scheme://host/path`` of a URL: what a log line or an error may carry (a presigned query is a credential)."""
     parts = urlsplit(url)
@@ -723,18 +708,14 @@ def deliver(
     *,
     attempts: int = DELIVERY_ATTEMPTS,
     backoff: float = 1.0,
-    dial: str | None = None,
-    method: str = "POST",
 ) -> int:
-    """Send ``payload`` to ``url`` (``POST`` to the receiver, ``PUT`` to a presigned store URL) with ``headers``; retry
-    with doubling backoff; return the 2xx status. Log lines and errors carry the URL without its query.
+    """PUT the payload with retries and doubling backoff; return the 2xx status.
 
-    ``dial`` (``host:port``): connect there instead and send the URL's host as ``Host``, as the actor must -- it
-    cannot resolve the receiver's cluster name, and the egress gateway decides on ``Host`` and resolves it itself.
+    Log lines and errors carry the URL without its query.
     """
-    last, (target, headers) = "no attempt made", _dialled(url, headers, dial)
+    last = "no attempt made"
     for attempt in range(1, attempts + 1):
-        request = urllib.request.Request(target, data=payload, method=method, headers=headers)
+        request = urllib.request.Request(url, data=payload, method="PUT", headers=headers)
         try:
             with urllib.request.urlopen(request, timeout=60) as response:  # noqa: S310 - the reconciler's URL
                 status = int(response.status)
@@ -752,16 +733,16 @@ def deliver(
 
 
 def fetch(
-    url: str, headers: Mapping[str, str], dest: Path, *, attempts: int = DELIVERY_ATTEMPTS, backoff: float = 1.0, dial: str | None = None
+    url: str, headers: Mapping[str, str], dest: Path, *, attempts: int = DELIVERY_ATTEMPTS, backoff: float = 1.0
 ) -> int:
     """GET ``url`` into ``dest`` (streamed to a sibling temp file, then renamed); retried like :func:`deliver`.
 
     Returns the byte count; :class:`DeliveryError` names the last cause when every attempt failed."""
-    last, (target, headers) = "no attempt made", _dialled(url, headers, dial)
+    last = "no attempt made"
     dest.parent.mkdir(parents=True, exist_ok=True)
     partial = dest.with_name(dest.name + ".part")
     for attempt in range(1, attempts + 1):
-        request = urllib.request.Request(target, method="GET", headers=headers)
+        request = urllib.request.Request(url, method="GET", headers=headers)
         try:
             with urllib.request.urlopen(request, timeout=60) as response, partial.open("wb") as out:  # noqa: S310
                 shutil.copyfileobj(response, out, 1 << 16)
@@ -784,7 +765,7 @@ def fetch(
 
 def fetch_inputs(environ: Mapping[str, str], delivery: DeliveryTargets | None = None) -> list[Path]:
     """Fetch every ``OUSAST_INPUTS`` entry to its ``OUSAST_INPUT_<NAME>`` path: from ``delivery.inputs[NAME]`` (a
-    presigned GET, no headers) when the start request carries one, else from the receiver.
+    presigned GET, no headers) carried by the start request.
 
     :class:`RunnerError` names the input when one cannot be fetched: a task never runs with an input missing."""
     raw = environ.get("OUSAST_INPUTS")
@@ -796,21 +777,15 @@ def fetch_inputs(environ: Mapping[str, str], delivery: DeliveryTargets | None = 
         raise RunnerError(f"OUSAST_INPUTS is not JSON: {exc}") from None
     if not isinstance(inputs, dict):
         raise RunnerError("OUSAST_INPUTS must map input names to <producer>/<artifact>")
-    url = environ.get("OUSAST_ARTIFACT_URL")
-    headers = {"X-Ousast-Run": environ.get("OUSAST_RUN", ""), "X-Ousast-Task": environ.get("OUSAST_TASK", "")}
     backoff = float(environ.get("OUSAST_DELIVERY_BACKOFF", "1.0"))
     fetched: list[Path] = []
     for name, ref in sorted(inputs.items()):
         dest = environ.get(f"OUSAST_INPUT_{name}")
         presigned = delivery.inputs.get(name) if delivery is not None else None
-        if not dest or not isinstance(ref, str) or not (presigned or url):
-            raise RunnerError(f"input {name} ({ref}) not fetched: no delivery URL, OUSAST_ARTIFACT_URL or OUSAST_INPUT_{name}")
+        if not dest or not isinstance(ref, str) or not presigned:
+            raise RunnerError(f"input {name} ({ref}) not fetched: no delivery URL or OUSAST_INPUT_{name}")
         try:
-            if presigned:
-                size = fetch(presigned, {}, Path(dest), backoff=backoff)
-            else:
-                source = f"{str(url).rstrip('/')}/inputs/{urllib.parse.quote(ref)}"
-                size = fetch(source, headers, Path(dest), backoff=backoff, dial=environ.get("OUSAST_ARTIFACT_DIAL") or None)
+            size = fetch(presigned, {}, Path(dest), backoff=backoff)
         except DeliveryError as exc:
             raise RunnerError(f"input {name} ({ref}) not fetched: {exc}") from None
         log.info("input %s (%s): %d bytes to %s", name, ref, size, dest)
@@ -818,23 +793,14 @@ def fetch_inputs(environ: Mapping[str, str], delivery: DeliveryTargets | None = 
     return fetched
 
 
-def _deliver_output(task: Task, output_dir: Path, environ: Mapping[str, str], delivery: DeliveryTargets | None = None) -> bool:
-    """PUT the output tar to ``delivery.put`` when the start request carried one, else POST it to the receiver;
+def _deliver_output(output_dir: Path, environ: Mapping[str, str], delivery: DeliveryTargets | None = None) -> bool:
+    """PUT the output tar to ``delivery.put`` when the start request carried one;
     False when there is nowhere to deliver; :class:`DeliveryError` when it fails."""
     backoff = float(environ.get("OUSAST_DELIVERY_BACKOFF", "1.0"))
     if delivery is not None and delivery.put:
-        deliver(delivery.put, build_tar(output_dir), {"Content-Type": "application/x-tar"}, backoff=backoff, method="PUT")
+        deliver(delivery.put, build_tar(output_dir), {"Content-Type": "application/x-tar"}, backoff=backoff)
         return True
-    url = environ.get("OUSAST_ARTIFACT_URL")
-    if not url:
-        return False
-    # the Run's task name (``OUSAST_TASK``) is what the receiver knows; the ax Task is named ``<run>-<task>``
-    headers = {"Content-Type": "application/x-tar", "X-Ousast-Task": environ.get("OUSAST_TASK") or task.metadata.name}
-    run = environ.get("OUSAST_RUN")
-    if run:
-        headers["X-Ousast-Run"] = run
-    deliver(url, build_tar(output_dir), headers, backoff=backoff, dial=environ.get("OUSAST_ARTIFACT_DIAL") or None)
-    return True
+    return False
 
 
 # --- entrypoint --------------------------------------------------------------------------------------------------
@@ -849,7 +815,7 @@ class _Session:
 
     @property
     def marker(self) -> Path:
-        """``<state>/<task>.done.json``: the command finished; ``delivered`` says whether the receiver has it."""
+        """``<state>/<task>.done.json``: the command finished; ``delivered`` says whether the store has it."""
         return self.state_dir / f"{self.task.metadata.name}.done.json"
 
     @property
@@ -893,7 +859,7 @@ def _finish(
     """
     marker: dict[str, Any] = {"exit": exit_code, "status": str(summary.get("status")), "delivered": False, "summary": dict(summary)}
     try:
-        marker["delivered"] = _deliver_output(session.task, session.output_dir, env, delivery)
+        marker["delivered"] = _deliver_output(session.output_dir, env, delivery)
     except DeliveryError as exc:
         log.error("artifact delivery failed: %s", exc)
         marker.update(status="failed", reason=f"artifact delivery failed: {exc}")
@@ -938,7 +904,7 @@ def _run_once(env: MutableMapping[str, str], ready: threading.Event, stop: threa
             return 0
         try:
             _materialise_once(session, env)
-            fetch_inputs(env, start.delivery)  # after the start: the URLs arrive with it (and a receiver serves a running task only)
+            fetch_inputs(env, start.delivery)  # after the start: the URLs arrive with it
         except RunnerError as exc:
             log.error("runner failed: %s", exc)
             failed = _failed(f"runner failed: {exc}", read_summary(session.output_dir))

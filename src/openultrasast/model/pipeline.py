@@ -29,12 +29,10 @@ from typing import Any
 
 from ..cpg.backend import CpgResult
 from ..redaction import redact_secrets
-from .config_value import verdict as config_verdict
 from .config_value import verdicts as config_verdicts
 from .dominance import verdict as dominance_verdict
 from .ladder import Rung, Verdict
 from .specs import ConfigSpec, DominanceSpec, TaintSpec
-from .taint import verdict as taint_verdict
 from .taint import verdicts as taint_verdicts
 
 logger = logging.getLogger(__name__)
@@ -93,32 +91,9 @@ def _arbitrate_all(
     if isinstance(spec, ConfigSpec):
         return config_verdicts(cpg, spec, function=function, file=path)
     if isinstance(spec, DominanceSpec):
-        answer = _arbitrate(cpg, spec, path=path, function=function, parameter_sources=parameter_sources, call_depth=call_depth)
+        answer = dominance_verdict(cpg, spec, function=function, file=path)
         return [answer] if answer is not None else []
     return taint_verdicts(cpg, spec, function=function, file=path, parameter_sources=parameter_sources, call_depth=call_depth)
-
-
-def _arbitrate(
-    cpg: CpgResult,
-    spec: TaintSpec | DominanceSpec | ConfigSpec,
-    *,
-    path: str,
-    function: str,
-    parameter_sources: bool,
-    call_depth: int,
-) -> Verdict | None:
-    """Route a family to the arbiter that can actually decide it.
-
-    Dispatching on the spec type rather than on a family name keeps this honest: a family without an arbiter
-    cannot be silently routed to the wrong one. The pipeline first shipped taint-only, so access_control and
-    config_secrets -- whose arbiters had worked since group 4 -- produced nothing, and every one of their
-    pairs read as `both_silent` on the first end-to-end run.
-    """
-    if isinstance(spec, DominanceSpec):
-        return dominance_verdict(cpg, spec, function=function, file=path)
-    if isinstance(spec, ConfigSpec):
-        return config_verdict(cpg, spec, function=function, file=path)
-    return taint_verdict(cpg, spec, function=function, file=path, parameter_sources=parameter_sources, call_depth=call_depth)
 
 
 def scan_region(

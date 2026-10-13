@@ -15,12 +15,8 @@ from .findings import StaticFinding
 from .hunter_tools import (
     PathEscapesRepo,
     clamp_repo_path,
-    entry_points,
     find_refs,
-    flows,
     grep_repo,
-    obligations,
-    read_definition,
     read_file,
 )
 from .provider.openrouter import OpenRouterChatClient, OpenRouterError
@@ -31,7 +27,6 @@ DEFAULT_MAX_STEPS = 4
 CLIENT_ENV = "OPENULTRASAST_HUNTER_CLIENT"
 _FINDING_ID_PREFIX = "tool-hunter:"
 DEFAULT_TOOL_NAMES = ("read_file", "grep_repo", "find_refs")
-_HUNTER_TOOL_NAMES = frozenset(DEFAULT_TOOL_NAMES) | {"read_definition", "entry_points", "flows", "obligations"}
 _SEVERITIES = frozenset({"critical", "high", "medium", "low", "info"})
 _SCRIPTED_FLAGS = frozenset({"scripted", "script"})
 _DUMP_FLAGS = frozenset({"dump", "dump-only"})
@@ -88,50 +83,6 @@ HUNTER_TOOLS: list[dict[str, object]] = [
                 "type": "object",
                 "properties": {"symbol": {"type": "string"}},
                 "required": ["symbol"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "read_definition",
-            "description": "Resolve one named function to its file, line span and body. Use it instead of guessing what a callee does.",
-            "parameters": {
-                "type": "object",
-                "properties": {"symbol": {"type": "string"}, "path": {"type": "string"}, "max_chars": {"type": "integer"}},
-                "required": ["symbol"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "entry_points",
-            "description": "List the handlers this repository exposes, with their access classification. Identifiers and line spans only.",
-            "parameters": {"type": "object", "properties": {"path": {"type": "string"}}, "required": []},
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "flows",
-            "description": "List adjudicated source-to-sink records inside one function. Identifiers and line numbers only.",
-            "parameters": {
-                "type": "object",
-                "properties": {"path": {"type": "string"}, "function": {"type": "string"}},
-                "required": ["path", "function"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "obligations",
-            "description": "List what one function owes and has not discharged: the operation, the missing discharger and why it is owed.",
-            "parameters": {
-                "type": "object",
-                "properties": {"path": {"type": "string"}, "function": {"type": "string"}},
-                "required": ["path", "function"],
             },
         },
     },
@@ -330,15 +281,13 @@ def run_tool_hunter(
     system_prompt: str = _SYSTEM_PROMPT,
     user_prompt: str | None = None,
     context_files: Sequence[str] = (),
-    tools: Sequence[str] | None = None,
     max_chars: int = _DEFAULT_MAX_CHARS,
     tags: Sequence[str] = ("tool-hunter",),
 ) -> list[StaticFinding]:
-    """One bounded hunt. Every keyword defaults to today's behaviour; a per-family detector overrides the
-    prompt, the context it starts from, the tools it may call and the tags its findings carry."""
+    """One bounded hunt with a prompt, starting context and finding tags."""
     if max_steps <= 0:
         return []
-    schemas = _tool_schemas(tools)
+    schemas = HUNTER_TOOLS
     messages: list[dict[str, object]] = [
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": _user_message(root, hotspots, user_prompt, context_files, max_chars)},
@@ -350,7 +299,7 @@ def run_tool_hunter(
         if tool_calls:
             messages.append(_assistant_tool_message(response.content, tool_calls, response.reasoning))
             for call in tool_calls:
-                if call.name in _HUNTER_TOOL_NAMES:
+                if call.name in DEFAULT_TOOL_NAMES:
                     used_tools = True
                 messages.append(_tool_result_message(root, call, max_chars))
             continue
@@ -412,12 +361,6 @@ def _looks_like_json(content: str) -> bool:
     if fenced is not None:
         stripped = fenced.group(1).strip()
     return stripped.startswith(("[", "{"))
-
-
-def _tool_schemas(names: Sequence[str] | None) -> list[dict[str, object]]:
-    wanted = tuple(names) if names is not None else DEFAULT_TOOL_NAMES
-    by_name = {str(schema["function"]["name"]): schema for schema in HUNTER_TOOLS}  # type: ignore[index]
-    return [by_name[name] for name in wanted if name in by_name]
 
 
 def _user_message(root: Path, hotspots: Sequence[Hotspot], user_prompt: str | None, context_files: Sequence[str], max_chars: int) -> str:
@@ -502,30 +445,13 @@ def _dispatch_tool(root: Path, name: str, arguments: Mapping[str, object], defau
         path = _require_str(arguments, "path")
         max_chars = _optional_int(arguments, "max_chars", default_max_chars)
         return {"path": path, "content": read_file(root, path, max_chars=max_chars)}
-    if name == "read_definition":
-        symbol = _require_str(arguments, "symbol")
-        scope = arguments.get("path")
-        found = read_definition(
-            root,
-            symbol,
-            max_chars=_optional_int(arguments, "max_chars", default_max_chars),
-            path=str(scope) if isinstance(scope, str) and scope else None,
-        )
-        return found if found is not None else {"symbol": symbol, "found": False}
-    if name == "entry_points":
-        scope = arguments.get("path")
-        return entry_points(root, path=str(scope) if isinstance(scope, str) and scope else None)
-    if name == "flows":
-        return flows(root, path=_require_str(arguments, "path"), function=_require_str(arguments, "function"))
-    if name == "obligations":
-        return obligations(root, path=_require_str(arguments, "path"), function=_require_str(arguments, "function"))
     if name == "grep_repo":
         pattern = _require_str(arguments, "pattern")
         max_matches = _optional_int(arguments, "max_matches", _DEFAULT_MAX_MATCHES)
         return grep_repo(root, pattern, max_matches=max_matches)
     if name == "find_refs":
         symbol = _require_str(arguments, "symbol")
-        return find_refs(root, symbol, None)
+        return find_refs(root, symbol)
     raise ValueError(f"unknown tool: {name}")
 
 

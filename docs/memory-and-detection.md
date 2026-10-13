@@ -26,11 +26,7 @@ flowchart TD
     op -- "otherwise" --> adv["ADVISORY"]
 ```
 
-These decisions are meant for changed code. `learn/features.py` builds feature records in two ways:
-
-- for a whole-repository scan;
-- for a base..head delta (`build_for_scan` with `Delta`). This is the same delta `ousast pre-push` checks.
-
+The plane task uses `learn/features.py` to build candidate feature records from delivered artifacts.
 Integration into scan and pre-push is still ahead.
 
 ## 1. Instruments produce signals, not verdicts

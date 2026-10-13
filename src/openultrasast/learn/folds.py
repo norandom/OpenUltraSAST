@@ -38,7 +38,7 @@ class FoldError(RuntimeError):
 class Fold:
     """One evaluation (or compile, or deployment) boundary: the groups evaluated, and what retrieval must not use."""
 
-    kind: str  # outer | leave_one_source_out | leave_one_framework_out | compile | deployment
+    kind: str  # outer | compile | deployment
     name: str
     eval_groups: frozenset[str]
     held_source: str | None = None
@@ -126,37 +126,6 @@ def outer_folds(examples: Sequence[Example], *, k: int = OUTER_K, seed: int = 0,
     return [Fold("outer", f"outer-{i}", frozenset(groups)) for i, groups in enumerate(assigned)]
 
 
-def leave_one_source_out(examples: Sequence[Example], *, exclude: Iterable[str] = ()) -> list[Fold]:
-    excluded = set(exclude)
-    by_source: dict[str, set[str]] = {}
-    for example in examples:
-        if example.group not in excluded:
-            by_source.setdefault(example.source, set()).add(example.group)
-    return [Fold("leave_one_source_out", f"source-{s}", frozenset(g), held_source=s) for s, g in sorted(by_source.items())]
-
-
-def leave_one_framework_out(
-    examples: Sequence[Example], *, exclude: Iterable[str] = (), min_groups: int = FRAMEWORK_MIN_GROUPS
-) -> list[Fold]:
-    """One fold per framework seen; below ``min_groups`` groups it is ``insufficient data`` and evaluates nothing."""
-    excluded = set(exclude)
-    by_framework: dict[str, set[str]] = {}
-    for example in examples:
-        for framework in example.frameworks:
-            if example.group not in excluded:
-                by_framework.setdefault(framework, set()).add(example.group)
-    folds = []
-    for framework, groups in sorted(by_framework.items()):
-        enough = len(groups) >= min_groups
-        folds.append(
-            Fold(
-                "leave_one_framework_out", f"framework-{framework}", frozenset(groups) if enough else frozenset(),
-                held_framework=framework, status="ok" if enough else INSUFFICIENT,
-            )
-        )  # fmt: skip
-    return folds
-
-
 def assert_disjoint(split: CompileSplit, folds: Iterable[Fold]) -> None:
     """The compile split shares no group with any evaluation fold; outer folds are pairwise disjoint."""
     seen: dict[str, str] = {}
@@ -181,6 +150,5 @@ def folds_digest(split: CompileSplit, folds: Iterable[Fold]) -> str:
 
 __all__ = [
     "COMPILE_FRACTION", "FRAMEWORK_MIN_GROUPS", "INSUFFICIENT", "OUTER_K", "CompileSplit", "Fold", "FoldError", "GroupInfo",
-    "assert_disjoint", "compile_split", "folds_digest", "group_table", "leave_one_framework_out", "leave_one_source_out",
-    "outer_folds",
+    "assert_disjoint", "compile_split", "folds_digest", "group_table", "outer_folds",
 ]  # fmt: skip

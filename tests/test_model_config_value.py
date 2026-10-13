@@ -26,17 +26,17 @@ def _cpg(rows):  # type: ignore[no-untyped-def]
 
 
 def test_a_permissive_literal_is_entailed() -> None:
-    from openultrasast.model.config_value import verdict
+    from openultrasast.model.config_value import verdicts
     from openultrasast.model.ladder import Rung
 
     rows = [{"setting": 'CORS(app, origins="*")', "line": "3", "method": "create_app", "literalArgs": ['"*"'], "args": ["app", '"*"']}]
-    answer = verdict(_cpg(rows), _spec(), function="create_app")
+    answer = verdicts(_cpg(rows), _spec(), function="create_app")[0]
     assert answer is not None and answer.rung is Rung.ENTAILED
     assert "*" in answer.witness and "CORS" in answer.witness
 
 
 def test_a_restrictive_literal_yields_no_finding() -> None:
-    from openultrasast.model.config_value import verdict
+    from openultrasast.model.config_value import verdicts
 
     rows = [
         {
@@ -47,12 +47,12 @@ def test_a_restrictive_literal_yields_no_finding() -> None:
             "args": ["app", '"https://app.example"'],
         }
     ]
-    assert verdict(_cpg(rows), _spec(), function="create_app") is None
+    assert verdicts(_cpg(rows), _spec(), function="create_app") == []
 
 
 def test_a_non_literal_argument_is_corroborated_not_entailed() -> None:
     """The value is computed, so constant abstraction cannot decide it — that residual is the LLM's."""
-    from openultrasast.model.config_value import verdict
+    from openultrasast.model.config_value import verdicts
     from openultrasast.model.ladder import Rung
 
     rows = [
@@ -64,30 +64,30 @@ def test_a_non_literal_argument_is_corroborated_not_entailed() -> None:
             "args": ["app", "configured_origins"],
         }
     ]
-    answer = verdict(_cpg(rows), _spec(), function="create_app")
+    answer = verdicts(_cpg(rows), _spec(), function="create_app")[0]
     assert answer is not None and answer.rung is Rung.CORROBORATED
 
 
 def test_a_setting_that_is_not_in_the_spec_is_ignored() -> None:
-    from openultrasast.model.config_value import verdict
+    from openultrasast.model.config_value import verdicts
 
     rows = [{"setting": 'print("*")', "line": "1", "method": "create_app", "literalArgs": ['"*"'], "args": ['"*"']}]
-    assert verdict(_cpg(rows), _spec(), function="create_app") is None
+    assert verdicts(_cpg(rows), _spec(), function="create_app") == []
 
 
 def test_a_failed_query_is_not_read_as_a_safe_configuration() -> None:
     from openultrasast.cpg.backend import CpgResult
-    from openultrasast.model.config_value import verdict
+    from openultrasast.model.config_value import verdicts
 
-    assert verdict(CpgResult(cpg_path=Path("c.bin"), run=lambda q, p: None), _spec(), function="f") is None
+    assert verdicts(CpgResult(cpg_path=Path("c.bin"), run=lambda q, p: None), _spec(), function="f") == []
 
 
 def test_the_verdict_is_deterministic() -> None:
-    from openultrasast.model.config_value import verdict
+    from openultrasast.model.config_value import verdicts
 
     rows = [{"setting": 'set_cookie("s", secure=False)', "line": "9", "method": "login", "literalArgs": ["True", "0.0.0.0"], "args": ["x"]}]
     cpg = _cpg(rows)
-    assert verdict(cpg, _spec(), function="login") == verdict(cpg, _spec(), function="login")
+    assert verdicts(cpg, _spec(), function="login")[0] == verdicts(cpg, _spec(), function="login")[0]
 
 
 # --- framework coverage and the weak-algorithm arm --------------------------------------------------------
@@ -113,24 +113,24 @@ def test_the_settings_table_covers_the_frameworks_in_the_corpus() -> None:
 
 def test_a_weak_algorithm_is_entailed_by_its_literal() -> None:
     """CWE-327: the danger is the algorithm NAMED, not a permissive flag."""
-    from openultrasast.model.config_value import verdict
+    from openultrasast.model.config_value import verdicts
     from openultrasast.model.ladder import Rung
     from openultrasast.model.specs import config_specs
 
     spec = config_specs(language="python")["config_secrets"]
     rows = [{"setting": 'hashlib.new("md5")', "line": "4", "method": "digest", "literalArgs": ['"md5"'], "args": ['"md5"']}]
-    answer = verdict(_cpg(rows), spec, function="digest")
+    answer = verdicts(_cpg(rows), spec, function="digest")[0]
     assert answer is not None and answer.rung is Rung.ENTAILED
     assert "md5" in answer.witness.lower()
 
 
 def test_a_strong_algorithm_yields_no_finding() -> None:
-    from openultrasast.model.config_value import verdict
+    from openultrasast.model.config_value import verdicts
     from openultrasast.model.specs import config_specs
 
     spec = config_specs(language="python")["config_secrets"]
     rows = [{"setting": 'hashlib.new("sha256")', "line": "4", "method": "digest", "literalArgs": ['"sha256"'], "args": ['"sha256"']}]
-    assert verdict(_cpg(rows), spec, function="digest") is None
+    assert verdicts(_cpg(rows), spec, function="digest") == []
 
 
 def _javascript_spec():  # type: ignore[no-untyped-def]
@@ -142,7 +142,7 @@ def _javascript_spec():  # type: ignore[no-untyped-def]
 
 def test_disabling_template_escaping_is_entailed() -> None:
     """The setting NodeGoat's cross-site scripting turns off, claimed where the evidence is: the value."""
-    from openultrasast.model.config_value import verdict
+    from openultrasast.model.config_value import verdicts
     from openultrasast.model.ladder import Rung
 
     rows = [
@@ -154,7 +154,7 @@ def test_disabling_template_escaping_is_entailed() -> None:
             "args": ["{ autoescape: false }"],
         }
     ]
-    answer = verdict(_cpg(rows), _javascript_spec(), function="<module>")
+    answer = verdicts(_cpg(rows), _javascript_spec(), function="<module>")[0]
     assert answer is not None and answer.rung is Rung.ENTAILED
     assert "swig.setDefaults" in answer.witness and "false" in answer.witness
 
@@ -167,7 +167,7 @@ def test_enabling_template_escaping_is_not_a_finding() -> None:
     reported on exactly the code that repairs it -- the commented-out `autoescape: true` two lines below
     NodeGoat's defect.
     """
-    from openultrasast.model.config_value import verdict
+    from openultrasast.model.config_value import verdicts
 
     rows = [
         {
@@ -178,12 +178,12 @@ def test_enabling_template_escaping_is_not_a_finding() -> None:
             "args": ["{ autoescape: true }"],
         }
     ]
-    assert verdict(_cpg(rows), _javascript_spec(), function="<module>") is None
+    assert verdicts(_cpg(rows), _javascript_spec(), function="<module>") == []
 
 
 def test_a_setting_whose_polarity_is_unchanged_still_reports_true() -> None:
     """The control for the other direction: scoping must not quiet the settings it was not about."""
-    from openultrasast.model.config_value import verdict
+    from openultrasast.model.config_value import verdicts
     from openultrasast.model.ladder import Rung
 
     rows = [
@@ -195,7 +195,7 @@ def test_a_setting_whose_polarity_is_unchanged_still_reports_true() -> None:
             "args": ["{ origin: true }"],
         }
     ]
-    answer = verdict(_cpg(rows), _javascript_spec(), function="createApp")
+    answer = verdicts(_cpg(rows), _javascript_spec(), function="createApp")[0]
     assert answer is not None and answer.rung is Rung.ENTAILED
 
 
@@ -206,13 +206,13 @@ def test_the_first_setting_in_a_file_is_the_one_reported() -> None:
     spelling of its line numbers. NodeGoat has a permissive session at line 78 and template escaping disabled
     at line 135, and which one surfaced flipped on that comparison.
     """
-    from openultrasast.model.config_value import verdict
+    from openultrasast.model.config_value import verdicts
 
     rows = [
         {"setting": "swig.setDefaults({ autoescape: false })", "line": "135", "method": "m", "literalArgs": ["false"], "args": []},
         {"setting": "cors({ origin: true })", "line": "78", "method": "m", "literalArgs": ["true"], "args": []},
     ]
-    answer = verdict(_cpg(rows), _javascript_spec(), function="m")
+    answer = verdicts(_cpg(rows), _javascript_spec(), function="m")[0]
     assert answer is not None and "line 78" in answer.witness, answer.witness
 
 

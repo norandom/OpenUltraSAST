@@ -1,10 +1,6 @@
 """Feature records per candidate, from the signals every instrument emitted (learned-decision-engine design section 1).
 
-No model. The same per-instrument builders serve two callers:
-
-- the plane task ``features`` (:mod:`..plane.tasks.features`), which reads a case's delivered artifacts;
-- the host: :func:`build_for_scan` over a checkout's quick findings and an engine result, for ``scan`` and
-  ``pre-push`` (a whole-repository scan, or a base..head delta with :class:`Delta`).
+The plane task ``features`` (:mod:`..plane.tasks.features`) reads a case's delivered artifacts.
 
 A candidate is ``(path, function, family)`` of one repository and pin: a function where at least one instrument
 emitted a signal of that family. The key stays in the record's envelope (``candidate`` is ``path::function``); the
@@ -26,8 +22,8 @@ from typing import Any
 from ..model.taxonomy import load_families
 from ..plane.tasks.repo_facts import _COMMENT_PREFIXES, DECLARATION, GLOBAL, _declared_name, enclosing, product_files
 from ..preprocess import build_file_target, detect_language
-from ..ruleset import DEFAULT_RULESET_DIR, PatternRule, load_ruleset
-from .roles import CWE_OPERATION, SOURCE_KIND, VERSION, Function, RoleSet, body_roles, functions_of, infer_for_checkout, origin_of
+from ..ruleset import PatternRule
+from .roles import CWE_OPERATION, SOURCE_KIND, VERSION, Function, RoleSet, body_roles, functions_of, origin_of
 from .schema import (
     BY_NAME,
     LANGUAGES,
@@ -60,12 +56,6 @@ class Part:
 
 NONE = Part("none")
 NOT_APPLICABLE = Part("not_applicable")
-
-
-def language_of(path: str) -> str:
-    """The closed language of a path (its extension), ``other`` outside :data:`.schema.LANGUAGES`."""
-    language = detect_language(Path(path))
-    return language if language in LANGUAGES else "other"
 
 
 def _clip(name: str, value: Any) -> Any:
@@ -328,18 +318,6 @@ def function_of(lines: Sequence[str] | None, path: str, language: str, function:
 # --- the host path ---------------------------------------------------------------------------------------------------
 
 
-@dataclass(frozen=True)
-class Delta:
-    """A base..head delta: the base checkout, the head-side changed line ranges per path (``git diff -U0``), and the
-    base's quick findings and engine result, whose signals decide novelty."""
-
-    root: Path
-    changed: Mapping[str, Sequence[tuple[int, int]]]
-    findings: Sequence[Any] = ()
-    engine_result: Mapping[str, Any] | None = None
-    pin: str | None = None
-
-
 class SourceIndex:
     """A checkout's product files read once: lines per path, the enclosing function of a line, and the name-level
     caller graph (the repo-facts patterns) for the entry-point distance."""
@@ -423,12 +401,6 @@ def _family_of(rule: PatternRule | None) -> str:
     return family.id if family is not None else UNKNOWN_FAMILY
 
 
-def _engine_state(result: Mapping[str, Any] | None) -> str:
-    if result is None:
-        return "none"
-    return "ran" if int(result.get("questions") or 0) > 0 else "failed"
-
-
 def _signals(
     index: SourceIndex, findings: Sequence[Any], engine_result: Mapping[str, Any] | None, rules: Mapping[str, PatternRule]
 ) -> tuple[dict[tuple[str, str, str], list[tuple[str, str]]], dict[tuple[str, str, str], list[Mapping[str, Any]]]]:
@@ -445,108 +417,6 @@ def _signals(
         function = index.function_at(path, line, function_name or None)
         engine.setdefault((path, function, str(finding.get("family") or UNKNOWN_FAMILY)), []).append(finding)
     return quick, engine
-
-
-def _changed_in(index: SourceIndex, changed: Mapping[str, Sequence[tuple[int, int]]]) -> dict[tuple[str, str], int]:
-    """(path, function) -> changed lines inside it, by the head's enclosing declarations."""
-    counts: dict[tuple[str, str], int] = {}
-    for path, ranges in changed.items():
-        for lo, hi in ranges:
-            for line in range(int(lo), int(hi) + 1):
-                key = (path, index.function_at(path, line))
-                counts[key] = counts.get(key, 0) + 1
-    return counts
-
-
-def _body_calls(lines: Sequence[str] | None, language: str, function: str) -> set[str]:
-    if not lines:
-        return set()
-    return {m.group(1) for i, line in enumerate(lines) if enclosing(lines, i, language) == function for m in _CALL.finditer(line)}
-
-
-def build_for_scan(
-    root: Path,
-    findings: Sequence[Any],
-    engine_result: Mapping[str, Any] | None,
-    *,
-    base: Delta | None = None,
-    rules: Sequence[PatternRule] | None = None,
-    quick_languages: Iterable[str] | None = None,
-    engine_languages: Iterable[str] | None = None,
-    roles: RoleSet | None | bool = True,
-) -> list[dict[str, Any]]:
-    """``static`` records for a checkout: one per (path, function, family) with a quick or engine signal. ``findings``
-    are the quick findings (enabled and shadow alike), ``engine_result`` the engine's record (``findings`` with
-    ``site``/``family``/``rung``/``witness``, ``questions``, ``completed``, ``degradations``; ``None`` when the engine
-    did not run, ``questions == 0`` is ``failed``). With ``base`` only functions enclosing a changed line are
-    candidates, and ``delta.*`` compares their signals with the base's. ``roles``: ``True`` infers wrapper roles over
-    the checkout (priors off), a :class:`.roles.RoleSet` is used as given, ``False``/``None`` leaves ``roles`` ``none``."""
-    from ..plane.tasks.alerts import covers
-    from ..plane.tasks.alerts import engine_languages as engine_covered
-    from ..plane.tasks.alerts import quick_languages as quick_covered
-    from ..semantic.facts import FactLoadError, load_facts
-
-    root = Path(root)
-    loaded = tuple(rules) if rules is not None else load_ruleset(DEFAULT_RULESET_DIR)
-    by_id = {rule.rule_id: rule for rule in loaded}
-    quick_langs = set(quick_languages if quick_languages is not None else quick_covered())
-    engine_langs = set(engine_languages if engine_languages is not None else engine_covered())
-    index = SourceIndex(root)
-    quick, engine = _signals(index, findings, engine_result, by_id)
-    keys = sorted(set(quick) | set(engine))
-    changed: dict[tuple[str, str], int] = {}
-    base_quick: dict[tuple[str, str, str], list[tuple[str, str]]] = {}
-    base_engine: dict[tuple[str, str, str], list[Mapping[str, Any]]] = {}
-    base_index: SourceIndex | None = None
-    if base is not None:
-        changed = _changed_in(index, base.changed)
-        keys = [k for k in keys if (k[0], k[1]) in changed]
-        base_index = SourceIndex(base.root)
-        base_quick, base_engine = _signals(base_index, base.findings, base.engine_result, by_id)
-    entries, file_entries = entry_names(root, {k[0] for k in keys}) if keys else (set(), set())
-    callers = index.callers() if keys else {}
-    quick_version = ruleset_digest(loaded)
-    engine_state = _engine_state(engine_result)
-    completed, questions = (engine_result or {}).get("completed"), (engine_result or {}).get("questions")
-    completion = int(completed) / int(questions) if isinstance(completed, int) and isinstance(questions, int) and questions else None
-    degraded = bool((engine_result or {}).get("degradations"))
-    vocabularies: dict[str, Vocabulary] = {}
-    inferred = (infer_for_checkout(root) if keys else RoleSet(sources=("inferred_wrapper",))) if roles is True else roles or None
-    try:
-        sanitizer_calls = {language: {c for s in load_facts().for_language(language).sanitizers for c in s.calls} for language in LANGUAGES}
-    except FactLoadError:
-        sanitizer_calls = {}
-    out: list[dict[str, Any]] = []
-    for key in keys:
-        path, function, family = key
-        language = detect_language(Path(path))
-        parts: dict[str, Part] = {}
-        parts["quick"] = quick_part(quick.get(key, []), by_id, quick_version) if covers(quick_langs, language) else NONE
-        if language in engine_langs and engine_state != "none":
-            vocabulary = vocabularies.setdefault(language, Vocabulary.load(language))
-            parts["engine"] = (
-                engine_part(engine.get(key, []), completion=completion, degraded=degraded, vocabulary=vocabulary)
-                if engine_state == "ran" else Part("failed")
-            )  # fmt: skip
-        lines = index.lines(path)
-        parts["source"] = source_part(lines, language, function)
-        parts["roles"] = roles_part(function_of(lines, path, language, function), inferred, language)
-        distance = 0 if function == GLOBAL and path in file_entries else entry_distance(function, entries, callers)
-        parts["entry_points"] = Part("ran", {"facts.entry_distance": distance})
-        parts["facts"] = facts_part(_callers_of(index, callers, path, function), function)
-        if base is None or base_index is None:
-            parts["delta"] = NOT_APPLICABLE
-        else:
-            head_n = len(quick.get(key, [])) + len(engine.get(key, []))
-            base_n = len(base_quick.get(key, [])) + len(base_engine.get(key, []))
-            novelty = "new" if base_n == 0 else "worsened" if head_n > base_n else "unchanged"
-            known = sanitizer_calls.get(language, set())
-            removed = bool((_body_calls(base_index.lines(path), language, function) - _body_calls(lines, language, function)) & known)
-            values = {"delta.novelty": novelty, "delta.changed_lines": changed.get((path, function), 0), "delta.sanitizer_removed": removed}
-            parts["delta"] = Part("ran", values)
-        unit, pin = ("delta", base.pin) if base is not None else ("pin", None)
-        out.append(record(f"{path}::{function}", family, language, "static", parts, unit=unit, base=pin))
-    return out
 
 
 def _callers_of(index: SourceIndex, callers: Mapping[str, set[str]], path: str, function: str) -> list[dict[str, Any]]:
@@ -567,8 +437,8 @@ def _callers_of(index: SourceIndex, callers: Mapping[str, set[str]], path: str, 
 
 
 __all__ = [
-    "CWE_OPERATION", "NONE", "NOT_APPLICABLE", "SOURCE_KIND", "Delta", "Part", "SourceIndex", "Vocabulary", "agree_part",
+    "CWE_OPERATION", "NONE", "NOT_APPLICABLE", "SOURCE_KIND", "Part", "SourceIndex", "Vocabulary", "agree_part",
     "function_of", "model_sinks_part", "roles_part",
-    "build_for_scan", "engine_part", "entry_distance", "entry_names", "facts_part", "function_span", "language_of", "quick_part", "record",
+    "engine_part", "entry_distance", "entry_names", "facts_part", "function_span", "quick_part", "record",
     "ruleset_digest", "source_part", "verify_part",
 ]  # fmt: skip

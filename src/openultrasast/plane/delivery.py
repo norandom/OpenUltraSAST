@@ -13,7 +13,6 @@ Store layout under the 30-day ``runs/`` expiry rule (``memory.RUNS_RULE_ID``)::
     runs/<run>/<task>/output.tar           the runner's PUT
     runs/<run>/<task>/<artifact>           each declared output, re-put by the reconciler
     runs/<run>/<task>/done.json            status, bytes, file count, finished
-    runs/<run>/inputs/<name>               an input no task produces (``put_input``)
 
 Nothing here logs or prints a URL.
 """
@@ -163,11 +162,6 @@ class Delivery:
                 self.store._put(self.key(task, artifact), path.read_bytes())
                 put.append(artifact)
         return put
-
-    def put_input(self, name: str, path: Path) -> str:
-        """Store a file no task produces as ``runs/<run>/inputs/<name>``; returns its presigned GET URL."""
-        self.store._put(self.key(INPUTS_DIR, name), Path(path).read_bytes())
-        return self.store.presign_get(self.key(INPUTS_DIR, name), self.expires)
 
     # --- state ---------------------------------------------------------------------------------------------------
 

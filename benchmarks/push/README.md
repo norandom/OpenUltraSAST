@@ -1,7 +1,7 @@
 # Reproducible push evaluation inputs
 
 `inputs.json` schema 1 declares 11 cases and 9 snapshots before any new scanner run.
-Run `.venv/bin/python -m openultrasast.push_inputs benchmarks/push/inputs.json`.
+Run `.venv/bin/python -m benchmarks.push.push_inputs benchmarks/push/inputs.json`.
 It is offline by default, even if the ordinary repository network environment variable is set.
 `--fetch` explicitly permits the existing repository resolver to fetch missing pinned commits.
 No project scripts, npm installation, or scanner are executed. Nonzero exit means at least one

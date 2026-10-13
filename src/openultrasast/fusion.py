@@ -91,10 +91,6 @@ def fusion_triggers(
     return sorted(triggers)
 
 
-def should_fuse(finding: StaticFinding, verification: VerificationResult | None = None, *, high_assurance: bool = False) -> bool:
-    return bool(fusion_triggers(finding, verification, high_assurance=high_assurance))
-
-
 def _panel_a(finding: StaticFinding, verification: VerificationResult | None) -> PanelVerdict:
     """Vulnerability-leaning panel: steel-mans the vulnerability case."""
     reachable = finding.reachability_status == "reachable"
@@ -213,5 +209,4 @@ __all__ = [
     "fuse_finding",
     "fuse_findings",
     "fusion_triggers",
-    "should_fuse",
-]
+    ]

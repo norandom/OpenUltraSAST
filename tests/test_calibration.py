@@ -6,7 +6,6 @@ from openultrasast.calibration import (
     apply_ranking_calibration,
     calibrate_ranking,
     calibrate_rankings,
-    compute_ranking_metrics,
     learning_from_finding_outcome,
     record_false_positive_learning,
     write_false_positive_learnings,
@@ -60,34 +59,6 @@ def test_false_positive_learning_records_reason_and_scope(tmp_path: Path) -> Non
     assert learning.vulnerability_class == "syscall_entry"
     assert learning.scope == "auth:syscall_entry"
     assert "missing_attacker_control" in output.read_text()
-
-
-def test_ranking_metrics_track_false_positive_reasons_by_tier() -> None:
-    metrics = compute_ranking_metrics(
-        [
-            {"tier": "A", "outcome": FindingOutcome.VERIFIED, "time_to_verification_seconds": 10},
-            {
-                "tier": "A",
-                "outcome": FindingOutcome.REJECTED,
-                "reason": FalsePositiveReason.UNREACHABLE_PATH,
-                "time_to_verification_seconds": 20,
-            },
-            {"tier": "B", "outcome": FindingOutcome.REJECTED, "reason": FalsePositiveReason.DUPLICATE},
-            {
-                "tier": "A",
-                "outcome": FindingOutcome.UNVERIFIED,
-                "reason": FalsePositiveReason.UNVERIFIED,
-                "missed_fixture_vulnerabilities": 1,
-            },
-        ],
-        tier="A",
-    )
-
-    assert metrics.verified_findings == 1
-    assert metrics.false_positives == 2
-    assert metrics.time_to_verification_seconds == 15.0
-    assert metrics.missed_fixture_vulnerabilities == 1
-    assert metrics.false_positive_reasons["unreachable_path"] == 1
 
 
 def test_scoped_false_positive_demotion_does_not_suppress_class_globally() -> None:

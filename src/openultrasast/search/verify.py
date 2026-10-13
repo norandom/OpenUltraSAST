@@ -22,7 +22,7 @@ import zipfile
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import suppress
-from dataclasses import asdict, dataclass, field, replace
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, cast
 
@@ -709,20 +709,3 @@ def verify(
         isolation_mode=mode,
         chromium_no_sandbox=bool(getattr(browser, "no_sandbox", False)),
     )
-
-
-def main() -> None:
-    import argparse
-
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("affected", type=Path)
-    parser.add_argument("safe", type=Path)
-    parser.add_argument("artefact", type=Path)
-    parser.add_argument("family")
-    args = parser.parse_args()
-    result = verify(Side(args.affected), Side(args.safe), args.artefact, args.family)
-    print(json.dumps(asdict(result), indent=2))
-
-
-if __name__ == "__main__":
-    main()

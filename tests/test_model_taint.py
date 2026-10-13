@@ -30,12 +30,12 @@ def _spec():  # type: ignore[no-untyped-def]
 
 def test_an_unsanitized_source_to_sink_path_is_entailed() -> None:
     from openultrasast.model.ladder import Rung
-    from openultrasast.model.taint import verdict
+    from openultrasast.model.taint import verdicts
 
     rows = [
         {"sink": "os.system(cmd)", "sinkLine": "4", "sinkMethod": "run", "source": "request.args['x']", "sanitized": False, "length": 3}
     ]
-    answer = verdict(_cpg(rows), _spec(), function="run")
+    answer = verdicts(_cpg(rows), _spec(), function="run")[0]
     assert answer is not None and answer.rung is Rung.ENTAILED
     assert answer.family == "injection"
     assert "request.args" in answer.witness and "os.system" in answer.witness, "the witness names the flow it found"
@@ -44,30 +44,30 @@ def test_an_unsanitized_source_to_sink_path_is_entailed() -> None:
 def test_a_path_through_a_sanitizer_is_corroborated_not_entailed() -> None:
     """The model saw the flow but cannot judge whether the sanitizer is sufficient. That residual is the LLM's."""
     from openultrasast.model.ladder import Rung
-    from openultrasast.model.taint import verdict
+    from openultrasast.model.taint import verdicts
 
     rows = [{"sink": "execute(q)", "sinkLine": "9", "sinkMethod": "run", "source": "request.args['q']", "sanitized": True, "length": 4}]
-    answer = verdict(_cpg(rows), _spec(), function="run")
+    answer = verdicts(_cpg(rows), _spec(), function="run")[0]
     assert answer is not None and answer.rung is Rung.CORROBORATED
 
 
 def test_no_path_yields_no_verdict_so_the_caller_reports_suspicion() -> None:
-    from openultrasast.model.taint import verdict
+    from openultrasast.model.taint import verdicts
 
-    assert verdict(_cpg([]), _spec(), function="run") is None
+    assert verdicts(_cpg([]), _spec(), function="run") == []
 
 
 def test_a_query_that_failed_is_not_read_as_an_absence_of_flow() -> None:
     """`None` from the engine means "could not decide", which is not the same as "no path" — Req 4.3."""
     from openultrasast.cpg.backend import CpgResult
-    from openultrasast.model.taint import verdict
+    from openultrasast.model.taint import verdicts
 
     broken = CpgResult(cpg_path=Path("cpg.bin"), run=lambda query, params: None)
-    assert verdict(broken, _spec(), function="run") is None
+    assert verdicts(broken, _spec(), function="run") == []
 
 
 def test_the_verdict_is_restricted_to_the_labeled_function() -> None:
-    from openultrasast.model.taint import verdict
+    from openultrasast.model.taint import verdicts
 
     rows = [
         {
@@ -79,20 +79,20 @@ def test_the_verdict_is_restricted_to_the_labeled_function() -> None:
             "length": 2,
         }
     ]
-    assert verdict(_cpg(rows), _spec(), function="run") is None, "a flow in another function does not judge this one"
+    assert verdicts(_cpg(rows), _spec(), function="run") == [], "a flow in another function does not judge this one"
 
 
 def test_the_shortest_unsanitized_flow_wins_and_the_sequence_is_deterministic() -> None:
     """Req 6.4: two runs over one CPG give an identical verdict sequence, so there is nothing to average."""
     from openultrasast.model.ladder import Rung
-    from openultrasast.model.taint import verdict
+    from openultrasast.model.taint import verdicts
 
     rows = [
         {"sink": "os.system(a)", "sinkLine": "7", "sinkMethod": "run", "source": "request.args['b']", "sanitized": True, "length": 9},
         {"sink": "os.system(a)", "sinkLine": "7", "sinkMethod": "run", "source": "request.args['a']", "sanitized": False, "length": 2},
     ]
-    first = verdict(_cpg(rows), _spec(), function="run")
-    second = verdict(_cpg(rows), _spec(), function="run")
+    first = verdicts(_cpg(rows), _spec(), function="run")[0]
+    second = verdicts(_cpg(rows), _spec(), function="run")[0]
     assert first == second
     assert first is not None and first.rung is Rung.ENTAILED and "request.args['a']" in first.witness
 
@@ -100,7 +100,7 @@ def test_the_shortest_unsanitized_flow_wins_and_the_sequence_is_deterministic() 
 def test_the_spec_drives_the_query_parameters() -> None:
     """The security modelling is ours; the traversal is the engine's. The spec is what crosses the seam."""
     from openultrasast.cpg.backend import CpgResult
-    from openultrasast.model.taint import verdict
+    from openultrasast.model.taint import verdicts
 
     seen: dict[str, object] = {}
 
@@ -109,7 +109,7 @@ def test_the_spec_drives_the_query_parameters() -> None:
         seen.update(params)
         return []
 
-    verdict(CpgResult(cpg_path=Path("cpg.bin"), run=run), _spec(), function="run")
+    verdicts(CpgResult(cpg_path=Path("cpg.bin"), run=run), _spec(), function="run")
     assert seen["query"] == "taint"
     assert seen["sources"] == ("request.args",)
     assert seen["sinks"] == ("os.system", "execute")
@@ -143,7 +143,7 @@ def _shape_spec():  # type: ignore[no-untyped-def]
 
 
 def test_a_parameterised_sink_call_is_not_a_vulnerability_even_though_the_flow_reaches_it() -> None:
-    from openultrasast.model.taint import verdict
+    from openultrasast.model.taint import verdicts
 
     rows = [
         {
@@ -157,12 +157,12 @@ def test_a_parameterised_sink_call_is_not_a_vulnerability_even_though_the_flow_r
             "sinkArg0Literal": True,
         }
     ]
-    assert verdict(_cpg(rows), _shape_spec(), function="run") is None, "a bound query is the fix, not the bug"
+    assert verdicts(_cpg(rows), _shape_spec(), function="run") == [], "a bound query is the fix, not the bug"
 
 
 def test_an_interpolated_sink_call_of_the_same_name_is_entailed() -> None:
     from openultrasast.model.ladder import Rung
-    from openultrasast.model.taint import verdict
+    from openultrasast.model.taint import verdicts
 
     rows = [
         {
@@ -176,14 +176,14 @@ def test_an_interpolated_sink_call_of_the_same_name_is_entailed() -> None:
             "sinkArg0Literal": False,
         }
     ]
-    answer = verdict(_cpg(rows), _shape_spec(), function="run")
+    answer = verdicts(_cpg(rows), _shape_spec(), function="run")[0]
     assert answer is not None and answer.rung is Rung.ENTAILED
 
 
 def test_the_shape_test_only_applies_to_sinks_declared_safe_in_that_shape() -> None:
     """`os.system(x)` with one argument is not "safe because it has one argument" -- the rule is per sink."""
     from openultrasast.model.ladder import Rung
-    from openultrasast.model.taint import verdict
+    from openultrasast.model.taint import verdicts
 
     rows = [
         {
@@ -197,17 +197,17 @@ def test_the_shape_test_only_applies_to_sinks_declared_safe_in_that_shape() -> N
             "sinkArg0Literal": False,
         }
     ]
-    answer = verdict(_cpg(rows), _spec(), function="run")  # os.system is not in safe_shape_sinks
+    answer = verdicts(_cpg(rows), _spec(), function="run")[0]  # os.system is not in safe_shape_sinks
     assert answer is not None and answer.rung is Rung.ENTAILED
 
 
 def test_a_row_without_shape_fields_is_judged_on_the_flow_alone() -> None:
     """Older rows, or an engine that could not report arity, must not be silently treated as safe."""
     from openultrasast.model.ladder import Rung
-    from openultrasast.model.taint import verdict
+    from openultrasast.model.taint import verdicts
 
     rows = [{"sink": "db.execute(q)", "sinkLine": "5", "sinkMethod": "run", "source": "request.args['n']", "sanitized": False, "length": 3}]
-    answer = verdict(_cpg(rows), _shape_spec(), function="run")
+    answer = verdicts(_cpg(rows), _shape_spec(), function="run")[0]
     assert answer is not None and answer.rung is Rung.ENTAILED
 
 
@@ -219,7 +219,7 @@ def test_parameter_sources_are_opt_in_and_reach_the_query() -> None:
     So the flag must exist and must default to off.
     """
     from openultrasast.cpg.backend import CpgResult
-    from openultrasast.model.taint import verdict
+    from openultrasast.model.taint import verdicts
 
     seen: dict[str, object] = {}
 
@@ -227,9 +227,9 @@ def test_parameter_sources_are_opt_in_and_reach_the_query() -> None:
         seen.update(params)
         return []
 
-    verdict(CpgResult(cpg_path=Path("c.bin"), run=run), _spec(), function="run")
+    verdicts(CpgResult(cpg_path=Path("c.bin"), run=run), _spec(), function="run")
     assert seen["parameterSources"] == "false", "treating every parameter as untrusted is not the default"
-    verdict(CpgResult(cpg_path=Path("c.bin"), run=run), _spec(), function="run", parameter_sources=True)
+    verdicts(CpgResult(cpg_path=Path("c.bin"), run=run), _spec(), function="run", parameter_sources=True)
     assert seen["parameterSources"] == "true"
 
 
@@ -250,7 +250,7 @@ def test_parameter_sources_are_opt_in_and_reach_the_query() -> None:
 
 def test_a_sink_in_a_nested_closure_is_in_scope_when_the_query_says_so() -> None:
     from openultrasast.model.ladder import Rung
-    from openultrasast.model.taint import verdict
+    from openultrasast.model.taint import verdicts
 
     rows = [
         {
@@ -263,13 +263,13 @@ def test_a_sink_in_a_nested_closure_is_in_scope_when_the_query_says_so() -> None
             "inLabeledScope": True,
         }
     ]
-    answer = verdict(_cpg(rows), _spec(), function="requestListener")
+    answer = verdicts(_cpg(rows), _spec(), function="requestListener")[0]
     assert answer is not None and answer.rung is Rung.ENTAILED
     assert "<lambda>0" not in answer.witness, "the witness names the flow, not the synthetic closure name"
 
 
 def test_a_sink_in_an_unrelated_function_stays_out_of_scope() -> None:
-    from openultrasast.model.taint import verdict
+    from openultrasast.model.taint import verdicts
 
     rows = [
         {
@@ -282,17 +282,17 @@ def test_a_sink_in_an_unrelated_function_stays_out_of_scope() -> None:
             "inLabeledScope": False,
         }
     ]
-    assert verdict(_cpg(rows), _spec(), function="requestListener") is None
+    assert verdicts(_cpg(rows), _spec(), function="requestListener") == []
 
 
 def test_rows_without_the_scope_flag_fall_back_to_the_method_name() -> None:
     """A row from an engine that cannot report scope must not silently become in-scope."""
-    from openultrasast.model.taint import verdict
+    from openultrasast.model.taint import verdicts
 
     rows = [
         {"sink": "os.system(x)", "sinkLine": "9", "sinkMethod": "<lambda>0", "source": "request.args['x']", "sanitized": False, "length": 2}
     ]
-    assert verdict(_cpg(rows), _spec(), function="run") is None
+    assert verdicts(_cpg(rows), _spec(), function="run") == []
 
 
 def test_a_flow_from_a_real_source_outranks_a_shorter_one_from_a_bare_parameter() -> None:
@@ -305,7 +305,7 @@ def test_a_flow_from_a_real_source_outranks_a_shorter_one_from_a_bare_parameter(
     breaks ties, so the order stays total and the verdict deterministic.
     """
     from openultrasast.model.ladder import Rung
-    from openultrasast.model.taint import verdict
+    from openultrasast.model.taint import verdicts
 
     rows = [
         {
@@ -336,10 +336,10 @@ def test_a_flow_from_a_real_source_outranks_a_shorter_one_from_a_bare_parameter(
             "inLabeledScope": True,
         },
     ]
-    answer = verdict(_cpg(rows), _spec(), function="requestListener")
+    answer = verdicts(_cpg(rows), _spec(), function="requestListener")[0]
     assert answer is not None and answer.rung is Rung.ENTAILED
     assert "request.args['f']" in answer.witness, f"witness named no real source: {answer.witness}"
-    assert verdict(_cpg(rows), _spec(), function="requestListener") == answer  # still deterministic
+    assert verdicts(_cpg(rows), _spec(), function="requestListener")[0] == answer  # still deterministic
 
 
 def test_a_modelled_source_flow_decides_even_when_a_parameter_flow_is_unsanitized() -> None:
@@ -351,7 +351,7 @@ def test_a_modelled_source_flow_decides_even_when_a_parameter_flow_is_unsanitize
     modelled source reaches the sink, those flows are the evidence and the bare-parameter ones are ignored.
     """
     from openultrasast.model.ladder import Rung
-    from openultrasast.model.taint import verdict
+    from openultrasast.model.taint import verdicts
 
     rows = [
         {
@@ -373,14 +373,14 @@ def test_a_modelled_source_flow_decides_even_when_a_parameter_flow_is_unsanitize
             "inLabeledScope": True,
         },
     ]
-    answer = verdict(_cpg(rows), _spec(), function="requestListener")
+    answer = verdicts(_cpg(rows), _spec(), function="requestListener")[0]
     assert answer is not None and answer.rung is Rung.CORROBORATED, "a sanitized real flow is not an entailment"
     assert "request.args['f']" in answer.witness
 
 
 def test_parameter_flows_still_decide_when_no_modelled_source_reaches_the_sink() -> None:
     from openultrasast.model.ladder import Rung
-    from openultrasast.model.taint import verdict
+    from openultrasast.model.taint import verdicts
 
     rows = [
         {
@@ -393,7 +393,7 @@ def test_parameter_flows_still_decide_when_no_modelled_source_reaches_the_sink()
             "inLabeledScope": True,
         }
     ]
-    answer = verdict(_cpg(rows), _spec(), function="run")
+    answer = verdicts(_cpg(rows), _spec(), function="run")[0]
     assert answer is not None and answer.rung is Rung.ENTAILED
 
 
@@ -443,13 +443,13 @@ def test_a_bound_that_governs_the_sink_lowers_the_rung() -> None:
     from openultrasast.cpg.backend import CpgResult
     from openultrasast.model.ladder import Rung
     from openultrasast.model.specs import taint_specs
-    from openultrasast.model.taint import verdict
+    from openultrasast.model.taint import verdicts
 
     spec = taint_specs(language="c")["memory"]
     assert "strcpy" in spec.bounded_sinks, "a CWE-121 sink is dischargeable by a bound"
 
-    governed = verdict(CpgResult(cpg_path=Path("c.bin"), run=lambda q, p: _bounded_rows(True)), spec, function="main")
-    ungoverned = verdict(CpgResult(cpg_path=Path("c.bin"), run=lambda q, p: _bounded_rows(False)), spec, function="main")
+    governed = verdicts(CpgResult(cpg_path=Path("c.bin"), run=lambda q, p: _bounded_rows(True)), spec, function="main")[0]
+    ungoverned = verdicts(CpgResult(cpg_path=Path("c.bin"), run=lambda q, p: _bounded_rows(False)), spec, function="main")[0]
 
     assert governed is not None and governed.rung is Rung.CORROBORATED
     assert "governed by" in governed.witness, "the witness names the bound it found"
@@ -471,7 +471,7 @@ def test_a_region_reports_every_sink_site_not_just_the_strongest() -> None:
     verdict, and `system` won it on flow length, so the SQL injection went unreported by construction."""
     from openultrasast.cpg.backend import CpgResult
     from openultrasast.model.specs import taint_specs
-    from openultrasast.model.taint import verdict, verdicts
+    from openultrasast.model.taint import verdicts
 
     def row(sink, line, length):  # type: ignore[no-untyped-def]
         return {
@@ -497,5 +497,3 @@ def test_a_region_reports_every_sink_site_not_just_the_strongest() -> None:
 
     assert len(every) == 2, "two sink sites are two findings"
     assert {v.location for v in every} == {"app.php:6:handler", "app.php:13:handler"}
-    # The pair path is unchanged: the strongest is still what `verdict` returns.
-    assert every[0].location == verdict(cpg, spec, function="", file="app.php").location

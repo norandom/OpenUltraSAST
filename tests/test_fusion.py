@@ -6,13 +6,7 @@ from pathlib import Path
 import pytest
 
 from openultrasast.findings import StaticFinding
-from openultrasast.fusion import (
-    FusionDisposition,
-    fuse_finding,
-    fuse_findings,
-    fusion_triggers,
-    should_fuse,
-)
+from openultrasast.fusion import FusionDisposition, fuse_finding, fuse_findings, fusion_triggers
 from openultrasast.verification import EvidenceLevel, VerificationResult, VerificationStatus
 
 
@@ -63,10 +57,6 @@ def test_triggers_on_high_severity_and_reachable() -> None:
     assert "gates_risky_fix" in triggers
 
 
-def test_low_severity_unreachable_does_not_trigger() -> None:
-    assert not should_fuse(_finding(severity="low", reachability="unknown"))
-
-
 def test_verifier_disagreement_triggers() -> None:
     triggers = fusion_triggers(
         _finding(severity="low", reachability="unknown"),
@@ -81,10 +71,6 @@ def test_evidence_conflict_triggers_when_rejected_but_reachable() -> None:
         _verification(VerificationStatus.REJECTED, verified=False),
     )
     assert "evidence_conflict" in triggers
-
-
-def test_high_assurance_request_forces_a_trigger() -> None:
-    assert should_fuse(_finding(severity="low", reachability="unknown"), high_assurance=True)
 
 
 # ---- deterministic two-panel decider + dispositions -------------------------

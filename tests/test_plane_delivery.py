@@ -129,16 +129,6 @@ def test_state_is_mirrored_and_seeds_a_rerun_elsewhere(store: HttpObjectStore, t
     assert second.load_state() is None
 
 
-def test_put_input_stores_a_file_no_task_produces(store: HttpObjectStore, tmp_path: Path) -> None:
-    delivery = Delivery(store, "r", tmp_path / "r")
-    source = tmp_path / "candidates.json"
-    source.write_bytes(b"[1, 2, 3]")
-    url = delivery.put_input("candidates.json", source)
-    assert store.objects["runs/r/inputs/candidates.json"] == b"[1, 2, 3]"
-    with urllib.request.urlopen(url, timeout=10) as response:  # noqa: S310
-        assert response.read() == b"[1, 2, 3]"
-
-
 def test_declared_artifacts_are_outputs_plus_what_consumers_name(tmp_path: Path) -> None:
     """A consumer may declare a producer's summary.json (every task writes one) without the producer listing it."""
     from openultrasast.plane.manifests import load_manifests

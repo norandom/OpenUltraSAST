@@ -548,7 +548,7 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
         config=config,
         trace_writer=HarnessTraceWriter(run.root / "trace" / "events.jsonl", redact=config.hardening.redact_secrets),
     )
-    write_harness_config(config=config, processors=[], contract_mode="strict", path=run.root / "harness.json")
+    write_harness_config(config=config, path=run.root / "harness.json")
     runtime.start(mode=mode, target=run.target)
     policy = runtime.run_stage("policy_load", load_policy)
     ledger_path = run.target / CALIBRATION_DIR / "false_positive_learnings.json"

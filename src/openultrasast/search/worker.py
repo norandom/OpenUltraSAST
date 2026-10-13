@@ -2,11 +2,9 @@
 
 from __future__ import annotations
 
-import argparse
 import copy
 import json
 import math
-import os
 import time
 from pathlib import Path
 from typing import Any, Protocol, cast
@@ -15,12 +13,11 @@ import yaml
 
 from ..model.endpoint import Prices
 from ..plane.budget import BudgetExhausted, SpendBudget, cost_of
-from ..provider.openrouter import OpenRouterChatClient, parse_json_content
+from ..provider.openrouter import parse_json_content
 from . import _sandbox
 from .budget import SearchBudget
 from .coordinator import SearchTask
 from .demo import DEMO_SCHEMA, FAMILY_ORACLES, MAX_DEMO_BYTES, load_demo, validate_demo, validate_oracle
-from .executor import ObjectStoreExecutor
 from .task_storage import exception_reason
 
 
@@ -525,44 +522,3 @@ class Worker:
                 "cost_usd": meter.spent,
                 "isolation_mode": getattr(self.executor, "isolation_mode", "brain-only"),
             }
-
-
-def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--task", required=True, type=Path)
-    parser.add_argument("--repo", required=True, type=Path)
-    parser.add_argument("--demo", required=True, type=Path)
-    parser.add_argument("--model", required=True)
-    parser.add_argument("--input-per-m", required=True, type=float)
-    parser.add_argument("--output-per-m", required=True, type=float)
-    parser.add_argument("--command-put-url")
-    parser.add_argument("--result-get-url")
-    args = parser.parse_args()
-    if bool(args.command_put_url) != bool(args.result_get_url):
-        parser.error("both executor mailbox URLs are required")
-    executor = ObjectStoreExecutor(args.command_put_url, args.result_get_url) if args.command_put_url else None
-    task = SearchTask(**json.loads(args.task.read_text()))
-    if task.step == "explore" and executor is None:
-        parser.error("explore requires a separate repository executor")
-    client = OpenRouterChatClient(
-        api_key=os.environ["OPENROUTER_API_KEY"],
-        base_url=os.environ.get("OPENROUTER_BASE_URL", OpenRouterChatClient.base_url),
-        max_attempts=1,
-    )
-    worker = Worker(
-        client,
-        repo=args.repo,
-        demo=args.demo,
-        model=args.model,
-        prices=Prices(args.input_per_m, args.input_per_m, args.output_per_m),
-        executor=executor,
-    )
-    try:
-        print(json.dumps(worker(task)))
-    finally:
-        if executor is not None:
-            executor.submit("stop", {}, timeout_seconds=10)
-
-
-if __name__ == "__main__":
-    main()

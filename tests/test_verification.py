@@ -10,20 +10,9 @@ from openultrasast.verification import (
     VerificationStatus,
     build_independent_verifier_context,
     is_report_verified,
-    validate_evidence_transition,
     verify_finding,
     write_verification_results,
 )
-
-
-def test_evidence_transition_rejects_backward_and_skipped_levels() -> None:
-    assert validate_evidence_transition("suspicion", "static_corroboration") == EvidenceLevel.STATIC_CORROBORATION
-
-    with pytest.raises(ValueError, match="backward"):
-        validate_evidence_transition("root_cause_explained", "static_corroboration")
-
-    with pytest.raises(ValueError, match="skip"):
-        validate_evidence_transition("suspicion", "root_cause_explained")
 
 
 def test_verified_status_requires_static_corroboration_and_acceptance() -> None:

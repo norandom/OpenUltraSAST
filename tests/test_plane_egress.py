@@ -3,8 +3,7 @@
 Agent Substrate's egress gateway denies by default; :func:`egress.policy_for` must grant exactly the memory store's
 host (where the runner PUTs its tar and GETs its inputs), the bound Workspaces' Git hosts and the bound Model's API
 host, all as one TLS passthrough rule on 443 (plane-on-kubernetes 2.3), and nothing a gateway would reject or that
-would intercept TLS: no IP address, no wildcard, no ``https`` rule, no ``http`` rule (the receiver path, kept for
-group 2 only, is the one exception).
+would intercept TLS: no IP address, no wildcard, no ``https`` rule, no ``http`` rule.
 """
 
 from __future__ import annotations
@@ -12,12 +11,11 @@ from __future__ import annotations
 import ipaddress
 import json
 import threading
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 import pytest
 
-from openultrasast.plane import egress, runner
+from openultrasast.plane import egress
 from openultrasast.plane.manifests import ManifestError, load_manifests, parse_manifest
 
 MANIFESTS = """
@@ -63,7 +61,7 @@ def hostnames(policy: dict) -> list[str]:
 
 def assert_tight(policy: dict) -> None:
     for rule in policy["rules"]:
-        assert set(rule) <= {"http", "tlsPassthrough"}, f"only http and passthrough rules, got {rule}"
+        assert set(rule) == {"tlsPassthrough"}, f"only TLS passthrough rules, got {rule}"
         body = next(iter(rule.values()))
         assert "all" not in body["ports"], "never every port"
     for host in hostnames(policy):
@@ -80,12 +78,6 @@ def test_model_free_task_gets_only_the_store(manifests) -> None:
     assert policy == {"rules": [{"tlsPassthrough": {"hostnames": [STORE], "ports": {"numbers": [443]}}}]}
     assert_tight(policy)
     assert egress.policy_for(manifests.tasks["facts"], [], None, None) == {"rules": []}, "no store, no Git, no Model: nothing"
-
-
-def test_the_receiver_path_adds_the_one_http_rule_until_it_is_removed(manifests) -> None:
-    policy = egress.policy_for(manifests.tasks["facts"], [], None, None, receiver_host=egress.RECEIVER_HOST)
-    assert policy == {"rules": [{"http": {"hostnames": [egress.RECEIVER_HOST], "ports": {"numbers": [80]}}}]}
-    assert egress.policy_for(manifests.tasks["facts"], [], None, None, receiver_host="127.0.0.1") == {"rules": []}
 
 
 def test_model_bound_task_with_git_workspaces(manifests) -> None:
@@ -191,50 +183,3 @@ def test_apply_waits_for_the_actor_then_gives_up(tmp_path: Path, kubectl_ate: Pa
     timer.start()
     cli.apply("late", "default", POLICY, timeout=10)
     timer.join()
-
-
-def test_receiver_address_modes(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("OUSAST_ARTIFACT_HOST", "127.0.0.1")
-    assert egress.receiver_address(4242, None) == ("http://127.0.0.1:4242/", None)
-    monkeypatch.delenv("OUSAST_ARTIFACT_HOST")
-    monkeypatch.setenv("OUSAST_ARTIFACT_DIAL", "172.19.0.1:80")
-    assert egress.receiver_address(18090, "kind-test") == (f"http://{egress.RECEIVER_HOST}/", "172.19.0.1:80")
-    monkeypatch.delenv("OUSAST_ARTIFACT_DIAL")
-    with pytest.raises(RuntimeError, match="kube context"):
-        egress.receiver_address(18090, None)  # no context to look the Service up in: never a built one
-
-
-# --- the runner dials the gateway address with the receiver's name as Host ----------------------------------------
-
-
-class _Seen(ThreadingHTTPServer):
-    daemon_threads = True
-    seen: list[tuple[str, str | None, bytes]]
-
-
-class _Handler(BaseHTTPRequestHandler):
-    server: _Seen
-
-    def do_POST(self) -> None:  # noqa: N802
-        body = self.rfile.read(int(self.headers.get("Content-Length") or 0))
-        self.server.seen.append((self.path, self.headers.get("Host"), body))
-        self.send_response(200)
-        self.send_header("Content-Length", "0")
-        self.end_headers()
-
-    def log_message(self, format: str, *args: object) -> None:  # noqa: A002
-        pass
-
-
-def test_delivery_dials_the_override_with_the_url_host() -> None:
-    server = _Seen(("127.0.0.1", 0), _Handler)
-    server.seen = []
-    threading.Thread(target=server.serve_forever, daemon=True).start()
-    try:
-        dial = f"127.0.0.1:{server.server_address[1]}"
-        url = f"http://{egress.RECEIVER_HOST}/in"
-        assert runner.deliver(url, b"tar", {"Content-Type": "application/x-tar"}, backoff=0, dial=dial) == 200
-        assert server.seen == [("/in", egress.RECEIVER_HOST, b"tar")]
-    finally:
-        server.shutdown()
-        server.server_close()

@@ -39,7 +39,7 @@ def _by_kind(store: FileStore) -> dict[str, list[dict[str, Any]]]:
     return rows
 
 
-def test_remember_turns_the_recorded_case_into_rows(run_dir: Path, tmp_path: Path) -> None:
+def test_remember_turns_the_saved_case_into_rows(run_dir: Path, tmp_path: Path) -> None:
     facts = (run_dir / f"{CASE}-facts" / "facts.json").read_bytes()
     assert len(facts) > 100, "the fixture was read"
     store = FileStore(tmp_path / "memory")

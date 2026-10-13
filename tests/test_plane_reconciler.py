@@ -5,7 +5,7 @@ internal/controller/reconciler.go, internal/server/server.go): ``apply`` creates
 fails with DeadlineExceeded the first time (ax then reports ``Failed``, as while Agent Substrate builds a new
 image's golden snapshot) and succeeds after; ``get task`` answers ``Running`` forever -- ax has no Completed phase
 -- and on the scripted poll it PUTs a scripted tar to the presigned ``delivery.put`` URL the start request carried
-(plane-on-kubernetes 2.4; or POSTs it to ``OUSAST_ARTIFACT_URL`` in receiver mode), or turns ``Failed`` with a
+(plane-on-kubernetes 2.4), or turns ``Failed`` with a
 condition message, or vanishes. Every outcome comes from a scripted delivery, and a delivery happens only after
 the reconciler's start request reached the fake router (Req 4.5). The store is ``plane_fake_store.HttpObjectStore``.
 """
@@ -21,8 +21,6 @@ import sys
 import tarfile
 import threading
 import time
-import urllib.error
-import urllib.request
 from collections.abc import Iterator
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -152,11 +150,9 @@ elif argv[:2] == ["get", "task"]:
         delivery = body.get("delivery") or {{}}
         if script.get("deliver", True) and "phase" not in script and not script.get("vanish"):
             files = script.get("files", {{}})
-            base = env.get("OUSAST_ARTIFACT_URL", "").rstrip("/") + "/inputs/"
             for name, ref in json.loads(env.get("OUSAST_INPUTS", "{{}}")).items():
                 presigned = (delivery.get("inputs") or {{}}).get(name)
-                fetch = urllib.request.Request(presigned) if presigned else urllib.request.Request(
-                    base + ref, headers={{"X-Ousast-Run": env["OUSAST_RUN"], "X-Ousast-Task": task}})
+                fetch = urllib.request.Request(presigned)
                 try:
                     with urllib.request.urlopen(fetch) as resp:
                         dest = HERE / "fetched" / task / ref
@@ -175,13 +171,8 @@ elif argv[:2] == ["get", "task"]:
                     info = tarfile.TarInfo(path)
                     info.size = len(data)
                     tar.addfile(info, io.BytesIO(data))
-            headers = {{"Content-Type": "application/x-tar", "X-Ousast-Run": env["OUSAST_RUN"]}}
-            headers["X-Ousast-Task"] = script.get("as_task", task)
-            if delivery.get("put"):  # the store path: PUT to the presigned URL, no receiver headers
-                tar_headers = {{"Content-Type": "application/x-tar"}}
-                req = urllib.request.Request(delivery["put"], data=buf.getvalue(), method="PUT", headers=tar_headers)
-            else:
-                req = urllib.request.Request(env["OUSAST_ARTIFACT_URL"], data=buf.getvalue(), method="POST", headers=headers)
+            tar_headers = {{"Content-Type": "application/x-tar"}}
+            req = urllib.request.Request(delivery["put"], data=buf.getvalue(), method="PUT", headers=tar_headers)
             try:
                 with urllib.request.urlopen(req) as resp:
                     (HERE / "ax.log").open("a").write(f"{{time.monotonic():.4f}} delivered {{task}} {{resp.status}}\\n")
@@ -420,7 +411,6 @@ def test_chain_runs_in_order_with_inputs_env_and_model(fake: Fake, tmp_path: Pat
     assert env["OUSAST_BUDGET_USD"] == "2.5" and env["OUSAST_BUDGET_CALLS"] == "40"
     assert env["OUSAST_INPUT_FACTS"] == "/workspace/.ousast-in/verify/repo-facts/facts.json"
     assert json.loads(env["OUSAST_INPUTS"]) == {"FACTS": "repo-facts/facts.json"}
-    assert "OUSAST_ARTIFACT_URL" not in env, "the store path renders no receiver address into the Task"
     assert env["OUSAST_MODEL"] == "deepseek-flash"
     assert json.loads(env["OUSAST_MODEL_PARAMS"]) == {"cache_hit_per_m": 0.07, "input_per_m": 0.27, "output_per_m": 1.1}
     kinds = [(d["kind"], d["metadata"]["name"]) for d in verify["docs"]]
@@ -661,33 +651,6 @@ def tar_of(files: dict[str, bytes]) -> bytes:
     return buf.getvalue()
 
 
-def test_receiver_rejects_traversal_unknown_tasks_and_wrong_types(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("OUSAST_ARTIFACT_HOST", "127.0.0.1")  # the direct test address: no Service lookup, no context needed
-    receiver = reconciler.Receiver("r", tmp_path / "r", 0)
-    receiver.running.add("t")
-    headers = {"X-Ousast-Run": "r", "X-Ousast-Task": "t", "Content-Type": "application/x-tar"}
-    code, text = receiver.accept(headers, tar_of({"../escape.json": b"{}"}))
-    assert code == 400 and "escape" in text and not (tmp_path / "escape.json").exists()
-    assert receiver.accept({**headers, "X-Ousast-Task": "other"}, tar_of({"summary.json": b"{}"}))[0] == 403
-    assert receiver.accept({**headers, "X-Ousast-Run": "someone"}, tar_of({"summary.json": b"{}"}))[0] == 403
-    assert receiver.accept({**headers, "Content-Type": "application/json"}, b"{}")[0] == 415
-    assert receiver.accept(headers, b"not a tar")[0] == 400
-    assert receiver.accept(headers, tar_of({"summary.json": b"{}", "sub/x.json": b"1"}))[0] == 200
-    assert (tmp_path / "r" / "t" / "sub" / "x.json").read_text() == "1" and "t" in receiver.delivered
-    receiver.server_close()
-
-
-def test_delivery_for_a_task_that_is_not_running_is_rejected(fake: Fake, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("OUSAST_DELIVERY", "receiver")  # the receiver path, kept for group 2 (task 2.6 removes this test)
-    monkeypatch.setenv("OUSAST_TASK_TIMEOUT", "1")  # the rejected delivery is no delivery: the task times out
-    script = json.loads(json.dumps(SCRIPT))
-    script["repo-facts"]["as_task"] = "agree"  # the runner claims to be a task that has not started
-    fake.script(script)
-    assert reconciler.run(write_run(tmp_path, "spoof"), ax=str(fake.ax)) == "failed"
-    assert [n for _, n in fake.events("rejected")] == ["repo-facts"]
-    assert not (reconciler.run_dir("spoof") / "agree" / "summary.json").exists()
-
-
 def test_lock_refuses_a_second_runner_and_ignores_a_dead_one(fake: Fake, tmp_path: Path) -> None:
     manifest = write_run(tmp_path, "locked")
     base = reconciler.run_dir("locked")
@@ -824,7 +787,7 @@ def test_rendered_documents_carry_only_ax_fields(tmp_path: Path) -> None:
     (tmp_path / "repo-facts").mkdir()
     (tmp_path / "repo-facts" / "facts.json").write_text("{}", encoding="utf-8")
     run, manifests = reconciler.load_run(write_run(tmp_path, "fields"))
-    docs = [d for entry in run.tasks for d in reconciler.render_task(run, entry, manifests, "http://h:1/")]
+    docs = [d for entry in run.tasks for d in reconciler.render_task(run, entry, manifests)]
     assert {d["kind"] for d in docs} == {"Task", "Workspace", "Model"}
     for rendered in docs:
         where = f"{rendered['kind']}/{rendered['metadata']['name']}"
@@ -841,7 +804,7 @@ def test_the_task_is_applied_after_everything_it_binds(tmp_path: Path) -> None:
     (tmp_path / "repo-facts" / "facts.json").write_text("{}", encoding="utf-8")
     run, manifests = reconciler.load_run(write_run(tmp_path, "order"))
     for entry in run.tasks:
-        docs = reconciler.render_task(run, entry, manifests, "http://h:1/")
+        docs = reconciler.render_task(run, entry, manifests)
         assert [d["kind"] for d in docs].count("Task") == 1
         assert docs[-1]["kind"] == "Task", [d["kind"] for d in docs]
 
@@ -943,44 +906,6 @@ def test_a_refused_egress_policy_fails_the_task_before_resume(fake: Fake, tmp_pa
 SUBSTRATE_ENV_LIMIT = 32768  # "actor_template.containers[0].env[11].value: Too long" on the live cluster, 2026-09-29
 
 
-def get_input(receiver: reconciler.Receiver, path: str, run: str = "r", task: str = "t") -> tuple[int, bytes]:
-    url = f"http://127.0.0.1:{receiver.server_address[1]}{path}"
-    request = urllib.request.Request(url, headers={"X-Ousast-Run": run, "X-Ousast-Task": task})
-    try:
-        with urllib.request.urlopen(request, timeout=10) as response:
-            return response.status, response.read()
-    except urllib.error.HTTPError as exc:
-        return exc.code, exc.read()
-
-
-def test_receiver_serves_a_running_task_its_declared_inputs_only(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("OUSAST_ARTIFACT_HOST", "127.0.0.1")
-    base = tmp_path / "r"
-    (base / "p").mkdir(parents=True)
-    big = b"x" * (3 << 20)
-    (base / "p" / "a.json").write_bytes(big)
-    (base / "p" / "b.json").write_bytes(b"not declared")
-    (tmp_path / "secret.txt").write_text("outside the run")
-    receiver = reconciler.Receiver("r", base, 0)
-    threading.Thread(target=receiver.serve_forever, daemon=True).start()
-    try:
-        receiver.running.update({"t", "idle"})
-        receiver.inputs.update({"t": frozenset({"p/a.json", "p/missing.json", "../secret.txt"}), "done": frozenset({"p/a.json"})})
-        assert get_input(receiver, "/inputs/p/a.json") == (200, big), "streamed whole"
-        assert get_input(receiver, "/inputs/p/a.json", run="other")[0] == 403, "wrong run"
-        assert get_input(receiver, "/inputs/p/a.json", task="done")[0] == 403, "a task that is not running"
-        assert get_input(receiver, "/inputs/p/a.json", task="idle")[0] == 403, "a running task without that input"
-        assert get_input(receiver, "/inputs/p/b.json")[0] == 403, "not among the task's inputs"
-        assert get_input(receiver, "/inputs/p/missing.json")[0] == 404, "declared but not delivered"
-        for escape in ("/inputs/../secret.txt", "/inputs/%2e%2e/secret.txt", "/inputs/p/../../secret.txt", "/inputs//etc/passwd"):
-            code, body = get_input(receiver, escape)
-            assert code in (403, 404) and b"outside" not in body, escape
-        assert get_input(receiver, "/p/a.json")[0] == 404, "only /inputs/ is served"
-    finally:
-        receiver.shutdown()
-        receiver.server_close()
-
-
 def test_a_missing_producer_artifact_fails_the_consumer_instead_of_running_it(fake: Fake, tmp_path: Path) -> None:
     script = json.loads(json.dumps(SCRIPT))
     del script["repo-facts"]["files"]["facts.json"]  # repo-facts reports done but never delivered facts.json
@@ -996,7 +921,7 @@ def test_a_megabyte_producer_artifact_keeps_every_rendered_value_under_substrate
     (tmp_path / "repo-facts" / "facts.json").write_text(json.dumps({"blob": "f" * (1 << 20)}), encoding="utf-8")
     run, manifests = reconciler.load_run(write_run(tmp_path, "big"))
     for entry in run.tasks:
-        docs = reconciler.render_task(run, entry, manifests, "http://h:1/", "10.0.0.1:80")
+        docs = reconciler.render_task(run, entry, manifests)
         task, workspaces = docs[-1], [d for d in docs if d["kind"] == "Workspace"]
         assert all(len(e["value"]) < SUBSTRATE_ENV_LIMIT for e in task["spec"]["env"]), entry.name
         assert len(yaml.safe_dump(task)) < SUBSTRATE_ENV_LIMIT, f"{entry.name}: AX_TASK_YAML"
@@ -1080,15 +1005,3 @@ def test_a_tar_the_store_path_cannot_accept_fails_the_task(fake: Fake, tmp_path:
     assert not (reconciler.run_dir("esc").parent / "escape.json").exists()
 
 
-def test_receiver_mode_still_runs_through_the_host_receiver(fake: Fake, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """OUSAST_DELIVERY=receiver (group 2 only): the old path, with its http rule and OUSAST_ARTIFACT_URL, until 2.6."""
-    monkeypatch.setenv("OUSAST_DELIVERY", "receiver")
-    assert reconciler.run(write_run(tmp_path, "rcv"), ax=str(fake.ax)) == "done"
-    assert fake.applied("rcv", "verify")["env"]["OUSAST_ARTIFACT_URL"].startswith("http://127.0.0.1:")
-    assert [s["body"].get("delivery") for s in fake.router.starts] == [None, None, None], "no presigned URLs in receiver mode"
-    assert not any(k.startswith("runs/rcv/") and k.endswith("output.tar") for k in fake.store.objects), "nothing PUT to the store"
-    assert "runs/rcv/state.json" in fake.store.objects, "the state is still mirrored"
-    written = json.loads((tmp_path / "policies" / "default_rcv-repo-facts.written.json").read_text())
-    assert written["rules"] == [{"tlsPassthrough": {"hostnames": ["example.invalid"], "ports": {"numbers": [443]}}}], (
-        "an IP receiver: no http rule"
-    )

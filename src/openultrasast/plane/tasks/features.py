@@ -199,22 +199,6 @@ def _model(summary: object) -> str | None:
     return str(summary["model"]) if isinstance(summary, dict) and summary.get("model") else None
 
 
-def recorded_case(base: Path, case: str, workspace: Path | None = None) -> list[dict[str, Any]]:
-    """:func:`case_features` over a recorded run directory's artifacts (the final ``agreed.json`` when present)."""
-    final = base / f"{case}-final" / "agreed.json"
-    return case_features(
-        facts=_json(base / f"{case}-facts" / "facts.json"),
-        passes={p: _jsonl(base / f"{case}-v{p}" / "units.jsonl") for p in PASSES},
-        models={p: _model(_json(base / f"{case}-v{p}" / "summary.json")) for p in PASSES},
-        agreed=_json(final if final.is_file() else base / f"{case}-agree" / "agreed.json"),
-        alerts=_jsonl(base / f"{case}-alerts" / "alerts.jsonl"),
-        alerts_summary=_json(base / f"{case}-alerts" / "summary.json"),
-        workspace=workspace,
-        facts_summary=_json(base / f"{case}-facts" / "summary.json"),
-        model_roles=_json(base / f"{case}-roles" / "roles.json"),
-    )
-
-
 def _path(env: Mapping[str, str], name: str) -> Path | None:
     return Path(env[name]) if env.get(name) else None
 
@@ -266,7 +250,7 @@ def main(environ: Mapping[str, str] | None = None) -> int:
     return 0 if summary["status"] == "done" else 2
 
 
-__all__ = ["DROPPED_ON_READ", "case_features", "main", "recorded_case"]
+__all__ = ["DROPPED_ON_READ", "case_features", "main", ]
 
 
 if __name__ == "__main__":

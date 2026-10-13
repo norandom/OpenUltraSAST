@@ -26,11 +26,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from measure import git, pin_snapshot  # noqa: E402
 
+from benchmarks.push.push_inputs import validate_manifest  # noqa: E402
 from openultrasast.model.scan import ScanBudget  # noqa: E402
 from openultrasast.push.policy import CapabilityAdmission, CapabilityKey  # noqa: E402
 from openultrasast.push.runner import _provenance  # noqa: E402
 from openultrasast.push.vetoes import FLAG, LABEL  # noqa: E402
-from openultrasast.push_inputs import validate_manifest  # noqa: E402
 from openultrasast.repos import checkout_path, load_repo_recipe  # noqa: E402
 
 TARGET = {"path": "app/routes/contributions.js", "function": "handleContributionsUpdate", "family": "injection"}

@@ -169,33 +169,6 @@ def test_claim_is_visible_in_worker_snapshot(tmp_path):
     Coordinator(board(tmp_path), execute, budget=SearchBudget(reason_rounds=1)).run()
 
 
-def test_batch_adapter_offline_checkpoint_and_step_dispatch(tmp_path, monkeypatch):
-    from dataclasses import asdict
-    from pathlib import Path
-
-    monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[1]))
-    from openultrasast.search.coordinator import BatchExecutor, SearchTask
-
-    calls = []
-
-    def lane(item, output, attempt):
-        import json
-
-        spec = json.loads(item.inputs["SPEC_URL"])
-        calls.append(spec)
-        assert item.extra_env["SEARCH_STEP"] == spec["step"]
-        return {"status": "ok", "cost_usd": 0, "intents": []}
-
-    adapter = BatchExecutor(
-        image="registry/task@sha256:" + "a" * 64, command=("python3", "/worker.py"), output=tmp_path, lanes={"ax": lane}
-    )
-    for index, step in enumerate(("reason", "explore", "verify")):
-        task = SearchTask(f"task-{index}", "search-1", step, "facts: []", {}, asdict(SearchBudget()))
-        assert adapter(task)["status"] == "ok"
-        assert adapter(task)["status"] == "ok"
-    assert len(calls) == 3
-
-
 def test_invalid_identifiers_refused_before_paths(tmp_path):
     from dataclasses import asdict
 

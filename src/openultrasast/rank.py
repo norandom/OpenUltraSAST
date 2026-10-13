@@ -4,7 +4,7 @@ import json
 from collections.abc import Collection
 from dataclasses import asdict, dataclass, replace
 from pathlib import Path
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING
 
 from .preprocess import FileTarget
 
@@ -28,11 +28,6 @@ class RankingScore:
     static_boosts: list[str]
 
 
-class RankerClient(Protocol):
-    def complete_json(self, *, model: str, messages: list[dict[str, str]], timeout_seconds: int = 60) -> object:
-        raise NotImplementedError
-
-
 def rank_targets(targets: list[FileTarget], model_rankings: object | None = None, model_id: str | None = None) -> list[RankingScore]:
     model_by_path = parse_ranker_response(model_rankings, model_id) if model_rankings is not None else {}
     rankings: list[RankingScore] = []
@@ -41,32 +36,6 @@ def rank_targets(targets: list[FileTarget], model_rankings: object | None = None
         override = model_by_path.get(target.path)
         rankings.append(_merge_rankings(heuristic, override) if override is not None else heuristic)
     return sorted(rankings, key=lambda item: (-item.priority, item.path))
-
-
-def rank_targets_with_model(
-    targets: list[FileTarget],
-    *,
-    client: RankerClient,
-    model: str,
-    chunk_size: int = 150,
-    timeout_seconds: int = 60,
-) -> list[RankingScore]:
-    if chunk_size < 1:
-        raise RankingError("chunk_size must be at least 1")
-    model_rankings: list[dict[str, object]] = []
-    for start in range(0, len(targets), chunk_size):
-        chunk = targets[start : start + chunk_size]
-        response = client.complete_json(
-            model=model,
-            messages=[
-                {"role": "system", "content": _ranker_system_prompt()},
-                {"role": "user", "content": json.dumps([_target_prompt_payload(target) for target in chunk], sort_keys=True)},
-            ],
-            timeout_seconds=timeout_seconds,
-        )
-        for ranking in parse_ranker_response(response, model).values():
-            model_rankings.append(asdict(ranking))
-    return rank_targets(targets, {"rankings": model_rankings}, model_id=model)
 
 
 def write_rankings(rankings: list[RankingScore], path: Path) -> None:
@@ -203,25 +172,6 @@ def _heuristic_rationale(target: FileTarget, boosts: list[str]) -> str:
 
 def _clamp_score(value: int) -> int:
     return min(5, max(1, value))
-
-
-def _ranker_system_prompt() -> str:
-    return (
-        "Score each file for security review priority. Return JSON only with a rankings array. "
-        "Each item must include path, surface, influence, reachability, rationale, and optional static_boosts. "
-        "Scores must be integers from 1 to 5."
-    )
-
-
-def _target_prompt_payload(target: FileTarget) -> dict[str, object]:
-    return {
-        "path": target.path,
-        "language": target.language,
-        "loc": target.loc,
-        "tags": target.tags,
-        "has_fuzz_entry_point": target.has_fuzz_entry_point,
-        "reachability_hints": target.reachability_hints,
-    }
 
 
 def _reachability_from_hints(hints: list[dict[str, object]]) -> int:

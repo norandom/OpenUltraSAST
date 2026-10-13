@@ -19,13 +19,12 @@ import time
 import urllib.error
 import urllib.request
 from collections.abc import Iterator
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 import pytest
 from plane_fake_store import HttpObjectStore
 
-from openultrasast.plane import egress, runner
+from openultrasast.plane import runner
 from openultrasast.plane.manifests import GitSource
 from openultrasast.plane.router import Router, StartError
 from openultrasast.plane.runner import (
@@ -194,96 +193,10 @@ def test_main_serves_readiness_on_a_free_port_and_the_task_sees_200(
 # --- artifact delivery (Requirement 4.4) --------------------------------------------------------------------------------
 
 
-class Receiver(ThreadingHTTPServer):
-    """Records every POST (headers and body) and answers with ``status``."""
-
-    def __init__(self, status: int) -> None:
-        super().__init__(("127.0.0.1", 0), _ReceiverHandler)
-        self.status = status
-        self.posts: list[tuple[dict[str, str], bytes]] = []
-        self.thread = threading.Thread(target=self.serve_forever, daemon=True)
-        self.thread.start()
-
-    @property
-    def url(self) -> str:
-        return f"http://127.0.0.1:{self.server_address[1]}/artifacts"
-
-    def stop(self) -> None:
-        self.shutdown()
-        self.server_close()
-
-
-class _ReceiverHandler(BaseHTTPRequestHandler):
-    server: Receiver
-
-    def do_POST(self) -> None:  # noqa: N802
-        body = self.rfile.read(int(self.headers.get("Content-Length", "0")))
-        self.server.posts.append(({k: v for k, v in self.headers.items()}, body))
-        self.send_response(self.server.status)
-        self.send_header("Content-Length", "0")
-        self.end_headers()
-
-    def log_message(self, format: str, *args: object) -> None:  # noqa: A002
-        pass
-
-
-@pytest.fixture
-def receiver() -> Iterator[Receiver]:
-    server = Receiver(200)
-    try:
-        yield server
-    finally:
-        server.stop()
-
-
-def test_output_dir_is_delivered_as_a_tar_with_the_headers(
-    env: dict[str, str], receiver: Receiver, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    code, output = run_main(monkeypatch, tmp_path, files_workspace_yaml(), OUSAST_ARTIFACT_URL=receiver.url, OUSAST_RUN="validation-46")
-    assert code == 0
-    assert len(receiver.posts) == 1
-    headers, body = receiver.posts[0]
-    assert headers["Content-Type"] == "application/x-tar"
-    assert headers["X-Ousast-Task"] == "stub"
-    assert headers["X-Ousast-Run"] == "validation-46"
-    receiver.posts.clear()
-    again = {"OUSAST_ARTIFACT_URL": receiver.url, "OUSAST_TASK": "facts", "OUSAST_STATE_DIR": str(tmp_path / "again-state")}
-    code, _ = run_main(monkeypatch, tmp_path / "again", files_workspace_yaml(), **again)
-    assert code == 0 and receiver.posts[0][0]["X-Ousast-Task"] == "facts", "the Run's task name, not the ax Task's"
-    with tarfile.open(fileobj=io.BytesIO(body), mode="r:") as archive:
-        names = sorted(archive.getnames())
-        summary = archive.extractfile("summary.json")
-        assert summary is not None
-        assert json.loads(summary.read())["status"] == "done"
-    assert names == ["facts.json", "summary.json"]
-
-
-def test_run_header_is_absent_without_ousast_run(
-    env: dict[str, str], receiver: Receiver, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    code, _ = run_main(monkeypatch, tmp_path, files_workspace_yaml(), OUSAST_ARTIFACT_URL=receiver.url)
-    assert code == 0
-    assert "X-Ousast-Run" not in receiver.posts[0][0]
-
-
-def test_delivery_failure_is_reported_as_failed_with_exit_2(env: dict[str, str], monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    broken = Receiver(500)
-    try:
-        code, output = run_main(monkeypatch, tmp_path, files_workspace_yaml(), OUSAST_ARTIFACT_URL=broken.url)
-    finally:
-        broken.stop()
-    assert code == EXIT_BY_STATUS["failed"] == 2
-    assert len(broken.posts) == 3, "three attempts"
-    summary = json.loads((output / "summary.json").read_text())
-    assert summary["status"] == "failed"
-    assert summary["reason"].startswith("artifact delivery failed: HTTP 500")
-    assert summary["units_done"] == 1 and summary["units_total"] == 1, "the task's other fields are kept"
-
-
 def test_deliver_retries_on_connection_errors_then_raises() -> None:
-    closed = Receiver(200)
-    url = closed.url
-    closed.stop()
+    closed = HttpObjectStore()
+    url = closed.presign_put("output.tar")
+    closed.close()
     with pytest.raises(DeliveryError, match="3 attempts"):
         deliver(url, b"x", {"Content-Type": "application/x-tar"}, backoff=0)
 
@@ -366,9 +279,9 @@ def spawn_runner(tmp_path: Path, port: int, *, autostart: bool = True, log_name:
     return subprocess.Popen([sys.executable, "-m", "openultrasast.plane.runner"], env=child_env, stdout=log, stderr=log)
 
 
-def test_the_runner_keeps_serving_after_the_command_and_exits_0_on_sigterm(env: dict[str, str], receiver: Receiver, tmp_path: Path) -> None:
+def test_the_runner_keeps_serving_after_the_command_and_exits_0_on_sigterm(env: dict[str, str], tmp_path: Path) -> None:
     port = free_port()
-    proc = spawn_runner(tmp_path, port, OUSAST_ARTIFACT_URL=receiver.url)
+    proc = spawn_runner(tmp_path, port)
     marker = tmp_path / "state" / "stub.done.json"
     try:
         wait_for(marker.exists)
@@ -377,8 +290,7 @@ def test_the_runner_keeps_serving_after_the_command_and_exits_0_on_sigterm(env: 
         base = f"http://127.0.0.1:{port}"
         assert get(f"{base}/healthz") == 200 and get(f"{base}/readyz?check=workspace") == 200
         assert get(f"{base}/metadata/v1alpha1/ax/workspaces") == 200
-        assert len(receiver.posts) == 1
-        assert json.loads(marker.read_text()) | {"summary": None} == {"exit": 0, "status": "done", "delivered": True, "summary": None}
+        assert json.loads(marker.read_text()) | {"summary": None} == {"exit": 0, "status": "done", "delivered": False, "summary": None}
         proc.send_signal(signal.SIGTERM)
         assert proc.wait(timeout=10) == 0
     finally:
@@ -386,9 +298,9 @@ def test_the_runner_keeps_serving_after_the_command_and_exits_0_on_sigterm(env: 
         proc.wait()
 
 
-def test_sigterm_goes_to_the_commands_group_then_sigkill_after_the_grace(env: dict[str, str], receiver: Receiver, tmp_path: Path) -> None:
+def test_sigterm_goes_to_the_commands_group_then_sigkill_after_the_grace(env: dict[str, str], tmp_path: Path) -> None:
     port = free_port()
-    proc = spawn_runner(tmp_path, port, OUSAST_ARTIFACT_URL=receiver.url, STUB_MODE="sleep", OUSAST_TERM_GRACE="1")
+    proc = spawn_runner(tmp_path, port, STUB_MODE="sleep", OUSAST_TERM_GRACE="1")
     pids_file = tmp_path / "out" / "pids.json"
     try:
         wait_for(pids_file.exists)
@@ -403,43 +315,19 @@ def test_sigterm_goes_to_the_commands_group_then_sigkill_after_the_grace(env: di
         proc.kill()
         proc.wait()
     assert not (tmp_path / "state" / "stub.done.json").exists(), "an interrupted command is not complete"
-    assert receiver.posts == [], "nothing is delivered for an interrupted command"
 
 
 def test_the_completion_marker_prevents_a_rerun_on_resume(
-    env: dict[str, str], receiver: Receiver, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    env: dict[str, str], monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     counter = tmp_path / "runs.txt"
-    code, _ = run_main(monkeypatch, tmp_path, files_workspace_yaml(), OUSAST_ARTIFACT_URL=receiver.url, STUB_COUNTER=str(counter))
-    assert code == 0 and len(counter.read_text().splitlines()) == 1 and len(receiver.posts) == 1
+    code, _ = run_main(monkeypatch, tmp_path, files_workspace_yaml(), STUB_COUNTER=str(counter))
+    assert code == 0 and len(counter.read_text().splitlines()) == 1
     (tmp_path / "ws" / "candidates.json").write_text("changed by the task\n")
-    code, _ = run_main(monkeypatch, tmp_path, files_workspace_yaml(), OUSAST_ARTIFACT_URL=receiver.url, STUB_COUNTER=str(counter))
+    code, _ = run_main(monkeypatch, tmp_path, files_workspace_yaml(), STUB_COUNTER=str(counter))
     assert code == 0
     assert len(counter.read_text().splitlines()) == 1, "a resumed actor must not repeat billed work"
-    assert len(receiver.posts) == 1, "a delivered result is not delivered again"
     assert (tmp_path / "ws" / "candidates.json").read_text() == "changed by the task\n", "workspaces are prepared once"
-
-
-def test_a_failed_delivery_is_retried_alone_on_the_next_boot(
-    env: dict[str, str], receiver: Receiver, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    counter = tmp_path / "runs.txt"
-    broken = Receiver(500)
-    try:
-        code, output = run_main(monkeypatch, tmp_path, files_workspace_yaml(), OUSAST_ARTIFACT_URL=broken.url, STUB_COUNTER=str(counter))
-    finally:
-        broken.stop()
-    assert code == 2
-    marker = json.loads((tmp_path / "state" / "stub.done.json").read_text())
-    assert marker["delivered"] is False and marker["status"] == "failed" and marker["exit"] == 0
-    code, output = run_main(monkeypatch, tmp_path, files_workspace_yaml(), OUSAST_ARTIFACT_URL=receiver.url, STUB_COUNTER=str(counter))
-    assert code == 0
-    assert len(counter.read_text().splitlines()) == 1, "only the delivery is retried"
-    with tarfile.open(fileobj=io.BytesIO(receiver.posts[0][1]), mode="r:") as archive:
-        summary = archive.extractfile("summary.json")
-        assert summary is not None and json.loads(summary.read())["status"] == "done", "the task's own summary"
-    marker = json.loads((tmp_path / "state" / "stub.done.json").read_text())
-    assert marker["delivered"] is True and marker["status"] == "done"
 
 
 # --- git workspaces from the case cache and by shallow clone ----------------------------------------------------------------
@@ -590,14 +478,13 @@ def test_git_commits_annotation_round_trips_to_the_checkout(
         "apiVersion: openultrasast.io/v1alpha1\nkind: Run\nmetadata: {name: rt}\nspec: {tasks: [{name: stub, task: stub}]}\n"
     )
     run, manifests = reconciler.load_run(manifest)
-    *rest, task_doc = reconciler.render_task(run, run.tasks[0], manifests, "unused")
+    *rest, task_doc = reconciler.render_task(run, run.tasks[0], manifests)
     assert rest[0]["metadata"] == {"name": "case"}, "annotations are stripped before ax"
     assert rest[0]["spec"]["git"] == [{"name": "code", "repo": repo.as_uri(), "branch": "main"}], "no commit for ax"
     overrides = {"OUSAST_OUTPUT_DIR": str(output)}
     task_doc["spec"]["env"] = [
         {"name": e["name"], "value": overrides.get(e["name"], e["value"])}
         for e in task_doc["spec"]["env"]
-        if e["name"] != "OUSAST_ARTIFACT_URL"
     ]
     assert json.loads({e["name"]: e["value"] for e in task_doc["spec"]["env"]}["OUSAST_GIT_PINS"]) == {"case/code": pin}
     monkeypatch.setenv("AX_TASK_YAML", yaml.safe_dump(task_doc))
@@ -669,11 +556,11 @@ def main_in_thread(tmp_path: Path, **extra: str) -> tuple[threading.Thread, dict
 
 
 def test_the_command_waits_for_the_start_request_and_the_credential_reaches_only_the_child(
-    env: dict[str, str], receiver: Receiver, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    env: dict[str, str], tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
     caplog.set_level(logging.DEBUG)
     counter = tmp_path / "runs.txt"
-    thread, environ, codes = main_in_thread(tmp_path, OUSAST_ARTIFACT_URL=receiver.url, STUB_COUNTER=str(counter))
+    thread, environ, codes = main_in_thread(tmp_path, STUB_COUNTER=str(counter))
     port = environ["AX_RUNNER_BOUND_PORT"]
     time.sleep(0.5)
     assert not counter.exists() and thread.is_alive(), "ready, but the command waits for the start request"
@@ -693,15 +580,14 @@ def test_the_command_waits_for_the_start_request_and_the_credential_reaches_only
     assert "DEEPSEEK_API_KEY" not in environ and "DEEPSEEK_API_KEY" not in os.environ, "and only there"
     assert str(tmp_path / "out" / "facts.json") in files_containing(tmp_path, SECRET_SHA), "the scan reads the output files"
     assert files_containing(tmp_path, SECRET) == [], "no file holds the credential"
-    assert SECRET not in receiver.posts[0][1].decode("latin-1"), "nor the delivered tar"
     assert all(SECRET not in record.getMessage() for record in caplog.records), "nor any log record"
     assert any("start request: 202" in record.getMessage() for record in caplog.records)
 
 
 def test_a_crash_that_prints_the_credential_is_redacted(
-    env: dict[str, str], receiver: Receiver, tmp_path: Path, capfd: pytest.CaptureFixture[str]
+    env: dict[str, str], tmp_path: Path, capfd: pytest.CaptureFixture[str]
 ) -> None:
-    thread, environ, codes = main_in_thread(tmp_path, OUSAST_ARTIFACT_URL=receiver.url, STUB_MODE="leak")
+    thread, environ, codes = main_in_thread(tmp_path, STUB_MODE="leak")
     start = {"run": "run-1", "task": "stub", "credentials": {"DEEPSEEK_API_KEY": SECRET}}
     assert post_start(environ["AX_RUNNER_BOUND_PORT"], start)[0] == 202
     thread.join(timeout=30)
@@ -727,23 +613,25 @@ def test_http_off_without_autostart_is_refused(env: dict[str, str], monkeypatch:
     assert code == EXIT_BY_STATUS["failed"] and not (output / "facts.json").exists()
 
 
-def test_the_golden_boot_never_runs_the_command(env: dict[str, str], receiver: Receiver, tmp_path: Path) -> None:
+def test_the_golden_boot_never_runs_the_command(env: dict[str, str], object_store: HttpObjectStore, tmp_path: Path) -> None:
     """Agent Substrate's golden-snapshot boot runs the same image with the same env; only the router-addressed
     actor gets the start request, so only it runs the command. A later boot of a delivered task refuses a start."""
     counter = tmp_path / "runs.txt"
-    same = {"OUSAST_ARTIFACT_URL": receiver.url, "STUB_COUNTER": str(counter), "OUSAST_RUN": "run-1"}
+    same = {"STUB_COUNTER": str(counter), "OUSAST_RUN": "run-1", "AX_RUNNER_INSECURE_DELIVERY": "1"}
     real_port, golden_port = free_port(), free_port()
     real = spawn_runner(tmp_path, real_port, autostart=False, log_name="real.log", **same)
     golden = spawn_runner(tmp_path, golden_port, autostart=False, log_name="golden.log", **same)
     try:
         for port in (real_port, golden_port):
             wait_for(lambda port=port: ready_on(port))
-        Router(f"http://127.0.0.1:{real_port}").start_task("default", "stub", "run-1", {"DEEPSEEK_API_KEY": SECRET})
+        Router(f"http://127.0.0.1:{real_port}").start_task(
+            "default", "stub", "run-1", {"DEEPSEEK_API_KEY": SECRET}, {"put": object_store.presign_put("output.tar")}
+        )
         marker = tmp_path / "state" / "stub.done.json"
         wait_for(marker.exists)
         time.sleep(1.0)
         assert len(counter.read_text().splitlines()) == 1, "the golden boot never ran the command"
-        assert golden.poll() is None and len(receiver.posts) == 1
+        assert golden.poll() is None
         with pytest.raises(StartError, match="already started"):
             Router(f"http://127.0.0.1:{real_port}").start_task("default", "stub", "run-1", {})
         again_port = free_port()
@@ -762,10 +650,10 @@ def test_the_golden_boot_never_runs_the_command(env: dict[str, str], receiver: R
     assert files_containing(tmp_path, SECRET) == [], "no log, workspace, output or state file holds the credential"
 
 
-def test_workspaces_are_prepared_only_after_the_start_request(env: dict[str, str], receiver: Receiver, tmp_path: Path) -> None:
+def test_workspaces_are_prepared_only_after_the_start_request(env: dict[str, str], tmp_path: Path) -> None:
     """Substrate's golden boot never gets a start, so it must touch no workspace (and no network): a clone at boot
     failed on the live cluster while the actor was still being restored (2026-09-29)."""
-    thread, environ, codes = main_in_thread(tmp_path, OUSAST_ARTIFACT_URL=receiver.url)
+    thread, environ, codes = main_in_thread(tmp_path)
     time.sleep(0.5)
     written = [p for p in (tmp_path / "ws").rglob("*") if p.is_file()] if (tmp_path / "ws").exists() else []
     assert written == [], "nothing is materialised before the start request"
@@ -776,82 +664,6 @@ def test_workspaces_are_prepared_only_after_the_start_request(env: dict[str, str
 
 
 # --- inputs other tasks produced: fetched from the receiver after the start (Requirement 3.1, 4.4) -------------------
-
-
-@pytest.fixture
-def plane_receiver(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Iterator[egress.Receiver]:
-    """The reconciler's own receiver on a free port, with a producer's artifact delivered and the task ``stub`` running."""
-    monkeypatch.setenv("OUSAST_ARTIFACT_HOST", "127.0.0.1")
-    server = egress.Receiver("r", tmp_path / "run", 0)
-    (tmp_path / "run" / "repo-facts").mkdir(parents=True)
-    (tmp_path / "run" / "repo-facts" / "facts.json").write_bytes(b'{"a.py": ["f"]}' * 5000)
-    server.running.add("stub")
-    threading.Thread(target=server.serve_forever, daemon=True).start()
-    try:
-        yield server
-    finally:
-        server.shutdown()
-        server.server_close()
-
-
-def input_env(server: egress.Receiver, tmp_path: Path) -> dict[str, str]:
-    return {
-        "OUSAST_ARTIFACT_URL": server.url,
-        "OUSAST_RUN": "r",
-        "OUSAST_TASK": "stub",
-        "OUSAST_INPUTS": json.dumps({"FACTS": "repo-facts/facts.json"}),
-        "OUSAST_INPUT_FACTS": str(tmp_path / "ws" / "in" / "repo-facts" / "facts.json"),
-    }
-
-
-def test_inputs_are_fetched_from_the_receiver_before_the_command(
-    env: dict[str, str], plane_receiver: egress.Receiver, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    plane_receiver.inputs["stub"] = frozenset({"repo-facts/facts.json"})
-    code, output = run_main(monkeypatch, tmp_path, files_workspace_yaml(), **input_env(plane_receiver, tmp_path))
-    assert code == 0
-    fetched = tmp_path / "ws" / "in" / "repo-facts" / "facts.json"
-    assert fetched.read_bytes() == (tmp_path / "run" / "repo-facts" / "facts.json").read_bytes()
-    assert "in/repo-facts/facts.json" in json.loads((output / "facts.json").read_text())["workspace_files"], "there before the command ran"
-    assert "stub" in plane_receiver.delivered
-
-
-def test_an_input_that_cannot_be_fetched_delivers_a_failed_summary_and_never_runs_the_command(
-    env: dict[str, str], plane_receiver: egress.Receiver, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    plane_receiver.inputs["stub"] = frozenset({"repo-facts/other.json"})  # facts.json is not among its inputs: 403
-    code, output = run_main(monkeypatch, tmp_path, files_workspace_yaml(), **input_env(plane_receiver, tmp_path))
-    assert code == EXIT_BY_STATUS["failed"]
-    assert not (output / "facts.json").exists(), "the command never ran with an input missing"
-    delivered = json.loads((tmp_path / "run" / "stub" / "summary.json").read_text())
-    assert delivered["status"] == "failed" and "input FACTS (repo-facts/facts.json) not fetched: HTTP 403" in delivered["reason"]
-    assert not (tmp_path / "ws" / "in" / "repo-facts").exists() or not any((tmp_path / "ws" / "in" / "repo-facts").iterdir())
-
-
-def test_fetch_dials_the_override_and_sends_the_url_host(tmp_path: Path) -> None:
-    seen: list[dict[str, str]] = []
-
-    class _Handler(BaseHTTPRequestHandler):
-        def do_GET(self) -> None:  # noqa: N802
-            seen.append({"path": self.path, **dict(self.headers.items())})
-            self.send_response(200)
-            self.send_header("Content-Length", "2")
-            self.end_headers()
-            self.wfile.write(b"ok")
-
-        def log_message(self, format: str, *args: object) -> None:  # noqa: A002
-            pass
-
-    server = ThreadingHTTPServer(("127.0.0.1", 0), _Handler)
-    threading.Thread(target=server.serve_forever, daemon=True).start()
-    try:
-        dial = f"127.0.0.1:{server.server_address[1]}"
-        size = runner.fetch("http://receiver.example/inputs/p/a.json", {"X-Ousast-Run": "r"}, tmp_path / "x" / "a.json", dial=dial)
-    finally:
-        server.shutdown()
-        server.server_close()
-    assert size == 2 and (tmp_path / "x" / "a.json").read_bytes() == b"ok"
-    assert seen[0]["path"] == "/inputs/p/a.json" and seen[0]["Host"] == "receiver.example" and seen[0]["X-Ousast-Run"] == "r"
 
 
 # --- store delivery through the start body (plane-on-kubernetes 2.2, design section 3) ---------------------------
@@ -905,7 +717,7 @@ def test_output_is_put_to_the_presigned_url_and_inputs_are_fetched_from_theirs(
     env: dict[str, str], object_store: HttpObjectStore, tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
     """End to end against the S3-shaped fake: the start carries the URLs, the runner PUTs the tar and GETs the input;
-    no receiver, no OUSAST_ARTIFACT_URL, no URL in any log line."""
+    no URL in any log line."""
     caplog.set_level(logging.DEBUG)
     object_store._put("runs/run-1/repo-facts/facts.json", b'{"a.py": ["f"]}')
     put_url = object_store.presign_put("runs/run-1/stub/output.tar")
@@ -964,9 +776,9 @@ def test_a_failed_put_is_retried_alone_on_the_next_start_with_a_fresh_url(
 
 def test_deliver_puts_and_names_only_the_safe_url_on_failure(object_store: HttpObjectStore) -> None:
     url = object_store.presign_put("k/output.tar")
-    assert runner.deliver(url, b"tar", {"Content-Type": "application/x-tar"}, backoff=0, method="PUT") == 200
+    assert runner.deliver(url, b"tar", {"Content-Type": "application/x-tar"}, backoff=0) == 200
     assert object_store.objects["k/output.tar"] == b"tar"
     with pytest.raises(runner.DeliveryError) as caught:
-        runner.deliver(url.replace("/fake-bucket/", "/other/"), b"x", {}, attempts=2, backoff=0, method="PUT")
+        runner.deliver(url.replace("/fake-bucket/", "/other/"), b"x", {}, attempts=2, backoff=0)
     assert "HTTP 404" in str(caught.value) and "X-Amz" not in str(caught.value) and "/other/k/output.tar" in str(caught.value)
     assert runner.safe_url("https://h:1/p/q?X-Amz-Signature=s") == "https://h:1/p/q"

@@ -7,20 +7,14 @@ call is conservatively charged its reservation on resume, never silently free.
 
 from __future__ import annotations
 
-import argparse
-import hashlib
-import json
 import re
 import time
 from collections import Counter
 from collections.abc import Callable
 from dataclasses import asdict, dataclass, replace
-from importlib import import_module
-from pathlib import Path
 from typing import Any, Protocol
 
 from ..plane.budget import BudgetExhausted, SpendBudget
-from ..plane.memory import open_store
 from .board import Board
 from .budget import SearchBudget
 
@@ -421,79 +415,3 @@ class Coordinator:
     @staticmethod
     def _refs(refs: Any) -> bool:
         return isinstance(refs, list) and bool(refs) and all(isinstance(ref, str) and bool(ref) for ref in refs)
-
-
-class BatchExecutor:
-    """Adapter to the existing AX/VM transfer and checkpoint protocol.
-
-    Pass AXLane/DockerLane instances and a trusted worker command. No default
-    worker is invented here: reason/explore entrypoints belong to group 5.
-    The coordinator owns retries, so batch performs exactly one attempt.
-    """
-
-    def __init__(self, *, image: str, command: tuple[str, ...], output: Path, lanes: dict[str, Any]) -> None:
-        batch = import_module("benchmarks.ax.batch")
-        batch.validate_image(image)
-        if not command:
-            raise ValueError("worker command required")
-        self.image, self.command, self.output, self.lanes = image, command, output, lanes
-
-    def __call__(self, task: SearchTask) -> dict[str, Any]:
-        import copy
-
-        batch = import_module("benchmarks.ax.batch")
-
-        if task.lane not in self.lanes:
-            return {"status": "sandbox_failure", "cost_usd": 0}
-        data = json.dumps(asdict(task), sort_keys=True, allow_nan=False).encode()
-        digest = hashlib.sha256(data).hexdigest()
-        identity = task.search_id + "-" + task.id
-        item = batch.Item(
-            identity,
-            {"SPEC_URL": data},
-            "result.dat",
-            self.command,
-            {"SEARCH_STEP": task.step, "SEARCH_ID": task.search_id, "SEARCH_TASK_ID": task.id},
-            digest,
-        )
-
-        def validate(raw: bytes, output: Path) -> None:
-            if len(raw) > 262144:
-                raise ValueError("search result size exceeded")
-            record = json.loads(raw)
-            if not isinstance(record, dict) or record.get("status") not in (
-                "ok",
-                "sandbox_failure",
-                "instrument_failure",
-                "oom",
-                "execution_failure",
-            ):
-                raise ValueError("invalid search result")
-            (output / "result.json").write_text(json.dumps(record))
-
-        workload = batch.Workload(self.image, frozenset({"SPEC_URL", "RESULT_URL"}), task.limits["task_wall_seconds"], validate)
-        lane = copy.copy(self.lanes[task.lane])
-        if hasattr(lane, "workload"):
-            lane.workload = workload
-        out = self.output / task.search_id / task.id
-        batch.dispatch([item], workload, out, {task.lane: lane}, lanes=(task.lane,), max_attempts=1)
-        record_path = out / (hashlib.sha256(identity.encode()).hexdigest() + ".json")
-        if not record_path.exists():
-            return {"status": "execution_failure", "cost_usd": 0}
-        record: dict[str, Any] = json.loads(record_path.read_text())
-        return record
-
-
-def main() -> None:
-    """Offline checkpoint inspection, also useful before resuming with an executor."""
-    parser = argparse.ArgumentParser(description="Inspect a search board checkpoint (no model calls)")
-    parser.add_argument("--memory", required=True)
-    parser.add_argument("--search-id", required=True)
-    parser.add_argument("--head", required=True)
-    args = parser.parse_args()
-    board = Board.resume(open_store(args.memory), args.search_id, args.head, coordinator="inspect")
-    print(board.snapshot(), end="")
-
-
-if __name__ == "__main__":
-    main()

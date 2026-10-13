@@ -8,7 +8,7 @@ from dataclasses import replace
 import pytest
 from learn_fixtures import by_id, corpus, example, x_record
 
-from openultrasast.learn.folds import Fold, compile_split, leave_one_framework_out, leave_one_source_out, outer_folds
+from openultrasast.learn.folds import Fold, compile_split, outer_folds
 from openultrasast.learn.retrieve import (
     BoundaryViolation,
     Target,
@@ -166,13 +166,11 @@ def _all_folds(examples: list) -> list:
     split = compile_split(examples, seed=3)
     return [
         *outer_folds(examples, seed=3, exclude=split.groups),
-        *leave_one_source_out(examples, exclude=split.groups),
-        *[f for f in leave_one_framework_out(examples, exclude=split.groups, min_groups=2) if f.status == "ok"],
     ]
 
 
 def test_boundary() -> None:
-    """For outer, leave-one-source-out and leave-one-framework-out folds, every retrieved example and every
+    """For outer folds, every retrieved example and every
     demonstration that reaches a prompt is eligible; ``seed_memory`` writes no example of the case's group."""
     examples = corpus(groups=16)
     index = by_id(examples)
@@ -186,7 +184,7 @@ def test_boundary() -> None:
         )
     ]
     folds = _all_folds(examples)
-    assert {f.kind for f in folds} == {"outer", "leave_one_source_out", "leave_one_framework_out"}
+    assert {f.kind for f in folds} == {"outer"}
     checked = 0
     for fold in folds:
         for target_example in [e for e in examples if e.group in fold.eval_groups]:
@@ -204,19 +202,6 @@ def test_boundary() -> None:
     assert checked > 100
     for group in {e.group for e in examples}:
         assert all(e.group != group for e in seed_memory(examples, group))
-
-
-def test_a_demonstration_of_the_held_out_framework_is_swapped_for_its_alternate() -> None:
-    flask = example("demo-flask", group="d/flask", label=1, frameworks=("flask",))
-    alt = example("demo-plain", group="d/plain", label=1)
-    target_example = example("t", group="t/t", label=0, frameworks=("flask",))
-    target = Target.of(target_example)
-    fold = leave_one_framework_out([flask, target_example], min_groups=1)[0]
-    assert fold.held_framework == "flask" and target_example.group in fold.eval_groups
-    demos = [{"example_id": flask.id, "alternate": {"example_id": alt.id}}]
-    usable = demonstrations_for(demos, by_id([flask, alt]), target, fold)
-    assert [d["example_id"] for d in usable] == [alt.id]
-    assert demonstrations_for([{"example_id": flask.id, "alternate": None}], by_id([flask]), target, fold) == []
 
 
 def test_assert_boundary_catches_an_ineligible_rendered_id() -> None:

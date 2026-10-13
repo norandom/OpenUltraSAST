@@ -6,7 +6,7 @@ import subprocess
 
 import pytest
 
-from openultrasast.push_inputs import validate_manifest
+from benchmarks.push.push_inputs import validate_manifest
 
 
 def git(root, *args):
@@ -118,7 +118,7 @@ def test_authored_edit_requires_exact_original_and_provenance(manifest):
 
 @pytest.mark.parametrize("field", ["snapshots", "cases"])
 def test_empty_population_rejected(manifest, field):
-    from openultrasast.push_inputs import InputError
+    from benchmarks.push.push_inputs import InputError
 
     data, _, run = manifest
     data[field] = []
@@ -127,7 +127,7 @@ def test_empty_population_rejected(manifest, field):
 
 
 def test_missing_snapshot_identity_rejected(manifest):
-    from openultrasast.push_inputs import InputError
+    from benchmarks.push.push_inputs import InputError
 
     data, _, run = manifest
     del data["snapshots"][0]["id"]

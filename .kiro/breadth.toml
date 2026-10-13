@@ -8,6 +8,7 @@
 #   parked    = no work lands; scaffolding (stubs, unused flags, dead task modules) is removed; spec stays as history
 #   retiring  = the "closes" deletion is scheduled; the spec directory goes with it
 #   review    = Pathfinder 2026-10-13 decides between parked and retiring
+#   removed   = the "closes" deletion has run; the entry stays one release as the record of what went
 #
 # open_fronts (the weekly number) = specs with status active or review
 #                                   + capabilities with status review or retiring whose "closes" has not run.
@@ -181,7 +182,7 @@ status = "active"
 spec = "hunter-learning-loop"
 modules = ["tool_hunter.py", "hunter_tools.py", "provider/openrouter.py", "model/endpoint.py", "plane/budget.py"]
 lines = 1700
-note = "Pathfinder U6 counts the chat-client classes; expected outcome: one client protocol, one metering path"
+note = "four never-enabled hunter tools removed 2026-10-13 (P0); P2 collapses the client stack to one client, one meter, one resolver"
 
 [capability.learn]
 status = "active"
@@ -198,7 +199,7 @@ lines = 4803
 [capability.core]
 status = "active"
 modules = ["cli.py", "config.py", "contracts.py", "preprocess.py", "findings.py", "rank.py", "mapping.py", "ruleset", "policy", "reports.py", "stages.py", "run.py", "provenance.py", "profiling.py"]
-note = "hunter.py is the regex quick-rule pool and should be renamed; harness.py processor machinery is unreachable (U1)"
+note = "hunter.py is the regex quick-rule pool and should be renamed"
 
 [capability.pairs-and-benchmarks]
 status = "active"
@@ -214,13 +215,13 @@ lines = 4885
 closes = "Pathfinder U8 lists which modules only the retired HarnessX loop used (engine_alerts, harvest, workspaces, profile are the suspects); delete those"
 
 [capability.regress]
-status = "review"
+status = "removed"   # f5a904b, 2026-10-13: deep mode records regress_retired; proof is the search line
 modules = ["regress"]
 lines = 549
 closes = "Pathfinder U9: if search/ covers the triggerable verdict, delete regress/ and the deep-mode REGRESS branch in cli.py:839-880"
 
 [capability.improve]
-status = "retiring"
+status = "removed"   # 94e96c6, 2026-10-13
 modules = ["improve"]
 lines = 1175
 note = "HarnessX-era improve lever; no active spec names it"
@@ -228,13 +229,13 @@ closes = "delete improve/, `ousast improve` (cli.py:237, 433, 1106), plane/tasks
 
 [capability.scan-extras]
 status = "review"
-modules = ["fusion.py", "verification.py", "calibration.py", "scoring", "harness.py (processors)"]
+modules = ["fusion.py", "verification.py", "calibration.py", "scoring"]   # harness.py processor machinery removed 2026-10-13
 closes = "U1 found fusion decisions never reach findings or score, verification runs before MAP, processors unreachable; decide keep-and-fix or delete per module"
 
 [capability.mcp-and-skills]
 status = "parked"
 spec = "mcp-shift-left-agent"
-modules = ["mcp.py", "skills.py", "index.py"]
+modules = ["mcp.py"]   # skills.py and index.py removed f5a904b, 2026-10-13
 lines = 830
 closes = "see spec.mcp-shift-left-agent"
 
@@ -246,6 +247,6 @@ closes = "U10: keep gate.py (CI + plane loop); delete map_gate.py and pair_gate.
 
 [capability.push-evaluation-instruments]
 status = "review"
-modules = ["push_inputs.py", "push_scoring.py"]
+modules = ["push_scoring.py"]   # push_inputs.py moved to benchmarks/push 2026-10-13; push_scoring stays (eligibility.py:18)
 lines = 462
 closes = "U3: move under benchmarks/push or delete if only tests use them"

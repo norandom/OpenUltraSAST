@@ -5,14 +5,7 @@ import pytest
 
 from openultrasast.preprocess import FileTarget
 from openultrasast.provider.openrouter import OpenRouterError, parse_json_content
-from openultrasast.rank import (
-    RankingError,
-    composite_priority,
-    parse_ranker_response,
-    rank_targets,
-    rank_targets_with_model,
-    write_rankings,
-)
+from openultrasast.rank import RankingError, composite_priority, parse_ranker_response, rank_targets, write_rankings
 
 
 class FakeRankerClient:
@@ -70,19 +63,6 @@ def test_heuristic_ranking_prioritizes_fuzzable_parser() -> None:
 def test_parse_ranker_response_rejects_malformed_scores() -> None:
     with pytest.raises(RankingError):
         parse_ranker_response({"rankings": [{"path": "a.py", "surface": 9, "influence": 1, "reachability": 1}]}, "model")
-
-
-def test_rank_targets_with_model_chunks_requests() -> None:
-    targets = [
-        FileTarget(path="a.py", absolute_path="/repo/a.py", language="python", loc=1, tags=[], has_fuzz_entry_point=False),
-        FileTarget(path="b.py", absolute_path="/repo/b.py", language="python", loc=1, tags=[], has_fuzz_entry_point=False),
-    ]
-    client = FakeRankerClient()
-
-    rankings = rank_targets_with_model(targets, client=client, model="openrouter/test-ranker", chunk_size=1)
-
-    assert client.calls == 2
-    assert {ranking.model_id for ranking in rankings} == {"openrouter/test-ranker"}
 
 
 def test_parse_json_content_accepts_fenced_json() -> None:

@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from openultrasast.findings import build_quick_hunter_prompt, quick_scan_findings, write_findings
+from openultrasast.findings import quick_scan_findings, write_findings
 from openultrasast.mapping import analyze_entry_points, attach_reachability_hints
 from openultrasast.preprocess import preprocess_repository
 from openultrasast.rank import rank_targets
@@ -92,17 +92,3 @@ def test_findings_inherit_only_matching_function_level_reachability(tmp_path: Pa
     assert unreachable.ranking_priority <= 1.5
 
 
-def test_quick_hunter_prompt_is_bounded() -> None:
-    repo = Path("/repo/example.py")
-    target = next(iter(preprocess_repository(repo.parent)[1]), None) if repo.parent.exists() else None
-    assert target is None
-
-    class Target:
-        path = "example.py"
-        language = "python"
-        tags = ["auth_boundary"]
-
-    prompt = build_quick_hunter_prompt(Target(), "x" * 5000)  # type: ignore[arg-type]
-
-    assert "example.py" in prompt
-    assert len(prompt) < 4300

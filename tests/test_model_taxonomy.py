@@ -62,22 +62,6 @@ def test_every_labeled_corpus_cwe_resolves_and_no_cwe_is_claimed_twice() -> None
     assert taxonomy.family_of_cwe("CWE-99999") is None
 
 
-def test_relation_answers_same_lateral_fabricated_and_parent_child_when_declared(tmp_path: Path) -> None:
-    from openultrasast.model.taxonomy import load_families
-
-    taxonomy = load_families()
-    assert taxonomy.related("injection", "injection") == "same"
-    assert taxonomy.related("injection", "access_control") == "lateral"
-    assert taxonomy.related("injection", "not_a_family") == "fabricated"
-    assert taxonomy.related("unknown", "injection") == "lateral"  # abstention earns no partial credit
-    assert all(family.parent is None for family in taxonomy.families)  # the shipped taxonomy is flat
-    (tmp_path / "families.toml").write_text(
-        GOOD + '\n[[family]]\nid = "path"\nparent = "injection"\ndescription = "y"\ncwes = []\nmechanisms = []\nverifier = "canary"\n'
-    )
-    scoped = load_families(tmp_path / "families.toml", require_all=False)
-    assert scoped.related("path", "injection") == "parent_child" and scoped.related("injection", "path") == "parent_child"
-
-
 @pytest.mark.parametrize(
     ("text", "needle"),
     [

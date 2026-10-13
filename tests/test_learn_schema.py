@@ -10,14 +10,10 @@ from typing import Any
 
 import pytest
 
-from openultrasast.findings import quick_scan_findings
 from openultrasast.learn import schema
-from openultrasast.learn.features import Delta, Part, build_for_scan, record
+from openultrasast.learn.features import Part, record
 from openultrasast.learn.schema import EXCLUDED_FIELDS, FEATURES, FeatureRecordError, validate_record
-from openultrasast.mapping import analyze_entry_points, attach_reachability_hints
 from openultrasast.plane.tasks.features import case_features
-from openultrasast.preprocess import preprocess_repository
-from openultrasast.rank import rank_targets
 
 ROOT = Path(__file__).resolve().parents[1]
 APP = """import os
@@ -30,22 +26,6 @@ def {inner}(value):
 def {outer}():
     {inner}("x")
 """
-
-
-def _scan(root: Path) -> list[dict[str, Any]]:
-    _, targets = preprocess_repository(root)
-    assert targets and all((root / t.path).stat().st_size > 0 for t in targets), "the fixture was read"
-    targets = attach_reachability_hints(targets, analyze_entry_points(root, targets))
-    findings = quick_scan_findings(root, targets, rank_targets(targets))
-    assert findings, "the fixture's os.system fires a quick rule"
-    engine = {"questions": 3, "completed": 3, "degradations": [], "findings": []}
-    return build_for_scan(root, findings, engine)
-
-
-def _repo(root: Path, path: str, inner: str, outer: str) -> Path:
-    (root / path).parent.mkdir(parents=True, exist_ok=True)
-    (root / path).write_text(APP.format(inner=inner, outer=outer))
-    return root
 
 
 # --- the allow-list ----------------------------------------------------------------------------------------------
@@ -63,33 +43,8 @@ def test_features_are_allow_listed(tmp_path: Path) -> None:
     mechanisms = tomllib.loads((ROOT / "benchmarks" / "pairs" / "mechanisms.toml").read_text())["mechanism"]
     assert tuple(m["id"] for m in mechanisms) == schema.MECHANISMS, "the mechanism buckets are the closed vocabulary"
     assert set(schema.RULE_TAG_MECHANISM.values()) <= set(schema.MECHANISMS)
-    records = _scan(_repo(tmp_path, "app/one.py", "alpha", "beta"))
-    assert records
-    for rec in records:
-        assert set(rec["x"]) == {s.name for s in schema.features_for("static")}, "every emitted key is in FEATURES"
-        assert rec["profile"] == "static" and not any(k.startswith(("verify.", "agree.", "ms.")) for k in rec["x"])
     assert {s.name for s in schema.features_for("static")} < set(names)
     assert [s.name for s in FEATURES if s.prior] == ["qr.prior_hits"]
-
-
-def test_record_is_name_invariant(tmp_path: Path) -> None:
-    """Two repositories that differ only in repository name, paths, file and function names and commit ids give the
-    same features: nothing identifies a repository."""
-    first = _scan(_repo(tmp_path / "acme-shop", "app/one.py", "alpha", "beta"))
-    second = _scan(_repo(tmp_path / "other-thing", "lib/sub/two.py", "gamma", "delta"))
-    assert [r["x"] for r in first] == [r["x"] for r in second]
-    assert [r["instruments"] for r in first] == [r["instruments"] for r in second]
-    assert first[0]["candidate"] != second[0]["candidate"], "the key differs; it lives only in the envelope"
-    assert first[0]["x"]["qr.enabled_hits"] >= 1 and first[0]["x"]["facts.entry_distance"] is not None
-    root = tmp_path / "acme-shop"
-    _, targets = preprocess_repository(root)
-    findings = quick_scan_findings(root, targets, rank_targets(targets))
-    changed = {"app/one.py": [(5, 5)]}
-    one = build_for_scan(root, findings, None, base=Delta(root, changed, pin="a" * 40))
-    two = build_for_scan(root, findings, None, base=Delta(root, changed, pin="b" * 40))
-    assert len(one) == 1 and one[0]["unit"] == "delta" and one[0]["base"] == "a" * 40
-    assert one[0]["x"]["delta.novelty"] == "new" and one[0]["x"]["delta.changed_lines"] == 1
-    assert [r["x"] for r in one] == [r["x"] for r in two], "a commit id is envelope, never a feature"
 
 
 # --- label fields ------------------------------------------------------------------------------------------------
@@ -163,17 +118,6 @@ def test_missing_is_not_zero() -> None:
     engine = {**SUMMARY, "engine": {"vulnerable": {"questions": 0, "completed": 0, "files": 5, "degradations": []}}}
     [_, unread] = _plane(alerts=[*ALERTS, php], alerts_summary=engine)
     assert unread["instruments"]["engine"]["state"] == "failed" and unread["x"]["eng.findings"] is None, "no question is not zero"
-
-
-def test_build_for_scan_marks_an_engine_that_did_not_run_or_read(tmp_path: Path) -> None:
-    root = _repo(tmp_path / "r", "app/one.py", "alpha", "beta")
-    _, targets = preprocess_repository(root)
-    findings = quick_scan_findings(root, targets, rank_targets(targets))
-    unread = build_for_scan(root, findings, {"questions": 0, "findings": []})
-    absent = build_for_scan(root, findings, None)
-    assert {r["instruments"]["engine"]["state"] for r in unread} == {"failed"}
-    assert {r["instruments"]["engine"]["state"] for r in absent} == {"none"}
-    assert all(r["x"]["eng.findings"] is None for r in (*unread, *absent))
 
 
 def test_validate_record_refuses_values_outside_their_type() -> None:

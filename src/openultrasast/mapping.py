@@ -36,31 +36,6 @@ class StaticHint:
 
 
 @dataclass(frozen=True)
-class MappingTaskRecord:
-    kind: MappingKind
-    path: str
-    rule_id: str
-    task: str
-    rationale: str
-
-
-@dataclass(frozen=True)
-class DifferentialMappingRecord:
-    path: str
-    change_kind: str
-    trust_boundary: str | None
-    rationale: str
-
-
-@dataclass(frozen=True)
-class SharpEdgeRecord:
-    path: str
-    category: str
-    surface: str
-    rationale: str
-
-
-@dataclass(frozen=True)
 class EntryPointRecord:
     path: str
     line: int | None
@@ -183,58 +158,6 @@ def attach_reachability_hints(targets: list[FileTarget], entry_points: list[Entr
     for entry_point in entry_points:
         hints_by_path.setdefault(entry_point.path, []).append(asdict(entry_point))
     return [replace(target, reachability_hints=hints_by_path.get(target.path, target.reachability_hints)) for target in targets]
-
-
-def verifier_evidence_candidates(hints: list[StaticHint], *, path: str | None = None) -> list[dict[str, object]]:
-    selected = [hint for hint in hints if hint.evidence_candidate and (path is None or hint.path == path)]
-    return [
-        {
-            "source": hint.analyzer,
-            "rule_id": hint.rule_id,
-            "path": hint.path,
-            "line": hint.start_line,
-            "severity": hint.severity,
-            "message": hint.message,
-            "provenance": hint.provenance,
-        }
-        for hint in selected
-    ]
-
-
-def semgrep_mapping_tasks(hints: list[StaticHint]) -> list[MappingTaskRecord]:
-    return [
-        MappingTaskRecord(
-            kind="semgrep",
-            path=hint.path,
-            rule_id=hint.rule_id,
-            task="pattern_variant_review",
-            rationale="Use Semgrep evidence to check variants and rule precision before verifier promotion.",
-        )
-        for hint in hints
-        if hint.analyzer == "semgrep"
-    ]
-
-
-def codeql_mapping_tasks(hints: list[StaticHint]) -> list[MappingTaskRecord]:
-    return [
-        MappingTaskRecord(
-            kind="codeql",
-            path=hint.path,
-            rule_id=hint.rule_id,
-            task="source_sink_sanitizer_path_review",
-            rationale="Use CodeQL evidence to inspect source, sink, sanitizer, and path explanation.",
-        )
-        for hint in hints
-        if hint.analyzer == "codeql"
-    ]
-
-
-def differential_mapping_record(path: str, *, change_kind: str, trust_boundary: str | None, rationale: str) -> DifferentialMappingRecord:
-    return DifferentialMappingRecord(path=path, change_kind=change_kind, trust_boundary=trust_boundary, rationale=rationale)
-
-
-def sharp_edge_record(path: str, *, category: str, surface: str, rationale: str) -> SharpEdgeRecord:
-    return SharpEdgeRecord(path=path, category=category, surface=surface, rationale=rationale)
 
 
 def write_static_hints(hints: list[StaticHint], path: Path) -> None:

@@ -23,7 +23,6 @@ finding. A role's ``path``/``function`` are provenance, never features.
 
 from __future__ import annotations
 
-import json
 import re
 from collections import Counter
 from collections.abc import Iterable, Mapping, Sequence
@@ -536,13 +535,9 @@ def _confidence(role: Role) -> float:
     return round(1.0 / (role.depth + 1), 6)
 
 
-def load_roles(path: Path) -> RoleSet:
-    return RoleSet.from_json(json.loads(Path(path).read_text(encoding="utf-8")))
-
-
 __all__ = [
     "CWE_OPERATION", "DEPENDENCY_DIRS", "MAX_DEPTH", "MODEL_ROLE_KINDS", "OPERATION_CWE", "ROLE_KINDS", "SOURCE_KIND", "VERSION",
     "Function", "Role", "RoleSet", "base_roles", "body_roles", "dependency_files", "from_model_roles", "functions_of",
-    "infer_for_checkout", "infer_wrappers", "language_key", "load_roles", "mentions", "origin_of", "parameters",
+    "infer_for_checkout", "infer_wrappers", "language_key", "mentions", "origin_of", "parameters",
     "vocabulary_overlay",
 ]  # fmt: skip

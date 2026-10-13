@@ -99,17 +99,6 @@ def uncovered_languages(
     return sorted(counts.items())
 
 
-def build_quick_hunter_prompt(target: FileTarget, source_excerpt: str) -> str:
-    return (
-        "Review this file for security-relevant issues. Return structured findings only when evidence exists.\n"
-        f"Path: {target.path}\n"
-        f"Language: {target.language}\n"
-        f"Tags: {', '.join(target.tags) or 'none'}\n"
-        "Source excerpt:\n"
-        f"{source_excerpt[:4000]}"
-    )
-
-
 def write_findings(findings: list[StaticFinding], path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     payload = {"findings": [asdict(finding) for finding in findings]}

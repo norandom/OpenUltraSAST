@@ -7,7 +7,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from openultrasast.learn.features import Vocabulary, build_for_scan, function_of, model_sinks_part, roles_part
+from openultrasast.learn.features import Vocabulary, function_of, model_sinks_part, roles_part
 from openultrasast.learn.roles import (
     RoleSet,
     base_roles,
@@ -166,22 +166,6 @@ def test_a_language_without_declarations_is_none_not_failed() -> None:
     assert source_part(lines, "c", "f").state == "none"
     assert roles_part(None, RoleSet(sources=("inferred_wrapper",)), "c").state == "none"
     assert source_part(["def g():", "    pass"], "python", "missing").state == "failed"
-
-
-def test_build_for_scan_records_the_roles_instrument(tmp_path: Path) -> None:
-    from openultrasast.findings import quick_scan_findings
-    from openultrasast.preprocess import preprocess_repository
-    from openultrasast.rank import rank_targets
-
-    _write(tmp_path, "app/one.py", "import os\n\n\ndef inner(value):\n    os.system(value)\n")
-    _, targets = preprocess_repository(tmp_path)
-    assert targets and (tmp_path / targets[0].path).stat().st_size > 0, "the fixture was read"
-    findings = quick_scan_findings(tmp_path, targets, rank_targets(targets))
-    records = build_for_scan(tmp_path, findings, None)
-    assert records and records[0]["instruments"]["roles"]["state"] == "ran"
-    assert records[0]["x"]["roles.sink_confidence"] == 1.0
-    off = build_for_scan(tmp_path, findings, None, roles=False)
-    assert off[0]["instruments"]["roles"]["state"] == "none" and off[0]["x"]["roles.sink_confidence"] is None
 
 
 # --- model roles: the plane task under a scripted client ----------------------------------------------------------

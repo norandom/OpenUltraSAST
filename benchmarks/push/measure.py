@@ -13,10 +13,10 @@ import time
 from dataclasses import replace
 from pathlib import Path
 
+from benchmarks.push.push_inputs import validate_manifest
 from openultrasast.model.contracts import QuestionIdentity
 from openultrasast.model.scan import ScanBudget
 from openultrasast.push.runner import _provenance
-from openultrasast.push_inputs import validate_manifest
 from openultrasast.push_scoring import freeze_profile, score
 from openultrasast.repos import checkout_path, load_repo_recipe
 
@@ -314,7 +314,7 @@ def main() -> int:
         "reason": "Qualification evidence run; independent eligibility and joint quality/warm-latency gates remain unmet.",
         "selection": args.selection,
         "analysis_deadline_seconds": args.deadline,
-        "recorded_cases": len(run["records"]),
+        "case_count": len(run["records"]),
         "declared_population": len(manifest["cases"]),
         "core_unchanged": True,
         "adapter_changes": [],

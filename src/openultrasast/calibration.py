@@ -48,16 +48,6 @@ class FalsePositiveLearning:
 
 
 @dataclass(frozen=True)
-class RankingMetrics:
-    tier: str
-    verified_findings: int
-    false_positives: int
-    time_to_verification_seconds: float
-    missed_fixture_vulnerabilities: int
-    false_positive_reasons: dict[str, int]
-
-
-@dataclass(frozen=True)
 class RankingCalibration:
     path: str
     original_priority: float
@@ -102,38 +92,6 @@ def learning_from_finding_outcome(
         reason=reason or _reason_from_outcome(outcome),
         evidence=evidence,
         scope=scope,
-    )
-
-
-def compute_ranking_metrics(events: list[dict[str, object]], *, tier: str) -> RankingMetrics:
-    verified = 0
-    false_positives = 0
-    reason_counts: dict[str, int] = {}
-    verification_times: list[float] = []
-    missed = 0
-    for event in events:
-        if event.get("tier") != tier:
-            continue
-        outcome = event.get("outcome")
-        if outcome == FindingOutcome.VERIFIED:
-            verified += 1
-        if outcome in _FALSE_POSITIVE_OUTCOMES:
-            false_positives += 1
-            reason = str(event.get("reason", FalsePositiveReason.UNVERIFIED))
-            reason_counts[reason] = reason_counts.get(reason, 0) + 1
-        duration = event.get("time_to_verification_seconds")
-        if isinstance(duration, int | float) and not isinstance(duration, bool):
-            verification_times.append(float(duration))
-        missed_value = event.get("missed_fixture_vulnerabilities", 0)
-        if isinstance(missed_value, int) and not isinstance(missed_value, bool):
-            missed += missed_value
-    return RankingMetrics(
-        tier=tier,
-        verified_findings=verified,
-        false_positives=false_positives,
-        time_to_verification_seconds=round(sum(verification_times) / len(verification_times), 2) if verification_times else 0.0,
-        missed_fixture_vulnerabilities=missed,
-        false_positive_reasons=dict(sorted(reason_counts.items())),
     )
 
 
