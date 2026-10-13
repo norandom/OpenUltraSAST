@@ -59,16 +59,16 @@
   - About one hundred advisories through the fix-site catalog and verifier, pilot repositories excluded, at least 40 accepted positives across two languages, 20 ordinary pushes per positive from the same repositories; the sourcing run is recorded
   - Done when the frozen training manifest lists its positives, negatives, languages and the pilot exclusion check
   - _Requirements: 2.1, 2.2, 2.3_
-- [ ] 4.2 Fold by repository and audit every annotation for leaks
+- [x] 4.2 Fold by repository and audit every annotation for leaks
   - Compile folds and held-out folds by repository group; the leak audit runs over every feature column and reports any that separates positives from negatives on its own
   - Done when the folds are disjoint by repository and the audit report lists each column with its separation score
   - _Requirements: 2.5, 2.6_
-- [ ] 4.3 Register and run a paired ablation
+- [x] 4.3 Register and run a paired ablation
   - A manifest fixes the table digest, the masks, the folds, the metric, the sample size, the budget and the decision rule before anything runs; each arm runs over the same changes with the same program and sampling
   - Results per arm carry the paired effect on search recall and suspicions per ordinary push, per family and pooled, with intervals from the repository-clustered bootstrap and a paired test
   - Done when an ablation over a fixture manifest with the scripted model yields two arms, the paired statistics, and the full recall-against-suspicions curve
   - _Requirements: 4.1, 4.2, 4.3, 4.7, 4.8_
-- [ ] 4.4 Build the importance table and apply the keep/drop rule
+- [x] 4.4 Build the importance table and apply the keep/drop rule
   - For every annotation, its effect when removed from the full set and when added to the baseline, with intervals and counts; an annotation stays only on a held-out effect whose interval excludes zero or when a kept annotation needs it; one that raises suspicions without raising recall is dropped and recorded
   - Done when the table is written for a fixture ablation and the rule's decisions match the fixture's expectations
   - _Requirements: 4.4, 4.5, 4.6_
