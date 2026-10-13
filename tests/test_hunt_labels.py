@@ -45,3 +45,22 @@ def test_positive_requires_traceable_reference():
     del change["case_id"]
     with pytest.raises(ValueError, match="case_id"):
         label_rows([], change)
+
+
+def test_every_verified_target_of_a_change_is_a_positive():
+    change = {
+        **positive(),
+        "case_id": "c1",
+        "targets": [
+            {"case_id": "c1", "path": "app.py", "function": "handle", "function_lines": [10, 20]},
+            {"case_id": "c2", "path": "lib.py", "function": "check", "function_lines": [3, 8]},
+        ],
+    }
+    rows = [
+        {"path": "app.py", "line": 12, "function": "handle"},
+        {"path": "lib.py", "line": 5, "function": "check"},
+        {"path": "lib.py", "line": 40, "function": "other"},
+    ]
+    out = label_rows(rows, change)
+    assert [r["label"] for r in out] == [1, 1, None]
+    assert out[1]["label_ref"] == "c2" and out[1]["fix_span"] == [3, 8] and out[2]["label_ref"] is None

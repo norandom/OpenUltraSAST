@@ -118,6 +118,7 @@ def hunt_change(
             try:
                 _git(repo_root, "worktree", "add", "--detach", str(root), change["head"])
                 added = True
+                _full_checkout(root)
                 if _git(root, "rev-parse", "HEAD").strip() != change["head"]:
                     raise InstrumentFailure("head_mismatch")
                 instrument["head_verified"] = True
@@ -158,6 +159,19 @@ def hunt_change(
         print(f"{change['id']}: instrument_failure ({reason})", file=sys.stderr, flush=True)
     record["seconds"] = round(time.monotonic() - started, 3)
     return record
+
+
+def _full_checkout(root: Path) -> None:
+    """Undo a sparse-checkout a worktree inherits from a clone whose working tree was emptied to save disk.
+
+    Without this every file read fails and the producers report an unread tree, which must never pass as a
+    clean result."""
+    try:
+        sparse = _git(root, "config", "--get", "core.sparseCheckout").strip()
+    except subprocess.CalledProcessError:
+        return
+    if sparse == "true":
+        _git(root, "sparse-checkout", "disable")
 
 
 def _function_at(root: Path, finding: Mapping[str, Any]) -> str | None:

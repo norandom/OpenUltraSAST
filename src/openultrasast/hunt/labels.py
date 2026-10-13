@@ -16,21 +16,30 @@ def label_rows(rows: Sequence[Mapping[str, Any]], change: Mapping[str, Any]) -> 
         raise ValueError("a label needs a traceable case_id")
     if kind == "vulnerability" and not all(change.get(k) for k in ("path", "function", "function_lines", "family")):
         raise ValueError("a vulnerability label needs its path, function, span and family")
+    # Every verified site of the change is a positive: the primary one and, when several accepted
+    # locations share the fix commit, each entry of ``targets``.
+    sites = []
+    if kind == "vulnerability":
+        sites.append((change["path"], change["function"], list(change["function_lines"]), change["case_id"]))
+        for target in change.get("targets", []):
+            sites.append((target["path"], target["function"], list(target["function_lines"]), target.get("case_id", change["case_id"])))
     result = []
     for row in rows:
         data = deepcopy(dict(row))
-        span = change.get("function_lines")
         function = row.get("function", row.get("feature.source.function"))
-        site = (
-            kind == "vulnerability"
-            and row.get("path") == change["path"]
-            and (function == change["function"] or (span[0] <= row.get("line", 0) <= span[1]))
+        matched = next(
+            (
+                site
+                for site in sites
+                if row.get("path") == site[0] and (function == site[1] or (site[2][0] <= row.get("line", 0) <= site[2][1]))
+            ),
+            None,
         )
         data.update(
-            label=1 if site else 0 if kind == "ordinary" else None,
-            family=change["family"] if site else None,
-            fix_span=list(span) if site else None,
-            label_ref=change["case_id"] if site or kind == "ordinary" else None,
+            label=1 if matched else 0 if kind == "ordinary" else None,
+            family=change["family"] if matched else None,
+            fix_span=matched[2] if matched else None,
+            label_ref=matched[3] if matched else change["case_id"] if kind == "ordinary" else None,
             verification=None,
         )
         result.append(data)
