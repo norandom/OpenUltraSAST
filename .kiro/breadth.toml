@@ -1,0 +1,251 @@
+# Breadth ledger: every spec and every top-level capability, with a status and the deletion that closes it.
+# Draft 2026-10-13 from the 22 spec.json files and the Pathfinder feature inventory (PATHFINDER-2026-10-13/).
+# Nothing here changes code; it records decisions so a gate can hold the line.
+#
+# status values
+#   active    = on one of the four lines in .kiro/steering/overview.md (2026-10-13); work may land
+#   done      = implemented and closed; the code it produced is owned by a capability below
+#   parked    = no work lands; scaffolding (stubs, unused flags, dead task modules) is removed; spec stays as history
+#   retiring  = the "closes" deletion is scheduled; the spec directory goes with it
+#   review    = Pathfinder 2026-10-13 decides between parked and retiring
+#
+# open_fronts (the weekly number) = specs with status active or review
+#                                   + capabilities with status review or retiring whose "closes" has not run.
+#
+# gate (to implement after the map is approved):
+#   fail when a spec.json reaches phase "tasks-generated" without an entry here;
+#   fail when a new directory under src/openultrasast/ lands without a [capability.*] entry;
+#   fail when an entry has status "retiring" for more than 14 days with its "closes" unexecuted.
+
+[meta]
+drafted = "2026-10-13"
+spec_count = 22
+open_fronts = 0   # filled by the gate script once it exists
+
+# ---------------------------------------------------------------- specs
+
+[spec.hunter-learning-loop]
+status = "active"
+line = "hunter-learning-loop"
+phase = "requirements-generated"
+owner = ["src/openultrasast/learn", "src/openultrasast/tool_hunter.py", "src/openultrasast/hunter_tools.py"]
+closes = "n/a (active)"
+
+[spec.pre-push-safety-net]
+status = "active"
+line = "pre-push-safety-net"
+phase = "implementation (77 of 87 tasks)"
+owner = ["src/openultrasast/push"]
+closes = "n/a (active)"
+
+[spec.search-with-proof]
+status = "active"
+line = "search-with-proof"
+phase = "tasks-generated (11 of 24 done)"
+owner = ["src/openultrasast/search", "src/openultrasast/sandbox"]
+closes = "n/a (active)"
+
+[spec.proof-arm-opencode]
+status = "active"
+line = "search-with-proof"
+phase = "brief"
+owner = ["src/openultrasast/search"]
+closes = "n/a (active)"
+
+[spec.engine-change-scoped-analysis]
+status = "active"
+line = "engine-change-scoped-analysis"
+phase = "brief"
+owner = ["src/openultrasast/cpg", "src/openultrasast/model", "src/openultrasast/semantic"]
+closes = "n/a (active)"
+
+[spec.valid-detection-benchmark]
+status = "active"
+line = "hunter-learning-loop"   # the benchmark every line is measured on
+phase = "tasks (18 of 24 done)"
+owner = ["benchmarks/valid", "benchmarks/unseen/replay.py", "benchmarks/unseen/score.py"]
+closes = "n/a (active)"
+
+[spec.learned-decision-engine]
+status = "parked"
+phase = "implementation (20 of 47 tasks)"
+owner = ["src/openultrasast/learn"]
+note = "the classifier it built is the second stage of the hunter arm and stays; new learn work goes through hunter-learning-loop, not here"
+closes = "mark remaining 27 tasks superseded by hunter-learning-loop; no code deletion"
+
+[spec.plane-on-kubernetes]
+status = "parked"
+phase = "implementation (14 of 43 tasks)"
+owner = ["src/openultrasast/plane"]
+note = "kube move paused after groups 1-2 (2026-10-02); the ax lane is blocked on the gVisor checkpoint path (operator-owned)"
+closes = "when the ax lane is restored: finish; otherwise delete plane/runner.py container path and ops/k8s"
+
+[spec.contributor-scan]
+status = "parked"
+phase = "implementation (27 of 51 tasks), paused since 2026-09-23"
+owner = ["src/openultrasast/model", "src/openultrasast/cpg"]
+closes = "fold the open census/family-context tasks into engine-change-scoped-analysis; close this spec"
+
+[spec.mcp-shift-left-agent]
+status = "parked"
+phase = "brief"
+owner = ["src/openultrasast/mcp.py", "src/openultrasast/skills.py", "src/openultrasast/index.py"]
+note = "follow-up to the pre-push hook; waits for a hook that catches something"
+closes = "if not started by 2026-12-01: delete mcp.py, skills.py, index.py and their tests"
+
+[spec.authorization-obligations]
+status = "review"
+phase = "tasks-generated (0 of 24)"
+owner = ["src/openultrasast/semantic/obligations"]
+note = "overview.md calls it superseded in practice by the dominance arbiter; obligations code exists and is called from scan (cli.py:1388)"
+closes = "Pathfinder U5 decides: keep obligations as an annotation producer for the hunter, or delete semantic/obligations and its tests"
+
+[spec.finding-feedback-loop]
+status = "retiring"
+phase = "design, dormant since 2026-09-09"
+owner = []
+closes = "delete .kiro/specs/finding-feedback-loop (no code was written)"
+
+[spec.reachability-flow-model]
+status = "retiring"
+phase = "tasks-generated (0 of 23), dormant"
+owner = []
+note = "largely delivered by adopting Joern (overview.md)"
+closes = "delete .kiro/specs/reachability-flow-model"
+
+[spec.flow-aware-ranking]
+status = "retiring"
+phase = "brief"
+owner = []
+closes = "delete .kiro/specs/flow-aware-ranking; keep the one sentence it owns in safety-net.md"
+
+[spec.zero-with-a-reason]
+status = "retiring"
+phase = "brief"
+owner = []
+note = "its idea (coverage gaps are reported, never a clean verdict) is already a product principle in safety-net.md"
+closes = "delete .kiro/specs/zero-with-a-reason"
+
+[spec.ir-consolidation]
+status = "retiring"
+phase = "brief"
+owner = []
+closes = "delete .kiro/specs/ir-consolidation"
+
+[spec.ai-service-plane]
+status = "done"
+owner = ["src/openultrasast/plane"]
+
+[spec.model-grounded-detection]
+status = "done"
+owner = ["src/openultrasast/model", "src/openultrasast/cpg"]
+
+[spec.pair-corpus-honesty]
+status = "done"
+owner = ["src/openultrasast/pairs.py", "benchmarks/pairs"]
+
+[spec.corpus-seeded-mechanisms]
+status = "done"
+owner = ["src/openultrasast/learn"]
+
+[spec.propose-adjudicate-prove]
+status = "done"
+owner = ["src/openultrasast/semantic", "src/openultrasast/ruleset"]
+
+[spec.tree-sitter-overlay-extra]
+status = "done"
+owner = ["src/openultrasast/semantic"]
+
+# ---------------------------------------------------------------- capabilities (top-level code)
+
+[capability.push]
+status = "active"
+spec = "pre-push-safety-net"
+lines = 5074
+
+[capability.engine]
+status = "active"
+spec = "engine-change-scoped-analysis"
+modules = ["cpg", "model (minus endpoint.py)"]
+lines = 7764
+
+[capability.semantic]
+status = "active"
+spec = "engine-change-scoped-analysis"
+modules = ["semantic", "complexity"]
+lines = 4301
+note = "complexity/ hotspots feed the hunter; obligations under review (see spec.authorization-obligations)"
+
+[capability.llm-hunter-and-client]
+status = "active"
+spec = "hunter-learning-loop"
+modules = ["tool_hunter.py", "hunter_tools.py", "provider/openrouter.py", "model/endpoint.py", "plane/budget.py"]
+lines = 1700
+note = "Pathfinder U6 counts the chat-client classes; expected outcome: one client protocol, one metering path"
+
+[capability.learn]
+status = "active"
+spec = "hunter-learning-loop"
+modules = ["learn", "plane/memory.py", "plane/tasks (fact producers)"]
+lines = 11350
+
+[capability.search-with-proof]
+status = "active"
+spec = "search-with-proof"
+modules = ["search", "sandbox"]
+lines = 4803
+
+[capability.core]
+status = "active"
+modules = ["cli.py", "config.py", "contracts.py", "preprocess.py", "findings.py", "rank.py", "mapping.py", "ruleset", "policy", "reports.py", "stages.py", "run.py", "provenance.py", "profiling.py"]
+note = "hunter.py is the regex quick-rule pool and should be renamed; harness.py processor machinery is unreachable (U1)"
+
+[capability.pairs-and-benchmarks]
+status = "active"
+spec = "valid-detection-benchmark"
+modules = ["pairs.py", "benchmark.py", "repos.py"]
+note = "pairs.py label functions feed learn/labels.py; the `ousast pairs` CLI surface is under review (U10)"
+
+[capability.plane-executor]
+status = "review"
+spec = "plane-on-kubernetes"
+modules = ["plane (reconciler, runner, generate, manifests, harvest, egress, delivery, router, doctor, profile, engine_alerts, workspaces)"]
+lines = 4885
+closes = "Pathfinder U8 lists which modules only the retired HarnessX loop used (engine_alerts, harvest, workspaces, profile are the suspects); delete those"
+
+[capability.regress]
+status = "review"
+modules = ["regress"]
+lines = 549
+closes = "Pathfinder U9: if search/ covers the triggerable verdict, delete regress/ and the deep-mode REGRESS branch in cli.py:839-880"
+
+[capability.improve]
+status = "retiring"
+modules = ["improve"]
+lines = 1175
+note = "HarnessX-era improve lever; no active spec names it"
+closes = "delete improve/, `ousast improve` (cli.py:237, 433, 1106), plane/tasks/loop.py lazy imports, tests/test_cli_improve.py, tests/test_improve_*.py"
+
+[capability.scan-extras]
+status = "review"
+modules = ["fusion.py", "verification.py", "calibration.py", "scoring", "harness.py (processors)"]
+closes = "U1 found fusion decisions never reach findings or score, verification runs before MAP, processors unreachable; decide keep-and-fix or delete per module"
+
+[capability.mcp-and-skills]
+status = "parked"
+spec = "mcp-shift-left-agent"
+modules = ["mcp.py", "skills.py", "index.py"]
+lines = 830
+closes = "see spec.mcp-shift-left-agent"
+
+[capability.gates]
+status = "review"
+modules = ["gate.py", "map_gate.py", "pair_gate.py"]
+lines = 428
+closes = "U10: keep gate.py (CI + plane loop); delete map_gate.py and pair_gate.py if CI does not need them"
+
+[capability.push-evaluation-instruments]
+status = "review"
+modules = ["push_inputs.py", "push_scoring.py"]
+lines = 462
+closes = "U3: move under benchmarks/push or delete if only tests use them"
