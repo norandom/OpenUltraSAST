@@ -68,6 +68,18 @@
   - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 6.2, 7.1, 8.1, 8.2_
   - _Depends: 1.1, 2.1, 3.1, 3.2_
 
+- [ ] 4.2 `semantic/obligations/trace.py`: `Guard`, `Hop`, `Trace`, `text()` and `record()`; argument provenance through the IR's binds within each hop, forwarded along the path
+  - Done when `tests/test_obligation_trace.py` serialises a three-hop fixture deterministically (text and JSON),
+    traces an argument from an entry parameter to `request_input`, from a literal to `constant`, from an identity
+    source to `authenticated_context`, and marks an unfollowable value `unknown`
+  - _Requirements: 9.1, 9.3, 9.4, 9.5_
+  - _Boundary: obligations.trace_
+- [ ] 4.3 The prover emits a trace per examined pair (discharged and unguarded), the record and the defect carry them
+  - Done when `tests/test_hunt_prover.py` shows a discharged pair and an unguarded pair each produce one trace with
+    the verdict, the unguarded finding references its trace, and `prover_arm` records carry `traces`
+  - _Requirements: 9.1, 9.2, 9.5, 9.6_
+  - _Depends: 4.2_
+
 - [ ] 5. The arm
 - [x] 5.1 `benchmarks/valid/prover_arm.py`: run over a pool slice with checkpoints, summarise with the valid metrics
   - Record envelope copied from `hunter_arm`; instrument fields; resume; `summary.json` with recall (pushes and

@@ -196,6 +196,30 @@ framework id; default None keeps today's behaviour). The smoke run of delivery A
 Jenkins fixes are form-validation and list-filling web methods whose body calls no listed operation; the
 method is the operation. Jenkins documents the rule (form validation methods must check a permission).
 
+### trace: the ordered serialisation (owned here)
+```python
+@dataclass(frozen=True)
+class Guard: kind: str; scope: str; line: int | None; provenance: str; fact_id: str
+@dataclass(frozen=True)
+class Hop: function: str; call_line: int | None; guards_before_call: tuple[Guard, ...]; forwarded: tuple[str, ...]
+@dataclass(frozen=True)
+class Trace:
+    entry_kind: str; boundary: str; access: str; parameters: tuple[str, ...]
+    hops: tuple[Hop, ...]                     # entry first; the last hop holds the operation
+    operation_kind: str; fact_id: str; operation_line: int
+    arguments: tuple[tuple[str, str], ...]   # (argument text, provenance) in call order
+    guards_after: tuple[Guard, ...]
+    requires: tuple[str, ...]; dominating: tuple[str, ...]; missing: str | None
+    def text(self) -> str: ...               # one component per line, in order
+    def record(self) -> dict: ...            # canonical JSON
+```
+Argument provenance: within each hop's function, follow the IR's binds backwards from the operation's argument
+identifiers to the function's parameters or to a request-source fact (`request_input`), to an identity source
+(`authenticated_context`), or to a literal (`constant`); a parameter that the previous hop's call site fills
+from its own request-derived values keeps `request_input`; anything the walk cannot follow is `unknown`. No
+inter-procedural dataflow beyond the call sites on the path. The trace never carries language, framework,
+repository, size or count fields.
+
 ### obligations.enforcement
 ```python
 def witnesses(*, root: Path, texts: Mapping[str, str], entries: Sequence[EntryPointRecord], language: str) -> list[Discharge]

@@ -180,3 +180,27 @@ can be proved or dismissed without re-deriving it.
 1. Each finding shall carry the entry point record (kind, path, line, evidence), the hop list, the operation
    (id, kind, calls matched, line) and the missing discharger kind.
 2. The finding id shall be `obligation:<operation kind>:<path>:<line>:<missing>` as the checker already emits.
+
+### Requirement 9: The ordered trace is the prover's output for every examined pair
+**Objective:** As the maintainer, I want every (entry, operation) pair the prover examined serialised as an ordered
+trace with its verdict, so that a decision model sees the security-relevant structure and nothing else.
+
+#### Acceptance Criteria
+1. For every path record and every protected operation at its end, the prover shall emit one trace: the entry
+   (kind, trust boundary, declared access, parameter names), each hop in order (function, the call line, the
+   guards that dominate the call in that function with their kind, scope, line and provenance, the entry
+   parameters and request-derived values forwarded through the call), the operation (kind, fact id, line, the
+   provenance of each argument: request_input, authenticated_context, constant, unknown), the guards after the
+   operation, and the verdict (required kinds, dominating kinds, missing kind or discharged).
+2. The prover shall emit traces for discharged pairs and for unguarded pairs alike, and shall list unreached
+   targets with their reason, so that negatives carry the same structure as positives.
+3. The argument provenance shall be traced within each hop's function through the IR's binds from the entry's
+   parameters and the request-source facts, forwarded through the call sites on the path; a value the trace
+   cannot follow shall be `unknown`, never `constant`.
+4. The trace shall carry no language, framework name, repository name, file size, line count, or any count over
+   the function or the repository: only the ordered components above.
+5. The prover-arm record shall carry the traces, and a trace shall serialise to one canonical text form (one
+   component per line, in order) and one canonical JSON form, both deterministic.
+6. The hunt defect of an unguarded pair shall reference its trace, so the proof arm and the pre-push admission
+   can show the path.
+
