@@ -148,3 +148,17 @@ def test_facts_for_reuses_supplied_product_files_and_texts(tmp_path, monkeypatch
     (tmp_path / "other.py").write_text("")  # the supplied text, not the disk, is what callers_of reads
     facts = source.facts_for(tmp_path, "app.py", 2, entry_points=[], files=["app.py", "other.py"], texts=texts)
     assert facts.function == "handler" and facts.callers == (("other.py", 5),)
+
+
+def test_call_index_gives_the_same_call_sites_and_is_reused_across_names(tmp_path):
+    from openultrasast import source
+
+    text = "def handler(value):\n    return value\n\n\ndef run():\n    x = handler(1)  # handler\n    return other(x)\n"
+    index = source.code_index(text)
+    assert source.call_sites(text, ("handler", "other")) == source.call_sites("", ("handler", "other"), index=index)
+    assert [call.line for call in source.call_sites("", ("handler",), index=index)] == [6]
+    (tmp_path / "other.py").write_text(text)
+    cache: dict = {}
+    assert source.callers_of(tmp_path, "handler", files=["other.py"], index=cache) == (("other.py", 6),)
+    (tmp_path / "other.py").write_text("")  # the cached index, not the disk, answers the second name
+    assert source.callers_of(tmp_path, "other", files=["other.py"], index=cache) == (("other.py", 7),)

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import re
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Iterable, Mapping, MutableMapping, Sequence
 from pathlib import Path
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, NamedTuple
@@ -389,19 +389,37 @@ def spans_named(ranges: Sequence[FunctionRange], name: str) -> tuple[tuple[int, 
     return tuple((item.start, item.end) for item in ranges if item.name == name)
 
 
-def call_sites(text: str, names: Iterable[str]) -> tuple[CallSite, ...]:
-    """Return calls in line order, excluding declarations and comments, once per name and line."""
-    wanted = sorted(set(names) - RESERVED_FUNCTION_LABELS - {MODULE_FUNCTION}, key=lambda name: (-len(name), name))
-    if not wanted:
-        return ()
-    token = re.compile(r"(?<![A-Za-z0-9_$])(" + "|".join(re.escape(name) for name in wanted) + r")\s*\(")
-    result = []
+class CodeLine(NamedTuple):
+    """One code line with the function names it declares: the part of a call search that is the same for every name."""
+
+    number: int
+    text: str
+    declared: frozenset[str]
+
+
+def code_index(text: str) -> tuple[CodeLine, ...]:
+    """Prepare a file for repeated call searches; call_sites over many names of one file pays the declaration scan once."""
+    out = []
     for number, line in enumerate(_code_lines(text), start=1):
         declared = {
             next((group for group in match.groups() if group), "") for pattern in DECLARATION.values() if (match := pattern.match(line))
         }
         if "{" in line or "=>" in line:
             declared.add(declarator_name(line))
+        out.append(CodeLine(number, line, frozenset(name for name in declared if name)))
+    return tuple(out)
+
+
+def call_sites(text: str, names: Iterable[str], *, index: Sequence[CodeLine] | None = None) -> tuple[CallSite, ...]:
+    """Return calls in line order, excluding declarations and comments, once per name and line.
+
+    ``index`` is ``code_index(text)`` prepared by the caller; without it the file is scanned here."""
+    wanted = sorted(set(names) - RESERVED_FUNCTION_LABELS - {MODULE_FUNCTION}, key=lambda name: (-len(name), name))
+    if not wanted:
+        return ()
+    token = re.compile(r"(?<![A-Za-z0-9_$])(" + "|".join(re.escape(name) for name in wanted) + r")\s*\(")
+    result = []
+    for number, line, declared in index if index is not None else code_index(text):
         seen = set()
         for match in token.finditer(line):
             name = match.group(1)
@@ -420,16 +438,31 @@ def _read_source(root: Path, path: str) -> str:
     return resolved.read_text(encoding="utf-8", errors="replace")
 
 
-def callers_of(root: Path, name: str, *, files: Iterable[str], texts: Mapping[str, str] | None = None) -> tuple[tuple[str, int], ...]:
+def callers_of(
+    root: Path,
+    name: str,
+    *,
+    files: Iterable[str],
+    texts: Mapping[str, str] | None = None,
+    index: MutableMapping[str, tuple[CodeLine, ...]] | None = None,
+) -> tuple[tuple[str, int], ...]:
     """Return sorted call locations from the supplied repository-relative product files.
 
-    ``texts`` holds file contents already read by the caller; files absent from it are read here."""
+    ``texts`` holds file contents already read by the caller; files absent from it are read here. ``index`` is a
+    cache of prepared files the caller keeps across calls (one checkout, many names); it is filled on first use."""
     root = Path(root)
 
     def text_of(path: str) -> str:
         return texts[path] if texts is not None and path in texts else _read_source(root, path)
 
-    return tuple((path, call.line) for path in sorted(set(files)) for call in call_sites(text_of(path), (name,)))
+    def index_of(path: str) -> tuple[CodeLine, ...]:
+        if index is None:
+            return code_index(text_of(path))
+        if path not in index:
+            index[path] = code_index(text_of(path))
+        return index[path]
+
+    return tuple((path, call.line) for path in sorted(set(files)) for call in call_sites("", (name,), index=index_of(path)))
 
 
 def facts_for(
@@ -440,6 +473,7 @@ def facts_for(
     entry_points: Sequence[EntryPointRecord] | None = None,
     files: Sequence[str] | None = None,
     texts: Mapping[str, str] | None = None,
+    index: MutableMapping[str, tuple[CodeLine, ...]] | None = None,
 ) -> SourceFacts:
     """Compute repository facts at a line; supplied entry points, product files and texts avoid repeated work.
 
@@ -456,7 +490,7 @@ def facts_for(
 
         entry_points = analyze_entry_points(root, [build_file_target(root, root / file) for file in files])
     return SourceFacts(
-        language, function, bounds(spans, function), callers_of(root, function, files=files, texts=texts), tuple(entry_points)
+        language, function, bounds(spans, function), callers_of(root, function, files=files, texts=texts, index=index), tuple(entry_points)
     )
 
 

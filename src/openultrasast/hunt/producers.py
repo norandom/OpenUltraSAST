@@ -56,6 +56,7 @@ class Context:
     spans: dict[str, tuple[source.FunctionRange, ...]] = field(default_factory=dict)
     range_errors: dict[str, str] = field(default_factory=dict)
     irs: dict[str, FileIR] = field(default_factory=dict)
+    call_index: dict[str, tuple[source.CodeLine, ...]] = field(default_factory=dict)
     diff_bytes: int = 0
 
     @cached_property
@@ -211,7 +212,9 @@ def _source(root: Path, change: Change, path: str, line: int, ctx: Context) -> d
     ctx.read(path)
     if path in ctx.range_errors:
         raise _Absent(ctx.range_errors[path])
-    facts = source.facts_for(root, path, line, entry_points=ctx.entry_points, files=ctx.product_files, texts=ctx.texts)
+    facts = source.facts_for(
+        root, path, line, entry_points=ctx.entry_points, files=ctx.product_files, texts=ctx.texts, index=ctx.call_index
+    )
     # Select the occurrence at this line when several methods share a name.
     spans = [r for r in ctx.ranges(path) if r.name == facts.function and r.start <= line <= r.end]
     span = min(spans, key=lambda r: r.end - r.start) if spans else None
