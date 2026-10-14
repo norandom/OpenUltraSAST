@@ -30,8 +30,9 @@ runner that scores it with the valid-benchmark metrics.
 - Operation and discharger rows added to `ruleset/obligations/{java,php,python,typescript}.toml`.
 
 ### Out of Boundary
-- The facts loader and schema, `OrderDominance`, and the checker's existing decision rules (owned by
-  `authorization-obligations`). One opt-in extension of the checker is allowed and owned here: the
+- The facts loader's existing fields, `OrderDominance`, and the checker's existing decision rules (owned by
+  `authorization-obligations`). Two extensions are allowed and owned here: the handler-named operation fields
+  (`handlers`, `framework`) in the facts, and the
   `assume_entries_protected` keyword and the `unguarded_path` label (see the checker block below); default off,
   every existing checker test unchanged.
 - The feature table, the DSPy and hunter arms, the ablation (`hunter-learning-loop`).
@@ -184,6 +185,16 @@ the keyword on, `_finding` labels such a case `unguarded_path` when the path's e
 access is not `public` and the route is not declared public; evidence carries the entry's kind and evidence
 strings and the sentence "no declared policy clause and no sibling norm; the prover assumes a recognised entry is
 protected". `findings_to_static` explains the label like the others. `LABELS` gains the value.
+
+### facts extension: handler-named operations (owned here, schema change)
+`[[operation]]` rows gain two optional fields: `handlers` (a list of regular expressions over the function name)
+and `framework` (a recogniser id the mapper's evidence names: `stapler`, `tornado`, `remix`, `jetty`,
+`symfony`, `laravel`). A row with `handlers` and no `calls` is a handler-named operation: `find_operations`
+yields it at the function's declaration line for every function whose name matches and that the caller lists as
+a recognised entry of that framework (new keyword `handlers_of: Mapping[str, str] | None`, function name to
+framework id; default None keeps today's behaviour). The smoke run of delivery A showed why: 15 of the 17
+Jenkins fixes are form-validation and list-filling web methods whose body calls no listed operation; the
+method is the operation. Jenkins documents the rule (form validation methods must check a permission).
 
 ### obligations.enforcement
 ```python

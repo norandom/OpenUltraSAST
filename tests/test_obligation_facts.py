@@ -91,3 +91,27 @@ def test_java_php_facts_resolve_operations_and_dischargers(language, text, opera
     assert ir.parse_ok
     assert operation in {op.fact_id for op in find_operations(ir, facts, text=text)}
     assert discharger in {d.fact_id for d in find_discharges(ir, facts, load_facts().for_language(language), text=text)}
+
+
+def test_delivery_a_java_operations_and_dischargers_resolve():
+    from openultrasast.semantic.obligations.facts import load_obligation_facts
+
+    facts = load_obligation_facts().for_language("java")
+    operations = {call: fact for fact in facts.operations for call in fact.calls}
+    dischargers = {call: fact for fact in facts.dischargers for call in fact.calls}
+    for call in (
+        "lookupCredentials",
+        "lookupCredentialsInItem",
+        "getCredentialsFromId",
+        "testConnection",
+        "verifyCredentials",
+        "listPropertiesOfSecrets",
+        "openConnection",
+        "connect",
+        "publish",
+        "getItemByFullName",
+        "updateByXml",
+    ):
+        assert "path_guard" in operations[call].requires
+    assert dischargers["checkPermission"].kind == dischargers["checkAnyPermission"].kind == "path_guard"
+    assert dischargers["hasPermission"].kind == "ownership_check"

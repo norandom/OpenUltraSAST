@@ -82,6 +82,11 @@ so that a guarded route is not reported because its handler body shows no check.
    overrides `get_current_user` and checks it before the operation, the prover shall treat that as a path guard.
 6. Where a declared policy marks a route public, the prover shall suppress `path_guard` findings for it and
    keep `ownership_check` findings, as the checker already does.
+8. Where a framework's security model makes the web method itself the protected operation (Jenkins form
+   validation and list-filling methods `doCheck*`, `doFill*Items`, `doTest*`, `doValidate*`, `doVerify*`, which
+   Jenkins requires to check a permission; Tornado handler methods; a Remix action), the facts shall be able to
+   name the obligation by handler name pattern and framework, and the prover shall apply such an operation only
+   to functions the mapper recognised as entries of that framework, at the method's declaration line.
 7. The prover shall write every enforcement fact as closed data in the obligation facts files, with the header
    naming the clones and references checked, and shall never add a name that does not occur in the checked code
    or the framework's documentation.

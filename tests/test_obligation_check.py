@@ -206,3 +206,34 @@ def test_a_malformed_store_row_is_a_degradation_not_a_crash() -> None:
     (degradation,) = [d for d in result.degradations if d["reason"] == "obligations_store_row_invalid"]
     assert degradation["records"] == ["corpus:bad", "corpus:worse"]
     assert all(f.known_fix is None for f in result.findings)
+
+
+def test_recognised_entry_premise_is_opt_in_and_never_applies_to_public():
+    from dataclasses import replace
+
+    from openultrasast.semantic.obligations import load_obligation_facts
+    from openultrasast.semantic.obligations.check import check_obligations, findings_to_static
+    from openultrasast.semantic.obligations.dominance import OrderDominance
+
+    text = "def exposed(title):\n    return Book.query.filter_by(book_title=title).first()\n"
+    entry = replace(_entry("exposed", 1, 2, "authenticated", ["framework entry"]), access_level="unknown")
+    kwargs = dict(
+        irs={"app.py": (parse_file("app.py", text, "python"), text)},
+        entries=[entry],
+        facts=load_obligation_facts(),
+        flow_facts=load_facts(),
+        policy=None,
+        paths=[_Path((("app.py::exposed", 1),))],
+        dominance=OrderDominance({"app.py": text}),
+        store_shapes=(),
+        min_siblings=3,
+    )
+    assert check_obligations(**kwargs).findings == ()
+    result = check_obligations(**kwargs, assume_entries_protected=True)
+    (finding,) = result.findings
+    assert finding.label == "unguarded_path"
+    assert "no declared policy clause and no sibling norm" in "; ".join(finding.evidence)
+    assert "framework entry" in "; ".join(finding.evidence)
+    assert "unguarded_path" in findings_to_static(result)[0].rationale
+    kwargs["entries"] = [replace(entry, access_level="public")]
+    assert check_obligations(**kwargs, assume_entries_protected=True).findings == ()

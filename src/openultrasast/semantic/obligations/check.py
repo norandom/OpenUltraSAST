@@ -4,7 +4,8 @@ An obligated operation is reported when it is reached (a path record ends at it,
 an entry point) and none of the dischargers it accepts dominates it. The label says why the obligation exists: a declared
 policy clause (``declared_policy_violation``), the practice of sibling handlers (``consistency_violation``), or, in the
 degraded mode without path records, the operation fact alone (``function_local``). With path records and neither a clause
-nor a sibling norm, nothing justifies the obligation and nothing is reported (design gating 3). Findings are ``suspicion``;
+nor a sibling norm, nothing is reported unless the caller opts into the recognised-entry premise (``unguarded_path``).
+Findings are ``suspicion``;
 the obligation, the missing discharger, the evidence and the known fix travel as data.
 """
 
@@ -12,7 +13,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 from ...findings import StaticFinding
 from ..facts import SemanticFacts
@@ -23,7 +24,7 @@ from .operations import Discharge, Operation, find_discharges, find_operations, 
 from .policy import DeclaredPolicy
 from .siblings import Anomaly, SiblingSet, consistency_anomalies, sibling_sets
 
-LABELS = ("declared_policy_violation", "consistency_violation", "function_local")
+LABELS = ("declared_policy_violation", "consistency_violation", "function_local", "unguarded_path")
 _ROUTE_LITERAL = re.compile(r"@\w[\w.]*\.(?:route|get|post|put|delete|patch|api_route|websocket)\(\s*['\"]([^'\"]+)['\"]")
 
 
@@ -64,6 +65,7 @@ def check_obligations(
     store_shapes: Sequence[object],
     min_siblings: int,
     extra_witnesses: Sequence[Discharge] = (),
+    assume_entries_protected: bool = False,
 ) -> ObligationResult:
     operations: list[Operation] = []
     witnesses: list[Discharge] = list(extra_witnesses)
@@ -85,6 +87,7 @@ def check_obligations(
     anomalies, under = consistency_anomalies(sets, min_siblings=min_siblings)
     anomaly_index: dict[tuple[str, str], Anomaly] = {(a.handler, a.missing): a for a in anomalies}
     entry_handlers = {f"{getattr(e, 'path', '')}::{getattr(e, 'function_name', '')}" for e in entries}
+    entry_index = {f"{getattr(e, 'path', '')}::{getattr(e, 'function_name', '')}": e for e in entries}
     reached = _reached(operations, paths, entry_handlers)
     if not paths and operations:
         for language in sorted({irs[op.path][0].language for op in operations if op.path in irs}):
@@ -103,9 +106,18 @@ def check_obligations(
         degradations.append({"stage": "obligations", "reason": "obligations_store_row_invalid", "records": list(invalid_rows)})
     for operation, path_record in reached:
         handler = f"{operation.path}::{operation.function}"
+        hops = getattr(path_record, "hops", ())
+        first = hops[0][0] if hops and isinstance(hops[0], (tuple, list)) else str(hops[0]) if hops else ""
+        entry = entry_index.get(str(first))
         route = _route_path(operation, texts.get(operation.path, ""))
+        if assume_entries_protected and entry is not None and route is None:
+            route = str(getattr(entry, "name", "")) or None
         declared_access = policy.route_access(route) if policy is not None and route else None
-        same = [w for w in witnesses if _relevant(w, operation)]
+        same = [
+            w
+            for w in witnesses
+            if _relevant(w, operation) or (assume_entries_protected and _on_caller_hop(w, path_record, operation, dominance))
+        ]
         dominated_kinds = {w.kind for w in same if valid_witness(w) and dominance.dominates(w, operation, path_record)}
         # (a) the operation's own obligation: discharged when any accepted discharger dominates. A declared public route
         # waives the path guard here too (Req 4.4), so the operation falls through to the next kind it accepts.
@@ -116,7 +128,17 @@ def check_obligations(
                 required[0],
             )
             finding = _finding(
-                operation, missing, same, anomaly_index.get((handler, missing)), policy, route, declared_access, store_shapes, paths, facts
+                operation,
+                missing,
+                same,
+                anomaly_index.get((handler, missing)),
+                policy,
+                route,
+                declared_access,
+                store_shapes,
+                paths,
+                facts,
+                entry if assume_entries_protected else None,
             )
             if finding is not None:
                 findings.append(finding)
@@ -127,7 +149,17 @@ def check_obligations(
             if kind == "path_guard" and declared_access == "public":
                 continue  # declared public: the guard obligation is waived, the identity one is not
             finding = _finding(
-                operation, kind, same, anomaly_index[(handler, kind)], policy, route, declared_access, store_shapes, paths, facts
+                operation,
+                kind,
+                same,
+                anomaly_index[(handler, kind)],
+                policy,
+                route,
+                declared_access,
+                store_shapes,
+                paths,
+                facts,
+                entry if assume_entries_protected else None,
             )
             if finding is not None:
                 findings.append(finding)
@@ -152,6 +184,8 @@ def findings_to_static(result: ObligationResult) -> list[StaticFinding]:
         if finding.known_fix:
             tags.append(f"mechanism:{finding.known_fix}")
         why = "; ".join(finding.evidence) if finding.evidence else "the operation fact alone (function-local mode)"
+        if finding.label == "unguarded_path":
+            why = "unguarded path from a recognised protected entry; " + why
         resource = op.resource or "a resource"
         provenance = f" (a {finding.missing} is present but bound from {finding.provenance})" if finding.provenance else ""
         statics.append(
@@ -190,6 +224,7 @@ def _finding(
     store_shapes: Sequence[object],
     paths: Sequence[object],
     facts: ObligationFacts,
+    assumed_entry: object | None = None,
 ) -> ObligationFinding | None:
     wrong = next((w for w in same if w.kind == missing and not valid_witness(w)), None)
     declared = policy.resources.get(operation.resource or "") if policy is not None else None
@@ -211,6 +246,16 @@ def _finding(
     elif anomaly is not None:
         label = "consistency_violation"
         evidence = anomaly.siblings + anomaly.evidence[len(anomaly.siblings) :]
+    elif (
+        paths and assumed_entry is not None and getattr(assumed_entry, "access_level", "public") != "public" and declared_access != "public"
+    ):
+        label = "unguarded_path"
+        evidence = (
+            f"entry {getattr(assumed_entry, 'kind', '')}: {getattr(assumed_entry, 'path', '')}::"
+            f"{getattr(assumed_entry, 'function_name', '')}",
+            *(str(item) for item in getattr(assumed_entry, "access_evidence", ())),
+            "no declared policy clause and no sibling norm; the prover assumes a recognised entry is protected",
+        )
     elif paths:
         return None  # path-aware mode: without a clause or a sibling norm, nothing justifies the obligation (gating 3)
     else:
@@ -243,6 +288,20 @@ def _reached(operations: Sequence[Operation], paths: Sequence[object], entry_han
                 reached.append((op, record))
                 break
     return reached
+
+
+def _on_caller_hop(witness: Discharge, path_record: object | None, operation: Operation, dominance: Dominance) -> bool:
+    """Use the same dominance contract at the caller's outgoing call in opt-in mode."""
+    for node, call_line in getattr(path_record, "hops", ())[:-1]:
+        if node != f"{witness.path}::{witness.function}":
+            continue
+        if witness.scope in {"router", "decorator"}:
+            return True
+        if witness.kind not in {"path_guard", "ownership_check"} or call_line is None:
+            return False
+        caller_operation = replace(operation, path=witness.path, function=witness.function, line=call_line)
+        return dominance.dominates(witness, caller_operation, None)
+    return False
 
 
 def _relevant(witness: Discharge, operation: Operation) -> bool:

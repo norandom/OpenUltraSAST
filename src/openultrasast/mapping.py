@@ -13,6 +13,7 @@ from .preprocess import FileTarget
 MappingKind = Literal["semgrep", "codeql", "differential", "sharp_edge"]
 AccessLevel = Literal[
     "public",
+    "unknown",
     "authenticated",
     "role-restricted",
     "contract-only/callback",
@@ -95,14 +96,17 @@ def attach_static_hints(targets: list[FileTarget], hints: list[StaticHint]) -> l
     return [replace(target, static_hints=hints_by_path.get(target.path, target.static_hints)) for target in targets]
 
 
-def analyze_entry_points(root: Path, targets: list[FileTarget]) -> list[EntryPointRecord]:
+def analyze_entry_points(
+    root: Path, targets: list[FileTarget], *, texts: Mapping[str, str] | None = None, include_manifests: bool = True
+) -> list[EntryPointRecord]:
     records: list[EntryPointRecord] = []
     for target in targets:
         path = root / target.path
-        text = path.read_text(errors="ignore")
+        text = texts[target.path] if texts is not None else path.read_text(errors="ignore")
         records.extend(_language_entry_points(target, text))
         records.extend(_tag_entry_points(target))
-    records.extend(_route_manifest_entry_points(root, targets))
+    if include_manifests:
+        records.extend(_route_manifest_entry_points(root, targets))
     return sorted(records, key=lambda item: (item.path, item.line is None, item.line or 0, item.name))
 
 
@@ -171,6 +175,8 @@ def write_entry_points(entry_points: list[EntryPointRecord], path: Path) -> None
 
 
 def _language_entry_points(target: FileTarget, text: str) -> list[EntryPointRecord]:
+    if target.language == "java":
+        return _stapler_entries(target, text) + _jetty_entries(target, text)
     if target.language == "python":
         return _python_entry_points(target, text)
     if target.language in {"javascript", "typescript"}:
@@ -182,6 +188,105 @@ def _language_entry_points(target: FileTarget, text: str) -> list[EntryPointReco
     if target.language == "php":
         return _php_entry_points(target, text)
     return []
+
+
+def _java_methods(target: FileTarget, text: str) -> list[tuple[object, str, str]]:
+    """Use the CST to keep class declarations, parameters and method bodies separate."""
+    from .semantic.extra import grammar_for
+
+    grammar = grammar_for("java")
+    if grammar is None:
+        return []
+    from tree_sitter import Parser
+
+    data = text.encode("utf-8")
+    tree = Parser(grammar).parse(data)
+    if tree.root_node.has_error:
+        return []
+    methods: list[tuple[object, str, str]] = []
+
+    def walk(node: Any, owner: str = "") -> None:
+        if node.type in {"class_declaration", "interface_declaration"}:
+            body = node.child_by_field_name("body")
+            owner = data[node.start_byte : body.start_byte if body else node.end_byte].decode("utf-8")
+        if node.type == "method_declaration":
+            body = node.child_by_field_name("body")
+            if body is not None:
+                header = data[node.start_byte : body.start_byte].decode("utf-8")
+                methods.append((node, owner, header))
+            return
+        for child in node.named_children:
+            walk(child, owner)
+
+    walk(tree.root_node)
+    return methods
+
+
+def _stapler_entries(target: FileTarget, text: str) -> list[EntryPointRecord]:
+    exposed = re.compile(
+        r"\b(?:extends|implements)\b[^\{]*\b(?:Descriptor|Action|RootAction|Plugin|UnprotectedRootAction|AbstractDescribableImpl)\b"
+    )
+    parameters = re.compile(r"\b(?:StaplerRequest2?|StaplerResponse2?)\b|@(?:QueryParameter|AncestorInPath)\b")
+    records = []
+    for raw_node, owner, header in _java_methods(target, text):
+        node = cast(Any, raw_node)
+        name_node = node.child_by_field_name("name")
+        name = name_node.text.decode("utf-8")
+        params = node.child_by_field_name("parameters").text.decode("utf-8")
+        class_match = exposed.search(owner)
+        param_match = parameters.search(params)
+        if not re.search(r"\bpublic\b", header) or not re.match(r"^do[A-Z]", name) or not (class_match or param_match):
+            continue
+        public = bool(re.search(r"\bimplements\b[^\{]*\bUnprotectedRootAction\b", owner))
+        evidence = ["Stapler public do method"]
+        if class_match:
+            evidence.append(class_match.group())
+        if param_match:
+            evidence.append("Stapler parameter: " + param_match.group())
+        records.append(
+            _entry(
+                target,
+                node.start_point[0] + 1,
+                node.end_point[0] + 1,
+                name,
+                name,
+                "route",
+                "public" if public else "unknown",
+                "http_request",
+                evidence,
+                [],
+                access_declared=public,
+            )
+        )
+    return records
+
+
+def _jetty_entries(target: FileTarget, text: str) -> list[EntryPointRecord]:
+    records = []
+    for raw_node, owner, header in _java_methods(target, text):
+        node = cast(Any, raw_node)
+        name = node.child_by_field_name("name").text.decode("utf-8")
+        evidence = []
+        if re.search(r"\bextends\s+(?:[\w.]+\.)?AbstractHandler\b", owner) and name == "handle":
+            evidence.append("Jetty AbstractHandler.handle")
+        if re.search(r"\bextends\s+(?:[\w.]+\.)?(?:HttpServlet|GenericServlet|Servlet)\b", owner) and name in {
+            "service",
+            "doGet",
+            "doPost",
+            "doPut",
+            "doDelete",
+            "doPatch",
+            "doHead",
+            "doOptions",
+        }:
+            evidence.append("Servlet request method: " + name)
+        if re.search(r"@(?:[\w.]+\.)?(?:GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS|Path)\b", header):
+            evidence.append("JAX-RS request annotation")
+        if evidence and not re.search(r"\bprivate\b", header):
+            records.append(
+                _entry(target, node.start_point[0] + 1, node.end_point[0] + 1, name, name, "route", "unknown", "http_request", evidence, [])
+            )
+    return records
 
 
 # WordPress registers handlers rather than decorating them, and the hook name states the access level:

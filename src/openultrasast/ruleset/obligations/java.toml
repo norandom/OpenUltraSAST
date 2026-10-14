@@ -1,3 +1,13 @@
+# Delivery A additionally checked actual calls in Git HEAD objects (2026-10-14):
+# p4-plugin: CredentialsHelper.lookupCredentialsInItem, P4PasswordImpl and P4TicketImpl
+# call ConnectionFactory.testConnection, ConnectionFactory calls connect, ReviewNotifier
+# calls openConnection; zephyr-enterprise-test-management-plugin: ZephyrInstance calls
+# getCredentialsFromId and UserService.verifyCredentials; azure-keyvault-plugin:
+# AzureKeyVaultGlobalConfiguration.doTestConnection calls listPropertiesOfSecrets;
+# rocketchatnotifier-plugin: RocketChatNotifier.doTestConnection calls publish.
+# Each listed clone is under /home/mc/ousast-results/valid/train/hist/jenkinsci__*.
+# No network documentation lookup was performed for this delivery. The existing
+# documented checkAnyPermission row below is retained; it was not found in these HEADs.
 # Closed authorization facts for Jenkins/Stapler, Spring Security and Servlet code.
 # Checked Git HEAD source objects in /home/mc/ousast-results/valid/train/hist/:
 # jenkinsci__analysis-core-plugin: DefaultGraphConfigurationView.checkPermission,
@@ -19,7 +29,7 @@ language = "java"
 [[operation]]
 id = "jenkins-credentials-read"
 kind = "protected_read"
-calls = ["lookupCredentials", "findCredentialById"]
+calls = ["lookupCredentials", "lookupCredentialsInItem", "findCredentialById", "getCredentialsFromId"]
 requires = ["path_guard", "ownership_check", "identity_constraint"]
 sensitivity = "high"
 
@@ -44,6 +54,13 @@ id = "sql-access"
 kind = "protected_read"
 calls = ["executeQuery", "execute", "prepareCall"]
 requires = ["path_guard", "ownership_check", "identity_constraint"]
+sensitivity = "high"
+
+[[operation]]
+id = "jenkins-outbound-connection"
+kind = "privileged_action"
+calls = ["testConnection", "verifyCredentials", "listPropertiesOfSecrets", "openConnection", "connect", "publish"]
+requires = ["path_guard", "ownership_check"]
 sensitivity = "high"
 
 [[discharger]]

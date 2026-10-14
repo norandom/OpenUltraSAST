@@ -1,7 +1,7 @@
 # Implementation Plan
 
-- [ ] 1. Paths from the caller index
-- [ ] 1.1 Add `PathRecord` and `compose_paths` in `src/openultrasast/semantic/obligations/paths.py` (P)
+- [x] 1. Paths from the caller index
+- [x] 1.1 Add `PathRecord` and `compose_paths` in `src/openultrasast/semantic/obligations/paths.py` (P)
   - Upward walk through a `callers(path, function)` callable, depth and fan-out bounds, stop at the first entry,
     chains kept per file, deduplicated; unreached targets returned
   - Done when `tests/test_obligation_paths.py` covers depth 1 to 3, unreached, fan-out cut and same-name files,
@@ -9,7 +9,7 @@
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6_
   - _Boundary: obligations.paths_
 
-- [ ] 1.2 Checker opt-in `assume_entries_protected` and label `unguarded_path` in `semantic/obligations/check.py`
+- [x] 1.2 Checker opt-in `assume_entries_protected` and label `unguarded_path` in `semantic/obligations/check.py`
   - Default off; `_finding` receives the entry records' access by handler; evidence as the design states;
     `findings_to_static` explains the label; `LABELS` updated
   - Done when the existing checker tests pass unchanged and a new test shows: with paths, no policy, no siblings,
@@ -19,7 +19,7 @@
   - _Boundary: obligations.check (opt-in only)_
 
 - [ ] 2. Entry recognisers
-- [ ] 2.1 Stapler and Jetty recognisers in `mapping.py` (P)
+- [x] 2.1 Stapler and Jetty recognisers in `mapping.py` (P)
   - Public `do[A-Z]...` methods on exposed types or with Stapler-typed or `@QueryParameter` parameters; Jetty
     `AbstractHandler`, `HttpServlet`, JAX-RS resources; evidence strings; `public` only for `UnprotectedRootAction`
   - Done when `tests/test_mapping_frameworks.py` names the entries of a fixture Descriptor, rejects a private
@@ -50,6 +50,13 @@
   - _Requirements: 2.3, 2.4, 2.7_
   - _Boundary: ruleset/obligations_
 
+- [ ] 3.3 Handler-named operations: `handlers` and `framework` fields in the facts loader, `find_operations(..., handlers_of=)`, Stapler form-validation rows in `java.toml`, Tornado handler rows in `python.toml`, Remix action rows in `typescript.toml`
+  - Done when `tests/test_obligation_facts.py` loads a handler-named row, `tests/test_obligation_operations.py`
+    (or the existing operations test file) yields the operation at the declaration line only for listed
+    handlers, and the prover smoke on the 23 fixes reaches and checks the Jenkins form-validation methods
+  - _Requirements: 2.8_
+  - _Boundary: obligations.facts, obligations.operations_
+
 - [ ] 4. The prover
 - [ ] 4.1 `hunt/prover.py`: `prove_change` over the hunter `Context`, `Coverage`, findings as hunt defects
   - Touched functions from head lines, build output left out, targets include direct callees holding operations,
@@ -62,7 +69,7 @@
   - _Depends: 1.1, 2.1, 3.1, 3.2_
 
 - [ ] 5. The arm
-- [ ] 5.1 `benchmarks/valid/prover_arm.py`: run over a pool slice with checkpoints, summarise with the valid metrics
+- [x] 5.1 `benchmarks/valid/prover_arm.py`: run over a pool slice with checkpoints, summarise with the valid metrics
   - Record envelope copied from `hunter_arm`; instrument fields; resume; `summary.json` with recall (pushes and
     locations, Wilson), false alarms per 100, precision, instrument failures, seconds per change and the list
     over 120 s, per-repository and per-framework coverage, `uncovered` repositories; refuse on zero-byte reads
@@ -76,3 +83,23 @@
   `benchmarks/measurements/<date>-access-control-prover/` with NOTES, summary, coverage table; compare with the
   DSPy and hunter arms of the same pool
   - _Requirements: 5.2, 5.3, 7.2_
+
+
+## Implementation Notes
+
+- Delivery A (2026-10-14) implements paths, the opt-in checker premise, Stapler/Jetty/Servlet/JAX-RS
+  entries, the Java facts, the deterministic prover and the checkpointed arm. No commit was made.
+- Task 3.2 stays open for the PHP, Python and TypeScript facts. Task 4.1's delivery A core is delivered;
+  its full-spec checkbox stays open for delivery B's enforcement witnesses and guarded Laravel acceptance
+  case. This delivery intentionally passes `extra_witnesses=()` as required by the maintainer's brief.
+- Default checker behavior is preserved. Only opt-in checking includes a caller's statement witness,
+  using the existing dominance contract at the outgoing call site. The prover checks each complete path
+  independently so a guarded chain cannot hide an unguarded chain to the same operation.
+- Java additions were checked against actual Git HEAD source objects in the sparse training clones;
+  checked call sites are named in the Java TOML header. No network or model call was made.
+- Mapping accepts cached source texts and an opt-out from external manifest scanning. Default callers
+  retain their previous behavior; the delivery A prover uses source entries and its Context caches.
+- Delivery A review was performed in the main context because the brief forbids model calls. The exact
+  requested static gate passed (format, Ruff and mypy); the exact pytest gate passed with 112 passed,
+  zero failed, exit 0. UV_NO_SYNC=1 was set; UV_CACHE_DIR was placed under /tmp because the default
+  cache is outside the writable sandbox. The unchanged unjustified-path checker test remains intact.
