@@ -234,7 +234,7 @@ def _roles(function: Any, facts: Any) -> dict[str, str]:
     for call in function.calls:
         for arguments in call.arg_names:
             names.update(arguments)
-    roles = {}
+    roles: dict[str, str] = {}
     for role, entries, attribute in (
         ("source", facts.sources, "patterns"),
         ("sink", facts.sinks, "calls"),

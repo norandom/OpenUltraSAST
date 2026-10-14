@@ -28,7 +28,7 @@ def _exhausted(usage: Mapping[str, float], budget: Mapping[str, float]) -> bool:
 class RunArtifact:
     program_id: str
     schema_version: int
-    mask: tuple[str, ...]
+    mask: tuple[str, ...] | list[str]
     data_digests: dict[str, str]
     configurations: list[dict[str, Any]]
     usage: dict[str, float]

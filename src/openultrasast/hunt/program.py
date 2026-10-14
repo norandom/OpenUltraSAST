@@ -67,7 +67,8 @@ def signature_for(mask: Iterable[str] = ()) -> type[dspy.Signature]:
             continue
         fields[name] = (str, dspy.InputField(desc=desc))
     fields["findings"] = (list[Finding], dspy.OutputField(desc="JSON list; empty when the change is ordinary"))
-    return dspy.Signature(fields, BASELINE_INSTRUCTION)
+    signature: type[dspy.Signature] = dspy.Signature(fields, BASELINE_INSTRUCTION)
+    return signature
 
 
 def numbered(lines: Sequence[str], start: int, end: int) -> str:
@@ -194,7 +195,9 @@ class _Loop(dspy.ReAct):
 
     loop_parse_failed = False
 
-    def _call_with_potential_trajectory_truncation(self, module, trajectory, **input_args):
+    def _call_with_potential_trajectory_truncation(
+        self, module: dspy.Module, trajectory: dict[str, Any], **input_args: str
+    ) -> dspy.Prediction:
         try:
             return super()._call_with_potential_trajectory_truncation(module, trajectory, **input_args)
         except dspy.utils.exceptions.AdapterParseError as error:

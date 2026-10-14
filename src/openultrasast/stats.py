@@ -167,7 +167,7 @@ def separation(frame: Any, label: str, columns: Iterable[str]) -> Any:
     import pandas as pd
     from sklearn.metrics import roc_auc_score
 
-    rows = []
+    rows: list[dict[str, str | float | None]] = []
     labelled = frame[frame[label].isin([0, 1])]
     for column in columns:
         series = pd.to_numeric(labelled[column], errors="coerce") if column in labelled else None

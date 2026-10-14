@@ -190,7 +190,7 @@ def run(
     if table.digest() != manifest.table_digest:
         raise ValueError("table digest does not match registration")
     runner.refuse_pilot(Path(pool_manifest_path), pilot_report=False)
-    folds: dict[str, tuple[str, int]] = {}
+    folds: dict[str, tuple[str, int | None]] = {}
     for row in table.rows:
         key, value = row["change_id"], (row["repo"], row.get("fold"))
         if key in folds and folds[key] != value:

@@ -77,7 +77,7 @@ class Decision:
                 artifact.configurations.append(record)
 
 
-def _record(value: Any) -> dict[str, Any]:
+def _record(value: Estimate | FoldResult | Mapping[str, Any]) -> dict[str, Any]:
     """Convert dataclass estimates and ordinary mappings to JSON records."""
     return asdict(value) if is_dataclass(value) else dict(value)
 
@@ -124,7 +124,8 @@ def decide(
     instructions = [state.get("signature", {}).get("instructions", "") for state in candidate.state.values()]
     if any(not isinstance(text, str) or len(text) > rule.instruction_cap for text in instructions):
         reasons.append("instruction_cap")
-    compiled, heldout = {}, {}
+    compiled: dict[str, dict[str, Any]] = {}
+    heldout: dict[str, dict[str, Any]] = {}
     for scope, source, target in (("compile", compile_results, compiled), ("holdout", holdout_results, heldout)):
         for family, result in source.items():
             record = _record(result)
@@ -150,10 +151,10 @@ def decide(
         reasons.append("no_positive_recall_difference")
     if _valid_number(holdout_diff) and abs(holdout_diff) <= rule.tolerance:
         reasons.append("holdout_tie")
-    for family, result in heldout.items():
+    for family, heldout_record in heldout.items():
         if family == "pooled":
             continue
-        diff = result["recall"].get("diff")
+        diff = heldout_record["recall"].get("diff")
         floor = rule.regression_budget.get(family, rule.regression_budget.get("default", 0))
         if _valid_number(diff) and diff < floor:
             reasons.append(f"family_regression:{family}")

@@ -4,6 +4,7 @@ import os
 import re
 from collections.abc import Iterator
 from pathlib import Path
+from typing import NotRequired, TypedDict
 
 from .preprocess import enumerate_source_files
 from .source import callers_of, product_files
@@ -67,11 +68,19 @@ def _mtime(path: Path) -> int:
         return -1
 
 
-def grep_repo(root: Path, pattern: str, *, max_matches: int) -> list[dict[str, object]]:
+class ToolMatch(TypedDict):
+    path: str
+    line: int
+    text: str
+    name: NotRequired[str]
+    source: NotRequired[str]
+
+
+def grep_repo(root: Path, pattern: str, *, max_matches: int) -> list[ToolMatch]:
     if max_matches <= 0:
         return []
     compiled = re.compile(pattern)
-    matches: list[dict[str, object]] = []
+    matches: list[ToolMatch] = []
     for relative, lines in _source_lines(root):
         for line_no, line in enumerate(lines, start=1):
             if compiled.search(line):
@@ -81,7 +90,7 @@ def grep_repo(root: Path, pattern: str, *, max_matches: int) -> list[dict[str, o
     return matches
 
 
-def find_refs(root: Path, symbol: str) -> list[dict[str, object]]:
+def find_refs(root: Path, symbol: str) -> list[ToolMatch]:
     if not symbol:
         return []
     lines = dict(_source_lines(root))

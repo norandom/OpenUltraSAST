@@ -752,8 +752,11 @@ class LabelBuilder:
                 if not function:
                     lines = self._clone(population, str(case["id"])).lines(str(case["vulnerable"]), site_path)
                     language = detect_language(Path(site_path))
-                    covered = lines and language in DECLARATION and line <= len(lines)
-                    function = enclosing(lines, line - 1, language) if covered else MODULE_FUNCTION
+                    function = (
+                        enclosing(lines, line - 1, language)
+                        if lines and language in DECLARATION and line <= len(lines)
+                        else MODULE_FUNCTION
+                    )
                 self._row(
                     candidate=f"{site_path}::{function}", family=str(row.get("family") or case["family"]), label=label, source=source.id,
                     source_ref=f"{Path(path).name}#{key}[{index}]", unit="pin", weight=1.0, split=population.id,

@@ -20,7 +20,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
-from ..source import canonical_language
+from ..source import FunctionRange, canonical_language
 
 if TYPE_CHECKING:
     from .taxonomy import FamilyTaxonomy
@@ -368,7 +368,7 @@ def labeled_family(case: object, taxonomy: FamilyTaxonomy | None = None) -> str:
 
 
 def labeled_spans(
-    case: object, ranges: Mapping[str, Sequence[tuple[str, int, int]]], *, function: str = ""
+    case: object, ranges: Mapping[str, Sequence[tuple[str, int, int] | FunctionRange]], *, function: str = ""
 ) -> tuple[tuple[str, int, int], ...]:
     """The (path, start, end) spans of the labeled functions; ``function`` overrides the label for the fixed side.
 
@@ -378,6 +378,7 @@ def labeled_spans(
     wanted = {function} if function else {str(getattr(row, "function", "") or "") for row in getattr(case, "expected", ()) or ()}
     wanted.discard("")
     found: list[tuple[str, int, int]] = []
+    _kind: list[str]
     for path, entries in ranges.items():
         for name, start, end, *_kind in entries:
             if name in wanted:

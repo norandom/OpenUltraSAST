@@ -704,7 +704,7 @@ def safe_url(url: str) -> str:
 def deliver(
     url: str,
     payload: bytes,
-    headers: Mapping[str, str],
+    headers: MutableMapping[str, str],
     *,
     attempts: int = DELIVERY_ATTEMPTS,
     backoff: float = 1.0,
@@ -732,7 +732,7 @@ def deliver(
     raise DeliveryError(f"{last} after {attempts} attempts to {safe_url(url)}")
 
 
-def fetch(url: str, headers: Mapping[str, str], dest: Path, *, attempts: int = DELIVERY_ATTEMPTS, backoff: float = 1.0) -> int:
+def fetch(url: str, headers: MutableMapping[str, str], dest: Path, *, attempts: int = DELIVERY_ATTEMPTS, backoff: float = 1.0) -> int:
     """GET ``url`` into ``dest`` (streamed to a sibling temp file, then renamed); retried like :func:`deliver`.
 
     Returns the byte count; :class:`DeliveryError` names the last cause when every attempt failed."""

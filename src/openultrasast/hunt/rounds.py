@@ -21,7 +21,8 @@ def _fold_changes(pool_manifest: Path, table: FeatureTable, load_changes: Any) -
     from benchmarks.unseen.replay import load_slice
 
     runner.refuse_pilot(pool_manifest, pilot_report=False)
-    folds, repo_folds = {}, {}
+    folds: dict[str, tuple[str, int]] = {}
+    repo_folds: dict[str, int] = {}
     for row in table.rows:
         key, repo, fold = row["change_id"], row["repo"], row.get("fold")
         if type(fold) is not int or fold < 0:
@@ -183,7 +184,8 @@ def fold_results(
     if len({c["id"] for c in changes}) != len(changes):
         raise ValueError("change IDs must be unique")
     directories = {"a": Path(current_dir), "b": Path(candidate_dir)}
-    studies, repeats = {}, set()
+    studies: dict[str, Any] = {}
+    repeats: set[int] = set()
     for arm, directory in directories.items():
         path = directory / "study.json"
         if path.exists():
@@ -291,7 +293,7 @@ def round_trip(
                 )
             )
         results[scope] = fold_results(
-            *paths, [c for c in changes if c["fold"] in folds], scope=scope, tolerance=tolerance, seed=seed, resamples=resamples
+            paths[0], paths[1], [c for c in changes if c["fold"] in folds], scope=scope, tolerance=tolerance, seed=seed, resamples=resamples
         )
     decision = accept.decide(current_id, candidate, results["compile"], results["holdout"], rule)
     if not decision.accepted:

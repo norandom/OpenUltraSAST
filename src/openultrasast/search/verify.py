@@ -409,9 +409,11 @@ def _side(side: Side, demo: Path, family: str, timeout: int, browser: BrowserExe
                     if task_boundary:
                         # Files are app data, so resolve their paths before writing;
                         # the task runner only translates argv and environment.
+                        def fixture_path(_: re.Match[str], path: str = str(canary.root)) -> str:
+                            return path
+
                         file_bindings = {
-                            key: re.sub(r"/(?:fixture|scratch)(?=/|$)", lambda _, path=str(canary.root): path, value)
-                            for key, value in bindings.items()
+                            key: re.sub(r"/(?:fixture|scratch)(?=/|$)", fixture_path, value) for key, value in bindings.items()
                         }
                     private_values.extend((*bindings.values(), *file_bindings.values()))
                     write_start_files(checkout, start_spec, file_bindings)

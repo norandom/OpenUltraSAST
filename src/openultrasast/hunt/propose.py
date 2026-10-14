@@ -20,7 +20,7 @@ from .metric import search_metric, search_outcome
 from .table import FEATURE_COLUMNS, canonical_json
 
 
-class _Optimisers(Mapping):
+class _Optimisers(Mapping[str, type]):
     """Load a DSPy optimiser class only when its registry entry is requested."""
 
     names = {"gepa": "GEPA", "miprov2": "MIPROv2", "bootstrap": "BootstrapFewShot"}
@@ -28,7 +28,8 @@ class _Optimisers(Mapping):
     def __getitem__(self, name: str) -> type:
         import dspy
 
-        return getattr(dspy, self.names[name])
+        optimiser: type = getattr(dspy, self.names[name])
+        return optimiser
 
     def __iter__(self) -> Iterator[str]:
         return iter(self.names)
@@ -93,7 +94,8 @@ def compile_examples(
 
     from .program import INPUTS
 
-    repo_folds, ids = {}, set()
+    repo_folds: dict[str, int] = {}
+    ids: set[str] = set()
     for change in changes:
         if change["id"] in ids:
             raise ValueError("change IDs must be unique")
@@ -230,7 +232,13 @@ def _compile(round: Round, program: Any, examples: list, optimiser: Any, metric:
             if dspy.settings.lm is None:
                 raise ValueError("GEPA needs a configured reflection model in dspy.context")
 
-            def feedback(example, prediction, trace=None, pred_name=None, pred_trace=None):
+            def feedback(
+                example: dspy.Example,
+                prediction: dspy.Prediction,
+                trace: Any = None,
+                pred_name: str | None = None,
+                pred_trace: Any = None,
+            ) -> dspy.Prediction:
                 """Give GEPA the same score and the metric's compile-only feedback."""
                 import dspy
 

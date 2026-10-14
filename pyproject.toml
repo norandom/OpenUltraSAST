@@ -90,6 +90,17 @@ ignore_missing_imports = true
 module = "yaml"
 ignore_missing_imports = true
 
+# dspy, pandas, statsmodels and scikit-learn ship no py.typed marker and no stub packages are dev dependencies.
+[[tool.mypy.overrides]]
+module = ["dspy", "dspy.*", "pandas", "pandas.*", "statsmodels.*", "sklearn.*"]
+ignore_missing_imports = true
+
+# The hunt package reaches the benchmark scorers and manifests lazily. benchmarks/ is not in `files` and has never
+# been type-checked; src stays strict against its signatures while errors inside benchmarks/ are not reported.
+[[tool.mypy.overrides]]
+module = "benchmarks.*"
+follow_imports = "silent"
+
 [dependency-groups]
 dev = [
     "dagger-io>=0.21.7",

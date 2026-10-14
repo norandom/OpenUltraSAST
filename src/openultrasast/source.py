@@ -307,6 +307,7 @@ _HEAD = re.compile(
 def _regex_ranges(text: str, language: str) -> tuple[FunctionRange, ...]:
     lines, code = text.splitlines(), _code_lines(text)
     result = []
+    end: int | None
     for index, line in enumerate(code):
         name = declarator_name(line, language)
         if language == "python":

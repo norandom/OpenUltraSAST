@@ -90,7 +90,7 @@ def _instrument(records: Sequence[Mapping]) -> dict:
     )
 
 
-def _clean(records: Sequence[Mapping]) -> list[dict]:
+def _clean(records: Sequence[dict[str, Any]]) -> list[dict[str, Any]]:
     """Remove stale findings on failures while preserving the scorer's coverage checks."""
     from benchmarks.unseen import score
 
@@ -109,7 +109,7 @@ def _clean(records: Sequence[Mapping]) -> list[dict]:
     return result
 
 
-def _rate(values: list[float], repos: list[str], *, binary: bool = False, scale: float = 1) -> dict:
+def _rate(values: Sequence[float], repos: list[str], *, binary: bool = False, scale: float = 1) -> dict:
     """Report a mean with its count and a repository-clustered interval, plus Wilson for proportions."""
     from benchmarks.unseen import score
 
@@ -127,7 +127,7 @@ def _rate(values: list[float], repos: list[str], *, binary: bool = False, scale:
     return result
 
 
-def _family_records(records: Sequence[Mapping], family: str | None) -> list[dict]:
+def _family_records(records: Sequence[dict[str, Any]], family: str | None) -> list[dict[str, Any]]:
     """Keep a family's positives and count only its findings over all ordinary pushes."""
     result = []
     for original in records:
@@ -217,7 +217,7 @@ def _baseline_comparison(baselines: list[list[dict]], records: list[dict], famil
     from benchmarks.unseen import score
     from benchmarks.valid import metrics
 
-    units = [
+    units: list[dict[str, Any]] = [
         dict(change=after, repeat=repeat, a=_outcome(before, before, 10), b=_outcome(after, after, 10))
         for repeat, baseline in enumerate(baselines)
         for before, after in zip(baseline, records, strict=True)
@@ -232,7 +232,7 @@ def _baseline_comparison(baselines: list[list[dict]], records: list[dict], famil
             suspicions_per_push=asdict(suspicions),
             mcnemar=asdict(stats.mcnemar_exact([u["a"]["hit"] for u in positives], [u["b"]["hit"] for u in positives])),
         )
-        rows = {"recall": [], "false_alarms_per_100_pushes": [], "precision": []}
+        rows: dict[str, list[dict[str, Any]]] = {"recall": [], "false_alarms_per_100_pushes": [], "precision": []}
         for baseline in baselines:
             before = metrics.scoring_records(_family_records(baseline, family))
             after = metrics.scoring_records(_family_records(records, family))
@@ -426,7 +426,7 @@ def pilot_gain(
     records = _records(directory / "records", changes)
     proof = _instrument(records)
     _write(directory / "instrument.json", proof)
-    analysis = dict(
+    analysis: dict[str, Any] = dict(
         program_id=candidate.program_id,
         comparison=decision.comparison,
         measurement_directory=directory.name,

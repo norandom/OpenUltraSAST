@@ -4,13 +4,14 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import tomllib
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from datetime import UTC, datetime
 from pathlib import Path
 
 
-def _eligibility():
+def _eligibility() -> tuple[re.Pattern[str], Callable[[str], str]]:
     """The benchmark's name normaliser and GitHub URL pattern, imported late so the package imports without the benchmarks tree."""
     from benchmarks.unseen.eligibility import URL, normalize
 
