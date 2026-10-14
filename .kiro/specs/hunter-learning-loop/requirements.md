@@ -65,6 +65,34 @@ annotation set is kept or thrown away. It reports in the benchmark's own terms: 
   not retrained here; the earlier freeze on hunter changes ("no hunter prompt, tool or configuration may
   change before that measurement") is lifted by the pilot measurement, which is the baseline.
 
+## Decision strategy, corrected 2026-10-14
+
+The maintainer's finding after the second access-control screen: the annotations this loop selected and
+screened were software features, not security features. Counts of callers, entry points, calls, binds,
+function length, diff shape, language and framework describe the code around a change; none of them
+determines that the code is unsafe, and a decision model fitted on them learns the pool (the deletion count
+separates reversed fixes at 0.90) and generalises to nothing. "If you build a safety net and only send
+information unrelated to security, the expected result is nothing."
+
+What decides safety for the access-control family is a property of a path, in order: an entry an attacker
+can reach, request-derived data reaching a protected operation along that path, and no required check
+dominating the operation by control flow. That object, the ordered trace with argument provenance and
+control-flow dominance, is specified and built in `access-control-prover` (requirements 9 and 10). From
+this date:
+
+1. The hunter's input is the trace, not the feature table. Shape annotations may be rendered for context but
+   are not decision features and the ablation shall not credit them as such.
+2. The pool measures; it never trains. No model is fitted on the pool's labels, no prompt is compiled on the
+   pool, no threshold is tuned on it. The verdict is a rule over the trace, the same on every repository;
+   the facts naming entries, operations and checks are closed data with a stated source.
+3. Where a judgement remains (is this entry meant to be public; is this operation protected somewhere the
+   facts do not model), the judge reads the trace zero-shot with general security knowledge. The pool
+   reports how often it is right; the unseen pilot says whether that holds elsewhere.
+4. The ablation's remaining use is selection, not fitting: which trace components the judge needs to see,
+   with intervals, read with the same suspicion as any in-sample number.
+5. Requirements 3.3 and 4 below stand as written for the record of the first round; where they name shape
+   annotations as the model's input, this section overrides them.
+
 ## Requirements
 
 ### Requirement 1: Labels from fix sites and ordinary pushes

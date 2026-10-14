@@ -20,6 +20,17 @@ Everything below this section is dated history; where it disagrees with this sec
   the LLM tier on pre-push once the search is good. (3) `search-with-proof` / `proof-arm-opencode`: proof on
   what survives the search, as the block gate. (4) `engine-change-scoped-analysis`: the deterministic facts
   that feed the hunter's annotations.
+- **Corrected 2026-10-14, decision strategy.** The hunter's annotations were software features (callers,
+  entry-point counts, calls, binds, diff shape, language, framework); they describe code around a change and
+  cannot decide unsafety, and anything fitted on them learns the pool (the deletion count separates reversed
+  fixes at 0.90). The security object is the ordered path: an attacker-reachable entry, request-derived data
+  reaching a protected operation, no required check dominating it by control flow. That is the access-control
+  prover (`.kiro/specs/access-control-prover`, deliveries A to D in the tree): entries per framework,
+  handler-named operations, enforcement witnesses, path records from the caller index, the trace with argument
+  provenance, a control-flow graph per function deciding dominance; a deterministic rule, no model call, 15 of
+  23 fix changes on the training pool with 15 of 15 flagged fixes correct. Rules from here: the pool measures
+  and never trains; no fitted model, no compiled prompt, no tuned threshold on it; a judge, where one is needed,
+  reads the trace zero-shot; the ablation selects trace components, it does not fit.
 - **Everything else is history or parked.** Retired spec directories were removed from the tree on 2026-10-13
   (`git show <commit>:.kiro/specs/<name>/` still has them): `harnessx-removal` (51d064e),
   `harnessx-self-improving-rulesets` and `openrouter-sast-harness` (c8d2fef), `learning-harness`,

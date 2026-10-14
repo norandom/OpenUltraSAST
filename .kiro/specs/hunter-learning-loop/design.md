@@ -1,5 +1,12 @@
 # Design: hunter-learning-loop
 
+> **Amendment 2026-10-14.** The feature table below is the shape of the first round and is superseded as the
+> model's input by the ordered trace of `access-control-prover` (design sections "trace: the ordered
+> serialisation" and "cfg and CfgDominance"). The feature table remains the screen's instrument and the
+> ablation's bookkeeping; the decision strategy is the one stated in requirements.md, "Decision strategy,
+> corrected 2026-10-14": a rule over the trace, a zero-shot judge for the residual question, the pool for
+> measurement only.
+
 ## Overview
 **Purpose**: turn the LLM hunter from a hand-written prompt into a measured search stage whose inputs are an
 engineered feature table and whose prompt is optimised by a program runtime, judged on held-out folds.
