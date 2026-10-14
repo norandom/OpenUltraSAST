@@ -189,3 +189,19 @@ def test_generated_reason_names_build_output_only(tmp_path):
     assert source.generated_reason(tmp_path, "big.js") == "too_large"
     assert source.generated_reason(tmp_path, "app.js") is None
     assert source.generated_reason(tmp_path, "missing.js") is None
+
+
+def test_facts_keep_only_the_entry_points_in_the_file_or_a_caller_file(tmp_path):
+    from openultrasast.mapping import EntryPointRecord
+
+    (tmp_path / "app.py").write_text("def run(x):\n    return x\n")
+    (tmp_path / "web.py").write_text("from app import run\n\ndef view():\n    return run(1)\n")
+    (tmp_path / "far.py").write_text("def other():\n    return 2\n")
+
+    def entry(path):
+        return EntryPointRecord(path, 1, 2, None, path, "route", "public", "external", [], [], "test", "fixture")
+
+    entries = [entry("app.py"), entry("web.py"), entry("far.py")]
+    facts = source.facts_for(tmp_path, "app.py", 2, entry_points=entries, files=["app.py", "web.py", "far.py"])
+    assert facts.callers == (("web.py", 4),)
+    assert [e.path for e in facts.entry_points] == ["app.py", "web.py"]

@@ -483,6 +483,8 @@ def facts_for(
 ) -> SourceFacts:
     """Compute repository facts at a line; supplied entry points, product files and texts avoid repeated work.
 
+    The facts carry only the entry points declared in the file itself or in a file that calls the function.
+
     A caller computing facts for many lines of one checkout (the hunter's feature table) walks the product tree
     and reads it once; without ``files`` and ``texts`` every call walked and read the whole tree again."""
     root = Path(root)
@@ -495,8 +497,13 @@ def facts_for(
         from .mapping import analyze_entry_points
 
         entry_points = analyze_entry_points(root, [build_file_target(root, root / file) for file in files])
+    callers = callers_of(root, function, files=files, texts=texts, index=index)
+    # The entry points that reach the file: those declared in it or in a file that calls this function. The whole
+    # repository's list was attached before; on an application with 8000 entry points every row carried 1.5 MB
+    # and the hunter's prompt for any change with more than two rows was refused by the model.
+    reaching = {path, *(caller_path for caller_path, _ in callers)}
     return SourceFacts(
-        language, function, bounds(spans, function), callers_of(root, function, files=files, texts=texts, index=index), tuple(entry_points)
+        language, function, bounds(spans, function), callers, tuple(entry for entry in entry_points if entry.path in reaching)
     )
 
 
