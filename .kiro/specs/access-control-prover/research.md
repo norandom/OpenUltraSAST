@@ -100,6 +100,18 @@
   guarded route. Every recogniser lists its names in the facts header and the coverage statement counts routes
   with unrecognised middleware.
 
+### Decision: an opt-in premise in the checker, not a synthesized policy
+- **Context**: Codex's first attempt stopped on a real conflict: with path records and neither a declared clause
+  nor a sibling norm the checker returns no finding by design (gating 3), so the prover's core verdict could not
+  be emitted without a change.
+- **Alternatives Considered**: synthesize a `DeclaredPolicy` in memory marking every recognised entry
+  `authenticated` (dishonest: the finding would read "route declared authenticated" when nothing was declared);
+  a second checker in the prover (duplicates the rules); an opt-in keyword and a distinct label (chosen).
+- **Selected Approach**: `assume_entries_protected=False` keyword, label `unguarded_path`, evidence naming the
+  premise. Default behaviour and tests unchanged.
+- **Trade-offs**: the label makes the premise visible in every finding and in the static tags; consumers that
+  grouped by label need the new value (revalidation trigger for `authorization-obligations`).
+
 ### Decision: no model call inside the prover
 - **Context**: Requirement 4.4; the maintainer's direction after the engine pilot: the model's job is the trust
   boundary question the static side cannot answer, asked after a static result exists.

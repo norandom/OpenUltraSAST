@@ -113,6 +113,11 @@ protected operation, so that every alarm names what to add and where.
    dominates it along that path or inside its function, the prover shall emit one finding per operation and
    missing kind with family `access_control`, the operation's path and line, the entry point, the hops, the
    missing kind and the evidence strings.
+1a. The prover's premise shall be explicit: a recognised entry point is protected unless the framework or a
+   declared policy marks it public. The checker shall apply that premise only when the caller opts in, shall
+   label such findings `unguarded_path` (distinct from `declared_policy_violation` and
+   `consistency_violation`), and shall say in the evidence that no policy clause and no sibling norm backed it.
+   The checker's default behaviour with path records (no clause, no sibling norm, no finding) is unchanged.
 2. When every required discharger kind is dominated, the prover shall emit no finding and shall count the
    operation as `discharged` in the coverage statement.
 3. The prover shall never emit a finding for a function whose file failed to parse, whose language has no

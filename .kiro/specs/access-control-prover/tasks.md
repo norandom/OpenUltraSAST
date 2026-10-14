@@ -9,6 +9,15 @@
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6_
   - _Boundary: obligations.paths_
 
+- [ ] 1.2 Checker opt-in `assume_entries_protected` and label `unguarded_path` in `semantic/obligations/check.py`
+  - Default off; `_finding` receives the entry records' access by handler; evidence as the design states;
+    `findings_to_static` explains the label; `LABELS` updated
+  - Done when the existing checker tests pass unchanged and a new test shows: with paths, no policy, no siblings,
+    the default gives no finding and the opt-in gives one `unguarded_path` finding for a non-public entry and none
+    for an entry whose record access is `public`
+  - _Requirements: 4.1a_
+  - _Boundary: obligations.check (opt-in only)_
+
 - [ ] 2. Entry recognisers
 - [ ] 2.1 Stapler and Jetty recognisers in `mapping.py` (P)
   - Public `do[A-Z]...` methods on exposed types or with Stapler-typed or `@QueryParameter` parameters; Jetty

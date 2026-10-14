@@ -30,7 +30,10 @@ runner that scores it with the valid-benchmark metrics.
 - Operation and discharger rows added to `ruleset/obligations/{java,php,python,typescript}.toml`.
 
 ### Out of Boundary
-- The facts loader and schema, the checker's decision rules, `OrderDominance` (owned by `authorization-obligations`).
+- The facts loader and schema, `OrderDominance`, and the checker's existing decision rules (owned by
+  `authorization-obligations`). One opt-in extension of the checker is allowed and owned here: the
+  `assume_entries_protected` keyword and the `unguarded_path` label (see the checker block below); default off,
+  every existing checker test unchanged.
 - The feature table, the DSPy and hunter arms, the ablation (`hunter-learning-loop`).
 - The proof arm's demonstration logic (`search-with-proof`); this spec only shapes the finding.
 
@@ -172,6 +175,15 @@ def compose_paths(
 - Preconditions: targets name functions with IR; `callers` resolves a function to its call sites through the
   cached index and the enclosing function of each site (`source.enclosing_at` or the IR spans).
 - Postconditions: every path's last hop is a target; no path implies nothing; unreached targets are listed.
+
+### checker extension (opt-in)
+`check_obligations(..., assume_entries_protected: bool = False)`. With path records, no declared clause and no
+sibling norm, the checker today returns no finding (gating 3 of `authorization-obligations`): nothing justified
+the obligation. The prover's premise justifies it: a recognised entry is protected unless declared public. With
+the keyword on, `_finding` labels such a case `unguarded_path` when the path's entry hop is an entry record whose
+access is not `public` and the route is not declared public; evidence carries the entry's kind and evidence
+strings and the sentence "no declared policy clause and no sibling norm; the prover assumes a recognised entry is
+protected". `findings_to_static` explains the label like the others. `LABELS` gains the value.
 
 ### obligations.enforcement
 ```python
