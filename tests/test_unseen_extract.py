@@ -683,3 +683,14 @@ def test_history_limit_walks_only_the_newest_commits(history):
     assert e.ordinary_history(git, "HEAD", limit=2) == full[:2]  # the newest first-parent commits, same rows
     with pytest.raises(ValueError, match="positive integer"):
         e.ordinary_history(git, "HEAD", limit=0)
+
+
+def test_unparsable_source_in_one_ordinary_commit_rejects_that_commit_only(history):
+    """A syntax error in one file of one ordinary commit used to end the whole repository's history walk."""
+    git, commit, candidate, _, _, _, _ = history
+    broken = commit("def handler(value):\n    return value\n", "ordinary", extra={"broken.py": "def (\n"})
+    rows = e.ordinary_history(git, "HEAD")
+    row = next(r for r in rows if r["head"] == broken)
+    assert [f["path"] for f in row["files"] if f["parse_failed"]] == ["broken.py"]
+    assert e.ordinary_rejection(row, set(), set()) == "function_parse"
+    assert e.introducing(git, candidate) is not None

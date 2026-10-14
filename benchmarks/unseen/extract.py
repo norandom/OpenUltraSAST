@@ -417,6 +417,8 @@ def ordinary_rejection(row: dict, fixes: set[str], known_functions: set[tuple[st
         return "no_source"
     if all(f["generated"] or generated_path(f["path"]) for f in source):
         return "generated"
+    if any(f.get("parse_failed") for f in source):
+        return "function_parse"
     if any((f["path"], name) in known_functions for f in files for name in f["functions"]):
         return "vulnerable_function"
     if any((f["path"], "<global>") in known_functions for f in files):
@@ -521,6 +523,7 @@ def ordinary_history(git, head: str, *, cache_dir: Path | None = None, limit: in
                         "head_lines": [[max(1, n), max(1, n + max(c, 1) - 1)] for _, _, n, c in hunks],
                         "functions": [],
                         "generated": False,
+                        "parse_failed": False,
                     }
                     if Path(path).suffix in LANGUAGES:
                         # Inspect both sides: deleting a vulnerable function is still touching it.
@@ -528,7 +531,13 @@ def ordinary_history(git, head: str, *, cache_dir: Path | None = None, limit: in
                             text = git.blob(revision, path)
                             if text is None:
                                 continue
-                            spans = functions(path, text)
+                            try:
+                                spans = functions(path, text)
+                            except Rejected:
+                                # One unparsable file in one ordinary commit (a Python 2 script in a PHP tree, say)
+                                # marks that commit; it must not end the repository's walk.
+                                info["parse_failed"] = True
+                                continue
                             for hunk in hunks:
                                 start, count = hunk[side : side + 2]
                                 for name, lo, hi in spans:
