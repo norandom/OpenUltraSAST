@@ -55,6 +55,7 @@ class Context:
     texts: dict[str, str] = field(default_factory=dict)
     spans: dict[str, tuple[source.FunctionRange, ...]] = field(default_factory=dict)
     range_errors: dict[str, str] = field(default_factory=dict)
+    excluded: dict[str, str] = field(default_factory=dict)  # changed build output that got no candidate, by reason
     irs: dict[str, FileIR] = field(default_factory=dict)
     call_index: dict[str, tuple[source.CodeLine, ...]] = field(default_factory=dict)
     diff_bytes: int = 0
@@ -324,6 +325,13 @@ def _candidates(root: Path, change: Change, ctx: Context) -> list[dict[str, Any]
     for file in files:
         path = file["path"]
         _safe_path(root, path)
+        if not (change.get("kind") == "vulnerability" and path == change.get("path")):
+            reason = source.generated_reason(root, path)
+            if reason:
+                # Build output carries no candidate: the product walk leaves it out, and parsing one 3 MB
+                # minified bundle cost the screen two hours. The fix site of a vulnerability is always kept.
+                ctx.excluded[path] = reason
+                continue
         try:
             ranges = ctx.ranges(path)
         except Exception as error:
@@ -363,7 +371,7 @@ def _candidates(root: Path, change: Change, ctx: Context) -> list[dict[str, Any]
 
 
 def candidate_rows(root: Path, change: Change) -> list[dict[str, Any]]:
-    """Enumerate touched head functions and the positive fix site, retaining unreadable files."""
+    """Enumerate touched head functions and the positive fix site, retaining unreadable files and leaving out build output."""
     root = Path(root)
     return _candidates(root, change, Context(root, change))
 

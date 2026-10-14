@@ -25,7 +25,7 @@ from pathlib import Path
 from openultrasast.hunt import features
 from openultrasast.hunt.producers import compute_rows
 from openultrasast.hunt.runner import _full_checkout as full_checkout
-from openultrasast.hunt.table import FeatureTable
+from openultrasast.hunt.table import FeatureTable, canonical_json
 from openultrasast.stats import separation
 
 
@@ -84,6 +84,20 @@ def unread_rows(rows: list[dict], repos: dict[str, str]) -> int:
     return count
 
 
+def resume(rows_path: Path, log_path: Path) -> tuple[list[dict], list[dict]]:
+    """Rows and log entries an earlier run wrote into the same output directory, one change at a time.
+
+    The first screen over the second pool kept every row in memory and lost 422 finished changes when one change
+    had to be stopped; now each change lands on disk as it finishes and a restart skips the finished ones.
+    """
+    if not log_path.exists():
+        return [], []
+    log = [json.loads(line) for line in log_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    done = {entry["id"] for entry in log}
+    rows = [json.loads(line) for line in rows_path.read_text(encoding="utf-8").splitlines() if line.strip()] if rows_path.exists() else []
+    return [row for row in rows if row["change_id"] in done], log
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("pool", type=Path)
@@ -93,17 +107,32 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     repos = json.loads(args.repos.read_text())
     args.out.mkdir(parents=True, exist_ok=True)
-    rows, log = [], []
-    for change in changes_of(args.pool, args.slice):
-        clone = Path(repos[change["repo"]]).expanduser()
-        try:
-            produced, info = rows_for(change, clone)
-        except Exception as error:  # noqa: BLE001  (type only; a message can carry a path)
-            info = {"failure": type(error).__name__}
-            produced = []
-        rows.extend(produced)
-        log.append({"id": change["id"], "repo": change["repo"], "kind": change["kind"], **info})
-        print(f"{change['id'][:16]} {change['kind']} {info}", flush=True)
+    rows_path, log_path = args.out / "rows.jsonl", args.out / "log.jsonl"
+    rows, log = resume(rows_path, log_path)
+    done = {entry["id"] for entry in log}
+    if done:
+        print(f"resuming: {len(done)} changes and {len(rows)} rows already on disk", flush=True)
+    with rows_path.open("a", encoding="utf-8") as rows_stream, log_path.open("a", encoding="utf-8") as log_stream:
+        for change in changes_of(args.pool, args.slice):
+            if change["id"] in done:
+                continue
+            clone = Path(repos[change["repo"]]).expanduser()
+            try:
+                produced, info = rows_for(change, clone)
+            except Exception as error:  # noqa: BLE001  (type only; a message can carry a path)
+                info = {"failure": type(error).__name__}
+                produced = []
+            rows.extend(produced)
+            entry = {"id": change["id"], "repo": change["repo"], "kind": change["kind"], **info}
+            log.append(entry)
+            # Rows first, the log entry last: a change without its entry is recomputed on resume and the rows it
+            # wrote are dropped, so a kill between the two writes never duplicates rows.
+            for row in produced:
+                rows_stream.write(canonical_json(row) + "\n")
+            rows_stream.flush()
+            log_stream.write(json.dumps(entry) + "\n")
+            log_stream.flush()
+            print(f"{change['id'][:16]} {change['kind']} {info}", flush=True)
     table = FeatureTable(rows)
     table.write_jsonl(args.out / "table.jsonl")
     # The instrument gate: a producer that failed on every row saw an unread tree, not a feature-free one.

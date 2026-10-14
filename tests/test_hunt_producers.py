@@ -256,3 +256,18 @@ def test_obligation_loader_errors_remain_type_only(repository, monkeypatch):
     assert row["provenance.semantic.ok"] is False
     assert row["provenance.semantic.reason"] == "OSError"
     assert "private file contents" not in json.dumps(row)
+
+
+def test_build_output_in_an_ordinary_change_gets_no_candidate_rows(repository):
+    root, change = repository
+    (root / "dist").mkdir()
+    (root / "dist" / "bundle.js").write_text("function a() {}\n")
+    (root / "app.min.js").write_text("function b() {}\n")
+    (root / "one.js").write_text("".join(f"function f{i}(){{}}" for i in range(400)) + "\n")
+    (root / "big.js").write_text("function c() {}\n" + "// padding\n" * 100_000)
+    files = [{"path": p, "head_lines": [[1, 1]]} for p in ("dist/bundle.js", "app.min.js", "one.js", "big.js", "app.py")]
+    rows = candidate_rows(root, {**change, "kind": "ordinary", "files": files})
+    assert {row["path"] for row in rows} == {"app.py"}
+    # The fix site of a vulnerability is kept whatever the file looks like.
+    kept = candidate_rows(root, {**change, "path": "one.js", "function": "f0", "function_lines": [1, 1], "files": files[2:3]})
+    assert [row["path"] for row in kept] == ["one.js"]

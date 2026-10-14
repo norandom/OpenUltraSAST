@@ -43,6 +43,7 @@ MODULE_FUNCTION = "<module>"
 LEGACY_MODULE_FUNCTION = "<global>"  # what frozen records before 2026-10-13 call module-level code
 ANON_FUNCTION = "<anon>"
 MAX_FILE_BYTES = 1_000_000
+MINIFIED_LINE_CHARS = 2_000  # a longer line is minified output; scanning it once per function is quadratic
 LANGUAGES = frozenset({"python", "php", "javascript", "typescript", "java", "go", "ruby"})  # the declared languages
 _EXCLUDED_DIRS = frozenset(
     IGNORED_DIRS | {"vendor", "node_modules", "bower_components", "third_party", "third-party", "dist", "build", "out", "target"}
@@ -238,6 +239,11 @@ def ranges_from_ir(ir: FileIR, text: str) -> tuple[FunctionRange, ...]:
         if fn.name == MODULE_FUNCTION:
             continue
         line = lines[fn.start_line - 1] if 0 < fn.start_line <= len(lines) else ""
+        if len(line) > MINIFIED_LINE_CHARS:
+            # A minified bundle puts thousands of functions on one line, and scanning that line once per function
+            # took hours on a 3 MB bundle. Such a line is not checked: JavaScript names on it stay anonymous (the
+            # parser names an arrow callback after its parameter), other languages keep the parser's name.
+            line = ""
         declared = declarator_name(line)  # the declaration tables would name a callback call (`exec(..., function () {`)
         name = declared or fn.name
         if (
@@ -716,6 +722,32 @@ def product_paths(workspace: Path) -> list[Path]:
             continue
         files.append(path)
     return files
+
+
+_MINIFIED_NAME = re.compile(r"\.min\.(js|css)$|\.bundle\.js$")
+
+
+def generated_reason(root: Path, path: str) -> str | None:
+    """Why a changed file is build output rather than source, or None when it may be source.
+
+    The limits are the ones `product_files` applies: a directory the product walk leaves out, a minified file
+    name, a file over MAX_FILE_BYTES, or a line over MINIFIED_LINE_CHARS. A file that cannot be read is not
+    called generated; its reader reports that.
+    """
+    relative = Path(path)
+    if any(part in _EXCLUDED_DIRS for part in relative.parts[:-1]):
+        return "excluded_dir"
+    if _MINIFIED_NAME.search(relative.as_posix()):
+        return "minified_name"
+    try:
+        if (root / relative).stat().st_size > MAX_FILE_BYTES:
+            return "too_large"
+        with (root / relative).open("rb") as stream:
+            if any(len(line) > MINIFIED_LINE_CHARS for line in stream):
+                return "long_line"
+    except OSError:
+        return None
+    return None
 
 
 def declared_functions(lines: Sequence[str], language: str) -> list[str]:

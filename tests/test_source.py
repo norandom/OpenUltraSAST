@@ -162,3 +162,30 @@ def test_call_index_gives_the_same_call_sites_and_is_reused_across_names(tmp_pat
     assert source.callers_of(tmp_path, "handler", files=["other.py"], index=cache) == (("other.py", 6),)
     (tmp_path / "other.py").write_text("")  # the cached index, not the disk, answers the second name
     assert source.callers_of(tmp_path, "other", files=["other.py"], index=cache) == (("other.py", 7),)
+
+
+def test_a_minified_line_is_not_scanned_once_per_function(monkeypatch):
+    text = "".join(f"function f{i}(){{return {i}}}" for i in range(3000)) + "\n"
+    assert len(text) > source.MINIFIED_LINE_CHARS
+    calls: list[str] = []
+    original = source._declares
+    monkeypatch.setattr(source, "_declares", lambda line, name: calls.append(line) or original(line, name))
+    result = source.ranges("bundle.js", text, "javascript")
+    assert len(result) == 3001 and result[0].name == source.MODULE_FUNCTION
+    assert set(calls) == {""}  # the long line itself never reaches the per-function scan
+    assert {r.name for r in result[1:]} == {source.ANON_FUNCTION}
+
+
+def test_generated_reason_names_build_output_only(tmp_path):
+    (tmp_path / "dist").mkdir()
+    (tmp_path / "dist" / "bundle.js").write_text("function a() {}\n")
+    (tmp_path / "app.min.js").write_text("function b() {}\n")
+    (tmp_path / "one.js").write_text("".join(f"function f{i}(){{}}" for i in range(400)) + "\n")
+    (tmp_path / "big.js").write_text("function c() {}\n" + "// padding\n" * 100_000)
+    (tmp_path / "app.js").write_text("function d() {}\n")
+    assert source.generated_reason(tmp_path, "dist/bundle.js") == "excluded_dir"
+    assert source.generated_reason(tmp_path, "app.min.js") == "minified_name"
+    assert source.generated_reason(tmp_path, "one.js") == "long_line"
+    assert source.generated_reason(tmp_path, "big.js") == "too_large"
+    assert source.generated_reason(tmp_path, "app.js") is None
+    assert source.generated_reason(tmp_path, "missing.js") is None
