@@ -1,24 +1,138 @@
 {
-  "catalog_digest": "a1dd63a8a8c1f7f677b50958d180abc27069c096b7f0870da3c59ccc0dfe6097",
+  "catalog_digest": "fe561247d755dea0c58fa6e5353feaa36c14686767dc9c3df41f712ed547aa35",
   "dropped_count": 0,
-  "freeze_digest": "53f9f36449632ffc026d08643c16700cfcad38dfbfb00b97551b4e2fe5ef43d5",
+  "freeze_digest": "e6a67487f05eb5ec4daa9707334654d9501366a9273a69d869f6877d27356a56",
   "guard_result": 0,
   "history_heads": {
+    "apache/seatunnel": "07d6f2235a39875e1d60f9416213cb5949022815",
+    "friendsofflarum/byobu": "bf8c3e708df68dff713093520bb2039d6c57df2d",
+    "jenkinsci/analysis-core-plugin": "07ea7c8ec8d3802cf07f221b24fcbf363111973d",
+    "jenkinsci/azure-credentials-plugin": "0168190feb1de57adc2f22f1a20081c0b3027478",
+    "jenkinsci/azure-keyvault-plugin": "99e2bf72ace20261ed5e6cee3fa1de21a41c2a9b",
+    "jenkinsci/blueocean-plugin": "e66dee5a419e64ebfe7083febec48c64fbe859ef",
+    "jenkinsci/compuware-scm-downloader-plugin": "ee6cbd4dd15c970730d40a5c393e1998d6c936a2",
+    "jenkinsci/crx-content-package-deployer-plugin": "2e4517615dd438741d34c8c6b9b3cad80fb0197d",
+    "jenkinsci/database-plugin": "27984f891660b8ab576da398a5d447373fa7990f",
     "jenkinsci/dependency-track-plugin": "133a4aed4c3d9c3037e618ac67943f03b5457627",
+    "jenkinsci/ec2-plugin": "79de4fd2d03bad4f4d3b3baa9f45c181444ca9f0",
+    "jenkinsci/git-plugin": "bb23957df4054420f87a27c03a2fd67cd36ae41a",
+    "jenkinsci/global-build-stats-plugin": "935848baa78efe88f64060f0176af0f7134caf4e",
+    "jenkinsci/hashicorp-vault-plugin": "da86ec66c537e984c1a7fab1743d575b40667508",
+    "jenkinsci/jiratestresultreporter-plugin": "beb125647a229e9ec1c2834cef24061b36a32dd3",
     "jenkinsci/job-import-plugin": "a00f3771b84d01f2dd1b5613ba5ba884721a6ac2",
+    "jenkinsci/opentelemetry-plugin": "e3facc8abf5ef9fbb83eff4ad74e00fa61b9d4b0",
     "jenkinsci/p4-plugin": "eb18a55402d4631c90063e9615b0f381e647e46f",
+    "jenkinsci/rocketchatnotifier-plugin": "a39e9990f4d8ea2cabb1048cbcfa6875fac5c968",
+    "kimai/kimai": "a3bf6f94b532332bc0846ed3da880c3e56cc85f6",
+    "mage-ai/mage-ai": "b15fe8c11b344784cdd0cccf3139a67979e713a2",
     "shopperlabs/shopper": "86da81306a7f3b0f981ccd196182fb15481dea6c",
     "triggerdotdev/trigger.dev": "3d54889ac14a28159e156278cfd91bff7adfac98"
   },
   "history_limit": 1500,
   "label_check_counts": {
-    "confirmed": 48,
+    "confirmed": 93,
     "refactor": 0,
     "unchecked": 0,
     "unclear": 0
   },
   "negative_ratio": 20,
   "ordinary_exclusions": {
+    "apache/seatunnel": {
+      "dependency": 4,
+      "eligible": 1003,
+      "manifest_only": 9,
+      "no_source": 328,
+      "revert": 3,
+      "security": 9,
+      "size_cap": 138,
+      "vulnerable_function": 6
+    },
+    "friendsofflarum/byobu": {
+      "advisory_fix": 1,
+      "dependency": 16,
+      "eligible": 283,
+      "generated": 64,
+      "manifest_only": 15,
+      "merge_or_root": 18,
+      "no_source": 51,
+      "revert": 2,
+      "security": 4,
+      "size_cap": 10,
+      "vulnerable_function": 8
+    },
+    "jenkinsci/analysis-core-plugin": {
+      "dependency": 1,
+      "eligible": 412,
+      "manifest_only": 261,
+      "merge_or_root": 49,
+      "no_source": 151,
+      "revert": 14,
+      "security": 9,
+      "size_cap": 6,
+      "vulnerable_function": 7
+    },
+    "jenkinsci/azure-credentials-plugin": {
+      "advisory_fix": 1,
+      "dependency": 223,
+      "eligible": 30,
+      "manifest_only": 44,
+      "merge_or_root": 23,
+      "no_source": 40,
+      "revert": 1,
+      "security": 2,
+      "vulnerable_function": 13
+    },
+    "jenkinsci/azure-keyvault-plugin": {
+      "advisory_fix": 1,
+      "dependency": 204,
+      "eligible": 68,
+      "manifest_only": 47,
+      "merge_or_root": 5,
+      "no_source": 37,
+      "revert": 1,
+      "security": 4,
+      "vulnerable_function": 6
+    },
+    "jenkinsci/blueocean-plugin": {
+      "dependency": 222,
+      "eligible": 663,
+      "generated": 1,
+      "manifest_only": 317,
+      "merge_or_root": 5,
+      "no_source": 179,
+      "revert": 37,
+      "security": 35,
+      "size_cap": 32,
+      "vulnerable_function": 9
+    },
+    "jenkinsci/compuware-scm-downloader-plugin": {
+      "eligible": 29,
+      "manifest_only": 156,
+      "merge_or_root": 43,
+      "no_source": 11,
+      "revert": 1
+    },
+    "jenkinsci/crx-content-package-deployer-plugin": {
+      "advisory_fix": 1,
+      "eligible": 53,
+      "manifest_only": 65,
+      "merge_or_root": 9,
+      "no_source": 28,
+      "security": 3,
+      "size_cap": 2,
+      "vulnerable_function": 4
+    },
+    "jenkinsci/database-plugin": {
+      "advisory_fix": 1,
+      "dependency": 244,
+      "eligible": 24,
+      "manifest_only": 35,
+      "merge_or_root": 6,
+      "no_source": 10,
+      "revert": 2,
+      "security": 2,
+      "vulnerable_function": 5
+    },
     "jenkinsci/dependency-track-plugin": {
       "advisory_fix": 1,
       "dependency": 50,
@@ -29,6 +143,62 @@
       "security": 4,
       "size_cap": 1,
       "vulnerable_function": 5
+    },
+    "jenkinsci/ec2-plugin": {
+      "dependency": 90,
+      "eligible": 219,
+      "manifest_only": 230,
+      "merge_or_root": 482,
+      "no_source": 33,
+      "revert": 1,
+      "security": 9,
+      "size_cap": 4,
+      "vulnerable_function": 27
+    },
+    "jenkinsci/git-plugin": {
+      "dependency": 467,
+      "eligible": 143,
+      "manifest_only": 250,
+      "merge_or_root": 488,
+      "no_source": 120,
+      "revert": 8,
+      "security": 19,
+      "size_cap": 1,
+      "vulnerable_function": 4
+    },
+    "jenkinsci/global-build-stats-plugin": {
+      "advisory_fix": 1,
+      "dependency": 55,
+      "eligible": 130,
+      "manifest_only": 57,
+      "merge_or_root": 24,
+      "no_source": 48,
+      "security": 8,
+      "size_cap": 3,
+      "vulnerable_function": 4
+    },
+    "jenkinsci/hashicorp-vault-plugin": {
+      "advisory_fix": 1,
+      "dependency": 21,
+      "eligible": 68,
+      "manifest_only": 105,
+      "merge_or_root": 19,
+      "no_source": 42,
+      "revert": 2,
+      "security": 6,
+      "size_cap": 2,
+      "vulnerable_function": 10
+    },
+    "jenkinsci/jiratestresultreporter-plugin": {
+      "advisory_fix": 1,
+      "dependency": 55,
+      "eligible": 44,
+      "manifest_only": 54,
+      "merge_or_root": 86,
+      "no_source": 31,
+      "revert": 1,
+      "security": 1,
+      "vulnerable_function": 6
     },
     "jenkinsci/job-import-plugin": {
       "advisory_fix": 1,
@@ -41,6 +211,17 @@
       "size_cap": 1,
       "vulnerable_function": 2
     },
+    "jenkinsci/opentelemetry-plugin": {
+      "dependency": 141,
+      "eligible": 265,
+      "manifest_only": 179,
+      "merge_or_root": 247,
+      "no_source": 139,
+      "revert": 3,
+      "security": 7,
+      "size_cap": 12,
+      "vulnerable_function": 10
+    },
     "jenkinsci/p4-plugin": {
       "dependency": 5,
       "eligible": 556,
@@ -51,6 +232,41 @@
       "security": 12,
       "size_cap": 11,
       "vulnerable_function": 18
+    },
+    "jenkinsci/rocketchatnotifier-plugin": {
+      "dependency": 95,
+      "eligible": 70,
+      "manifest_only": 134,
+      "merge_or_root": 61,
+      "no_source": 126,
+      "revert": 1,
+      "security": 11,
+      "size_cap": 1,
+      "vulnerable_function": 19
+    },
+    "kimai/kimai": {
+      "advisory_fix": 1,
+      "dependency": 73,
+      "eligible": 800,
+      "manifest_only": 2,
+      "merge_or_root": 1,
+      "no_source": 483,
+      "revert": 4,
+      "security": 37,
+      "size_cap": 72,
+      "vulnerable_function": 27
+    },
+    "mage-ai/mage-ai": {
+      "dependency": 38,
+      "eligible": 895,
+      "function_parse": 9,
+      "generated": 1,
+      "manifest_only": 29,
+      "no_source": 403,
+      "revert": 14,
+      "security": 45,
+      "size_cap": 63,
+      "vulnerable_function": 3
     },
     "shopperlabs/shopper": {
       "advisory_fix": 1,
@@ -81,5 +297,5 @@
   },
   "ordinary_floor": 20,
   "used_set_digest": "14384b95b7ca47862f9cc04c707377c9a0d01321f947e8cf00282697a31280fd",
-  "verification_digest": "28c624c406904b60bd20884429a6b673fa45c87693a9abcf5dbca0973648c7ea"
+  "verification_digest": "0f463789e537c469e9f7d15358835cf2762a8eb2e95c311f2273cf8ca8a4d9f0"
 }
