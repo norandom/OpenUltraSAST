@@ -9,7 +9,9 @@ from collections.abc import Mapping, Sequence
 from dataclasses import asdict, dataclass, replace
 from typing import Any
 
+from ..cfg import ControlContext
 from ..ir import FileIR, FunctionIR, trailing_name
+from .cfg_dominance import describe, operation_context
 from .dominance import Dominance
 from .facts import ObligationFacts
 from .operations import Discharge, Operation, valid_witness
@@ -24,6 +26,8 @@ class Guard:
     line: int | None
     provenance: str
     fact_id: str
+    relation: str  # all_paths, some_paths, none or after, relative to the hop's call or the operation
+    effect: str  # throws, returns, exits, branches or value_only: what failing the guard does to the operation
 
 
 @dataclass(frozen=True)
@@ -49,6 +53,7 @@ class Trace:
     requires: tuple[str, ...]
     dominating: tuple[str, ...]
     missing: str | None
+    operation_context: ControlContext = ControlContext()
 
     def record(self) -> dict[str, Any]:
         """Return JSON values with keys sorted recursively, retaining sequence order."""
@@ -60,7 +65,8 @@ class Trace:
         record = self.record()
         components = [("entry", {key: record[key] for key in ("entry_kind", "boundary", "access", "parameters")})]
         components.extend(("hop", hop) for hop in record["hops"])
-        components.append(("operation", {key: record[key] for key in ("operation_kind", "fact_id", "operation_line", "arguments")}))
+        operation_keys = ("operation_kind", "fact_id", "operation_line", "arguments", "operation_context")
+        components.append(("operation", {key: record[key] for key in operation_keys}))
         components.extend(("guard_after", guard) for guard in record["guards_after"])
         components.append(("verdict", {key: record[key] for key in ("requires", "dominating", "missing")}))
         return "\n".join(f"{label} {json.dumps(value, sort_keys=True, separators=(',', ':'))}" for label, value in components)
@@ -164,6 +170,7 @@ def build_trace(
     access: str | None = None,
 ) -> Trace:
     """Build one trace without changing the checker's verdict or coverage."""
+    texts = {file: text for file, (_, text) in irs.items()}
     hops: list[Hop] = []
     after_by_hop: list[list[Guard]] = []
     incoming: tuple[str, ...] = ()
@@ -191,18 +198,28 @@ def build_trace(
             key=lambda w: (w.line or 0, w.kind, w.scope, w.provenance, w.fact_id),
         )
         for witness in local:
-            guard = Guard(witness.kind, witness.scope, witness.line, witness.provenance, witness.fact_id)
-            if valid_witness(witness) and dominance.dominates(witness, measured, None):
+            relation, effect = describe(dominance, witness, measured, texts)
+            guard = Guard(witness.kind, witness.scope, witness.line, witness.provenance, witness.fact_id, relation, effect)
+            dominated = valid_witness(witness) and dominance.dominates(witness, measured, None)
+            if dominated or (valid_witness(witness) and witness.line is not None and line is not None and witness.line < line):
+                # A guard above the call that does not dominate it stays visible, with the relation that says why.
                 before.append(guard)
             elif witness.line is not None and line is not None and witness.line > line:
                 after.append(guard)
+        handler = False
         if final:
-            names = next(fact.calls for fact in scoped.operations if fact.id == operation.fact_id)
+            fact = next(fact for fact in scoped.operations if fact.id == operation.fact_id)
+            names = fact.calls
+            # A handler-named operation is the handler itself: its arguments are the handler's own parameters.
+            handler = bool(fact.handlers) and not fact.calls
         else:
             names = (path.hops[index + 1][0].rpartition("::")[2],)
         values = _arguments(function, line, names, text) if line is not None and names else ()
         incoming = tuple(_origin(value, function, line or function.end_line + 1, origins, scoped) for value in values)
-        if final:
+        if handler:
+            own = tuple(param for param in function.params if param not in {"self", "cls", "this"})
+            arguments = tuple((param, origins.get(param, "unknown")) for param in own)
+        elif final:
             arguments = tuple(zip(values, incoming, strict=True))
         hops.append(
             Hop(
@@ -226,4 +243,5 @@ def build_trace(
         operation.requires,
         tuple(sorted(dominating)),
         missing,
+        operation_context(dominance, operation),
     )

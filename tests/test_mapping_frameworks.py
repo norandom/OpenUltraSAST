@@ -239,3 +239,18 @@ export default function Items() { return <div>Items</div>; }
         },
     )
     assert [row.function_name for row in rows] == ["action"]
+
+
+def test_java_parameters_are_names_without_annotations():
+    from openultrasast.semantic.ir import parse_file
+
+    text = """class Exposed extends Descriptor<Thing> {
+ public Object doCheckUrl(@QueryParameter("url") final String value, @AncestorInPath Item item, StaplerRequest2 req, String... rest) {
+  return FormValidation.ok();
+ }
+}
+"""
+    ir = parse_file("Fixture.java", text, "java")
+    if not ir.parse_ok:
+        pytest.skip("no Java grammar installed")
+    assert [fn.params for fn in ir.functions if fn.name == "doCheckUrl"] == [("value", "item", "req", "rest")]

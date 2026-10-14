@@ -80,7 +80,7 @@
   - _Requirements: 9.1, 9.2, 9.5, 9.6_
   - _Depends: 4.2_
 
-- [ ] 4.4 `semantic/cfg.py`: structural control-flow graph per function from the syntax tree, dominators, control context (P)
+- [x] 4.4 `semantic/cfg.py`: structural control-flow graph per function from the syntax tree, dominators, control context (P)
   - Java, PHP, Python, JavaScript and TypeScript constructs of requirement 10.1; `cfg_unavailable` otherwise
   - Done when `tests/test_semantic_cfg.py` shows, per language, that a guard before an unconditional return
     dominates, a guard inside an if-branch does not dominate a statement after the branch, a guard inside a
@@ -88,7 +88,7 @@
     conditions and loops
   - _Requirements: 10.1, 10.2, 10.4_
   - _Boundary: semantic.cfg_
-- [ ] 4.5 `obligations/cfg_dominance.py::CfgDominance`, failure effects, and the trace's control components; the prover selects it; Java parameter names and handler-operation arguments cleaned
+- [x] 4.5 `obligations/cfg_dominance.py::CfgDominance`, failure effects, and the trace's control components; the prover selects it; Java parameter names and handler-operation arguments cleaned
   - Done when `tests/test_obligation_cfg_dominance.py` shows a value-only predicate does not discharge while the
     same predicate guarding a throw does; a branch-only guard yields `some_paths` and no discharge; the prover
     smoke on the 23 fixes keeps or raises its recall; `tests/test_mapping_frameworks.py` shows Java parameter

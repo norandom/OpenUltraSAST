@@ -233,7 +233,11 @@ exit consumes before the operation is `value_only` and never discharges; router 
 dominate as before; along a path record, a witness on an earlier hop dominates as before. Without a graph for
 a function, `CfgDominance` falls back to `OrderDominance` and records `cfg_unavailable`.
 The trace's `Guard` gains `relation` (`all_paths`, `some_paths`, `none`, `after`) and `effect`
-(`throws`, `returns`, `exits`, `value_only`); the trace gains `operation_context: ControlContext`.
+(`throws`, `returns`, `exits`, `branches`, `value_only`; `constrains` for an identity constraint or a
+non-permissive value on the operation's own line, which has no failing arm; router and decorator witnesses carry
+`exits`); the trace gains `operation_context: ControlContext`. Coarse spots accepted for this increment: a
+ternary or switch expression is one node, several statements on one line share it, a guard's result held in a
+variable is followed by name without reassignment tracking.
 
 ### obligations.enforcement
 ```python

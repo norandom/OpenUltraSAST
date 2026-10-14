@@ -88,6 +88,29 @@ def parse_with_cst(path: str, text: str, language: str) -> FileIR | None:
     return file_ir_from_tree(path=path, text=text, language=language, tree=tree)
 
 
+def parse_function_nodes(path: str, text: str, language: str) -> list[Any]:
+    """The syntax nodes of every function in the file, in the order `file_ir_from_tree` lists them.
+
+    The control-flow builder needs the statements of one function, which the FileIR does not keep. An unparsable
+    file or a language without a grammar yields no nodes.
+    """
+    from .extra import grammar_for
+
+    kinds = _KIND.get(language)
+    grammar = grammar_for(_grammar_language(language, path))
+    if grammar is None or kinds is None:
+        return []
+    try:
+        from tree_sitter import Parser
+
+        tree = Parser(grammar).parse(text.encode())
+    except Exception:
+        return []
+    if bool(getattr(tree.root_node, "has_error", False)):
+        return []
+    return [node for node in _walk(tree.root_node) if node.type in kinds["function"]]
+
+
 def _grammar_language(language: str, path: str) -> str:
     """TypeScript ships two grammars; a `.tsx` file needs the JSX-aware one. The FileIR keeps the language it was given."""
     return "tsx" if language == "typescript" and path.endswith(".tsx") else language
@@ -238,6 +261,9 @@ def _params(node: Any, kinds: dict[str, frozenset[str]]) -> tuple[str, ...]:
         return _identifiers(parameter)
     for child in _walk(node, skip=frozenset()):
         if child.type in kinds["params"]:
+            if any(param.type in {"formal_parameter", "spread_parameter", "receiver_parameter"} for param in child.named_children):
+                # Annotations such as `@QueryParameter` are identifiers too; keep the declared names only.
+                return tuple(name for param in child.named_children if (name := _java_parameter_name(param)))
             if any(
                 param.type in {"simple_parameter", "variadic_parameter", "property_promotion_parameter"} for param in child.named_children
             ):
@@ -248,6 +274,17 @@ def _params(node: Any, kinds: dict[str, frozenset[str]]) -> tuple[str, ...]:
                 if grandchild.type in kinds["params"]:
                     return _identifiers(grandchild)
     return ()
+
+
+def _java_parameter_name(param: Any) -> str:
+    if param.type == "formal_parameter":
+        name = param.child_by_field_name("name")
+        return _text(name) if name is not None else ""
+    if param.type == "spread_parameter":
+        declarator = next((child for child in param.named_children if child.type == "variable_declarator"), None)
+        name = declarator.child_by_field_name("name") if declarator is not None else None
+        return _text(name) if name is not None else ""
+    return ""
 
 
 def _left_name(node: Any) -> str:

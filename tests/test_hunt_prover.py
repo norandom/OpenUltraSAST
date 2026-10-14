@@ -295,3 +295,72 @@ def test_remix_missing_kinds_and_public_policy(tmp_path, public, expected_missin
     change["files"] = [{"path": "app/routes/items.ts", "head_lines": [[1, 1]]}]
     result = prove_change(root, change)
     assert [finding["missing"] for finding in result.findings] == expected_missing
+
+
+@pytest.mark.parametrize(
+    "guard,findings,relation,effect",
+    [
+        (
+            [" if (shared) {", "  Jenkins.get().checkPermission(Jenkins.ADMINISTER);", " }"],
+            1,
+            "some_paths",
+            "throws",
+        ),
+        (
+            [" if (!Jenkins.get().hasPermission(Jenkins.ADMINISTER)) {", '  throw new AccessDeniedException("denied");', " }"],
+            0,
+            "all_paths",
+            "throws",
+        ),
+        ([" boolean allowed = Jenkins.get().hasPermission(Jenkins.ADMINISTER);"], 1, "all_paths", "value_only"),
+    ],
+)
+def test_control_flow_decides_the_verdict_and_the_trace(tmp_path, guard, findings, relation, effect):
+    body = "\n ".join(guard)
+    root, change = repository(
+        tmp_path,
+        f"""class X extends Descriptor<Thing> {{
+ public Object doTestConnection(@QueryParameter boolean shared) {{
+ {body}
+  return CredentialsProvider.lookupCredentials(Thing.class);
+ }}
+}}""",
+    )
+    result = prove_change(root, change)
+    assert len(result.findings) == findings
+    assert result.coverage.operations_discharged == 1 - findings
+    trace = result.traces[0]
+    assert trace["parameters"] == ["shared"]
+    assert [(g["relation"], g["effect"]) for g in trace["hops"][0]["guards_before_call"]] == [(relation, effect)]
+    assert not [item for item in result.degradations if item.get("reason") == "cfg_unavailable"]
+    if relation == "some_paths":
+        assert trace["missing"] == "path_guard" and trace["operation_context"]["conditions"] == []
+
+
+def test_handler_operation_trace_carries_handler_parameters(tmp_path):
+    root, change = repository(
+        tmp_path,
+        """class X extends Descriptor<Thing> {
+ public Object doCheckValue(@QueryParameter String value, @AncestorInPath Item item) {
+  return 1;
+ }
+}""",
+    )
+    result = prove_change(root, change)
+    assert result.traces[0]["arguments"] == [["value", "request_input"], ["item", "request_input"]]
+
+
+def test_unmodelled_function_is_judged_by_order_and_recorded(tmp_path):
+    root, change = repository(
+        tmp_path,
+        """class X extends Descriptor<Thing> {
+ public Object doTestConnection() {
+  Jenkins.get().checkPermission(Jenkins.ADMINISTER);
+  outer: for (;;) { break outer; }
+  return CredentialsProvider.lookupCredentials(Thing.class);
+ }
+}""",
+    )
+    result = prove_change(root, change)
+    assert not result.findings and result.coverage.operations_discharged == 1
+    assert any(item.get("reason") == "cfg_unavailable" and item.get("function") == "doTestConnection" for item in result.degradations)

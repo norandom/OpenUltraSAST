@@ -4,17 +4,19 @@ from __future__ import annotations
 
 import re
 from collections import Counter
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
 from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from typing import Any
 
 from .. import mapping, source
 from ..preprocess import FileTarget, count_loc, detect_language, detect_tags
+from ..semantic.cfg import ControlContext, FunctionCfg
+from ..semantic.cst import parse_function_nodes
 from ..semantic.facts import load_facts
 from ..semantic.ir import FileIR, FunctionIR, trailing_name
+from ..semantic.obligations.cfg_dominance import CfgDominance
 from ..semantic.obligations.check import _on_caller_hop, _relevant, _route_path, check_obligations
-from ..semantic.obligations.dominance import OrderDominance
 from ..semantic.obligations.enforcement import witnesses
 from ..semantic.obligations.facts import load_obligation_facts
 from ..semantic.obligations.operations import Discharge, Operation, find_discharges, find_operations, valid_witness
@@ -215,7 +217,8 @@ def prove_change(root: Path, change: Mapping[str, Any], ctx: Context | None = No
         for op in ops:
             if op.fact_id in handler_ids:
                 handler_ends[op] = returns[-1] if returns else fn.end_line + 1
-    dominance = _HandlerDominance(ctx.texts, handler_ends)
+    graphs = CfgDominance(ctx.texts, _Graphs(irs))
+    dominance = _HandlerDominance(graphs, handler_ends)
     extra_witnesses: list[Discharge] = []
     for language in ("php", "python"):
         try:
@@ -325,6 +328,7 @@ def prove_change(root: Path, change: Mapping[str, Any], ctx: Context | None = No
                     trace=pair_traces[op],
                 ),
             )
+    degradations.extend(graphs.degradations)
     coverage = Coverage(
         dict(languages),
         dict(frameworks),
@@ -339,16 +343,60 @@ def prove_change(root: Path, change: Mapping[str, Any], ctx: Context | None = No
 
 
 class _HandlerDominance:
-    """Judge a handler's internal guard over its body while retaining its declaration as the finding location.
+    """Judge a handler's internal guard at the handler's end while retaining its declaration as the finding location.
 
-    Call operations retain ordinary order dominance. The checker default and OrderDominance are unchanged.
+    Call operations are judged as the inner dominance judges them. The checker default and OrderDominance are unchanged.
     """
 
-    def __init__(self, texts: Mapping[str, str], handler_ends: Mapping[Operation, int]) -> None:
-        self.order = OrderDominance(texts)
+    def __init__(self, inner: CfgDominance, handler_ends: Mapping[Operation, int]) -> None:
+        self.inner = inner
         self.handler_ends = handler_ends
 
-    def dominates(self, witness: Discharge, operation: Operation, path: object | None) -> bool:
+    def _measured(self, operation: Operation) -> Operation:
         end = self.handler_ends.get(operation)
-        measured = replace(operation, line=end) if end is not None else operation
-        return self.order.dominates(witness, measured, path)
+        return replace(operation, line=end) if end is not None else operation
+
+    def dominates(self, witness: Discharge, operation: Operation, path: object | None) -> bool:
+        return self.inner.dominates(witness, self._measured(operation), path)
+
+    def relation(self, witness: Discharge, operation: Operation) -> str:
+        return self.inner.relation(witness, self._measured(operation))
+
+    def effect(self, witness: Discharge, operation: Operation) -> str:
+        return self.inner.effect(witness, self._measured(operation))
+
+    def context(self, operation: Operation) -> ControlContext:
+        return self.inner.context(self._measured(operation))
+
+
+class _Graphs(Mapping[tuple[str, str], tuple[FunctionCfg, ...]]):
+    """Control-flow graphs of the parsed files' functions, built on first use and keyed by (path, function)."""
+
+    def __init__(self, irs: Mapping[str, tuple[FileIR, str]]) -> None:
+        self._irs = irs
+        self._built: dict[str, dict[str, tuple[FunctionCfg, ...]]] = {}
+
+    def _file(self, path: str) -> dict[str, tuple[FunctionCfg, ...]]:
+        if path not in self._built:
+            graphs: dict[str, list[FunctionCfg]] = {}
+            if path in self._irs:
+                ir, text = self._irs[path]
+                nodes = parse_function_nodes(path, text, ir.language)
+                by_line: dict[int, list[Any]] = {}
+                for node in nodes:
+                    by_line.setdefault(int(node.start_point[0]) + 1, []).append(node)
+                for fn in ir.functions:
+                    found = [node for node in by_line.get(fn.start_line, ()) if int(node.end_point[0]) + 1 == fn.end_line]
+                    if len(found) == 1:
+                        graphs.setdefault(fn.name, []).append(FunctionCfg.from_cst(found[0], ir.language))
+            self._built[path] = {name: tuple(items) for name, items in graphs.items()}
+        return self._built[path]
+
+    def __getitem__(self, key: tuple[str, str]) -> tuple[FunctionCfg, ...]:
+        return self._file(key[0])[key[1]]
+
+    def __iter__(self) -> Iterator[tuple[str, str]]:
+        return iter([(path, name) for path in self._irs for name in self._file(path)])
+
+    def __len__(self) -> int:
+        return sum(len(self._file(path)) for path in self._irs)

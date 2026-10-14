@@ -196,3 +196,63 @@ def test_guards_after_follow_return_order():
         missing="path_guard",
     )
     assert [guard.fact_id for guard in result.guards_after] == ["final-after", "middle-after", "entry-after"]
+
+
+def test_control_components_include_branch_guard_without_discharge():
+    from openultrasast.semantic.cfg import FunctionCfg
+    from openultrasast.semantic.cst import parse_function_nodes
+    from openultrasast.semantic.obligations.cfg_dominance import CfgDominance
+
+    text = "def entry(item):\n    if enabled:\n        guard()\n    read(item)\n"
+    ir = parse_python_ast("app.py", text)
+    facts = ObligationFacts("1", (OperationFact("read", "protected_read", "python", ("read",), None, ("path_guard",), "high"),), ())
+    nodes = parse_function_nodes("app.py", text, "python")
+    if not nodes:
+        import pytest
+
+        pytest.skip("no Python grammar installed")
+    dominance = CfgDominance({"app.py": text}, {("app.py", "entry"): FunctionCfg.from_cst(nodes[0], "python")})
+    result = build_trace(
+        path=PathRecord((("app.py::entry", None),), "app.py::entry", True),
+        entry=SimpleNamespace(kind="route", trust_boundary="http_request", access_level="unknown"),
+        operation=Operation("app.py", 4, "entry", "protected_read", "read", None, ("path_guard",)),
+        irs={"app.py": (ir, text)},
+        facts=facts,
+        witnesses=(Discharge("app.py", 3, "entry", "path_guard", "guard", "authenticated_context", "statement"),),
+        dominance=dominance,
+        dominating=(),
+        missing="path_guard",
+    )
+    guard = result.hops[0].guards_before_call[0]
+    assert (guard.relation, guard.effect) == ("some_paths", "throws")
+    assert result.operation_context.conditions == () and result.record()["operation_context"]["in_loop"] is False
+    assert '"relation":"some_paths"' in result.text()
+    assert '"operation_context":' in result.text().splitlines()[-2]
+
+
+def test_order_dominance_trace_names_relation_and_effect():
+    record = trace().record()
+    assert record["hops"][0]["guards_before_call"][0]["relation"] == "all_paths"
+    assert record["hops"][0]["guards_before_call"][0]["effect"] == "throws"
+    assert record["guards_after"][0]["relation"] == "after"
+    assert record["operation_context"] == {"catches": [], "conditions": [], "in_loop": False, "in_try": False, "on_exception_path": False}
+
+
+def test_handler_operation_arguments_are_parameter_origins():
+    text = "def entry(self, item):\n    return item\n"
+    ir = parse_python_ast("app.py", text)
+    facts = ObligationFacts(
+        "1", (OperationFact("handler", "protected_read", "python", (), None, ("path_guard",), "high", handlers=("entry",)),), ()
+    )
+    result = build_trace(
+        path=PathRecord((("app.py::entry", None),), "app.py::entry", True),
+        entry=SimpleNamespace(kind="route", trust_boundary="http_request", access_level="unknown"),
+        operation=Operation("app.py", 1, "entry", "protected_read", "handler", None, ("path_guard",)),
+        irs={"app.py": (ir, text)},
+        facts=facts,
+        witnesses=(),
+        dominance=OrderDominance({"app.py": text}),
+        dominating=(),
+        missing="path_guard",
+    )
+    assert result.arguments == (("item", "request_input"),)
