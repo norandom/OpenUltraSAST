@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import subprocess
 import sys
 from collections import Counter
@@ -26,6 +27,21 @@ with pytest.MonkeyPatch.context() as patch:
 
     _spec.loader.exec_module(trace)
 worker = sys.modules["engine_trace_worker"]
+
+
+@pytest.fixture(autouse=True)
+def _main_env_does_not_outlive_the_test():
+    """engine_trace.main pins GIT_NO_LAZY_FETCH for its own run; the variable must not leak into later tests.
+
+    Git 2.44 and newer honour it, and the partial-clone extraction test then fails on a refusal that has nothing
+    to do with extraction (seen in CI; the local git ignores the variable, so the leak was invisible here).
+    monkeypatch.delenv records nothing for an absent variable, so the restore is explicit."""
+    before = os.environ.get("GIT_NO_LAZY_FETCH")
+    yield
+    if before is None:
+        os.environ.pop("GIT_NO_LAZY_FETCH", None)
+    else:
+        os.environ["GIT_NO_LAZY_FETCH"] = before
 
 
 def row(**extra):

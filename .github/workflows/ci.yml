@@ -11,6 +11,9 @@ permissions:
 jobs:
   checks:
     runs-on: ubuntu-latest
+    env:
+      # uv run re-syncs to the lockfile's default extras unless told not to; it removed the extras below before pytest.
+      UV_NO_SYNC: "1"
     steps:
       - uses: actions/checkout@v5
       - uses: astral-sh/setup-uv@v7
@@ -19,7 +22,7 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version-file: .python-version
-      - run: uv sync --group dev
+      - run: uv sync --group dev --extra hunt --extra semantic
       - run: uv run ruff format --check .
       - run: uv run ruff check .
       - run: uv run mypy src/openultrasast
