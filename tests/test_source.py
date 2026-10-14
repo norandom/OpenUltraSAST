@@ -135,3 +135,16 @@ def test_parse_rejection_is_not_an_empty_result(monkeypatch):
     )
     with pytest.raises(ValueError, match="source parse failed"):
         source.ranges("app.py", "def broken(", "python")
+
+
+def test_facts_for_reuses_supplied_product_files_and_texts(tmp_path, monkeypatch):
+    """With files and texts supplied, facts_for neither walks the tree nor reads the files it was given."""
+    from openultrasast import source
+
+    (tmp_path / "app.py").write_text("def handler(value):\n    return value\n")
+    (tmp_path / "other.py").write_text("from app import handler\n\n\ndef run():\n    return handler(1)\n")
+    monkeypatch.setattr(source, "product_files", lambda root: (_ for _ in ()).throw(AssertionError("walked the tree")))
+    texts = {"other.py": (tmp_path / "other.py").read_text()}
+    (tmp_path / "other.py").write_text("")  # the supplied text, not the disk, is what callers_of reads
+    facts = source.facts_for(tmp_path, "app.py", 2, entry_points=[], files=["app.py", "other.py"], texts=texts)
+    assert facts.function == "handler" and facts.callers == (("other.py", 5),)

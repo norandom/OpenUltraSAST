@@ -420,25 +420,44 @@ def _read_source(root: Path, path: str) -> str:
     return resolved.read_text(encoding="utf-8", errors="replace")
 
 
-def callers_of(root: Path, name: str, *, files: Iterable[str]) -> tuple[tuple[str, int], ...]:
-    """Return sorted call locations from the supplied repository-relative product files."""
+def callers_of(root: Path, name: str, *, files: Iterable[str], texts: Mapping[str, str] | None = None) -> tuple[tuple[str, int], ...]:
+    """Return sorted call locations from the supplied repository-relative product files.
+
+    ``texts`` holds file contents already read by the caller; files absent from it are read here."""
     root = Path(root)
-    return tuple((path, call.line) for path in sorted(set(files)) for call in call_sites(_read_source(root, path), (name,)))
+
+    def text_of(path: str) -> str:
+        return texts[path] if texts is not None and path in texts else _read_source(root, path)
+
+    return tuple((path, call.line) for path in sorted(set(files)) for call in call_sites(text_of(path), (name,)))
 
 
-def facts_for(root: Path, path: str, line: int, *, entry_points: Sequence[EntryPointRecord] | None = None) -> SourceFacts:
-    """Compute repository facts at a line; supplied entry points avoid repeated mapping."""
+def facts_for(
+    root: Path,
+    path: str,
+    line: int,
+    *,
+    entry_points: Sequence[EntryPointRecord] | None = None,
+    files: Sequence[str] | None = None,
+    texts: Mapping[str, str] | None = None,
+) -> SourceFacts:
+    """Compute repository facts at a line; supplied entry points, product files and texts avoid repeated work.
+
+    A caller computing facts for many lines of one checkout (the hunter's feature table) walks the product tree
+    and reads it once; without ``files`` and ``texts`` every call walked and read the whole tree again."""
     root = Path(root)
     text = _read_source(root, path)
     language = canonical_language(detect_language(root / path))
     spans = ranges(path, text, language)
     function = enclosing(spans, line)
-    files = product_files(root)
+    files = list(files) if files is not None else product_files(root)
     if entry_points is None:
         from .mapping import analyze_entry_points
 
         entry_points = analyze_entry_points(root, [build_file_target(root, root / file) for file in files])
-    return SourceFacts(language, function, bounds(spans, function), callers_of(root, function, files=files), tuple(entry_points))
+    return SourceFacts(
+        language, function, bounds(spans, function), callers_of(root, function, files=files, texts=texts), tuple(entry_points)
+    )
 
 
 def _digest(names: Sequence[str]) -> str:

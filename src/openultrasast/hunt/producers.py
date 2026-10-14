@@ -250,12 +250,13 @@ def _roles(function: Any, facts: Any) -> dict[str, str]:
     return roles
 
 
-def _obligations(path: str, ctx: Context) -> list[dict[str, object]]:
+def _obligations(path: str, ctx: Context) -> list[dict[str, object]] | None:
     ir, text = ctx.ir(path), ctx.read(path)
     facts, flow = load_obligation_facts(), load_facts()
     scoped = facts.for_language(ir.language)
     if not scoped.operations and not scoped.dischargers:
-        raise _Absent("obligations_language_unsupported")
+        # A missing fact table is not a failed parse or a checked empty result.
+        return None
     dominance = OrderDominance({path: text})
     result = check_obligations(
         irs={path: (ir, text)},
