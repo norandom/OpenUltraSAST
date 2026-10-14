@@ -94,7 +94,9 @@ def _prove(change, repos, *, max_depth):
                     except _Absent as error:
                         # A file git holds empty is read, not unread: the first smoke run failed four changes on
                         # legitimately empty files (`__init__.py`, an empty asset). Anything else absent is unread.
-                        held = checked_git.runner(["git", "-C", str(root), "cat-file", "-s", f"HEAD:{relative}"], capture_output=True, text=True)
+                        held = checked_git.runner(
+                            ["git", "-C", str(root), "cat-file", "-s", f"HEAD:{relative}"], capture_output=True, text=True
+                        )
                         if error.reason == "empty_source" and held.returncode == 0 and int(held.stdout.strip() or 0) == 0:
                             instrument["empty_files"] = instrument.get("empty_files", 0) + 1
                             continue
