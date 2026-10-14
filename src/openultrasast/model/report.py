@@ -1,4 +1,5 @@
 """Report model coverage for the scanned regions."""
+
 from __future__ import annotations
 
 from collections.abc import Sequence

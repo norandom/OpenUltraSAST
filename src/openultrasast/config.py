@@ -24,10 +24,7 @@ _UNREAD_ON = "retired 2026-10-02 because nothing ever read it"
 _UNREAD_DYNAMIC = "no dynamic or deep tier exists; deep mode will define its own keys when it is built"
 _UNREAD_EVIDENCE = "evidence tiers come from the program model's ladder (model/ladder.py), not from configuration"
 _UNREAD_VARIANTS = "the structural variant search it configured was deleted with semantic/variants.py"
-_UNREAD_SANDBOX = (
-    "the search sandbox enforces isolation and read-only source (search/_sandbox.py); that is an "
-    "invariant, not a knob"
-)
+_UNREAD_SANDBOX = "the search sandbox enforces isolation and read-only source (search/_sandbox.py); that is an invariant, not a knob"
 _UNREAD_TOP_K = "no stage read it; `[complexity] max_hunter_hotspots` is the one complexity key the scan reads"
 _UNREAD_EMBEDDINGS = (
     "the json-local vector index it configured and `ousast index` were deleted; the decision engine embeds through "

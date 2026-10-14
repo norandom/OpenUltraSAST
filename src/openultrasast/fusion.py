@@ -209,4 +209,4 @@ __all__ = [
     "fuse_finding",
     "fuse_findings",
     "fusion_triggers",
-    ]
+]

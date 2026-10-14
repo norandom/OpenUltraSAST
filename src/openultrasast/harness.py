@@ -22,7 +22,6 @@ EventType = Literal[
 ]
 
 
-
 @dataclass(frozen=True)
 class HarnessEvent:
     event_type: EventType

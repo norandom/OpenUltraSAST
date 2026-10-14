@@ -23,4 +23,3 @@ class SandboxResult:
     stdout: str
     stderr: str
     timed_out: bool
-

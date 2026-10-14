@@ -70,6 +70,7 @@ class FamilyTaxonomy:
     def family_of_mechanism(self, mechanism: str) -> Family | None:
         return next((family for family in self.families if mechanism in family.mechanisms), None)
 
+
 def _load_families_uncached(path: Path | None = None, *, require_all: bool = True) -> FamilyTaxonomy:
     """Load the taxonomy. ``require_all`` demands the full closed set in order (the shipped file);
     a scoped fixture may declare a subset, but never a family outside ``FAMILY_IDS``."""

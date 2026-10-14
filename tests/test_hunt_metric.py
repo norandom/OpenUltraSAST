@@ -8,11 +8,14 @@ from benchmarks.unseen.score import catches
 from openultrasast.hunt.metric import search_metric, search_outcome
 
 
-@pytest.mark.parametrize("change", [
-    {"family": "injection", "path": "app.py", "function": "handler", "function_lines": [100, 140]},
-    {"family": "path", "path": "other.py", "function": "read", "function_lines": [100, 140]},
-    {"family": "config_secrets", "path": "app.py", "function": "handler", "function_lines": [100, 140]},
-])
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"family": "injection", "path": "app.py", "function": "handler", "function_lines": [100, 140]},
+        {"family": "path", "path": "other.py", "function": "read", "function_lines": [100, 140]},
+        {"family": "config_secrets", "path": "app.py", "function": "handler", "function_lines": [100, 140]},
+    ],
+)
 def test_matches_score_catches(change):
     change = {**change, "kind": "vulnerability", "files": [{"path": "app.py", "head_lines": [[20, 22]]}]}
     for path in ("app.py", "other.py"):
@@ -20,17 +23,20 @@ def test_matches_score_catches(change):
             for function in ("handler", "other"):
                 for family in (change["family"], "unknown"):
                     finding = {"path": path, "line": line, "function": function, "family": family}
-                    record = {**change, "push": {"admission": {"defects": [
-                        {**finding, "locations": [[path, line]]}
-                    ]}}}
+                    record = {**change, "push": {"admission": {"defects": [{**finding, "locations": [[path, line]]}]}}}
                     assert search_outcome(change, [finding]).hit == bool(catches(record))
 
 
 def test_counts_scope_feedback_and_tolerance():
-    change = {"kind": "vulnerability", "path": "app.py", "function": "handle", "family": "path",
-              "function_lines": [20, 22], "files": [{"path": "app.py", "head_lines": [[20, 22]]}]}
-    findings = [{"path": "app.py", "line": 10, "family": "path"},
-                {"path": "other.py", "line": 30, "family": "path"}]
+    change = {
+        "kind": "vulnerability",
+        "path": "app.py",
+        "function": "handle",
+        "family": "path",
+        "function_lines": [20, 22],
+        "files": [{"path": "app.py", "head_lines": [[20, 22]]}],
+    }
+    findings = [{"path": "app.py", "line": 10, "family": "path"}, {"path": "other.py", "line": 30, "family": "path"}]
     outcome = search_outcome(change, findings)
     assert (outcome.hit, outcome.suspicions, outcome.on_diff) == (True, 2, 1)
     assert "other.py:30" in outcome.feedback

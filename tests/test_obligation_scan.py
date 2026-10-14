@@ -90,5 +90,3 @@ def test_quick_scan_and_disabled_config_skip_obligations(tmp_path: Path, monkeyp
     assert "obligations" not in manifest
     findings = json.loads((_run_dir(repo) / "findings.json").read_text())["findings"]
     assert not any(f["finding_id"].startswith("obligation:") for f in findings)
-
-

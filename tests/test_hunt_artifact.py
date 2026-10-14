@@ -8,9 +8,16 @@ from openultrasast.hunt.artifact import RunArtifact, UsageLedger
 
 
 def artifact():
-    return RunArtifact(program_id="program", schema_version=1, mask=("source",), data_digests={"train": "abc"},
-                       configurations=[{"seed": 0}], usage={"usd": 0.1, "calls": 1, "replay_hits": 0, "wall_seconds": 2},
-                       versions={"dspy": "3.4.0", "litellm": "1", "openultrasast": "2.0.1"}, created="2026-10-13T00:00:00Z")
+    return RunArtifact(
+        program_id="program",
+        schema_version=1,
+        mask=("source",),
+        data_digests={"train": "abc"},
+        configurations=[{"seed": 0}],
+        usage={"usd": 0.1, "calls": 1, "replay_hits": 0, "wall_seconds": 2},
+        versions={"dspy": "3.4.0", "litellm": "1", "openultrasast": "2.0.1"},
+        created="2026-10-13T00:00:00Z",
+    )
 
 
 def test_artifact_round_trip_and_tamper(tmp_path):

@@ -157,5 +157,3 @@ class Egress:
     def settle() -> None:
         """Wait out the gateway's cached deny (10 s) before the actor's first connection: ``OUSAST_EGRESS_SETTLE``."""
         time.sleep(float(os.environ.get("OUSAST_EGRESS_SETTLE") or 11))
-
-

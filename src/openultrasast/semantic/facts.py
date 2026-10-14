@@ -16,6 +16,7 @@ from ..source import canonical_language
 
 DEFAULT_FACTS_DIR = Path(__file__).resolve().parents[1] / "ruleset" / "semantic"
 
+
 class FactLoadError(ValueError):
     """Raised when semantic fact files are missing or invalid."""
 

@@ -220,7 +220,9 @@ def engine_part(
 def facts_part(callers: Sequence[Mapping[str, Any]], function: str, version: str | None = None) -> Part:
     """``callers`` are the repo-facts call sites of the candidate's function in other files."""
     files = {str(site.get("path")) for site in callers}
-    return Part("ran", {"facts.callers": len(callers), "facts.caller_files": len(files), "facts.is_global": function == MODULE_FUNCTION},
+    return Part(
+        "ran",
+        {"facts.callers": len(callers), "facts.caller_files": len(files), "facts.is_global": function == MODULE_FUNCTION},
         version,
     )
 

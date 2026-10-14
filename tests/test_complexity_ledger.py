@@ -164,7 +164,6 @@ def test_not_triggerable_overlay_drops_map_score_and_keeps_inventory(tmp_path: P
     assert sev5.rationale == ("Static pattern cmd (CWE-78) matched os.system on line 12; manual verification still required.")
 
 
-
 def test_ledger_round_trip_matches_design_schema(tmp_path: Path) -> None:
     path = tmp_path / "complexity_ledger.json"
     key = hotspot_key("parser.c", "parse_header")

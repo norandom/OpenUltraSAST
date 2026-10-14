@@ -428,9 +428,7 @@ def increment(
         repin_templates(plane, runner_image)
     loaded = load_manifests([plane / "tasks" / f"{name}.yaml" for name in TEMPLATES])
     cases = read_cases(validation_set, candidates_dir, triage_dir, population, repos)
-    files = render(
-        cases, loaded.tasks, run_name, command, population=population.stem, split=validation_set.stem, atespace=atespace
-    )
+    files = render(cases, loaded.tasks, run_name, command, population=population.stem, split=validation_set.stem, atespace=atespace)
     written: list[Path] = []
     for relative, text in files.items():
         path = plane / relative

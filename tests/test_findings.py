@@ -90,5 +90,3 @@ def test_findings_inherit_only_matching_function_level_reachability(tmp_path: Pa
     assert unreachable.function_name is None
     assert unreachable.reachability_status == "unknown"
     assert unreachable.ranking_priority <= 1.5
-
-

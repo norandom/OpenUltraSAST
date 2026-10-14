@@ -250,7 +250,11 @@ def main(environ: Mapping[str, str] | None = None) -> int:
     return 0 if summary["status"] == "done" else 2
 
 
-__all__ = ["DROPPED_ON_READ", "case_features", "main", ]
+__all__ = [
+    "DROPPED_ON_READ",
+    "case_features",
+    "main",
+]
 
 
 if __name__ == "__main__":

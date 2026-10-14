@@ -10,11 +10,23 @@ from openultrasast.hunt.table import SCHEMA_VERSION, FeatureTable
 
 def row(label=1):
     return {
-        "change_id": "c", "repo": "r", "head": "h", "path": "app.py", "line": 1,
-        "kind": "vulnerability", "fold": 0, "label": label, "family": "injection",
-        "fix_span": [1, 3], "label_ref": "case", "verification": None,
-        "feature.diff.distance": 0, "provenance.diff.ok": True,
-        "provenance.diff.reason": None, "provenance.diff.version": "1", "provenance.diff.bytes_read": 10,
+        "change_id": "c",
+        "repo": "r",
+        "head": "h",
+        "path": "app.py",
+        "line": 1,
+        "kind": "vulnerability",
+        "fold": 0,
+        "label": label,
+        "family": "injection",
+        "fix_span": [1, 3],
+        "label_ref": "case",
+        "verification": None,
+        "feature.diff.distance": 0,
+        "provenance.diff.ok": True,
+        "provenance.diff.reason": None,
+        "provenance.diff.version": "1",
+        "provenance.diff.bytes_read": 10,
     }
 
 

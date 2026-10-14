@@ -1003,5 +1003,3 @@ def test_a_tar_the_store_path_cannot_accept_fails_the_task(fake: Fake, tmp_path:
     assert reconciler.run(write_run(tmp_path, "esc"), ax=str(fake.ax)) == "failed"
     assert "rejected member ../escape.json" in state_of("esc")["tasks"]["repo-facts"]["reason"]
     assert not (reconciler.run_dir("esc").parent / "escape.json").exists()
-
-

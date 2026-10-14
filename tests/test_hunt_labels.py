@@ -7,15 +7,23 @@ from openultrasast.hunt.table import FeatureTable
 
 
 def positive():
-    return {"kind": "vulnerability", "path": "app.py", "function": "handle", "function_lines": [10, 20],
-            "family": "injection", "case_id": "verified-case"}
+    return {
+        "kind": "vulnerability",
+        "path": "app.py",
+        "function": "handle",
+        "function_lines": [10, 20],
+        "family": "injection",
+        "case_id": "verified-case",
+    }
 
 
 def test_labels_match_name_or_span_on_same_path():
-    rows = [{"path": "app.py", "function": "handle", "line": 1},
-            {"path": "app.py", "function": "nested", "line": 12},
-            {"path": "other.py", "function": "handle", "line": 12},
-            {"path": "app.py", "function": "other", "line": 30}]
+    rows = [
+        {"path": "app.py", "function": "handle", "line": 1},
+        {"path": "app.py", "function": "nested", "line": 12},
+        {"path": "other.py", "function": "handle", "line": 12},
+        {"path": "app.py", "function": "other", "line": 30},
+    ]
     labelled = label_rows(rows, positive())
     assert [r["label"] for r in labelled] == [1, 1, None, None]
     for data in labelled[:2]:

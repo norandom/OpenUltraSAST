@@ -455,6 +455,7 @@ SLASH_COMMENTS = frozenset(
     {"c", "cpp", "java", "javascript", "typescript", "php", "go", "groovy", "csharp", "kotlin", "rust", "swift", "scala"}
 )  # fmt: skip
 
+
 def _comment_ranges(line: str, state: str | None, language: str) -> tuple[list[tuple[int, int]], str | None]:
     """The comment spans of one line and the block state carried to the next (``block`` inside ``/* */``, a triple
     quote inside a Python docstring). Strings are skipped so a ``#`` in a literal is not a comment."""
@@ -503,6 +504,7 @@ def _comment_ranges(line: str, state: str | None, language: str) -> tuple[list[t
         i += 1
     return ranges, state
 
+
 _UNKNOWN_LANGUAGES = frozenset({"", "other", "unknown"})
 
 _PERL_LINE = re.compile(r"^\s*(?:sub\s+\w+\s*[{(;]|use\s+strict\s*;|my\s+[$@%]\w+)")
@@ -517,6 +519,7 @@ _STATEMENT_HEAD = re.compile(r"\s*(return|if|while|for|switch|else|case|throw|aw
 
 _FUNCTION_EXPR = r"(?:async\s+)?(?:function\b\s*\*?\s*[\w$]*\s*)?(?=\(|[\w$]+\s*=>)"  # function (...) / (...) => / a =>
 
+
 def resolve_language(lines: Sequence[str], language: str) -> str:
     """The alias-normalised language; a file given as unknown (``other``, the feature vocabulary's bucket for Go, Ruby,
     C#, Perl, ...) is sniffed for Perl (``sub name {``, ``use strict;``) and Ruby (``def`` ... ``end``), whose
@@ -529,6 +532,7 @@ def resolve_language(lines: Sequence[str], language: str) -> str:
             return "ruby"
     return language
 
+
 def _blank_comments(lines: Sequence[str], language: str) -> list[str]:
     style = language if language in SLASH_COMMENTS or language in HASH_COMMENTS else "c"
     code: list[str] = []
@@ -539,6 +543,7 @@ def _blank_comments(lines: Sequence[str], language: str) -> list[str]:
             line = line[:start] + " " * (end - start) + line[end:]
         code.append(line)
     return code
+
 
 def _declaration_heads(name: str) -> re.Pattern[str]:
     """Where a brace language may declare ``name`` (the body follows): ``name(`` (a definition -- or a call, told
@@ -552,6 +557,7 @@ def _declaration_heads(name: str) -> re.Pattern[str]:
         rf"|(?<![\w$]){quoted}\s*:\s*{_FUNCTION_EXPR}"
         rf"|(?<![\w$]){quoted}\s*=\s*(?:[\w$.\[\]'\"]+\s*=\s*)*{_FUNCTION_EXPR}"
     )
+
 
 def _body_start(code: Sequence[str], line: int, column: int) -> tuple[str, int, int] | None:
     """Scan from a declaration head for its body: ``("brace", line, column)`` of the ``{`` at parenthesis depth 0,
@@ -582,6 +588,7 @@ def _body_start(code: Sequence[str], line: int, column: int) -> tuple[str, int, 
                     k += 1
             k += 1
     return None
+
 
 def _brace_bounds(lines: Sequence[str], language: str, function: str) -> tuple[int, int] | None:
     """A brace language's definition of ``function`` (``Class::name`` and ``a.b`` reduced to the last name): the first
@@ -614,6 +621,7 @@ def _brace_bounds(lines: Sequence[str], language: str, function: str) -> tuple[i
             return i, len(code)
     return None
 
+
 def function_bounds(lines: Sequence[str], language: str, function: str) -> tuple[int, int] | None:
     """0-based ``[start, end)`` of the first declaration of ``function`` (the whole file for ``<global>``), or
     ``None`` when the file does not declare it. Languages without a repo-facts declaration pattern (C, C++, C#, Perl,
@@ -631,6 +639,7 @@ def function_bounds(lines: Sequence[str], language: str, function: str) -> tuple
     if not span:
         return None
     return start, min(start + span, len(lines))
+
 
 def product_paths(workspace: Path) -> list[Path]:
     """Product source files of the supported languages, sorted; tests, vendored trees, build output, minified
@@ -654,6 +663,7 @@ def product_paths(workspace: Path) -> list[Path]:
         files.append(path)
     return files
 
+
 def declared_functions(lines: Sequence[str], language: str) -> list[str]:
     """The function names a file declares, in source order, each once."""
     pattern = DECLARATION.get(language)
@@ -665,6 +675,7 @@ def declared_functions(lines: Sequence[str], language: str) -> list[str]:
         if name and name not in names:
             names.append(name)
     return names
+
 
 def enclosing_at(lines: Sequence[str], index: int, language: str) -> str:
     """The nearest declaration at or above line ``index`` (0-based), `<global>` when there is none."""
@@ -681,8 +692,10 @@ def enclosing_at(lines: Sequence[str], index: int, language: str) -> str:
         indent = min(indent, _indent(lines[back]))  # a sibling or deeper def: keep looking for the one that encloses
     return MODULE_FUNCTION
 
+
 def _indent(line: str) -> int:
     return len(line) - len(line.lstrip(" \t"))
+
 
 def call_sites_in(lines: Sequence[str], language: str, names: Iterable[str]) -> list[dict[str, Any]]:
     """Calls to any of ``names`` in one file: `{"function", "line", "enclosing"}`, one per name and line, in
@@ -706,12 +719,14 @@ def call_sites_in(lines: Sequence[str], language: str, names: Iterable[str]) -> 
             found.append({"function": name, "line": index + 1, "enclosing": enclosing_at(lines, index, language)})
     return found
 
+
 def _declared_name(pattern: re.Pattern[str], line: str) -> str:
     match = pattern.match(line)
     if not match:
         return ""
     name = next((g for g in match.groups() if g), "")
     return "" if name in KEYWORDS else name
+
 
 def function_span(lines: Sequence[str], language: str, function: str) -> int | None:
     """Lines of the first declaration of ``function`` up to the next declaration (Python: up to the next line indented

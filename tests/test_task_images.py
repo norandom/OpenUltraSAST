@@ -1,4 +1,5 @@
 """Offline image contracts; these do not claim a built image or measured size."""
+
 import json
 import re
 from pathlib import Path
@@ -23,11 +24,14 @@ def workflow(name):
     return yaml.load(read(f".github/workflows/{name}.yml"), Loader=yaml.BaseLoader)
 
 
-@pytest.mark.parametrize("name,variant", [
-    ("plane/Dockerfile.engine-task", "BASE"),
-    ("plane/Dockerfile.search-task", "BROWSER"),
-    ("Dockerfile", "BASE"),
-])
+@pytest.mark.parametrize(
+    "name,variant",
+    [
+        ("plane/Dockerfile.engine-task", "BASE"),
+        ("plane/Dockerfile.search-task", "BROWSER"),
+        ("Dockerfile", "BASE"),
+    ],
+)
 def test_digest_required_and_code_last(name, variant):
     lines = instructions(name)
     assert f"ARG TASK_{variant}_DIGEST" in lines
@@ -75,8 +79,7 @@ def test_triggers_caches_and_digest_outputs(name):
         assert "plane/task-base.digest" in wf["on"]["push"]["paths"]
     else:
         assert set(wf["on"]["push"]["paths"]) == {"plane/Dockerfile.base", "pyproject.toml", "uv.lock"}
-    builds = [s["with"] for job in wf["jobs"].values() for s in job["steps"]
-              if s.get("uses") == "docker/build-push-action@v6"]
+    builds = [s["with"] for job in wf["jobs"].values() for s in job["steps"] if s.get("uses") == "docker/build-push-action@v6"]
     assert builds
     for build in builds:
         assert "type=gha" in build["cache-from"] and "type=gha" in build["cache-to"]
@@ -107,9 +110,14 @@ def test_ci_pin_gate_offline(case, tmp_path, monkeypatch):
     base = "ghcr.io/norandom/ousast-task-base:base-1234567@sha256:" + "a" * 64
     browser = "ghcr.io/norandom/ousast-task-base:base-1234567-browser@sha256:" + "b" * 64
     (tmp_path / "plane").mkdir()
-    (tmp_path / "plane/task-base.digest").write_text(json.dumps({
-        "base": None if case == "unpublished" else base, "base-browser": browser,
-    }))
+    (tmp_path / "plane/task-base.digest").write_text(
+        json.dumps(
+            {
+                "base": None if case == "unpublished" else base,
+                "base-browser": browser,
+            }
+        )
+    )
     output = tmp_path / "output"
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("GITHUB_OUTPUT", str(output))
@@ -147,15 +155,31 @@ def test_base_preserves_executor_build_toolchains():
     install = re.search(r"apt-get install -y --no-install-recommends\s+(.*?)\s+&&", commands).group(1)
     packages = set(install.split())
     assert packages == {
-        "nodejs", "npm", "node-typescript", "php-cli", "composer", "maven",
-        "sqlite3", "bubblewrap", "util-linux", "git", "ca-certificates",
-        "libstdc++6", "zlib1g",
+        "nodejs",
+        "npm",
+        "node-typescript",
+        "php-cli",
+        "composer",
+        "maven",
+        "sqlite3",
+        "bubblewrap",
+        "util-linux",
+        "git",
+        "ca-certificates",
+        "libstdc++6",
+        "zlib1g",
     }
     assert "gradle" not in packages
     assert "FROM eclipse-temurin:21-jdk-jammy AS jdk" in common
     assert "COPY --from=jdk /opt/java/openjdk /opt/java/openjdk" in common
-    for command in ("javac -version", "npm --version", "composer --version", "mvn --version",
-                    "python3 -m venv /venv", "/venv/bin/pip install"):
+    for command in (
+        "javac -version",
+        "npm --version",
+        "composer --version",
+        "mvn --version",
+        "python3 -m venv /venv",
+        "/venv/bin/pip install",
+    ):
         assert command in common
     assert "joern" not in common.lower()
     assert "apt-get clean" in common

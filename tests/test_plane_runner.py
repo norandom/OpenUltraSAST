@@ -317,9 +317,7 @@ def test_sigterm_goes_to_the_commands_group_then_sigkill_after_the_grace(env: di
     assert not (tmp_path / "state" / "stub.done.json").exists(), "an interrupted command is not complete"
 
 
-def test_the_completion_marker_prevents_a_rerun_on_resume(
-    env: dict[str, str], monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_the_completion_marker_prevents_a_rerun_on_resume(env: dict[str, str], monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     counter = tmp_path / "runs.txt"
     code, _ = run_main(monkeypatch, tmp_path, files_workspace_yaml(), STUB_COUNTER=str(counter))
     assert code == 0 and len(counter.read_text().splitlines()) == 1
@@ -482,10 +480,7 @@ def test_git_commits_annotation_round_trips_to_the_checkout(
     assert rest[0]["metadata"] == {"name": "case"}, "annotations are stripped before ax"
     assert rest[0]["spec"]["git"] == [{"name": "code", "repo": repo.as_uri(), "branch": "main"}], "no commit for ax"
     overrides = {"OUSAST_OUTPUT_DIR": str(output)}
-    task_doc["spec"]["env"] = [
-        {"name": e["name"], "value": overrides.get(e["name"], e["value"])}
-        for e in task_doc["spec"]["env"]
-    ]
+    task_doc["spec"]["env"] = [{"name": e["name"], "value": overrides.get(e["name"], e["value"])} for e in task_doc["spec"]["env"]]
     assert json.loads({e["name"]: e["value"] for e in task_doc["spec"]["env"]}["OUSAST_GIT_PINS"]) == {"case/code": pin}
     monkeypatch.setenv("AX_TASK_YAML", yaml.safe_dump(task_doc))
     monkeypatch.setenv("AX_WORKSPACES_YAML", yaml.safe_dump_all([d for d in rest if d["kind"] == "Workspace"]))
@@ -584,9 +579,7 @@ def test_the_command_waits_for_the_start_request_and_the_credential_reaches_only
     assert any("start request: 202" in record.getMessage() for record in caplog.records)
 
 
-def test_a_crash_that_prints_the_credential_is_redacted(
-    env: dict[str, str], tmp_path: Path, capfd: pytest.CaptureFixture[str]
-) -> None:
+def test_a_crash_that_prints_the_credential_is_redacted(env: dict[str, str], tmp_path: Path, capfd: pytest.CaptureFixture[str]) -> None:
     thread, environ, codes = main_in_thread(tmp_path, STUB_MODE="leak")
     start = {"run": "run-1", "task": "stub", "credentials": {"DEEPSEEK_API_KEY": SECRET}}
     assert post_start(environ["AX_RUNNER_BOUND_PORT"], start)[0] == 202

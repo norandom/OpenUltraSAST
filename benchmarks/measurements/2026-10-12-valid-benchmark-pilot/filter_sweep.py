@@ -4,6 +4,7 @@ For every hunter defect: classifier verdict, confidence, taxonomy family, and wh
 location sits on a line the push changed (git diff base..head, head side). Then score each
 filter with the real scorer: recall over the 12 positives, false alarms per 100 ordinary pushes.
 """
+
 import copy
 import json
 import re
@@ -16,7 +17,7 @@ sys.path.insert(0, "/home/mc/Source/OpenUltraSAST")
 from benchmarks.unseen import score  # noqa: E402
 
 P = Path("/home/mc/ousast-results/valid/pilot")
-repos = json.load(open(P / "repos_hist.json"))
+repos = json.loads((P / "repos_hist.json").read_text())
 rows = score.load_records(P / "hunter")
 HUNK = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@")
 
@@ -24,7 +25,9 @@ HUNK = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@")
 def changed_lines(repo, base, head):
     out = subprocess.run(
         ["git", "-C", repos[repo], "diff", "-U0", f"{base}..{head}", "--", "."],
-        capture_output=True, text=True, check=False,
+        capture_output=True,
+        text=True,
+        check=False,
     ).stdout
     lines, path = {}, None
     for line in out.splitlines():
@@ -84,12 +87,14 @@ filters = {
     "vulnerable, within 10 of a changed line": lambda d: V(d) == "vulnerable" and d["_changed10"],
     "vulnerable, conf>=0.7, within 10 of changed": lambda d: V(d) == "vulnerable" and conf(d) >= 0.7 and d["_changed10"],
     "vulnerable, conf>=0.8, within 10 of changed": lambda d: V(d) == "vulnerable" and conf(d) >= 0.8 and d["_changed10"],
-    "vulnerable, conf>=0.8, within 10, not config_secrets": lambda d: V(d) == "vulnerable" and conf(d) >= 0.8 and d["_changed10"] and d.get("family") != "config_secrets",
+    "vulnerable, conf>=0.8, within 10, not config_secrets": lambda d: (
+        V(d) == "vulnerable" and conf(d) >= 0.8 and d["_changed10"] and d.get("family") != "config_secrets"
+    ),
 }
 print(f"{'filter':58} recall     false alarms /100   flagged pushes")
 for name, keep in filters.items():
     c, n, a, m, f = rate(rows, keep)
-    print(f"{name:58} {c:2}/{n:<2}      {a:3}/{m} = {100*a/m:5.1f}      {f}")
+    print(f"{name:58} {c:2}/{n:<2}      {a:3}/{m} = {100 * a / m:5.1f}      {f}")
 
 # where do ordinary-push suspicions sit relative to the diff?
 tot = Counter()
@@ -103,7 +108,19 @@ for r in rows:
             tot["within 10"] += d["_changed10"]
             tot[f"family {d.get('family')}"] += 1
 print("\nordinary-push suspicions with verdict=vulnerable:", dict(tot))
-confs = Counter(round(conf(d), 2) for r in rows if r["kind"] == "ordinary" for d in r.get("push", {}).get("admission", {}).get("defects", []) if V(d) == "vulnerable")
+confs = Counter(
+    round(conf(d), 2)
+    for r in rows
+    if r["kind"] == "ordinary"
+    for d in r.get("push", {}).get("admission", {}).get("defects", [])
+    if V(d) == "vulnerable"
+)
 print("confidence histogram (ordinary, vulnerable):", dict(sorted(confs.items())))
-confs = Counter(round(conf(d), 2) for r in rows if r["kind"] != "ordinary" for d in r.get("push", {}).get("admission", {}).get("defects", []) if V(d) == "vulnerable" and score.catches(filtered(r, lambda x, d=d: x is d)))
+confs = Counter(
+    round(conf(d), 2)
+    for r in rows
+    if r["kind"] != "ordinary"
+    for d in r.get("push", {}).get("admission", {}).get("defects", [])
+    if V(d) == "vulnerable" and score.catches(filtered(r, lambda x, d=d: x is d))
+)
 print("confidence of the defects that score a catch:", dict(sorted(confs.items())))

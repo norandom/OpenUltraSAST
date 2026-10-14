@@ -38,8 +38,19 @@ from openultrasast.source import (  # noqa: E402
 
 TIMEOUT_S = 10
 EXT_LANG = {
-    ".py": "python", ".js": "javascript", ".mjs": "javascript", ".ts": "typescript", ".tsx": "typescript",
-    ".java": "java", ".c": "cpp", ".cc": "cpp", ".cpp": "cpp", ".in": "perl", ".go": "go", ".rb": "ruby", ".php": "php",
+    ".py": "python",
+    ".js": "javascript",
+    ".mjs": "javascript",
+    ".ts": "typescript",
+    ".tsx": "typescript",
+    ".java": "java",
+    ".c": "cpp",
+    ".cc": "cpp",
+    ".cpp": "cpp",
+    ".in": "perl",
+    ".go": "go",
+    ".rb": "ruby",
+    ".php": "php",
 }
 LIZARD_EXT = {".in": ".pl"}  # lizard picks its reader by extension; the *.in pairs are Perl (c_rehash.in), which lizard has no reader for
 ANON = {"<anon>", "(anonymous)", "", "<module>"}
@@ -121,8 +132,18 @@ def lizard_spans(info) -> dict[str, tuple[int, int]]:
     return out
 
 
-TS_LANG = {"perl": None, "python": "python", "javascript": "javascript", "typescript": "typescript", "java": "java", "cpp": "cpp",
-           "c": "c", "go": "go", "ruby": "ruby", "php": "php"}
+TS_LANG = {
+    "perl": None,
+    "python": "python",
+    "javascript": "javascript",
+    "typescript": "typescript",
+    "java": "java",
+    "cpp": "cpp",
+    "c": "c",
+    "go": "go",
+    "ruby": "ruby",
+    "php": "php",
+}
 TS_FUNC = {
     "python": {"function_definition"},
     "javascript": {"function_declaration", "method_definition", "arrow_function", "function_expression", "generator_function_declaration"},
@@ -222,7 +243,8 @@ def corpus() -> tuple[list[tuple[Path, str]], list[tuple[Path, str, str]]]:
                 labels.append((c.vuln_file.resolve(), row.function, c.name))
                 labels.append((c.fixed_file.resolve(), c.fix_function or row.function, c.name))
     files: list[tuple[Path, str]] = []
-    candidates = set(lang_of) | {f.resolve() for f in (REPO / "benchmarks/pairs").rglob("*") if re.fullmatch(r"(vuln|fixed)\.[a-z]+", f.name)}
+    pair_files = (REPO / "benchmarks/pairs").rglob("*")
+    candidates = set(lang_of) | {f.resolve() for f in pair_files if re.fullmatch(r"(vuln|fixed)\.[a-z]+", f.name)}
     for f in sorted(candidates):
         if not f.is_file() or "/private/" in f.as_posix():
             continue
@@ -231,7 +253,7 @@ def corpus() -> tuple[list[tuple[Path, str]], list[tuple[Path, str, str]]]:
             continue
         files.append((f.resolve(), lang))
     seen = set()
-    labels = [l for l in labels if not (l[:2] in seen or seen.add(l[:2]))]
+    labels = [label for label in labels if not (label[:2] in seen or seen.add(label[:2]))]
     return files, labels
 
 
@@ -257,7 +279,7 @@ def spearman(xs, ys) -> float | None:
         return None
     rx, ry = _ranks(xs), _ranks(ys)
     mx, my = statistics.mean(rx), statistics.mean(ry)
-    num = sum((a - mx) * (b - my) for a, b in zip(rx, ry))
+    num = sum((a - mx) * (b - my) for a, b in zip(rx, ry, strict=True))
     den = (sum((a - mx) ** 2 for a in rx) * sum((b - my) ** 2 for b in ry)) ** 0.5
     return None if den == 0 else num / den
 
@@ -301,7 +323,7 @@ def main() -> None:
             covered = set()
             for f in info.function_list:
                 covered.update(range(f.start_line, f.end_line + 1))
-            code_lines = [i + 1 for i, l in enumerate(lines) if l.strip()]
+            code_lines = [i + 1 for i, line in enumerate(lines) if line.strip()]
             rec["liz"] = {
                 "max_nd": max((f.max_nesting_depth for f in info.function_list), default=0),
                 "max_ccn": max((f.cyclomatic_complexity for f in info.function_list), default=0),
@@ -401,8 +423,12 @@ def main() -> None:
         "coverage": {k: {e: v for e, v in d.items()} for k, d in cov.items()},
         "agreement": {
             f"{o}~{c}": {
-                k: {"n": len(v), "start_eq": sum(x for x, _ in v) / len(v), "end_mad": statistics.mean(y for _, y in v),
-                    "end_within_1": sum(1 for _, y in v if y <= 1) / len(v)}
+                k: {
+                    "n": len(v),
+                    "start_eq": sum(x for x, _ in v) / len(v),
+                    "end_mad": statistics.mean(y for _, y in v),
+                    "end_within_1": sum(1 for _, y in v if y <= 1) / len(v),
+                }
                 for k, v in d.items()
             }
             for (o, c), d in agree.items()
@@ -411,31 +437,32 @@ def main() -> None:
         "nesting": corr,
         "module_share": {k: {"module_code_lines": v[0], "code_lines": v[1], "files_without_units": v[2]} for k, v in module.items()},
         "candidate_misses": {e: v[:40] for e, v in misses.items()},
-        "lang_counts": dict(sorted(defaultdict(int, {l: sum(1 for _, x in files if x == l) for l in set(x for _, x in files)}).items())),
+        "lang_counts": dict(sorted({lang: sum(1 for _, x in files if x == lang) for lang in {x for _, x in files}}.items())),
     }
     (OUT / "results.json").write_text(json.dumps(out, indent=1, default=str))
 
     # markdown tables
     md = []
-    langs = [l for l in ("cpp", "python", "java", "javascript", "typescript", "perl", "all") if l in cov]
+    langs = [lang for lang in ("cpp", "python", "java", "javascript", "typescript", "perl", "all") if lang in cov]
     md.append("### Coverage of labelled functions (hit/total)\n")
     md.append("| language | " + " | ".join(engines) + " |")
     md.append("|---|" + "---|" * len(engines))
-    for l in langs:
-        md.append(f"| {l} | " + " | ".join(f"{cov[l][e][0]}/{cov[l][e][1]} ({cov[l][e][0] / max(cov[l][e][1], 1):.0%})" for e in engines) + " |")
+    for lang in langs:
+        cells = (f"{cov[lang][e][0]}/{cov[lang][e][1]} ({cov[lang][e][0] / max(cov[lang][e][1], 1):.0%})" for e in engines)
+        md.append(f"| {lang} | " + " | ".join(cells) + " |")
     md.append("\n### Span agreement on labelled functions both found (start equal %, end mean abs diff, end within 1 line %)\n")
     md.append("| pair | language | n | start= | end MAD | end<=1 |")
     md.append("|---|---|---|---|---|---|")
     for key, d in out["agreement"].items():
-        for l in langs:
-            if l in d:
-                v = d[l]
-                md.append(f"| {key} | {l} | {v['n']} | {v['start_eq']:.0%} | {v['end_mad']:.2f} | {v['end_within_1']:.0%} |")
+        for lang in langs:
+            if lang in d:
+                v = d[lang]
+                md.append(f"| {key} | {lang} | {v['n']} | {v['start_eq']:.0%} | {v['end_mad']:.2f} | {v['end_within_1']:.0%} |")
     md.append("\n### Name-set Jaccard per file (mean)\n")
     md.append("| pair | " + " | ".join(langs) + " |")
     md.append("|---|" + "---|" * len(langs))
     for key, d in out["jaccard"].items():
-        md.append(f"| {key} | " + " | ".join(f"{d[l]['mean']:.2f} (n={d[l]['n']})" if l in d else "-" for l in langs) + " |")
+        md.append(f"| {key} | " + " | ".join(f"{d[lang]['mean']:.2f} (n={d[lang]['n']})" if lang in d else "-" for lang in langs) + " |")
     md.append("\n### Runtime (seconds per 1,000 files, this corpus) and failures\n")
     md.append("| engine | s/1000 files | failures |")
     md.append("|---|---|---|")
@@ -444,16 +471,17 @@ def main() -> None:
     md.append("\n### lizard nesting/CCN vs measure_nesting (file level, Spearman)\n")
     md.append("| set | n | rho(max_nesting_depth) | rho(max CCN) | rho(sum CCN) | exact == max_nesting_depth |")
     md.append("|---|---|---|---|---|---|")
-    for l, v in corr.items():
+    for lang, v in corr.items():
         f = lambda x: "-" if x is None else f"{x:.2f}"  # noqa: E731
-        md.append(f"| {l} | {v['n']} | {f(v['spearman_max_nesting_depth'])} | {f(v['spearman_max_ccn'])} | {f(v['spearman_sum_ccn'])} | {v['exact_equal_max_nd']} |")
+        rho = f"{f(v['spearman_max_nesting_depth'])} | {f(v['spearman_max_ccn'])} | {f(v['spearman_sum_ccn'])}"
+        md.append(f"| {lang} | {v['n']} | {rho} | {v['exact_equal_max_nd']} |")
     md.append("\n### Code lines outside any lizard unit (module-level share)\n")
     md.append("| language | module code lines | code lines | share | files with zero units |")
     md.append("|---|---|---|---|---|")
-    for l in langs:
-        if l in module:
-            v = module[l]
-            md.append(f"| {l} | {v[0]} | {v[1]} | {v[0] / max(v[1], 1):.0%} | {v[2]} |")
+    for lang in langs:
+        if lang in module:
+            v = module[lang]
+            md.append(f"| {lang} | {v[0]} | {v[1]} | {v[0] / max(v[1], 1):.0%} | {v[2]} |")
     (OUT / "tables.md").write_text("\n".join(md) + "\n")
     print("\n".join(md))
     print("\nfailures:", json.dumps(failures, indent=1))

@@ -49,20 +49,42 @@ def world(tmp_path: Path) -> dict[str, Any]:
         (plane / name).mkdir(parents=True)
     task = yaml.safe_load((Path(__file__).resolve().parents[1] / "plane/tasks/alerts.yaml").read_text())
     task["metadata"]["name"] = f"{CASE}-alerts"
-    task["spec"]["env"] = [{"name": f"OUSAST_{role.upper()}_PIN", "value": pin} for role, pin in
-                            (("vulnerable", vulnerable), ("fixed", fixed))]
+    task["spec"]["env"] = [
+        {"name": f"OUSAST_{role.upper()}_PIN", "value": pin} for role, pin in (("vulnerable", vulnerable), ("fixed", fixed))
+    ]
     task["spec"]["workspaces"] = [{"name": "case", "path": "/workspace/case"}]
     (plane / "tasks/alerts.yaml").write_text(yaml.safe_dump(task))
     case = {"family": "injection", "ranges": {"app/index.php": [[3, 3]]}, "fixed_ranges": {"app/index.php": [[3, 3]]}}
-    workspace = {"apiVersion": task["apiVersion"], "kind": "Workspace", "metadata": {"name": "case"}, "spec": {
-        "git": [{"name": "repo", "repo": "https://example.com/reserved/probe", "dir": "repo"}],
-        "files": [{"path": "case.json", "content": json.dumps(case)}],
-    }}
+    workspace = {
+        "apiVersion": task["apiVersion"],
+        "kind": "Workspace",
+        "metadata": {"name": "case"},
+        "spec": {
+            "git": [{"name": "repo", "repo": "https://example.com/reserved/probe", "dir": "repo"}],
+            "files": [{"path": "case.json", "content": json.dumps(case)}],
+        },
+    }
     (plane / "workspaces/case.yaml").write_text(yaml.safe_dump(workspace))
     run = plane / "runs/validation-46.yaml"
-    run.write_text(yaml.safe_dump({"apiVersion": RUN_API_VERSION, "kind": "Run", "metadata": {"name": "validation-46"},
-                                  "spec": {"tasks": [{"name": f"{CASE}-alerts", "task": f"{CASE}-alerts",
-                                                      "outputs": ["alerts.jsonl", "summary.json"], "budget": {"usd": 0, "calls": 0}}]}}))
+    run.write_text(
+        yaml.safe_dump(
+            {
+                "apiVersion": RUN_API_VERSION,
+                "kind": "Run",
+                "metadata": {"name": "validation-46"},
+                "spec": {
+                    "tasks": [
+                        {
+                            "name": f"{CASE}-alerts",
+                            "task": f"{CASE}-alerts",
+                            "outputs": ["alerts.jsonl", "summary.json"],
+                            "budget": {"usd": 0, "calls": 0},
+                        }
+                    ]
+                },
+            }
+        )
+    )
     source = tmp_path / "frozen"
     (source / "src" / "openultrasast").mkdir(parents=True)
     (source / "benchmarks" / "push").mkdir(parents=True)
