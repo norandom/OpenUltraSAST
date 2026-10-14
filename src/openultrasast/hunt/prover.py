@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+import re
 from collections import Counter
 from collections.abc import Mapping
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from typing import Any
 
@@ -14,8 +15,9 @@ from ..semantic.facts import load_facts
 from ..semantic.ir import FileIR, FunctionIR, trailing_name
 from ..semantic.obligations.check import _on_caller_hop, _relevant, check_obligations
 from ..semantic.obligations.dominance import OrderDominance
+from ..semantic.obligations.enforcement import witnesses
 from ..semantic.obligations.facts import load_obligation_facts
-from ..semantic.obligations.operations import Operation, find_operations, valid_witness
+from ..semantic.obligations.operations import Discharge, Operation, find_discharges, find_operations, valid_witness
 from ..semantic.obligations.paths import compose_paths
 from ..semantic.obligations.policy import DEFAULT_POLICY_RELPATH, load_declared_policy
 from .producers import Context, _safe_path
@@ -70,35 +72,30 @@ def prove_change(root: Path, change: Mapping[str, Any], ctx: Context | None = No
             readable.append(path)
         except Exception as error:
             failed.add(path)
-            reasons[str(getattr(error, "reason", None) or type(error).__name__)] += 1
-            degradations.append({"path": path, "reason": str(getattr(error, "reason", None) or type(error).__name__)})
+            reasons[type(error).__name__] += 1
+            degradations.append({"path": path, "reason": type(error).__name__})
+    for config in mapping.framework_config_paths(root):
+        try:
+            ctx.read(config)
+        except Exception as error:
+            degradations.append({"path": config, "reason": type(error).__name__})
     if "entry_points" not in ctx.__dict__:
-        # External manifest enforcement is supplied by delivery B; this delivery uses source entries.
-        mapped: list[mapping.EntryPointRecord] = []
-        for target in targets:
-            try:
-                mapped.extend(mapping.analyze_entry_points(root, [target], texts=ctx.texts, include_manifests=False))
-            except Exception as error:
-                failed.add(target.path)
-                reasons[str(getattr(error, "reason", None) or type(error).__name__)] += 1
-                degradations.append({"path": target.path, "reason": str(getattr(error, "reason", None) or type(error).__name__)})
-        ctx.__dict__["entry_points"] = mapped
-    entries = [entry for entry in ctx.entry_points if entry.function_name and entry.defines_handler and entry.line is not None]
+        ctx.__dict__["entry_points"] = mapping.analyze_entry_points(root, targets, texts=ctx.texts, include_manifests=False)
+    entries = [
+        entry
+        for entry in ctx.entry_points
+        if entry.function_name and entry.defines_handler and entry.line is not None and entry.kind == "route"
+    ]
     recognised = {entry.path for entry in entries}
-    for path in recognised:
-        evidence = " ".join(item for entry in entries if entry.path == path for item in entry.access_evidence)
-        framework = (
-            "stapler"
-            if "Stapler" in evidence
-            else "jetty"
-            if "Jetty" in evidence
-            else "servlet"
-            if "Servlet" in evidence
-            else "jaxrs"
-            if "JAX-RS" in evidence
-            else source.canonical_language(detect_language(root / path))
-        )
-        frameworks[framework] += 1
+    handlers_of: dict[str, dict[str, str]] = {}
+    framework_files: set[tuple[str, str]] = set()
+    for entry in entries:
+        framework = mapping.entry_framework(entry)
+        if framework is None:
+            framework = source.canonical_language(detect_language(root / entry.path))
+        framework_files.add((entry.path, framework))
+        handlers_of.setdefault(entry.path, {})[str(entry.function_name)] = framework
+    frameworks.update(framework for _, framework in framework_files)
 
     def read_ir(path: str) -> FileIR | None:
         if path in failed:
@@ -107,6 +104,14 @@ def prove_change(root: Path, change: Mapping[str, Any], ctx: Context | None = No
             return irs[path][0]
         try:
             ir, text = ctx.ir(path), ctx.read(path)
+            aliases = {e.line: e.function_name for e in entries if e.path == path and mapping.entry_framework(e) == "remix"}
+            ir = replace(
+                ir,
+                functions=tuple(
+                    replace(fn, name=str(aliases[fn.start_line])) if fn.name == "<anon>" and fn.start_line in aliases else fn
+                    for fn in ir.functions
+                ),
+            )
             if not ir.parse_ok:
                 reasons["language_unsupported" if ir.reason == "language_unsupported" else "parse_failed"] += 1
                 failed.add(path)
@@ -117,16 +122,16 @@ def prove_change(root: Path, change: Mapping[str, Any], ctx: Context | None = No
                 return None
             irs[path] = ir, text
             ctx.spans.setdefault(path, source.ranges_from_ir(ir, text))
-            found = find_operations(ir, facts.for_language(ir.language), text=text)
+            found = find_operations(ir, facts.for_language(ir.language), text=text, handlers_of=handlers_of.get(path))
             for fn in ir.functions:
                 if fn.name != "<module>":
                     functions[path, fn.name] = fn
                     operations[path, fn.name] = tuple(op for op in found if op.function == fn.name)
             return ir
         except Exception as error:
-            reasons[str(getattr(error, "reason", None) or type(error).__name__)] += 1
+            reasons[type(error).__name__] += 1
             failed.add(path)
-            degradations.append({"path": path, "reason": str(getattr(error, "reason", None) or type(error).__name__)})
+            degradations.append({"path": path, "reason": type(error).__name__})
             return None
 
     for file in change.get("files", ()):
@@ -171,12 +176,24 @@ def prove_change(root: Path, change: Mapping[str, Any], ctx: Context | None = No
                 if any(span.name in call_names for span in ctx.ranges(path)):
                     read_ir(path)
             except Exception as error:
-                reasons[str(getattr(error, "reason", None) or type(error).__name__)] += 1
-                degradations.append({"path": path, "reason": str(getattr(error, "reason", None) or type(error).__name__)})
+                reasons[type(error).__name__] += 1
+                degradations.append({"path": path, "reason": type(error).__name__})
         target_functions.update(key for key, ops in operations.items() if key[1] in call_names and ops)
     paths, unreached = compose_paths(
         callers=callers, entries={f"{e.path}::{e.function_name}" for e in entries}, targets=sorted(target_functions), max_depth=max_depth
     )
+    # Handler obligations fill gaps in the call inventory. Preserve the established call-site verdict
+    # when that entry already reaches a listed operation, including one in a directly called helper.
+    handler_ids = {fact.id for fact in facts.operations if fact.handlers}
+    for record in paths:
+        target_path, _, target_name = record.hops[-1][0].rpartition("::")
+        if any(op.fact_id not in handler_ids for op in operations.get((target_path, target_name), ())):
+            entry_path, _, entry_name = record.entry.rpartition("::")
+            if handlers_of.get(entry_path, {}).get(entry_name) != "remix":
+                handlers_of[entry_path].pop(entry_name, None)
+    for (path, name), ops in operations.items():
+        if name not in handlers_of.get(path, {}):
+            operations[path, name] = tuple(op for op in ops if op.fact_id not in handler_ids)
     path_nodes = {node for record in paths for node, _ in record.hops}
     for node in path_nodes:
         read_ir(node.rpartition("::")[0])
@@ -185,7 +202,35 @@ def prove_change(root: Path, change: Mapping[str, Any], ctx: Context | None = No
         reasons["unreached" if path in recognised else "framework_unrecognised"] += 1
     entry_index = {f"{e.path}::{e.function_name}": e for e in entries}
     policy = load_declared_policy(_safe_path(root, DEFAULT_POLICY_RELPATH.as_posix()))
-    dominance = OrderDominance(ctx.texts)
+    handler_ends: dict[Operation, int] = {}
+    for (path, name), ops in operations.items():
+        fn = functions[path, name]
+        returns = [
+            index
+            for index, line in enumerate(ctx.texts[path].splitlines(), 1)
+            if fn.start_line <= index <= fn.end_line and re.match(r"^\s*return\b", line)
+        ]
+        for op in ops:
+            if op.fact_id in handler_ids:
+                handler_ends[op] = returns[-1] if returns else fn.end_line + 1
+    dominance = _HandlerDominance(ctx.texts, handler_ends)
+    extra_witnesses: list[Discharge] = []
+    for language in ("php", "python"):
+        try:
+            extra_witnesses.extend(witnesses(root=root, texts=ctx.texts, entries=entries, language=language))
+        except Exception as error:
+            degradations.append({"stage": "enforcement", "reason": type(error).__name__})
+    # Boolean permission predicates need an exit; they are not throwing guards.
+    for op in handler_ends:
+        ir, text = irs[op.path]
+        for witness in find_discharges(ir, facts.for_language(ir.language), flow.for_language(ir.language), text=text):
+            if (
+                witness.function == op.function
+                and witness.kind == "ownership_check"
+                and dominance.dominates(witness, op, None)
+                and handlers_of.get(op.path, {}).get(op.function) == "stapler"
+            ):
+                extra_witnesses.append(replace(witness, kind="path_guard"))
     findings: dict[str, dict[str, Any]] = {}
     checked: set[Operation] = set()
     undischarged: set[Operation] = set()
@@ -204,7 +249,8 @@ def prove_change(root: Path, change: Mapping[str, Any], ctx: Context | None = No
             dominance=dominance,
             store_shapes=(),
             min_siblings=3,
-            extra_witnesses=(),
+            extra_witnesses=extra_witnesses,
+            handlers_of=handlers_of,
             assume_entries_protected=True,
         )
         degradations.extend(result.degradations)
@@ -212,13 +258,15 @@ def prove_change(root: Path, change: Mapping[str, Any], ctx: Context | None = No
         for op in operations.get((target_path, target_name), ()):
             checked.add(op)
             # Silence from a public premise is not evidence that a check dominated the operation.
-            if not any(
-                w.kind in op.requires
+            dominated = {
+                w.kind
+                for w in result.discharges
+                if w.kind in op.requires
                 and valid_witness(w)
                 and dominance.dominates(w, op, record)
                 and (_relevant(w, op) or _on_caller_hop(w, record, op, dominance))
-                for w in result.discharges
-            ):
+            }
+            if (set(op.requires) - dominated) if op.fact_id in handler_ids else not dominated:
                 undischarged.add(op)
         for finding in result.findings:
             op = finding.operation
@@ -232,7 +280,7 @@ def prove_change(root: Path, change: Mapping[str, Any], ctx: Context | None = No
                     if call.line == op.line and any(call.name == name or call.name.endswith("." + name) for name in op_fact.calls)
                 }
             )
-            entry = asdict(entry_index[record.entry])
+            entry_payload = asdict(entry_index[record.entry])
             hops = [list(hop) for hop in record.hops]
             findings.setdefault(
                 identity,
@@ -247,7 +295,7 @@ def prove_change(root: Path, change: Mapping[str, Any], ctx: Context | None = No
                         f"operation {op.fact_id} ({op.kind}) at {op.path}:{op.line}; missing {finding.missing}",
                     ],
                     id=identity,
-                    entry=entry,
+                    entry=entry_payload,
                     hops=hops,
                     operation=dict(id=op.fact_id, kind=op.kind, calls=calls, line=op.line),
                     missing=finding.missing,
@@ -265,3 +313,19 @@ def prove_change(root: Path, change: Mapping[str, Any], ctx: Context | None = No
         dict(reasons),
     )
     return ProverResult(tuple(findings.values()), coverage, tuple(degradations))
+
+
+class _HandlerDominance:
+    """Judge a handler's internal guard over its body while retaining its declaration as the finding location.
+
+    Call operations retain ordinary order dominance. The checker default and OrderDominance are unchanged.
+    """
+
+    def __init__(self, texts: Mapping[str, str], handler_ends: Mapping[Operation, int]) -> None:
+        self.order = OrderDominance(texts)
+        self.handler_ends = handler_ends
+
+    def dominates(self, witness: Discharge, operation: Operation, path: object | None) -> bool:
+        end = self.handler_ends.get(operation)
+        measured = replace(operation, line=end) if end is not None else operation
+        return self.order.dominates(witness, measured, path)

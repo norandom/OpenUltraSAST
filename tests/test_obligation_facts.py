@@ -115,3 +115,30 @@ def test_delivery_a_java_operations_and_dischargers_resolve():
         assert "path_guard" in operations[call].requires
     assert dischargers["checkPermission"].kind == dischargers["checkAnyPermission"].kind == "path_guard"
     assert dischargers["hasPermission"].kind == "ownership_check"
+
+
+def test_handler_rows_and_validation(tmp_path):
+    from openultrasast.semantic.obligations.facts import ObligationFactsError, load_obligation_facts
+
+    text = """version = "1"
+language = "python"
+[[operation]]
+id = "handler"
+kind = "privileged_action"
+handlers = ["^open$"]
+framework = "tornado"
+requires = ["path_guard"]
+sensitivity = "high"
+"""
+    path = tmp_path / "python.toml"
+    path.write_text(text)
+    (row,) = load_obligation_facts(tmp_path).operations
+    assert row.handlers == ("^open$",) and row.framework == "tornado" and row.calls == ()
+    for invalid in [
+        text.replace('framework = "tornado"', ""),
+        text.replace('"^open$"', '"["'),
+        text.replace('framework = "tornado"', "framework = 12"),
+    ]:
+        path.write_text(invalid)
+        with pytest.raises(ObligationFactsError):
+            load_obligation_facts(tmp_path)

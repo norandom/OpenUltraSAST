@@ -1,3 +1,6 @@
+# Checked mage-ai__mage-ai Git HEAD and websocket fix 66440e4d3: no authenticated
+# decorator or get_current_user definition found. authenticated is already an existing fact.
+# Handler names follow the Tornado RequestHandler/WebSocketHandler contract in the approved spec.
 # Obligated operations and dischargers for Python web code (authorization-obligations, Req 1). Closed data.
 version = "1"
 language = "python"
@@ -84,3 +87,11 @@ permissive_values = ["False"]
 id = "validated-input"
 kind = "validated_input"
 calls = ["validate", "schema.load", "parse_obj", "model_validate", "clean", "is_valid", "secure_filename", "safe_join"]
+
+[[operation]]
+id = "tornado-handler"
+kind = "privileged_action"
+handlers = ["^(?:get|post|put|delete|patch|head|options|open)$"]
+framework = "tornado"
+requires = ["path_guard"]
+sensitivity = "high"

@@ -111,3 +111,33 @@ def test_discharge_witness_covers_operation_only_when_kind_and_provenance_fit() 
     assert covering["constrained"] == ["identity_constraint"] and covering["constrained_too"] == ["identity_constraint"]
     assert covering["leaky"] == []  # request-bound identity does not cover
     assert covering["guarded"] == []  # a path guard does not cover a protected read (only privileged actions)
+
+
+def test_handler_named_operations_are_framework_scoped():
+    from openultrasast.semantic.obligations import load_obligation_facts
+    from openultrasast.semantic.obligations.operations import find_operations
+
+    text = "class Handler:\n    def open(self):\n        pass\n    def helper(self):\n        pass\n"
+    ir = parse_file("app.py", text, "python")
+    facts = load_obligation_facts().for_language("python")
+    assert find_operations(ir, facts, text=text) == ()
+    assert find_operations(ir, facts, text=text, handlers_of={"open": "other"}) == ()
+    (op,) = find_operations(ir, facts, text=text, handlers_of={"open": "tornado", "helper": "tornado"})
+    assert (op.function, op.line, op.requires) == ("open", 2, ("path_guard",))
+
+
+def test_handler_rows_in_java_and_typescript():
+    from openultrasast.semantic.obligations import load_obligation_facts
+    from openultrasast.semantic.obligations.operations import find_operations
+
+    facts = load_obligation_facts()
+    cases = [
+        ("java", "stapler", "class Editor { public void doFillNamesItems() {} }", "doFillNamesItems", ("path_guard",)),
+        ("typescript", "remix", "export function action() { return 1; }", "action", ("path_guard", "ownership_check")),
+    ]
+    for language, framework, text, name, requires in cases:
+        ir = parse_file(f"app.{language}", text, language)
+        assert ir.parse_ok
+        assert find_operations(ir, facts.for_language(language), text=text) == ()
+        (operation,) = find_operations(ir, facts.for_language(language), text=text, handlers_of={name: framework})
+        assert operation.line == 1 and operation.requires == requires and operation.function == name

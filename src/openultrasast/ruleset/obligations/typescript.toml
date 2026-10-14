@@ -1,3 +1,6 @@
+# Checked triggerdotdev__trigger.dev Git HEAD: apps/webapp/app/services/session.server.ts
+# defines requireUser and requireUserId; apiAuth.server.ts defines authenticateApiRequest;
+# routes/resources.dashboard-agent.alerts.$channelId.unsubscribe.tsx defines and calls authorize.
 # Obligated operations and dischargers for TypeScript web code (same surface as JavaScript) (authorization-obligations, Req 1). Closed data.
 version = "1"
 language = "typescript"
@@ -72,7 +75,7 @@ sensitivity = "medium"
 [[discharger]]
 id = "route-guard"
 kind = "path_guard"
-calls = ["authenticate", "requireAuth", "ensureAuthenticated", "isAuthenticated", "verifyToken", "checkAuth", "protect", "authorize", "requireUser", "getServerSession", "auth", "withAuth", "jwt.verify", "passport.authenticate"]
+calls = ["authenticate", "requireAuth", "ensureAuthenticated", "isAuthenticated", "verifyToken", "checkAuth", "protect", "authorize", "requireUser", "requireUserId", "authenticateApiRequest", "getServerSession", "auth", "withAuth", "jwt.verify", "passport.authenticate"]
 decorators = ["UseGuards", "Authorized", "Roles"]
 
 # `req.session` is the authenticated context itself, and it is listed because a destructuring spells the
@@ -112,3 +115,11 @@ permissive_values = ["false"]
 id = "validated-input"
 kind = "validated_input"
 calls = ["parse", "safeParse", "validate", "validateSync", "sanitize", "escape", "validationResult", "z.object", "assert"]
+
+[[operation]]
+id = "remix-handler"
+kind = "privileged_action"
+handlers = ["^action$"]
+framework = "remix"
+requires = ["path_guard", "ownership_check"]
+sensitivity = "high"

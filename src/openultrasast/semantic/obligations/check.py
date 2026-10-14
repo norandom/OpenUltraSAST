@@ -66,6 +66,7 @@ def check_obligations(
     min_siblings: int,
     extra_witnesses: Sequence[Discharge] = (),
     assume_entries_protected: bool = False,
+    handlers_of: Mapping[str, Mapping[str, str]] | None = None,
 ) -> ObligationResult:
     operations: list[Operation] = []
     witnesses: list[Discharge] = list(extra_witnesses)
@@ -81,7 +82,7 @@ def check_obligations(
             continue
         scoped = facts.for_language(ir.language)
         flow = flow_facts.for_language(ir.language)
-        operations.extend(find_operations(ir, scoped, text=text))
+        operations.extend(find_operations(ir, scoped, text=text, handlers_of=(handlers_of or {}).get(path)))
         witnesses.extend(find_discharges(ir, scoped, flow, text=text, entries=entries))
     sets = sibling_sets(entries, operations, witnesses)
     anomalies, under = consistency_anomalies(sets, min_siblings=min_siblings)
@@ -122,11 +123,15 @@ def check_obligations(
         # (a) the operation's own obligation: discharged when any accepted discharger dominates. A declared public route
         # waives the path guard here too (Req 4.4), so the operation falls through to the next kind it accepts.
         required = [kind for kind in operation.requires if not (kind == "path_guard" and declared_access == "public")]
-        if required and not (set(required) & dominated_kinds):
-            missing = next(
-                (kind for kind in required if (handler, kind) in anomaly_index),
-                required[0],
-            )
+        handler_fact = next((f for f in facts.operations if f.id == operation.fact_id and f.handlers), None)
+        missing_kinds = (
+            [kind for kind in required if kind not in dominated_kinds]
+            if handler_fact is not None and handlers_of is not None
+            else [next((kind for kind in required if (handler, kind) in anomaly_index), required[0])]
+            if required and not (set(required) & dominated_kinds)
+            else []
+        )
+        for missing in missing_kinds:
             finding = _finding(
                 operation,
                 missing,
@@ -139,6 +144,7 @@ def check_obligations(
                 paths,
                 facts,
                 entry if assume_entries_protected else None,
+                handler_obligation=handler_fact is not None and handlers_of is not None,
             )
             if finding is not None:
                 findings.append(finding)
@@ -225,6 +231,8 @@ def _finding(
     paths: Sequence[object],
     facts: ObligationFacts,
     assumed_entry: object | None = None,
+    *,
+    handler_obligation: bool = False,
 ) -> ObligationFinding | None:
     wrong = next((w for w in same if w.kind == missing and not valid_witness(w)), None)
     declared = policy.resources.get(operation.resource or "") if policy is not None else None
@@ -247,14 +255,25 @@ def _finding(
         label = "consistency_violation"
         evidence = anomaly.siblings + anomaly.evidence[len(anomaly.siblings) :]
     elif (
-        paths and assumed_entry is not None and getattr(assumed_entry, "access_level", "public") != "public" and declared_access != "public"
+        paths
+        and assumed_entry is not None
+        and (
+            (getattr(assumed_entry, "access_level", "public") != "public" and declared_access != "public")
+            or (handler_obligation and missing != "path_guard")
+        )
     ):
         label = "unguarded_path"
         evidence = (
             f"entry {getattr(assumed_entry, 'kind', '')}: {getattr(assumed_entry, 'path', '')}::"
             f"{getattr(assumed_entry, 'function_name', '')}",
             *(str(item) for item in getattr(assumed_entry, "access_evidence", ())),
-            "no declared policy clause and no sibling norm; the prover assumes a recognised entry is protected",
+            (
+                "no declared policy clause and no sibling norm; the handler fact requires "
+                + missing
+                + "; public access waives only path_guard"
+                if handler_obligation and (declared_access == "public" or getattr(assumed_entry, "access_level", "public") == "public")
+                else "no declared policy clause and no sibling norm; the prover assumes a recognised entry is protected"
+            ),
         )
     elif paths:
         return None  # path-aware mode: without a clause or a sibling norm, nothing justifies the obligation (gating 3)

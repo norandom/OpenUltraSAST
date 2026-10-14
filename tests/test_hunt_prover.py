@@ -181,3 +181,112 @@ def test_nonpublic_unreached_function_in_partly_covered_repo(tmp_path):
     assert result.coverage.frameworks_recognised == {"stapler": 1}
     assert result.coverage.unchecked_by_reason["framework_unrecognised"] == 1
     assert not result.findings
+
+
+@pytest.mark.parametrize("guard,expected", [("", 1), ("checkPermission(ADMINISTER);", 0)])
+def test_handler_without_listed_call(tmp_path, guard, expected):
+    root, change = repository(
+        tmp_path,
+        f"""class X extends Descriptor<Thing> {{
+ public Object doCheckValue() {{
+  {guard}
+  return 1;
+ }}
+}}""",
+    )
+    result = prove_change(root, change)
+    assert len(result.findings) == expected and result.coverage.operations_checked == 1
+    if expected:
+        assert result.findings[0]["line"] == 2
+        assert result.findings[0]["operation"]["id"] == "stapler-handler"
+
+
+@pytest.mark.parametrize("middleware,expected", [("->middleware(['auth'])", 0), ("->middleware(['throttle:10'])", 1)])
+def test_laravel_enforcement_in_prover(tmp_path, middleware, expected):
+    root, change = repository(
+        tmp_path,
+        "class Plain {}",
+        {
+            "Editor.php": "<?php class Editor extends Controller { public function store() { Product::save(); } }",
+            "routes/web.php": f"<?php Route::post('/items', [Editor::class, 'store']){middleware};",
+        },
+    )
+    change["files"] = [{"path": "Editor.php", "head_lines": [[1, 1]]}]
+    result = prove_change(root, change)
+    assert len(result.findings) == expected and result.coverage.operations_checked == 1
+    assert result.coverage.frameworks_recognised == {"laravel": 1}
+
+
+@pytest.mark.parametrize("arrow", [False, True])
+def test_remix_session_does_not_discharge_ownership(tmp_path, arrow):
+    declaration = "export const action = async () =>" if arrow else "export async function action()"
+    text = f"""{declaration} {{
+ const user = await requireUser(request);
+ return deactivateRecord(requestId);
+}}"""
+    root, change = repository(tmp_path, "class Plain {}", {"app/routes/items.ts": text})
+    change["files"] = [{"path": "app/routes/items.ts", "head_lines": [[1, 4]]}]
+    result = prove_change(root, change)
+    assert result.coverage.operations_checked == 1 and result.coverage.operations_discharged == 0
+    assert len(result.findings) == 1 and result.findings[0]["missing"] == "ownership_check"
+
+
+@pytest.mark.parametrize("decorator,expected", [("", 1), ("@tornado.web.authenticated", 0)])
+def test_tornado_enforcement_in_prover(tmp_path, decorator, expected):
+    text = f"""import tornado.web
+class Handler(tornado.web.RequestHandler):
+    {decorator}
+    def get(self):
+        return 1
+"""
+    root, change = repository(tmp_path, "class Plain {}", {"app.py": text})
+    change["files"] = [{"path": "app.py", "head_lines": [[1, 5]]}]
+    result = prove_change(root, change)
+    assert len(result.findings) == expected and result.coverage.operations_checked == 1
+
+
+def test_symfony_yaml_is_read_by_prover(tmp_path):
+    root, change = repository(
+        tmp_path,
+        "class Plain {}",
+        {
+            "Controller.php": (
+                "<?php class Editor extends AbstractController { #[Route('/admin')] public function store() { Product::save(); } }"
+            ),
+            "config/packages/security.yaml": "security:\n  access_control:\n    - { path: ^/admin, roles: ROLE_ADMIN }\n",
+        },
+    )
+    change["files"] = [{"path": "Controller.php", "head_lines": [[1, 1]]}]
+    ctx = Context(root, change)
+    result = prove_change(root, change, ctx)
+    assert not result.findings and result.coverage.operations_discharged == 1
+    assert len(ctx.texts["config/packages/security.yaml"].encode()) > 0
+
+
+@pytest.mark.parametrize("exits,expected", [(True, 0), (False, 1)])
+def test_handler_permission_predicate_requires_exit(tmp_path, exits, expected):
+    root, change = repository(
+        tmp_path,
+        f"""class X extends Descriptor<Thing> {{
+ public Object doCheckValue() {{
+  boolean allowed = hasPermission(ADMINISTER);
+  {"if (!allowed) {" if exits else ""}
+  {"return null;" if exits else ""}
+  {"}" if exits else ""}
+  return 1;
+ }}
+}}""",
+    )
+    result = prove_change(root, change)
+    assert len(result.findings) == expected and result.coverage.operations_discharged == 1 - expected
+
+
+@pytest.mark.parametrize("public,expected_missing", [(False, ["path_guard", "ownership_check"]), (True, ["ownership_check"])])
+def test_remix_missing_kinds_and_public_policy(tmp_path, public, expected_missing):
+    extra = {"app/routes/items.ts": "export function action() { return deactivateRecord(requestId); }"}
+    if public:
+        extra[".openultrasast/obligations.toml"] = 'version = 1\n[[route]]\npath = "action"\naccess = "public"\n'
+    root, change = repository(tmp_path, "class Plain {}", extra)
+    change["files"] = [{"path": "app/routes/items.ts", "head_lines": [[1, 1]]}]
+    result = prove_change(root, change)
+    assert [finding["missing"] for finding in result.findings] == expected_missing

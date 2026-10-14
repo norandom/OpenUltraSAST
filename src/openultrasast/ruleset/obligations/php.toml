@@ -1,3 +1,9 @@
+# Delivery B enforcement sources: shopperlabs__shopper Git HEAD packages/admin/routes/web.php
+# uses chained middleware and groups. kimai__kimai at the pool revision uses @Route(path=...)
+# and @Security in src/Controller/InvoiceController.php (class and action docblocks).
+# Recognised contract names from the approved spec and the references below: Laravel auth, can:,
+# role and permission middleware, constructor middleware/authorizeResource; Symfony IsGranted,
+# Security and security.yaml access_control. No PHP operation or discharger row was changed.
 # Closed authorization facts for Laravel, WordPress and Symfony.
 # Checked shopperlabs__shopper Git HEAD source objects in /home/mc/ousast-results/valid/train/hist/:
 # CollectionProducts.authorize, SetupGuide.can, AssetController.abort_unless,

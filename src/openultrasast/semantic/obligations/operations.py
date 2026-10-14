@@ -10,7 +10,7 @@ the authenticated context (a constraint bound from the request or a constant dis
 from __future__ import annotations
 
 import re
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
 from ..facts import SemanticFacts
@@ -44,7 +44,9 @@ class Discharge:
     detail: str = ""  # identifier only: the decorator or call name that witnessed the discharge
 
 
-def find_operations(ir: FileIR, facts: ObligationFacts, *, text: str) -> tuple[Operation, ...]:
+def find_operations(
+    ir: FileIR, facts: ObligationFacts, *, text: str, handlers_of: Mapping[str, str] | None = None
+) -> tuple[Operation, ...]:
     """Every obligated operation in the file's named functions, in source order."""
     if not ir.parse_ok:
         return ()
@@ -54,6 +56,14 @@ def find_operations(ir: FileIR, facts: ObligationFacts, *, text: str) -> tuple[O
     for function in ir.functions:
         if function.name == "<module>":
             continue
+        for fact in facts.operations:
+            if (
+                fact.handlers
+                and not fact.calls
+                and (handlers_of or {}).get(function.name) == fact.framework
+                and any(re.search(pattern, function.name) for pattern in fact.handlers)
+            ):
+                found.append(Operation(ir.path, function.start_line, function.name, fact.kind, fact.id, None, fact.requires))
         for site in _operations(function, facts, lines, kind=None):
             key = (function.name, site.call.line, site.fact.id)
             if key in seen:

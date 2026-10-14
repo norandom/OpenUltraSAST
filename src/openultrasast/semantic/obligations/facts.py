@@ -7,6 +7,7 @@ data bug and fails loud. Nothing detects an obligation that is not named here.
 
 from __future__ import annotations
 
+import re
 import tomllib
 from dataclasses import dataclass
 from pathlib import Path
@@ -20,7 +21,9 @@ PROVENANCE_KINDS = ("authenticated_context", "request_input", "constant", "unkno
 SENSITIVITIES = ("low", "medium", "high")
 DEFAULT_OBLIGATION_FACTS_DIR = Path(__file__).resolve().parents[2] / "ruleset" / "obligations"
 
-_OPERATION_FIELDS = frozenset({"id", "kind", "calls", "resource_arg", "requires", "sensitivity", "query_document_arg"})
+_OPERATION_FIELDS = frozenset(
+    {"id", "kind", "calls", "resource_arg", "requires", "sensitivity", "query_document_arg", "handlers", "framework"}
+)
 _DISCHARGER_FIELDS = frozenset(
     {"id", "kind", "calls", "decorators", "identity_sources", "constraint_params", "request_sources", "permissive_values"}
 )
@@ -45,6 +48,8 @@ class OperationFact:
     # calls were a selector or a predicate. The position is 1-based over the real arguments; the arbiter that
     # can see argument shapes decides it, and a language whose calls are unambiguous never sets this.
     query_document_arg: int | None = None
+    handlers: tuple[str, ...] = ()
+    framework: str | None = None
 
 
 @dataclass(frozen=True)
@@ -109,6 +114,17 @@ def _load_obligation_facts_uncached(directory: Path | None = None) -> Obligation
             document_arg = row.get("query_document_arg")
             if document_arg is not None and (not isinstance(document_arg, int) or document_arg < 1):
                 raise ObligationFactsError(f"{path}: operation {row.get('id')!r} query_document_arg must be a positive integer")
+            handlers = _strings(row.get("handlers"), "handlers", path)
+            framework = row.get("framework")
+            if framework is not None and (not isinstance(framework, str) or not framework):
+                raise ObligationFactsError("invalid operation framework")
+            if handlers and framework is None:
+                raise ObligationFactsError("handler operation needs a framework")
+            for pattern in handlers:
+                try:
+                    re.compile(pattern)
+                except re.error as exc:
+                    raise ObligationFactsError(type(exc).__name__) from exc
             operations.append(
                 OperationFact(
                     id=str(row["id"]),
@@ -119,6 +135,8 @@ def _load_obligation_facts_uncached(directory: Path | None = None) -> Obligation
                     requires=requires,
                     sensitivity=sensitivity,
                     query_document_arg=document_arg,
+                    handlers=handlers,
+                    framework=framework,
                 )
             )
         for row in _rows(payload.get("discharger"), path):

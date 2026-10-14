@@ -63,3 +63,21 @@ def test_records_are_consumed_by_the_checker():
     )
     (finding,) = result.findings
     assert finding.operation.function == "entry" and finding.label == "unguarded_path"
+
+
+def test_callers_are_looked_up_once_per_node_and_never_without_entries():
+    from openultrasast.semantic.obligations.paths import compose_paths
+
+    calls: list[str] = []
+    graph = {"a.py::leaf": [("a.py::mid", 3)], "a.py::mid": [("web.py::view", 9), ("a.py::other", 4)], "a.py::other": [("a.py::mid", 5)]}
+
+    def callers(path, function):
+        calls.append(f"{path}::{function}")
+        return graph.get(f"{path}::{function}", [])
+
+    paths, unreached = compose_paths(callers=callers, entries={"web.py::view"}, targets=[("a.py", "leaf"), ("a.py", "mid")], max_depth=3)
+    assert [p.hops[0][0] for p in paths] == ["web.py::view"] * len(paths) and len(paths) >= 2 and unreached == []
+    assert len(calls) == len(set(calls))  # once per node across both targets
+    calls.clear()
+    paths, unreached = compose_paths(callers=callers, entries=set(), targets=[("a.py", "leaf")])
+    assert paths == [] and unreached == ["a.py::leaf"] and calls == []

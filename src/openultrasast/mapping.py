@@ -100,10 +100,18 @@ def analyze_entry_points(
     root: Path, targets: list[FileTarget], *, texts: Mapping[str, str] | None = None, include_manifests: bool = True
 ) -> list[EntryPointRecord]:
     records: list[EntryPointRecord] = []
+    source_texts = dict(texts) if texts is not None else {t.path: (root / t.path).read_text(errors="ignore") for t in targets}
+    if texts is None:
+        for config in framework_config_paths(root):
+            source_texts[config] = (root / config).read_text(errors="ignore")
     for target in targets:
-        path = root / target.path
-        text = texts[target.path] if texts is not None else path.read_text(errors="ignore")
+        text = source_texts[target.path]
         records.extend(_language_entry_points(target, text))
+        if target.language == "php":
+            framework_entries = _php_framework_entries(target, text, source_texts)
+            names = {e.function_name for e in framework_entries}
+            records = [e for e in records if not (e.path == target.path and e.kind == "function" and e.function_name in names)]
+            records.extend(framework_entries)
         records.extend(_tag_entry_points(target))
     if include_manifests:
         records.extend(_route_manifest_entry_points(root, targets))
@@ -178,9 +186,9 @@ def _language_entry_points(target: FileTarget, text: str) -> list[EntryPointReco
     if target.language == "java":
         return _stapler_entries(target, text) + _jetty_entries(target, text)
     if target.language == "python":
-        return _python_entry_points(target, text)
+        return _python_entry_points(target, text) + _tornado_entries(target, text)
     if target.language in {"javascript", "typescript"}:
-        return _js_entry_points(target, text)
+        return _js_entry_points(target, text) + _remix_exports(target, text)
     if target.language in {"c", "cpp"}:
         return _c_entry_points(target, text)
     if target.language == "solidity":
@@ -188,6 +196,296 @@ def _language_entry_points(target: FileTarget, text: str) -> list[EntryPointReco
     if target.language == "php":
         return _php_entry_points(target, text)
     return []
+
+
+def framework_config_paths(root: Path) -> list[str]:
+    """Small, declared configuration locations outside the product source census."""
+    candidates = [
+        root / "config" / name for name in ("routes.yaml", "routes.yml", "routes.xml", "packages/security.yaml", "packages/security.yml")
+    ]
+    candidates.extend((root / "config/routes").glob("*.yaml"))
+    candidates.extend((root / "config/routes").glob("*.yml"))
+    return sorted(path.relative_to(root).as_posix() for path in candidates if path.is_file() and not path.is_symlink())
+
+
+@dataclass(frozen=True)
+class _PhpMethod:
+    owner: str
+    owner_header: str
+    owner_attributes: str
+    name: str
+    line: int
+    end_line: int
+    header: str
+    body: str
+
+
+def _php_methods(text: str) -> list[_PhpMethod]:
+    """CST class and method boundaries, including the method's own attributes and docblock."""
+    from .semantic.extra import grammar_for
+
+    grammar = grammar_for("php")
+    if grammar is None:
+        return []
+    from tree_sitter import Parser
+
+    data = text.encode()
+    parser = Parser(grammar)
+    tree = parser.parse(data)
+    if tree.root_node.has_error:
+        return []
+    result: list[_PhpMethod] = []
+
+    def value(node: Any) -> str:
+        return data[node.start_byte : node.end_byte].decode()
+
+    def walk(node: Any, owner: str = "", header: str = "", attributes: str = "", prior_comment: str = "") -> None:
+        if node.type == "class_declaration":
+            name, body = node.child_by_field_name("name"), node.child_by_field_name("body")
+            owner = value(name) if name is not None else ""
+            header = data[node.start_byte : body.start_byte if body else node.end_byte].decode()
+            attributes = header + prior_comment
+        if node.type == "method_declaration" and owner:
+            name, body = node.child_by_field_name("name"), node.child_by_field_name("body")
+            if name is not None and body is not None:
+                own_header = data[node.start_byte : body.start_byte].decode()
+                declaration = re.search(r"\bfunction\b", own_header)
+                line = data[: node.start_byte].count(b"\n") + 1 + own_header[: declaration.start() if declaration else 0].count("\n")
+                own_header = prior_comment + own_header
+                result.append(
+                    _PhpMethod(
+                        owner, header, attributes, value(name), line, data[: node.end_byte].count(b"\n") + 1, own_header, value(body)
+                    )
+                )
+            return
+        previous_comment = ""
+        for child in node.named_children:
+            walk(child, owner, header, attributes, previous_comment)
+            previous_comment = value(child) if child.type == "comment" else ""
+
+    walk(tree.root_node)
+    return result
+
+
+@dataclass(frozen=True)
+class _PhpRoute:
+    source: str
+    owner: str
+    method: str
+    path: str
+    statement: str
+
+
+def _php_routes(texts: Mapping[str, str]) -> list[_PhpRoute]:
+    """Resolve literal Laravel array and Controller@method registrations without name-only joins."""
+    routes: list[_PhpRoute] = []
+    pattern = re.compile(r"\bRoute::(?:get|post|put|patch|delete|any|match)\s*\([^;]+;", re.S)
+    for source, text in texts.items():
+        if not source.endswith(".php"):
+            continue
+        # Comments cannot register a route. Preserve strings, which carry the route arguments.
+        clean = re.sub(r"/\*.*?\*/|//[^\n]*", "", text, flags=re.S)
+        for match in pattern.finditer(clean):
+            statement = match.group()
+            target = re.search(r"\[\s*([\w\\]+)::class\s*,\s*['\"](\w+)['\"]\s*\]", statement)
+            if target is None:
+                target = re.search(r"['\"]([\w\\]+)@(\w+)['\"]", statement)
+            path = re.search(r"\(\s*['\"]([^'\"]+)['\"]", statement)
+            if target:
+                routes.append(_PhpRoute(source, target[1].split("\\")[-1], target[2], path[1] if path else "", statement))
+    return routes
+
+
+def _php_framework_entries(target: FileTarget, text: str, texts: Mapping[str, str]) -> list[EntryPointRecord]:
+    records: list[EntryPointRecord] = []
+    routes = _php_routes(texts)
+    for method in _php_methods(text):
+        if re.search(r"\b(private|protected)\b", method.header) or method.name.startswith("_"):
+            continue
+        route_attribute = re.search(r"(?:#\[|@)(?:[\w\\]+\\)?Route\s*\(\s*(?:path\s*[:=]\s*)?['\"]([^'\"]+)['\"]", method.header)
+        configured: list[tuple[str, str]] = []
+        if re.search(r"extends\s+(?:[\w\\]+\\)?AbstractController\b", method.owner_header):
+            for source, config in texts.items():
+                if "route" not in source or not source.endswith((".yaml", ".yml", ".xml", ".php")):
+                    continue
+                if re.search(r"\b" + re.escape(method.owner) + r"::" + re.escape(method.name) + r"\b", config):
+                    configured.append((source, method.name))
+        if route_attribute or configured:
+            route_name = route_attribute[1] if route_attribute else configured[0][1]
+            class_route = re.search(r"(?:#\[|@)(?:[\w\\]+\\)?Route\s*\(\s*(?:path\s*[:=]\s*)?['\"]([^'\"]+)['\"]", method.owner_attributes)
+            if class_route and route_attribute:
+                route_name = class_route[1].rstrip("/") + "/" + route_name.lstrip("/")
+            evidence = [f"Symfony Route {route_name}"] + [f"Symfony controller registration in {source}" for source, _ in configured]
+            records.append(
+                _entry(target, method.line, method.end_line, method.name, route_name, "route", "unknown", "http_request", evidence, [])
+            )
+            continue
+        component = re.search(r"extends\s+(?:Livewire\\)?Component\b", method.owner_header)
+        if component and ("Livewire\\" in text or "Livewire\\" in method.owner_header):
+            bindings = [
+                source
+                for source, body in texts.items()
+                if re.search(r"wire:[\w.:-]+\s*=\s*['\"]" + re.escape(method.name) + r"(?:\(|['\"])", body)
+            ]
+            records.append(
+                _entry(
+                    target,
+                    method.line,
+                    method.end_line,
+                    method.name,
+                    method.name,
+                    "route",
+                    "unknown",
+                    "http_request",
+                    [f"Livewire Component {method.owner}"] + [f"Livewire wire binding in {source}" for source in bindings],
+                    [],
+                )
+            )
+            continue
+        for route in routes:
+            if (route.owner, route.method) != (method.owner, method.name):
+                continue
+            access: AccessLevel = "unknown" if "middleware" in route.statement else "public"
+            records.append(
+                _entry(
+                    target,
+                    method.line,
+                    method.end_line,
+                    method.name,
+                    route.path or method.name,
+                    "route",
+                    access,
+                    "http_request",
+                    [f"Laravel Route registration in {route.source}: {route.path}"],
+                    [],
+                    access_declared=access == "public",
+                )
+            )
+    return records
+
+
+def _tornado_entries(target: FileTarget, text: str) -> list[EntryPointRecord]:
+    try:
+        tree = ast.parse(text)
+    except SyntaxError:
+        return []
+    records: list[EntryPointRecord] = []
+    classes = [node for node in ast.walk(tree) if isinstance(node, ast.ClassDef)]
+    bases = {"RequestHandler", "WebSocketHandler"}
+    for _ in classes:
+        for node in classes:
+            if any(_safe_unparse(base).split(".")[-1] in bases for base in node.bases):
+                bases.add(node.name)
+    for node in classes:
+        direct = any(_safe_unparse(base).split(".")[-1] in bases for base in node.bases)
+        # The pool's terminal socket inherits through terminado and explicitly invokes Tornado's base method.
+        explicit_super = any(_safe_unparse(base) == "terminado.TermSocket" for base in node.bases) and any(
+            isinstance(call, ast.Call) and _safe_unparse(call.func).startswith("tornado.websocket.WebSocketHandler.")
+            for call in ast.walk(node)
+        )
+        if not direct and not explicit_super:
+            continue
+        for method in node.body:
+            if not isinstance(method, (ast.FunctionDef, ast.AsyncFunctionDef)) or method.name not in {
+                "get",
+                "post",
+                "put",
+                "delete",
+                "patch",
+                "head",
+                "options",
+                "open",
+            }:
+                continue
+            records.append(
+                _entry(
+                    target,
+                    method.lineno,
+                    method.end_lineno,
+                    method.name,
+                    method.name,
+                    "route",
+                    "unknown",
+                    "http_request",
+                    [f"Tornado {node.name}.{method.name}", *[_safe_unparse(d) for d in method.decorator_list]],
+                    [],
+                )
+            )
+    return records
+
+
+def _remix_exports(target: FileTarget, text: str) -> list[EntryPointRecord]:
+    if "app/routes/" not in "/" + target.path:
+        return []
+    from .semantic.extra import grammar_for
+
+    grammar = grammar_for("tsx" if Path(target.path).suffix == ".tsx" else target.language)
+    if grammar is None:
+        return []
+    from tree_sitter import Parser
+
+    data = text.encode()
+    parser = Parser(grammar)
+    tree = parser.parse(data)
+    if tree.root_node.has_error:
+        return []
+    records: list[EntryPointRecord] = []
+
+    def walk(node: Any) -> None:
+        if node.type == "export_statement":
+            for declaration in node.named_children:
+                candidates = (
+                    declaration.named_children if declaration.type in {"lexical_declaration", "variable_declaration"} else [declaration]
+                )
+                for candidate in candidates:
+                    name_node = candidate.child_by_field_name("name")
+                    if name_node is None:
+                        continue
+                    name = data[name_node.start_byte : name_node.end_byte].decode()
+                    if name not in {"action", "loader"}:
+                        continue
+                    function = candidate.child_by_field_name("value") if candidate.type == "variable_declarator" else candidate
+                    if function is None or function.type not in {"function_declaration", "arrow_function", "function_expression"}:
+                        continue
+                    records.append(
+                        _entry(
+                            target,
+                            data[: function.start_byte].count(b"\n") + 1,
+                            data[: function.end_byte].count(b"\n") + 1,
+                            name,
+                            name,
+                            "route",
+                            "unknown",
+                            "http_request",
+                            [f"Remix route export {name}"],
+                            [],
+                        )
+                    )
+            return
+        for child in node.named_children:
+            walk(child)
+
+    walk(tree.root_node)
+    return records
+
+
+def entry_framework(entry: object) -> str | None:
+    """The recogniser id recorded in a handler entry's evidence."""
+    evidence = " ".join(getattr(entry, "access_evidence", ()))
+    for name, identifier in (
+        ("Stapler", "stapler"),
+        ("Jetty", "jetty"),
+        ("Servlet", "servlet"),
+        ("JAX-RS", "jaxrs"),
+        ("Symfony", "symfony"),
+        ("Livewire", "livewire"),
+        ("Laravel", "laravel"),
+        ("Remix", "remix"),
+        ("Tornado", "tornado"),
+    ):
+        if name in evidence:
+            return identifier
+    return None
 
 
 def _java_methods(target: FileTarget, text: str) -> list[tuple[object, str, str]]:

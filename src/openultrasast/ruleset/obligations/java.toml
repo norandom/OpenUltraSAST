@@ -1,3 +1,5 @@
+# Handler obligations: Jenkins form validation and list filling require permission checks.
+# https://www.jenkins.io/doc/developer/security/form-validation/ (reference in the approved brief).
 # Delivery A additionally checked actual calls in Git HEAD objects (2026-10-14):
 # p4-plugin: CredentialsHelper.lookupCredentialsInItem, P4PasswordImpl and P4TicketImpl
 # call ConnectionFactory.testConnection, ConnectionFactory calls connect, ReviewNotifier
@@ -79,3 +81,11 @@ id = "identity-from-context"
 kind = "identity_constraint"
 identity_sources = ["SecurityContextHolder.getContext().getAuthentication()", "Jenkins.getAuthentication()", "Jenkins.getAuthentication2()", "getUserPrincipal()"]
 request_sources = ["getParameter(", "getHeader(", "getCookies(", "getQueryString("]
+
+[[operation]]
+id = "stapler-handler"
+kind = "privileged_action"
+handlers = ["^do(?:Check.*|Fill.*Items|Test.*|Validate.*|Verify.*)$"]
+framework = "stapler"
+requires = ["path_guard"]
+sensitivity = "high"
