@@ -53,6 +53,9 @@ def test_stapler_verdict(tmp_path, guard, findings):
     ctx = Context(root, change)
     result = prove_change(root, change, ctx)
     assert len(result.findings) == findings
+    assert len(result.traces) == 1
+    assert result.traces[0]["missing"] == ("path_guard" if findings else None)
+    assert result.traces[0]["dominating"] == ([] if findings else ["path_guard"])
     assert result.coverage.operations_checked == 1
     assert result.coverage.operations_discharged == 1 - findings
     assert result.coverage.reached == 1
@@ -64,6 +67,7 @@ def test_stapler_verdict(tmp_path, guard, findings):
         assert finding["entry"]["kind"] == "route" and finding["hops"] == [["Fixture.java::doTestConnection", None]]
         assert finding["operation"]["calls"] == ["lookupCredentials"] and finding["missing"] == "path_guard"
         assert finding["evidence"]
+        assert finding["trace"] is result.traces[0]
 
 
 def test_unrecognised_is_coverage_only(tmp_path):
@@ -169,6 +173,7 @@ def test_declared_public_route_suppresses_premise(tmp_path):
     result = prove_change(root, change)
     assert not result.findings and result.coverage.operations_checked == 1
     assert result.coverage.operations_discharged == 0
+    assert result.traces[0]["access"] == "public"
 
 
 def test_nonpublic_unreached_function_in_partly_covered_repo(tmp_path):

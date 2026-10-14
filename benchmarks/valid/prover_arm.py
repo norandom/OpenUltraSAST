@@ -50,6 +50,7 @@ def _prove(change, repos, *, max_depth):
         "status": "prover_covered",
         "instrument": instrument,
         "findings": [],
+        "traces": [],
         "coverage": {},
         "degradations": [],
         "push": {"admission": {"defects": [], "dispositions": []}, "quick_tier": []},
@@ -112,7 +113,12 @@ def _prove(change, repos, *, max_depth):
                         raise InstrumentFailure("zero-byte read")
                 result = prove_change(root, change, ctx, max_depth=max_depth)
                 instrument["hook_bytes_read"] = sum(instrument["file_bytes"].values())
-                record.update(findings=list(result.findings), coverage=asdict(result.coverage), degradations=list(result.degradations))
+                record.update(
+                    findings=list(result.findings),
+                    traces=list(result.traces),
+                    coverage=asdict(result.coverage),
+                    degradations=list(result.degradations),
+                )
                 record["push"]["admission"]["defects"] = [
                     {**finding, "defect_id": finding["id"], "source": "prover", "locations": [[finding["path"], finding["line"]]]}
                     for finding in result.findings

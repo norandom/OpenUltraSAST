@@ -13,13 +13,14 @@ from .. import mapping, source
 from ..preprocess import FileTarget, count_loc, detect_language, detect_tags
 from ..semantic.facts import load_facts
 from ..semantic.ir import FileIR, FunctionIR, trailing_name
-from ..semantic.obligations.check import _on_caller_hop, _relevant, check_obligations
+from ..semantic.obligations.check import _on_caller_hop, _relevant, _route_path, check_obligations
 from ..semantic.obligations.dominance import OrderDominance
 from ..semantic.obligations.enforcement import witnesses
 from ..semantic.obligations.facts import load_obligation_facts
 from ..semantic.obligations.operations import Discharge, Operation, find_discharges, find_operations, valid_witness
 from ..semantic.obligations.paths import compose_paths
 from ..semantic.obligations.policy import DEFAULT_POLICY_RELPATH, load_declared_policy
+from ..semantic.obligations.trace import build_trace
 from .producers import Context, _safe_path
 
 
@@ -40,6 +41,7 @@ class ProverResult:
     findings: tuple[dict[str, Any], ...]
     coverage: Coverage
     degradations: tuple[dict[str, Any], ...]
+    traces: tuple[dict[str, Any], ...] = ()
 
 
 def prove_change(root: Path, change: Mapping[str, Any], ctx: Context | None = None, *, max_depth: int = 3) -> ProverResult:
@@ -232,6 +234,7 @@ def prove_change(root: Path, change: Mapping[str, Any], ctx: Context | None = No
             ):
                 extra_witnesses.append(replace(witness, kind="path_guard"))
     findings: dict[str, dict[str, Any]] = {}
+    traces: list[dict[str, Any]] = []
     checked: set[Operation] = set()
     undischarged: set[Operation] = set()
     for record in paths:
@@ -255,6 +258,7 @@ def prove_change(root: Path, change: Mapping[str, Any], ctx: Context | None = No
         )
         degradations.extend(result.degradations)
         target_path, _, target_name = record.hops[-1][0].rpartition("::")
+        pair_traces: dict[Operation, dict[str, Any]] = {}
         for op in operations.get((target_path, target_name), ()):
             checked.add(op)
             # Silence from a public premise is not evidence that a check dominated the operation.
@@ -268,6 +272,24 @@ def prove_change(root: Path, change: Mapping[str, Any], ctx: Context | None = No
             }
             if (set(op.requires) - dominated) if op.fact_id in handler_ids else not dominated:
                 undischarged.add(op)
+            missing = next((finding.missing for finding in result.findings if finding.operation == op), None)
+            trace_entry = entry_index[record.entry]
+            route = _route_path(op, ctx.texts[op.path]) or trace_entry.name
+            declared_access = policy.route_access(route) if policy is not None and route else None
+            trace = build_trace(
+                path=record,
+                entry=trace_entry,
+                access=declared_access,
+                operation=op,
+                irs=path_irs,
+                facts=facts,
+                witnesses=result.discharges,
+                dominance=dominance,
+                dominating=tuple(sorted(dominated)),
+                missing=missing,
+            ).record()
+            traces.append(trace)
+            pair_traces[op] = trace
         for finding in result.findings:
             op = finding.operation
             identity = f"obligation:{op.kind}:{op.path}:{op.line}:{finding.missing}"
@@ -300,6 +322,7 @@ def prove_change(root: Path, change: Mapping[str, Any], ctx: Context | None = No
                     operation=dict(id=op.fact_id, kind=op.kind, calls=calls, line=op.line),
                     missing=finding.missing,
                     label=finding.label,
+                    trace=pair_traces[op],
                 ),
             )
     coverage = Coverage(
@@ -312,7 +335,7 @@ def prove_change(root: Path, change: Mapping[str, Any], ctx: Context | None = No
         len(checked - undischarged),
         dict(reasons),
     )
-    return ProverResult(tuple(findings.values()), coverage, tuple(degradations))
+    return ProverResult(tuple(findings.values()), coverage, tuple(degradations), tuple(traces))
 
 
 class _HandlerDominance:

@@ -67,6 +67,9 @@ def test_run_resume_summary_and_locations(pool, monkeypatch, capsys):
     assert prover_arm.main(["run", str(manifest), "--repos", str(repos), "--out", str(out)]) == 0
     rows = score.load_records(out)
     assert len(rows) == 2 and all(r["done"] and r["seconds"] > 0 for r in rows)
+    assert all(len(row["traces"]) == 1 for row in rows)
+    assert rows[0]["findings"][0]["trace"] == rows[0]["traces"][0]
+    assert rows[1]["traces"][0]["missing"] is None
     assert score.catches(rows[0]) == ["alerts"] and not score.false_alarm(rows[1])
     summary = json.loads((out / "summary.json").read_text())
     assert summary["recall"]["count"] == summary["recall"]["n"] == 1
