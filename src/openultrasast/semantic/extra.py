@@ -17,6 +17,7 @@ _GRAMMAR_MODULES = {
     "c": ("tree_sitter_c", "language"),
     "cpp": ("tree_sitter_cpp", "language"),
     "java": ("tree_sitter_java", "language"),
+    "php": ("tree_sitter_php", "language_php"),
 }
 _PROBE_ENV = "OPENULTRASAST_TREE_SITTER_PROBE"
 _PROBE_OFF = frozenset({"0", "off", "false", "unavailable", "no"})

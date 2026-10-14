@@ -1,0 +1,64 @@
+# Closed authorization facts for Jenkins/Stapler, Spring Security and Servlet code.
+# Checked Git HEAD source objects in /home/mc/ousast-results/valid/train/hist/:
+# jenkinsci__analysis-core-plugin: DefaultGraphConfigurationView.checkPermission,
+# AbstractAnnotation.hasPermission and GlobalSettings.save; android-signing-plugin:
+# SignApksBuilder.lookupCredentials; ansible-plugin: AnsibleAdHocCommandBuilder.findCredentialById;
+# blueocean-plugin: GitScm.getItemByFullName; cloud-stats-plugin: CloudStatistics.getConfigFile;
+# job-import-plugin: JobImportAction.updateByXml. These are real calls, not prose matches.
+# checkAnyPermission is documented by Jenkins AccessControlled, although absent from these HEADs:
+# https://javadoc.jenkins.io/hudson/security/AccessControlled.html
+# checkReadPermission was not found in the clones or API references and is not guessed here.
+# Spring and Servlet are already named in ruleset/semantic/java.toml. Their identity/check APIs:
+# https://docs.spring.io/spring-security/site/docs/current/api/org/springframework/security/acls/model/Acl.html
+# https://docs.spring.io/spring-security/site/docs/5.4.x/reference/html5/ (Servlet integration)
+# Calls use trailing method names. Boolean predicates are ownership_check witnesses, requiring
+# an exit before the operation under OrderDominance; only throwing checks are path_guard facts.
+version = "1"
+language = "java"
+
+[[operation]]
+id = "jenkins-credentials-read"
+kind = "protected_read"
+calls = ["lookupCredentials", "findCredentialById"]
+requires = ["path_guard", "ownership_check", "identity_constraint"]
+sensitivity = "high"
+
+[[operation]]
+# A Stapler doXxx handler is not itself a protected operation; its item lookup is.
+id = "jenkins-item-read"
+kind = "protected_read"
+calls = ["getItemByFullName", "getConfigFile"]
+requires = ["path_guard", "ownership_check", "identity_constraint"]
+sensitivity = "high"
+
+[[operation]]
+id = "jenkins-item-write"
+kind = "protected_write"
+calls = ["updateByXml", "save"]
+requires = ["path_guard", "ownership_check", "identity_constraint"]
+sensitivity = "high"
+
+[[operation]]
+# JDBC access already named in semantic/java.toml; authorization is separate from SQL escaping.
+id = "sql-access"
+kind = "protected_read"
+calls = ["executeQuery", "execute", "prepareCall"]
+requires = ["path_guard", "ownership_check", "identity_constraint"]
+sensitivity = "high"
+
+[[discharger]]
+id = "jenkins-permission-guard"
+kind = "path_guard"
+calls = ["checkPermission", "checkAnyPermission"]
+
+[[discharger]]
+id = "permission-predicate"
+kind = "ownership_check"
+calls = ["hasPermission", "isGranted", "isUserInRole"]
+
+[[discharger]]
+# Reading the security context alone is not an authorization guard.
+id = "identity-from-context"
+kind = "identity_constraint"
+identity_sources = ["SecurityContextHolder.getContext().getAuthentication()", "Jenkins.getAuthentication()", "Jenkins.getAuthentication2()", "getUserPrincipal()"]
+request_sources = ["getParameter(", "getHeader(", "getCookies(", "getQueryString("]

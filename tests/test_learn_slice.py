@@ -86,6 +86,7 @@ def test_learn_slice_parameterized_sink_and_family_routing() -> None:
         ("typescript", "function f(req: any) { const x = req.query.x; eval(x); }"),
         ("c", "void f(char *x) { char *y = x; system(y); }"),
         ("java", "class C { void f(String x) { String y = x; exec(y); } }"),
+        ("php", "<?php function f($x) { $y = $x; exec($y); }"),
     ],
 )
 def test_learn_slice_shared_cst_declarations(language: str, code: str) -> None:
@@ -99,8 +100,8 @@ def test_learn_slice_same_line_assignment_order() -> None:
 
 
 def test_learn_slice_fixed_framing_redaction_and_unsupported() -> None:
-    assert function_slice("<?php function f($x) { exec($x); }", "php", "injection") is None
-    assert render_slice(None, "php") == "Data flow inside the function: not analysed (php is not supported)."
+    assert function_slice("def f(x); exec(x); end", "ruby", "injection") is None
+    assert render_slice(None, "ruby") == "Data flow inside the function: not analysed (ruby is not supported)."
     assert render_slice(Slice(), "anything") == "Data flow inside the function: no source reaches a sink of this family."
     assert "CVE" not in render_slice(None, "CVE-2026-1234")
     result = sliced("def f(x):\n    execute(x) # CVE-2026-1234 vulnerable")
@@ -225,7 +226,7 @@ def test_learn_slice_prompt_flow_examples_citations_and_request_identity() -> No
 def test_learn_slice_prompt_not_analysable() -> None:
     import test_learn_program as baseline
 
-    candidate = replace(baseline.candidate(), language="php")
+    candidate = replace(baseline.candidate(), language="ruby")
     prompt, _ = baseline.program(slice=True).prepare(candidate, baseline.FOLD)
     tail = str(prompt.messages[1]["content"]).split("Candidate:\n")[1]
-    assert candidate.code.rstrip() + "\nData flow inside the function: not analysed (php is not supported).\nSignals:" in tail
+    assert candidate.code.rstrip() + "\nData flow inside the function: not analysed (ruby is not supported).\nSignals:" in tail

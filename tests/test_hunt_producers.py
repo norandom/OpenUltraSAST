@@ -198,3 +198,61 @@ def test_a_removed_guard_anchors_the_function_it_left(tmp_path):
     assert row["feature.diff.on_changed_line"] and row["feature.diff.distance"] == 0
     first = next(r for r in rows if r["feature.source.function"] == "first")
     assert first["feature.diff.distance"] == 4 and not first["feature.diff.on_changed_line"]
+
+
+@pytest.mark.parametrize(
+    ("path", "text", "source_name", "operation"),
+    [
+        (
+            "App.java",
+            'class App {\n void run() {\n  String id = request.getParameter("id");\n'
+            "  checkPermission(ADMINISTER);\n  getItemByFullName(id);\n }\n}\n",
+            "getParameter",
+            "protected_read",
+        ),
+        (
+            "app.php",
+            "<?php\nfunction run($id) {\n $id = $_GET['id'];\n Gate::authorize('view');\n Product::findOrFail($id);\n}\n",
+            "$_GET",
+            "protected_read",
+        ),
+    ],
+)
+def test_java_php_semantic_rows_keep_all_annotations(repository, monkeypatch, path, text, source_name, operation):
+    root, change = repository
+    (root / path).write_text(text)
+    monkeypatch.setattr(module, "_git", lambda *args: change["head"])
+    row = compute_rows(root, {**change, "kind": "ordinary", "files": [{"path": path, "head_lines": [[3, 3]]}]})[0]
+    assert row["provenance.semantic.ok"] is True
+    assert row["feature.semantic.roles"][source_name] == "source"
+    assert row["feature.semantic.def_use"]["binds"]
+    assert row["feature.semantic.def_use"]["calls"]
+    assert row["feature.semantic.obligations"] == [{"operation": operation, "line": 5, "discharged": True}]
+
+
+def test_missing_obligation_facts_preserve_roles_and_def_use(repository, monkeypatch, tmp_path):
+    root, change = repository
+    baseline = compute_rows(root, change)[0]
+    empty = tmp_path / "empty-obligation-facts"
+    empty.mkdir()
+    load = module.load_obligation_facts
+    monkeypatch.setattr(module, "load_obligation_facts", lambda: load(empty))
+    row = compute_rows(root, change)[0]
+    assert row["provenance.semantic.ok"] is True
+    assert row["feature.semantic.obligations"] is None
+    for name in ("roles", "def_use"):
+        assert row[f"feature.semantic.{name}"] == baseline[f"feature.semantic.{name}"]
+        assert row[f"feature.semantic.{name}"]
+
+
+def test_obligation_loader_errors_remain_type_only(repository, monkeypatch):
+    root, change = repository
+
+    def fail():
+        raise OSError("private file contents")
+
+    monkeypatch.setattr(module, "load_obligation_facts", fail)
+    row = compute_rows(root, change)[0]
+    assert row["provenance.semantic.ok"] is False
+    assert row["provenance.semantic.reason"] == "OSError"
+    assert "private file contents" not in json.dumps(row)

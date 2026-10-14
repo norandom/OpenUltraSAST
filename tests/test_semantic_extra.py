@@ -22,6 +22,7 @@ def test_core_dependencies_are_pyyaml_only_and_semantic_is_optional() -> None:
     assert "tree-sitter-javascript" in joined
     assert "tree-sitter-c" in joined
     assert "tree-sitter-java" in joined
+    assert "tree-sitter-php>=0.23" in extra
     assert "semantic:" in " ".join(payload["tool"]["pytest"]["ini_options"]["markers"])
 
 

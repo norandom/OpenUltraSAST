@@ -100,3 +100,14 @@ def test_screen_reports_the_strongest_feature_per_annotation():
     assert out.loc["hunks", "strongest_feature"] == "diff.distance" and out.loc["hunks", "auc"] == 0.0
     assert out.loc["callers", "strongest_feature"] == "source.caller_count" and out.loc["callers", "auc"] == 1.0
     assert out.loc["roles", "auc"] == 0.5  # constant: no signal
+
+
+def test_unchecked_obligations_are_missing_while_checked_empty_is_zero():
+    frame = features.feature_frame([{**ROW, "feature.semantic.obligations": value} for value in (None, [])])
+    for column in ("semantic.obligations", "semantic.obligations_undischarged"):
+        assert pd.isna(frame.iloc[0][column])
+        assert frame.iloc[1][column] == 0
+    for row in frame.to_dict("records"):
+        assert row["ok.semantic"]
+        assert row["semantic.sources"] == 1
+        assert row["semantic.calls"] == 2

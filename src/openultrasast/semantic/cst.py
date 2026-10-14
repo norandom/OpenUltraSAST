@@ -7,6 +7,16 @@ from typing import Any
 from .ir import Bind, CallSite, FileIR, FunctionIR
 
 _KIND = {
+    "php": {
+        "function": frozenset({"function_definition", "method_declaration", "anonymous_function", "arrow_function"}),
+        "assign": frozenset({"assignment_expression", "augmented_assignment_expression"}),
+        "call": frozenset(
+            {"function_call_expression", "member_call_expression", "scoped_call_expression", "nullsafe_member_call_expression"}
+        ),
+        "args": frozenset({"arguments"}),
+        "string": frozenset({"string", "encapsed_string"}),
+        "params": frozenset({"formal_parameters"}),
+    },
     "python": {
         "function": frozenset({"function_definition"}),
         "assign": frozenset({"assignment", "augmented_assignment"}),
@@ -170,6 +180,8 @@ def _bind(node: Any, kinds: dict[str, frozenset[str]]) -> Bind | None:
 def _call(node: Any, kinds: dict[str, frozenset[str]]) -> CallSite:
     args_node = next((child for child in getattr(node, "named_children", ()) or () if child.type in kinds["args"]), None)
     arg_nodes = list(getattr(args_node, "named_children", ()) or ()) if args_node is not None else []
+    # PHP wraps positional and named argument values in an `argument` node.
+    arg_nodes = [arg.named_children[-1] if arg.type == "argument" and arg.named_children else arg for arg in arg_nodes]
     extra = len(arg_nodes) >= 2 and arg_nodes[1].type in _SEQUENCE
     return CallSite(
         order=int(node.end_byte),
@@ -183,6 +195,10 @@ def _call(node: Any, kinds: dict[str, frozenset[str]]) -> CallSite:
 
 
 def _callee_name(node: Any, args_node: Any) -> str:
+    if node.type in _KIND["php"]["call"]:
+        callee = node.child_by_field_name("name") or node.child_by_field_name("function")
+        if callee is not None:
+            return _text(callee).rsplit("\\", 1)[-1]
     idents = [
         _text(child)
         for child in getattr(node, "named_children", ()) or ()
@@ -207,7 +223,7 @@ def _call_name(node: Any, kinds: dict[str, frozenset[str]]) -> str | None:
 
 def _function_name(node: Any) -> str:
     for child in getattr(node, "named_children", ()) or ():
-        if child.type == "identifier":
+        if child.type in {"identifier", "name"}:
             return _text(child)
         if child.type == "function_declarator":
             for grandchild in getattr(child, "named_children", ()) or ():
@@ -222,6 +238,10 @@ def _params(node: Any, kinds: dict[str, frozenset[str]]) -> tuple[str, ...]:
         return _identifiers(parameter)
     for child in _walk(node, skip=frozenset()):
         if child.type in kinds["params"]:
+            if any(
+                param.type in {"simple_parameter", "variadic_parameter", "property_promotion_parameter"} for param in child.named_children
+            ):
+                return tuple(_text(name) for param in child.named_children if (name := param.child_by_field_name("name")) is not None)
             return _identifiers(child)
         if child.type == "function_declarator":
             for grandchild in getattr(child, "named_children", ()) or ():
@@ -231,7 +251,7 @@ def _params(node: Any, kinds: dict[str, frozenset[str]]) -> tuple[str, ...]:
 
 
 def _left_name(node: Any) -> str:
-    if node.type in {"identifier", "property_identifier"}:
+    if node.type in {"identifier", "property_identifier", "variable_name"}:
         return _text(node)
     idents = _identifiers(node)
     return idents[0] if idents else ""
@@ -240,12 +260,16 @@ def _left_name(node: Any) -> str:
 def _identifiers(node: Any) -> tuple[str, ...]:
     names: list[str] = []
     for child in _walk(node):
-        if child.type == "identifier":
+        # Keep PHP's sigil, matching source facts such as $_GET and $_POST. The
+        # nested `name` node is not another variable (nor are class/type names).
+        if child.type in {"identifier", "variable_name"}:
             names.append(_text(child))
     return tuple(names)
 
 
 def _is_constant(node: Any, kinds: dict[str, frozenset[str]]) -> bool:
+    if node.type == "encapsed_string":
+        return all(child.type in {"string_content", "escape_sequence"} for child in node.named_children)
     if node.type in _CONST or node.type in kinds["string"]:
         return True
     if node.type not in {"binary_expression", "concatenated_string"}:

@@ -31,7 +31,7 @@ docs = [
 s3 = [
     "boto3>=1.35,<2",
 ]
-# Structured parse for overlay (JS/C/C++/Java/Python). Core install stays empty.
+# Structured parse for overlay (JS/C/C++/Java/PHP/Python). Core install stays empty.
 # Wheels are MIT; import is lazy via openultrasast.semantic.extra.
 semantic = [
     "tree-sitter>=0.23,<0.27",
@@ -41,6 +41,7 @@ semantic = [
     "tree-sitter-c>=0.23",
     "tree-sitter-cpp>=0.23",
     "tree-sitter-java>=0.23",
+    "tree-sitter-php>=0.23",
 ]
 
 [project.scripts]

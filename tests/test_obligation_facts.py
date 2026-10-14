@@ -70,3 +70,24 @@ def test_flow_facts_loader_ignores_the_obligation_facts_directory() -> None:
     assert DEFAULT_OBLIGATION_FACTS_DIR.is_dir() and DEFAULT_OBLIGATION_FACTS_DIR.name == "obligations"
     flow = load_facts()
     assert not any(source.language == "obligations" for source in flow.sources)
+
+
+@pytest.mark.parametrize(
+    ("language", "text", "operation", "discharger"),
+    [
+        ("java", "class App { void run() { checkPermission(ADMINISTER); save(); } }", "jenkins-item-write", "jenkins-permission-guard"),
+        ("php", "<?php function run($id) { Gate::authorize('view'); Product::findOrFail($id); }", "eloquent-read", "authorization-guard"),
+    ],
+)
+def test_java_php_facts_resolve_operations_and_dischargers(language, text, operation, discharger) -> None:
+    from openultrasast.semantic.facts import load_facts
+    from openultrasast.semantic.ir import parse_file
+    from openultrasast.semantic.obligations.facts import load_obligation_facts
+    from openultrasast.semantic.obligations.operations import find_discharges, find_operations
+
+    facts = load_obligation_facts().for_language(language)
+    assert facts.operations and facts.dischargers
+    ir = parse_file(f"app.{language}", text, language)
+    assert ir.parse_ok
+    assert operation in {op.fact_id for op in find_operations(ir, facts, text=text)}
+    assert discharger in {d.fact_id for d in find_discharges(ir, facts, load_facts().for_language(language), text=text)}

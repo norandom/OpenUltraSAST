@@ -47,6 +47,7 @@ def _engineer(row: Mapping[str, Any]) -> dict[str, Any]:
     callers = row.get("feature.source.callers")
     roles = row.get("feature.semantic.roles") or None
     def_use = row.get("feature.semantic.def_use") or None
+    # None means unchecked even when roles and def_use succeeded; [] is checked.
     obligations = row.get("feature.semantic.obligations")
     function = row.get("feature.source.function")
     out: dict[str, Any] = {key: row.get(key) for key in KEYS}

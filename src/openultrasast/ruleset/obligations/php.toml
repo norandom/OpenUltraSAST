@@ -1,0 +1,93 @@
+# Closed authorization facts for Laravel, WordPress and Symfony.
+# Checked shopperlabs__shopper Git HEAD source objects in /home/mc/ousast-results/valid/train/hist/:
+# CollectionProducts.authorize, SetupGuide.can, AssetController.abort_unless,
+# OrderCustomer.find, SaveProductVariantsAction.findOrFail, InitialQuantityInventory.first,
+# UpdateProductAction.update, DetachAttributesToProductAction.delete, UserCommand.save,
+# PermissionsTableSeeder.create, and Account/Devices.php's user_id constraint from auth()->user().
+# Gate predicates, abort_if and destroy are framework APIs, not observed Shopper HEAD calls:
+# https://laravel.com/framework/docs/10.x/authorization (Gate and policy dispatch)
+# https://api.laravel.com/docs/10.x/%5BGlobal_Namespace%5D.html (abort helpers)
+# https://api.laravel.com/docs/12.x/Illuminate/Database/Eloquent/Model.html
+# WordPress is already covered by semantic/php.toml (including the $wpdb calls below).
+# Post, option, capability, login and nonce APIs were checked in the official function reference:
+# https://developer.wordpress.org/reference/functions/get_post/
+# https://developer.wordpress.org/reference/functions/wp_update_post/
+# https://developer.wordpress.org/reference/functions/update_option/
+# https://developer.wordpress.org/reference/functions/current_user_can/
+# https://developer.wordpress.org/reference/functions/is_user_logged_in/
+# https://developer.wordpress.org/reference/functions/check_admin_referer/
+# https://developer.wordpress.org/reference/functions/wp_verify_nonce/
+# Symfony's controller checks: https://symfony.com/doc/current/security.html
+# Calls use trailing names: Gate::authorize and $this->authorize both become authorize;
+# variables retain their $ sigil, consistent with the CST and existing PHP source facts.
+# Common Eloquent/WordPress names are annotations, not receiver type resolution or proof.
+version = "1"
+language = "php"
+
+[[operation]]
+id = "eloquent-read"
+kind = "protected_read"
+calls = ["find", "findOrFail", "first", "get"]
+requires = ["path_guard", "ownership_check", "identity_constraint"]
+sensitivity = "high"
+
+[[operation]]
+id = "eloquent-write"
+kind = "protected_write"
+calls = ["update", "delete", "destroy", "save", "create"]
+requires = ["path_guard", "ownership_check", "identity_constraint"]
+sensitivity = "high"
+
+[[operation]]
+id = "wordpress-read"
+kind = "protected_read"
+calls = ["get_post", "get_var", "get_results", "get_row", "get_col", "query"]
+requires = ["path_guard", "ownership_check", "identity_constraint"]
+sensitivity = "high"
+
+[[operation]]
+id = "wordpress-write"
+kind = "protected_write"
+calls = ["wp_update_post", "replace"]
+requires = ["path_guard", "ownership_check", "identity_constraint"]
+sensitivity = "high"
+
+[[operation]]
+id = "wordpress-option-write"
+kind = "privileged_action"
+calls = ["update_option"]
+requires = ["path_guard", "ownership_check"]
+sensitivity = "high"
+
+[[discharger]]
+# Laravel policy enforcement and Symfony's throwing controller guard.
+id = "authorization-guard"
+kind = "path_guard"
+calls = ["authorize", "denyAccessUnlessGranted"]
+
+[[discharger]]
+# These return booleans: a bare call is not a guard. OrderDominance requires an exit.
+id = "permission-predicate"
+kind = "ownership_check"
+calls = ["can", "cannot", "allows", "denies", "current_user_can", "isGranted"]
+
+[[discharger]]
+# These throw conditionally; as with other guards, this annotation cannot establish
+# that the condition is the right permission check. It is not a proof of authorization.
+id = "conditional-abort"
+kind = "path_guard"
+calls = ["abort_if", "abort_unless"]
+
+[[discharger]]
+# Nonces validate intent, not capabilities; login alone does not grant a permission.
+# None of the protected operations above accept validated_input as authorization.
+id = "wordpress-request-validation"
+kind = "validated_input"
+calls = ["check_admin_referer", "wp_verify_nonce", "is_user_logged_in"]
+
+[[discharger]]
+id = "identity-from-context"
+kind = "identity_constraint"
+identity_sources = ["auth()->user()", "shopper()->auth()->user()"]
+constraint_params = ["user_id"]
+request_sources = ["$_GET", "$_POST", "$_REQUEST", "$_COOKIE", "$_FILES"]

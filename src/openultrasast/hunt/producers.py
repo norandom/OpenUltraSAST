@@ -211,7 +211,7 @@ def _source(root: Path, change: Change, path: str, line: int, ctx: Context) -> d
     ctx.read(path)
     if path in ctx.range_errors:
         raise _Absent(ctx.range_errors[path])
-    facts = source.facts_for(root, path, line, entry_points=ctx.entry_points)
+    facts = source.facts_for(root, path, line, entry_points=ctx.entry_points, files=ctx.product_files, texts=ctx.texts)
     # Select the occurrence at this line when several methods share a name.
     spans = [r for r in ctx.ranges(path) if r.name == facts.function and r.start <= line <= r.end]
     span = min(spans, key=lambda r: r.end - r.start) if spans else None
