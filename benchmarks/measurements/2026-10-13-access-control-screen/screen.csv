@@ -1,0 +1,9 @@
+annotation,strongest_feature,auc,n
+callers,source.caller_count,0.7206525501054023,933
+change_summary,source.is_module,0.3577462794575717,933
+def_use,semantic.binds,0.35999015748031493,262
+entry_points,source.entry_point_count,0.7070918415505144,933
+function_text,source.span_lines,0.36404681748104334,933
+hunks,diff.deletion_count,0.8854275687988672,952
+obligations,semantic.obligations_undischarged,0.7620570866141732,262
+roles,semantic.sinks,0.17441860465116277,46

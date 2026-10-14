@@ -1,0 +1,24 @@
+{
+ "producer_rows_ok": {
+  "diff": 952,
+  "source": 933,
+  "semantic": 262,
+  "taxonomy": 952
+ },
+ "table_digest": "02774edc4c07dcc92b2fcf04ed342e7d0bc8afe761c808fef2d11b473bd99271",
+ "rows": 952,
+ "labelled": {
+  "positive": 74,
+  "negative": 878
+ },
+ "repositories": 5,
+ "changes": 105,
+ "positive_repositories": 5,
+ "source_failures": {
+  "FileNotFoundError": 16,
+  "ValueError": 3
+ },
+ "unread_rows": 0,
+ "positive_rows_on_changed_line": 12,
+ "positive_rows_with_deletions": 66
+}

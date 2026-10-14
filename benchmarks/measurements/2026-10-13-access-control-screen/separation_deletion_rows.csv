@@ -1,0 +1,18 @@
+column,auc,n,note,annotation
+diff.distance,0.7289761520530752,235,,hunks
+diff.on_changed_line,0.31410256410256415,235,,hunks
+diff.hunk_count,0.1386049847588309,235,,hunks
+diff.hunk_lines,0.12058454366146672,235,,hunks
+diff.deletion_count,0.708086785009862,235,,hunks
+source.span_lines,0.3603639949793796,235,,function_text
+source.is_module,0.41420118343195267,235,,change_summary
+source.caller_count,0.7297382105074413,235,,callers
+source.caller_files,0.7217141832526447,235,,callers
+source.entry_point_count,0.8280437511206741,235,,entry_points
+semantic.sources,,7,one class or empty,roles
+semantic.sinks,,7,one class or empty,roles
+semantic.sanitizers,,7,one class or empty,roles
+semantic.binds,,24,one class or empty,def_use
+semantic.calls,,24,one class or empty,def_use
+semantic.obligations,,24,one class or empty,obligations
+semantic.obligations_undischarged,,24,one class or empty,obligations
