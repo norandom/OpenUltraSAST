@@ -17,6 +17,7 @@ def test_browser_launch_failure_is_not_negative(monkeypatch):
 
 
 @pytest.mark.skipif(not (shutil.which("chromium") or shutil.which("chromium-browser")), reason="chromium not installed")
+@pytest.mark.sandbox
 def test_real_browser_executes_not_reflects():
     browser = BrowserExecutor()
     payload = '<script>alert("ousast-xss")</script>'
@@ -34,6 +35,7 @@ def test_real_browser_executes_not_reflects():
 
 
 @pytest.mark.parametrize("executed", [False, True])
+@pytest.mark.sandbox
 def test_marker_is_dom_attribute_not_source_text(monkeypatch, executed):
     import re
     from urllib.parse import unquote

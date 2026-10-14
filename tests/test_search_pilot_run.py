@@ -11,6 +11,7 @@ from benchmarks.search.pilot_run import main
 
 
 @pytest.mark.parametrize("side,outcome", [("vulnerable", "demonstrated"), ("fixed", "inconclusive")])
+@pytest.mark.sandbox
 def test_probe_pilot_end_to_end(tmp_path, capsys, side, outcome):
     output = tmp_path / "records.jsonl"
     assert (
@@ -231,6 +232,7 @@ def test_shared_budget_reserved_and_settled_on_error(tmp_path):
 
 
 @pytest.mark.parametrize("verify_lane", ["vm", "ax"])
+@pytest.mark.sandbox
 def test_live_wiring_with_fake_mailbox_no_network(tmp_path, monkeypatch, verify_lane):
     import shutil
     from dataclasses import asdict
@@ -567,6 +569,7 @@ def test_live_driver_stops_remaining_pairs_on_infrastructure_failure(tmp_path, m
 
 
 @pytest.mark.parametrize("oracle", ["sql", "command"])
+@pytest.mark.sandbox
 def test_injection_pilot_uses_demo_choice_without_manifest_subtype(tmp_path, oracle):
     from openultrasast.search.probe import materialise
 

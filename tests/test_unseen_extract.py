@@ -666,6 +666,10 @@ def test_partial_clone_lazy_fetch_preserves_extraction_content(history, tmp_path
     partial = e.Git(path, runner=runner)
     missing = partial.run("rev-list", "--objects", "--missing=print", "HEAD")
     assert sum(line.startswith("?") for line in missing.splitlines()) >= 60
+    # Instrument first: one lazy fetch through git itself, with git's own stderr in the failure (the extractor
+    # records exit codes only, so a transport refusal in another environment would otherwise read as git_exit_128).
+    probe = runner(["git", "-C", str(path), "cat-file", "-p", "HEAD:file0.py"], capture_output=True, text=True)
+    assert probe.returncode == 0, probe.stderr
     result = [e.introducing(partial, candidate), e.ordinary_history(partial, "HEAD")]
     assert partial.files_read > 0 and partial.bytes_read > 0
     assert json.dumps(result, sort_keys=True).encode() == json.dumps(baseline, sort_keys=True).encode()

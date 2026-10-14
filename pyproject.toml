@@ -52,6 +52,7 @@ pythonpath = ["src"]
 markers = [
     "docker: requires a docker daemon",
     "semantic: requires openultrasast[semantic] tree-sitter extra",
+    "sandbox: needs bubblewrap isolation; skipped where the isolation preflight fails (CI's container has no bwrap)",
     "ax: requires the live ax cluster of ops/ax/up.sh (skipped unless `ousast plane doctor` passes)",
 ]
 

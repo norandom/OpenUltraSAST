@@ -24,6 +24,7 @@ def edit(demo, change):
 
 
 @pytest.mark.parametrize("family", ["path", "sql", "command", "ssrf"])
+@pytest.mark.sandbox
 def test_real_differential(tmp_path, family):
     if family == "ssrf":
         try:
@@ -59,6 +60,7 @@ def test_legacy_scripts_rejected_before_process(pair, monkeypatch):
     assert verify(*sides, demo, "path").outcome == "inconclusive"
 
 
+@pytest.mark.sandbox
 def test_safe_build_failure_inconclusive(pair):
     sides, demo = pair
     (sides[1].checkout / "app.py").unlink()
@@ -67,12 +69,14 @@ def test_safe_build_failure_inconclusive(pair):
     assert result.sides[1].outcome == "could_not_build"
 
 
+@pytest.mark.sandbox
 def test_affected_build_failure(pair):
     sides, demo = pair
     (sides[0].checkout / "app.py").unlink()
     assert verify(*sides, demo, "path").outcome == "could_not_build"
 
 
+@pytest.mark.sandbox
 def test_readiness_failure(pair):
     sides, demo = pair
     (sides[1].checkout / "broken").touch()
@@ -87,6 +91,7 @@ def test_no_oracle(pair, family):
     assert verify(*sides, demo, family).outcome == "no_oracle"
 
 
+@pytest.mark.sandbox
 def test_flaky_observation_inconclusive(pair, monkeypatch):
     from openultrasast.search import oracles
 
@@ -99,6 +104,7 @@ def test_flaky_observation_inconclusive(pair, monkeypatch):
     assert [r.observed for r in result.sides[0].runs] == [True, False, False]
 
 
+@pytest.mark.sandbox
 def test_no_inherited_environment(pair, monkeypatch):
     for key in ("PYTHONPATH", "NODE_OPTIONS", "LD_PRELOAD", "GEMINI_API_KEY"):
         monkeypatch.setenv(key, "/bogus-key")
@@ -106,12 +112,14 @@ def test_no_inherited_environment(pair, monkeypatch):
     assert verify(*sides, demo, "path").outcome == "demonstrated"
 
 
+@pytest.mark.sandbox
 def test_symlink_input_refused(pair):
     sides, demo = pair
     (sides[0].checkout / "escape").symlink_to("/etc/passwd")
     assert verify(*sides, demo, "path").outcome != "demonstrated"
 
 
+@pytest.mark.sandbox
 def test_six_fresh_canaries(pair, monkeypatch):
     from openultrasast.search import oracles
 
@@ -162,6 +170,7 @@ def test_task_side_runs_one_repetition_without_model_environment(pair, monkeypat
     assert result.isolation_mode == "task-boundary"
 
 
+@pytest.mark.sandbox
 def test_capture_canary_cannot_replay(pair):
     sides, demo = pair
     edit(demo, lambda value: value["steps"][0].update(capture={"name": "stolen", "source": "output"}))
@@ -170,6 +179,7 @@ def test_capture_canary_cannot_replay(pair):
     assert "canary values cannot be captured" in result.sides[0].reason
 
 
+@pytest.mark.sandbox
 def test_ordered_cli_capture_and_stdin(pair):
     sides, demo = pair
     app = """import json, os, sys
@@ -193,6 +203,7 @@ elif sys.argv[1:] == ['use', 'public-token'] and sys.stdin.read() == 'public-tok
     assert verify(*sides, demo, "path").outcome == "demonstrated"
 
 
+@pytest.mark.sandbox
 def test_http_steps_and_capture(pair):
     try:
         with socket.socket():
@@ -229,6 +240,7 @@ HTTPServer(('127.0.0.1', 18765), Handler).serve_forever()
     assert result.outcome == "demonstrated", result
 
 
+@pytest.mark.sandbox
 def test_private_namespace_handoff_without_sockets(tmp_path):
     import subprocess
 
@@ -311,6 +323,7 @@ def test_listener_accepts_nonce_path_for_post_without_sockets(monkeypatch, capsy
     assert capsys.readouterr().out.splitlines()[1:] == ["observed"]
 
 
+@pytest.mark.sandbox
 def test_pip_products_imported_by_runtime_and_immutable(pair, monkeypatch):
     from openultrasast.sandbox import SandboxResult
 
@@ -354,6 +367,7 @@ def test_dispatcher_incomplete_repetitions_never_demonstrate(pair, monkeypatch, 
     assert verify(*sides, demo, "path", task_dispatcher=dispatch).outcome == "inconclusive"
 
 
+@pytest.mark.sandbox
 def test_json_file_accepted_without_directory_wrapper(pair):
     sides, demo = pair
     assert verify(*sides, demo / "demo.json", "path").outcome == "demonstrated"
@@ -495,6 +509,7 @@ def test_http_failure_keeps_exception_tail(tmp_path):
         ("untrusted_destination", "ssrf"),
     ],
 )
+@pytest.mark.sandbox
 def test_verifier_routes_demo_oracle(pair, monkeypatch, family, oracle):
     from openultrasast.search import verify as module
     from openultrasast.search.oracles import BrowserExecutor
@@ -525,6 +540,7 @@ def test_xss_without_browser_is_unavailable_not_no_oracle(pair):
     assert result.outcome == "inconclusive" and "runtime unavailable" in result.reason
 
 
+@pytest.mark.sandbox
 def test_app_requires_environment_and_data_files_on_both_sides(pair):
     sides, demo = pair
     for side in sides:
@@ -701,6 +717,7 @@ def test_http_driver_polls_eight_second_listener_before_get_and_steps(tmp_path, 
 
 @pytest.mark.parametrize("task_boundary", [False, True])
 @pytest.mark.parametrize("config", ["arguments", "environment", "files"])
+@pytest.mark.sandbox
 def test_node_directory_option_uses_owned_fixture(pair, config, task_boundary):
     sides, demo = pair
     app = """const fs = require('fs'), path = require('path');
@@ -743,6 +760,7 @@ if (!fs.existsSync(path.join(__dirname, 'fixed')) || target.startsWith(root + '/
 
 @pytest.mark.parametrize("placeholder", ["database_path", "database_url"])
 @pytest.mark.parametrize("task_boundary", [False, True])
+@pytest.mark.sandbox
 def test_sql_cli_database_fixture(tmp_path, placeholder, task_boundary):
     sides, demos = materialise(tmp_path / "sql", "sql")
     for side in sides:
@@ -765,6 +783,7 @@ def test_sql_cli_database_fixture(tmp_path, placeholder, task_boundary):
 
 
 @pytest.mark.parametrize("task_boundary", [False, True])
+@pytest.mark.sandbox
 def test_command_marker_directory_configuration(tmp_path, task_boundary):
     sides, demos = materialise(tmp_path / "command", "command")
     for side in sides:
@@ -786,6 +805,7 @@ def test_command_marker_directory_configuration(tmp_path, task_boundary):
     assert all(not run.observed for run in records[1].runs)
 
 
+@pytest.mark.sandbox
 def test_fixture_values_and_nonce_redacted_from_diagnostics(pair, monkeypatch):
     from dataclasses import asdict
 

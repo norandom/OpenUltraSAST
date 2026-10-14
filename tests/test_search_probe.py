@@ -131,6 +131,7 @@ def test_oracle_namespace_failure_is_instrument_failure(tmp_path, monkeypatch):
 
 
 @pytest.mark.parametrize("execution", ["real", "stubbed"])
+@pytest.mark.sandbox
 def test_task_boundary_probe_executes_packaged_pairs(tmp_path, monkeypatch, namespace_diagnostics, execution):
     if execution == "real":
         import socket
@@ -202,6 +203,7 @@ def test_task_boundary_real_local_oracles(tmp_path, family):
     assert all(len(side.runs) == 3 for side in result.sides)
 
 
+@pytest.mark.sandbox
 def test_task_boundary_xss_uses_browser_mode(tmp_path, monkeypatch):
     from openultrasast.search.oracles import BrowserExecutor
 

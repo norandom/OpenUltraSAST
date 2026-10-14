@@ -45,7 +45,10 @@ async def _run_checks() -> None:
             .with_directory("/src", source)
             .with_workdir("/src")
             .with_exec(["python", "-m", "pip", "install", "uv"])
-            .with_exec(["uv", "sync", "--group", "dev", "--extra", "hunt"])
+            # uv run re-syncs the environment to the lockfile's default extras unless told not to, which silently
+            # removed the extras below before pytest ran.
+            .with_env_variable("UV_NO_SYNC", "1")
+            .with_exec(["uv", "sync", "--group", "dev", "--extra", "hunt", "--extra", "semantic"])
             .with_exec(["uv", "run", "ruff", "format", "--check", "."])
             .with_exec(["uv", "run", "ruff", "check", "."])
             .with_exec(["uv", "run", "mypy", "src/openultrasast"])

@@ -52,6 +52,7 @@ def test_tools_bounds_and_path_escape(tmp_path):
         worker.tool("write_demo", {"path": "../escape", "content": "bad"})
 
 
+@pytest.mark.sandbox
 def test_run_scrubs_model_key_in_real_sandbox(tmp_path, monkeypatch):
     monkeypatch.setenv("OPENROUTER_API_KEY", "must-not-reach-repo")
     worker = Worker(StubModel([]), repo=tmp_path, demo=tmp_path / "demo", executor=InProcessExecutor(tmp_path))
@@ -68,6 +69,7 @@ def test_run_scrubs_model_key_in_real_sandbox(tmp_path, monkeypatch):
     assert "must-not-reach-repo" not in json.dumps(result)
 
 
+@pytest.mark.sandbox
 def test_coordinator_stub_smoke_real_verify(tmp_path):
     sides, probe_demos = materialise(tmp_path / "pair", "path")
     demo = tmp_path / "demo"
@@ -131,6 +133,7 @@ def test_failed_model_call_charged_and_secrets_not_reported(tmp_path):
     assert "super-private-key" not in json.dumps(result)
 
 
+@pytest.mark.sandbox
 def test_run_timeout_truncation_and_disk_bound(tmp_path):
     worker = Worker(StubModel([]), repo=tmp_path, demo=tmp_path / "demo", executor=InProcessExecutor(tmp_path))
     result = worker.tool("run", {"command": ["/bin/sleep", "3"], "timeout_seconds": 1})
@@ -210,6 +213,7 @@ def test_write_demo_accepts_only_declarative_json(tmp_path):
         worker.tool("write_demo", {"path": "build.sh", "content": "touch /tmp/pwn"})
 
 
+@pytest.mark.sandbox
 def test_inprocess_executor_observes_all_brain_repository_commands(tmp_path):
     class RecordingExecutor(InProcessExecutor):
         def __init__(self, repo):

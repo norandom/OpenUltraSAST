@@ -164,6 +164,7 @@ def test_root_fixture_permissions_and_browser_records(monkeypatch, tmp_path):
     assert all(s.chromium_no_sandbox and s.isolation_mode == "root-no-userns" for s in record.sides)
 
 
+@pytest.mark.sandbox
 def test_devnull_can_be_opened_by_nested_launcher(tmp_path):
     """The HTTP driver's Popen opens /dev/null inside bwrap, before any socket."""
     _sandbox.isolation_check()

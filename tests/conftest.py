@@ -127,3 +127,23 @@ def plane_profile(tmp_path, monkeypatch: pytest.MonkeyPatch):
     for key in ("OUSAST_KUBE_CONTEXT", "OUSAST_MEMORY", "OUSAST_REGISTRY", "OUSAST_IMAGES", "OUSAST_EXEC"):
         monkeypatch.delenv(key, raising=False)
     return root / "test.toml"
+
+
+def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
+    """Tests marked ``sandbox`` need bubblewrap isolation; where the preflight fails they skip, named by cause.
+
+    CI's container has no bwrap and no user namespaces, so these tests can only run on a host; a skip there is
+    an honest statement, a failure there says nothing about the code."""
+    marked = [item for item in items if item.get_closest_marker("sandbox")]
+    if not marked:
+        return
+    from openultrasast.search import _sandbox
+
+    try:
+        _sandbox.isolation_check(timeout_seconds=30)
+    except _sandbox.IsolationUnavailable as exc:
+        reason = f"sandbox isolation unavailable ({type(exc.__cause__ or exc).__name__})"
+    else:
+        return
+    for item in marked:
+        item.add_marker(pytest.mark.skip(reason=reason))
