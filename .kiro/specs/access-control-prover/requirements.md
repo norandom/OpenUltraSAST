@@ -204,3 +204,27 @@ trace with its verdict, so that a decision model sees the security-relevant stru
 6. The hunt defect of an unguarded pair shall reference its trace, so the proof arm and the pre-push admission
    can show the path.
 
+### Requirement 10: Control flow decides dominance, and the trace says so
+**Objective:** As the maintainer, I want a guard to count only when control flow makes the operation unreachable
+without it, so that a check in a branch the attacker can avoid, or one whose result is ignored, is not a discharge.
+
+#### Acceptance Criteria
+1. The prover shall build a structural control-flow graph per function on a path from the syntax tree it already
+   parses: statement blocks, if and else branches, switch arms, loops, try, catch and finally, return, throw,
+   break and continue, and the function's exit; with no grammar for a construct the function shall be marked
+   `cfg_unavailable` and judged by order with that degradation recorded.
+2. A guard shall dominate an operation when every path from the function's entry to the operation passes the
+   guard's statement (dominators over the graph); the trace shall record each guard's relation to the operation
+   as `all_paths`, `some_paths`, `none` or `after`.
+3. The trace shall record each guard's failure effect: `throws`, `returns`, `exits` (break, continue, exit call),
+   or `value_only` when the guard's result is not consumed by a branch or an exit before the operation; a
+   `value_only` guard shall not discharge.
+4. The trace shall record the operation's control context: the branch conditions it sits under in order (the
+   guard's own condition when it is one), whether it is inside a loop, inside a try whose catch swallows the
+   guard's exception type, or on an exception path.
+5. Router and decorator witnesses shall keep their scope semantics (they dominate the handler as a whole).
+6. The parameter list of a Java entry shall carry parameter names only, never annotation names; the arguments
+   of a handler-named operation shall be the handler's own parameters with their provenance.
+7. The existing order-based dominance shall remain the default of the checker; the prover shall select the
+   control-flow dominance, and the checker's tests shall stay unchanged.
+

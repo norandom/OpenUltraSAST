@@ -68,17 +68,33 @@
   - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 6.2, 7.1, 8.1, 8.2_
   - _Depends: 1.1, 2.1, 3.1, 3.2_
 
-- [ ] 4.2 `semantic/obligations/trace.py`: `Guard`, `Hop`, `Trace`, `text()` and `record()`; argument provenance through the IR's binds within each hop, forwarded along the path
+- [x] 4.2 `semantic/obligations/trace.py`: `Guard`, `Hop`, `Trace`, `text()` and `record()`; argument provenance through the IR's binds within each hop, forwarded along the path
   - Done when `tests/test_obligation_trace.py` serialises a three-hop fixture deterministically (text and JSON),
     traces an argument from an entry parameter to `request_input`, from a literal to `constant`, from an identity
     source to `authenticated_context`, and marks an unfollowable value `unknown`
   - _Requirements: 9.1, 9.3, 9.4, 9.5_
   - _Boundary: obligations.trace_
-- [ ] 4.3 The prover emits a trace per examined pair (discharged and unguarded), the record and the defect carry them
+- [x] 4.3 The prover emits a trace per examined pair (discharged and unguarded), the record and the defect carry them
   - Done when `tests/test_hunt_prover.py` shows a discharged pair and an unguarded pair each produce one trace with
     the verdict, the unguarded finding references its trace, and `prover_arm` records carry `traces`
   - _Requirements: 9.1, 9.2, 9.5, 9.6_
   - _Depends: 4.2_
+
+- [ ] 4.4 `semantic/cfg.py`: structural control-flow graph per function from the syntax tree, dominators, control context (P)
+  - Java, PHP, Python, JavaScript and TypeScript constructs of requirement 10.1; `cfg_unavailable` otherwise
+  - Done when `tests/test_semantic_cfg.py` shows, per language, that a guard before an unconditional return
+    dominates, a guard inside an if-branch does not dominate a statement after the branch, a guard inside a
+    loop body does not dominate a statement after the loop, a try/catch is represented, and context reports
+    conditions and loops
+  - _Requirements: 10.1, 10.2, 10.4_
+  - _Boundary: semantic.cfg_
+- [ ] 4.5 `obligations/cfg_dominance.py::CfgDominance`, failure effects, and the trace's control components; the prover selects it; Java parameter names and handler-operation arguments cleaned
+  - Done when `tests/test_obligation_cfg_dominance.py` shows a value-only predicate does not discharge while the
+    same predicate guarding a throw does; a branch-only guard yields `some_paths` and no discharge; the prover
+    smoke on the 23 fixes keeps or raises its recall; `tests/test_mapping_frameworks.py` shows Java parameter
+    names without annotations
+  - _Requirements: 10.2, 10.3, 10.4, 10.5, 10.6, 10.7_
+  - _Depends: 4.4_
 
 - [ ] 5. The arm
 - [x] 5.1 `benchmarks/valid/prover_arm.py`: run over a pool slice with checkpoints, summarise with the valid metrics
@@ -152,3 +168,16 @@
   All 23 executions completed, zero errors; 16 changes checked operations and seven remained unchecked.
   It materialised only changed source files in temporary directories, so it is not a full-repository
   recall measurement. The maintainer-owned task 6.1 and release readiness remain unclaimed.
+
+- Delivery C (2026-10-14) implements tasks 4.2 and 4.3: ordered traces for every examined
+  path/operation pair, argument origins through local bindings and forwarded parameters, traces in
+  prover results and arm records, and trace references on unguarded findings. Existing checker
+  decisions and coverage accounting are unchanged. Declared route access is retained in the trace.
+- Delivery C review used the main context because the brief prohibits model calls. Verdict: APPROVED
+  for tasks 4.2 and 4.3. Regression cases cover unresolved collections, overwritten bindings,
+  source-name boundaries, missing IR arguments, method parameter forwarding and return-order guards.
+- Fresh delivery C verification with UV_NO_SYNC=1 and UV_CACHE_DIR=/tmp/ousast-uv: the exact
+  requested static gate passed (format, Ruff, mypy over 179 source files); the exact pytest gate
+  passed with 102 passed, zero failed, exit 0. The initial trace test failed collection because
+  trace.py did not yet exist; additional regression tests failed before their fixes. No
+  test_search_* test, network request or model call was made. Changes remain uncommitted.
