@@ -217,8 +217,8 @@ without it, so that a check in a branch the attacker can avoid, or one whose res
    guard's statement (dominators over the graph); the trace shall record each guard's relation to the operation
    as `all_paths`, `some_paths`, `none` or `after`.
 3. The trace shall record each guard's failure effect: `throws`, `returns`, `exits` (break, continue, exit call),
-   or `value_only` when the guard's result is not consumed by a branch or an exit before the operation; a
-   `value_only` guard shall not discharge.
+   `branches` (the operation lies only inside the guard's passing branch), or `value_only` when the guard's
+   result is not consumed by a branch or an exit before the operation; a `value_only` guard shall not discharge.
 4. The trace shall record the operation's control context: the branch conditions it sits under in order (the
    guard's own condition when it is one), whether it is inside a loop, inside a try whose catch swallows the
    guard's exception type, or on an exception path.

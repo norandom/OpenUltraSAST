@@ -226,9 +226,10 @@ the tree-sitter syntax tree of one function (blocks, if/else, switch arms, loops
 finally, return, throw, break, continue, exit) and computes dominators (`dominates(a_line, b_line)`) and the
 control context of a line (`context(line) -> ControlContext(conditions, in_loop, in_try, catches, on_exception_path)`).
 `src/openultrasast/semantic/obligations/cfg_dominance.py::CfgDominance` implements the `Dominance` protocol:
-a statement witness dominates when its block dominates the operation's block and its failure effect is
-`throws`, `returns` or `exits` (the guard's condition leads to an exit on the failing arm; a bare boolean
-whose value no branch or exit consumes before the operation is `value_only`); router and decorator scopes
+a statement witness dominates when its block dominates the operation's block and the operation is unreachable
+from the guard's failing arm: either that arm exits (`throws`, `returns`, `exits`), or the operation lies only
+inside the passing branch (`if (can(x)) { op(); }`, effect `branches`); a bare boolean whose value no branch or
+exit consumes before the operation is `value_only` and never discharges; router and decorator scopes
 dominate as before; along a path record, a witness on an earlier hop dominates as before. Without a graph for
 a function, `CfgDominance` falls back to `OrderDominance` and records `cfg_unavailable`.
 The trace's `Guard` gains `relation` (`all_paths`, `some_paths`, `none`, `after`) and `effect`
