@@ -89,23 +89,18 @@ def _prove(change, repos, *, max_depth):
                         if held.returncode == 0:
                             raise InstrumentFailure("unread tracked file")
                         continue  # a file deleted by this change has no head input
-                    instrument["file_bytes"][relative] = 0
-                    if relative in changed:
-                        instrument["changed_bytes"][relative] = 0
                     try:
                         text = ctx.read(relative)
                     except _Absent as error:
                         # A file git holds empty is read, not unread: the first smoke run failed four changes on
                         # legitimately empty files (`__init__.py`, an empty asset). Anything else absent is unread.
-                        held = checked_git.runner(
-                            ["git", "-C", str(root), "cat-file", "-s", f"HEAD:{relative}"], capture_output=True, text=True
-                        )
+                        held = checked_git.runner(["git", "-C", str(root), "cat-file", "-s", f"HEAD:{relative}"], capture_output=True, text=True)
                         if error.reason == "empty_source" and held.returncode == 0 and int(held.stdout.strip() or 0) == 0:
                             instrument["empty_files"] = instrument.get("empty_files", 0) + 1
-                            del instrument["file_bytes"][relative]
-                            instrument["changed_bytes"].pop(relative, None)
                             continue
                         raise InstrumentFailure("unread tracked file") from error
+                    # The byte table holds only files that were read; a zero here is a real zero-byte read, which
+                    # stays on the record so the summary refuses it.
                     size = len(text.encode("utf-8"))
                     instrument["file_bytes"][relative] = size
                     if relative in changed:
@@ -180,8 +175,6 @@ def summarize(out, *, seed=0):
         raise ValueError("missing or duplicate prover records")
     for record in records:
         instrument = record.get("instrument", {})
-        if record.get("status") == "instrument_failure":
-            continue  # counted as a failure already; its byte table stops where the failure happened
         if any(size == 0 for field in ("changed_bytes", "file_bytes") for size in instrument.get(field, {}).values()):
             raise ValueError("zero-byte read of a tracked file; summary refused")
     result = metrics.summarize(records, seed=seed)
