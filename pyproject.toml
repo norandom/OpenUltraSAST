@@ -90,9 +90,10 @@ ignore_missing_imports = true
 module = "yaml"
 ignore_missing_imports = true
 
-# dspy, pandas, statsmodels and scikit-learn ship no py.typed marker and no stub packages are dev dependencies.
+# dspy, pandas, statsmodels and scikit-learn ship no py.typed marker and no stub packages are dev dependencies;
+# numpy, pydantic and litellm arrive with them and are absent in the type-check environment of CI.
 [[tool.mypy.overrides]]
-module = ["dspy", "dspy.*", "pandas", "pandas.*", "statsmodels.*", "sklearn.*"]
+module = ["dspy", "dspy.*", "pandas", "pandas.*", "statsmodels.*", "sklearn.*", "numpy", "numpy.*", "pydantic", "pydantic.*", "litellm", "litellm.*"]
 ignore_missing_imports = true
 
 # The hunt package reaches the benchmark scorers and manifests lazily. benchmarks/ is not in `files` and has never
