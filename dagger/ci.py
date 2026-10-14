@@ -45,7 +45,7 @@ async def _run_checks() -> None:
             .with_directory("/src", source)
             .with_workdir("/src")
             .with_exec(["python", "-m", "pip", "install", "uv"])
-            .with_exec(["uv", "sync", "--group", "dev"])
+            .with_exec(["uv", "sync", "--group", "dev", "--extra", "hunt"])
             .with_exec(["uv", "run", "ruff", "format", "--check", "."])
             .with_exec(["uv", "run", "ruff", "check", "."])
             .with_exec(["uv", "run", "mypy", "src/openultrasast"])
