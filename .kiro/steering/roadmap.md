@@ -29,6 +29,11 @@ starts until the gates below are read.
      entry points), 6 covered-but-unflagged for gate 3. Gate 1 holds; proceed to gate 2.
 2. Zero-shot judge pass over those traces ("is this entry meant to be public"): does it drop false alarms
    without killing recall? The pool reports how often the judge is right (correction, rule 3).
+    - **Read 2026-10-28** (`benchmarks/measurements/2026-10-28-access-control-judge/`): 340 judgments over
+      all prover findings, 0 failures. Keeps 15/15 true flags (recall 65.2% unchanged), drops only 5/69
+      false pushes (FA 15.0 -> 13.9/100). The public-entry question does not separate the prover's false
+      alarms; the wrongness lives in the trace, not the entry's publicity. Judge is safe but nearly inert;
+      the FA lever is trace/fact coverage -> gate 3. Do not tune this judge prompt.
 3. Trace-component ablation (the amended `hunter-learning-loop` role -- selection, not fitting): which
    trace components the judge needs to see, with intervals.
 4. One pilot run under the at-most-once rule (`hunter-learning-loop` req 8.6): trace + judge over the 12

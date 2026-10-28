@@ -1,0 +1,21 @@
+{
+  "model": "openai/deepseek-flash",
+  "judgments": 340,
+  "failed": 0,
+  "pushes_flagged_by_prover": 84,
+  "true_pushes_kept": "15/15",
+  "false_pushes_dropped": "5/69",
+  "recall_after_judge": 0.6522,
+  "fa_per_100_after_judge": 13.9,
+  "finding_verdicts": {
+    "on_vulnerability_pushes": {
+      "protected": 90,
+      "public": 1
+    },
+    "on_ordinary_pushes": {
+      "protected": 216,
+      "public": 33
+    }
+  },
+  "headline": "Judge over prover findings: keeps 15/15 true flags, drops 5/69 false flags (recall 65.2%, FA 13.9/100)"
+}

@@ -1,0 +1,9 @@
+{
+  "model": "openai/deepseek-flash",
+  "temperature": 0.0,
+  "dspy_version": "3.4.1",
+  "judged": 340,
+  "failures": 0,
+  "seconds": 2064.3,
+  "note": "zero-shot: no examples, no thresholds; question fixed before any answer was seen"
+}
