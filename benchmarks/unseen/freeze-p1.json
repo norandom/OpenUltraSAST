@@ -1,0 +1,24 @@
+{
+  "dropped_count": 0,
+  "freeze_digest": "3371c67d5360f868d13a8fc1cac93a093210f2c40baa566db533de194b32cd8a",
+  "guard_result": 0,
+  "label_check_counts": {
+    "confirmed": 0,
+    "refactor": 0,
+    "unchecked": 100,
+    "unclear": 0
+  },
+  "protocol_digest": "92a5e3dac1b9418e70b99820b54f5bdb6d25b547e36a9b4586fbaa49024f2ba4",
+  "source_counts": {
+    "harvest": 467,
+    "measurements": 279,
+    "memory_local": 192,
+    "memory_s3": 572,
+    "pairs": 728,
+    "pointers": 537,
+    "populations": 28,
+    "sweep": 1903,
+    "units": 229
+  },
+  "used_set_digest": "0db567d8d4f424b06b7420804acd180140dbef1250e72661508f3aa1a27e5aa0"
+}
