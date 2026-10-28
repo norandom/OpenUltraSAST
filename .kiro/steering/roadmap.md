@@ -36,6 +36,14 @@ starts until the gates below are read.
       the FA lever is trace/fact coverage -> gate 3. Do not tune this judge prompt.
 3. Trace-component ablation (the amended `hunter-learning-loop` role -- selection, not fitting): which
    trace components the judge needs to see, with intervals.
+    - **Read 2026-10-28** (`benchmarks/measurements/2026-10-28-access-control-ablation/`): all 8 misses
+      labeled -- A entry facts 2 (seatunnel Jetty programmatic, byobu client-side JS), B operation facts 4
+      (Stapler entry reached, operation inside unrecognized), C guard too coarse 2 (crx, kimai -- guard
+      discharges but weaker than the fix). FA sample n=12 of 64 kept (seed 20261028): guard-unmodeled 3,
+      op-not-privileged 3, actually-suspicious 3 (pool label defects, incl. one upstream-fixed 2022),
+      instrument noise 3, unreachable 0. One lever covers both sides: interprocedural resolution (call
+      depth, overload disambiguation, honoring recorded guards, base-class projection) -- not new fact
+      families, not the judge. Pool hygiene: pre-2019 "ordinary" baselines contain missing-check bugs.
 4. One pilot run under the at-most-once rule (`hunter-learning-loop` req 8.6): trace + judge over the 12
    verified positives and the ordinary pushes. Read the gate distance off the curve (recall at 10 false
    alarms per 100 pushes, false alarms at 90% recall), per family -- the first such number for the new
