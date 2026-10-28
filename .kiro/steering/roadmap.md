@@ -1,5 +1,55 @@
 # Roadmap
 
+## Roadmap -- measure the trace first (2026-10-28)
+
+This section supersedes the ordering below it. The older sections stay as history. It builds on the
+2026-10-14 decision-strategy correction (steering `overview.md`): the trace decides, a judge reads it
+zero-shot, the pool measures and never trains.
+
+### Decision (2026-10-28, maintainer session)
+
+The DSPy annotation loop was built and measured; its premise -- that shape annotations teach the hunter --
+was falsified by its own instruments (`benchmarks/measurements/2026-10-13-access-control-screen/`,
+`2026-10-13-hunt-repeats/`, `2026-10-14-access-control-hunt/`). The surviving direction inverts the
+augmentation: compute the deterministic security object (the ordered trace) first, and let the LLM judge
+the residual question on it. Before anything generalizes, that direction gets its number. No new spec
+starts until the gates below are read.
+
+### The sequence, each step a gate
+
+1. `access-control-prover` task 6.1: run the prover arm over `benchmarks/valid/train/pool-train.toml` --
+   the first full-repository recall and false-alarm numbers for the trace. No model calls. Record the
+   provider error code for any `LMInvalidRequestError`-class failure (the 2026-10-14 run's failures sat on
+   38 of 48 locations), and read the summary's `uncovered` repositories before calling any miss a logic
+   failure rather than a fact-coverage gap.
+   - **Read 2026-10-28** (`benchmarks/measurements/2026-10-28-access-control-prover/`): 23-repo pool,
+     483 changes, 93 locations -- recall 65.2% (Wilson 44.9-81.2), 15.0 FA/100, 0 instrument failures.
+     On the 5 repos shared with the 2026-10-14 arms: prover 4/5 vs DSPy 2/5, hunter 2/5 (union 4/5),
+     including trigger.dev which neither arm found. Misses: 2 fact-coverage (seatunnel, byobu -- no
+     entry points), 6 covered-but-unflagged for gate 3. Gate 1 holds; proceed to gate 2.
+2. Zero-shot judge pass over those traces ("is this entry meant to be public"): does it drop false alarms
+   without killing recall? The pool reports how often the judge is right (correction, rule 3).
+3. Trace-component ablation (the amended `hunter-learning-loop` role -- selection, not fitting): which
+   trace components the judge needs to see, with intervals.
+4. One pilot run under the at-most-once rule (`hunter-learning-loop` req 8.6): trace + judge over the 12
+   verified positives and the ordinary pushes. Read the gate distance off the curve (recall at 10 false
+   alarms per 100 pushes, false alarms at 90% recall), per family -- the first such number for the new
+   direction.
+5. Decision:
+   - access_control holds recall with false alarms moving toward the gate -> formalize the injection
+     security object (`engine-change-scoped-analysis` brief -> spec): the taint flow with argument
+     provenance as the deterministic object, the fact-proposal lane included.
+   - it fails -> fix the trace, do not generalize. A failure traced to fact coverage grows the fact
+     tables first; a logic failure revisits the prover.
+
+### What is deferred, explicitly
+
+- The injection-family spec waits for gate 5. Its fact-proposal lane absorbs the disciplined DSPy steer:
+   the LLM proposes trust boundaries and missing sinks, the engine verifies, and repetition promotes them
+   to closed facts -- never a prompt fitted on pool labels.
+- `hunter-learning-loop` task 4.1 (training-set sourcing) stays parked: gates 1-4 need no fitted model.
+- `pre-push-safety-net` wiring follows a search that clears the bar, unchanged from the 2026-10-13 order.
+
 ## Roadmap to detection with the decision engine on kube-ax (2026-10-04)
 
 This section supersedes the ordering below it. The older sections stay as history.

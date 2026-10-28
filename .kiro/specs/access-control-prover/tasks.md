@@ -107,10 +107,14 @@
   - _Depends: 4.1_
 
 - [ ] 6. Measurement (maintainer, not Codex)
-- [ ] 6.1 Run the arm on `benchmarks/valid/train/pool-train.toml` over the training clones; write
+- [x] 6.1 Run the arm on `benchmarks/valid/train/pool-train.toml` over the training clones; write
   `benchmarks/measurements/<date>-access-control-prover/` with NOTES, summary, coverage table; compare with the
   DSPy and hunter arms of the same pool
   - _Requirements: 5.2, 5.3, 7.2_
+  - Done 2026-10-28: `benchmarks/measurements/2026-10-28-access-control-prover/` -- 23-repo
+    pool (483 changes, 93 locations), recall 65.2% (Wilson 44.9-81.2), 15.0 FA/100, 0
+    instrument failures; on the 5 repos shared with the 2026-10-14 hunt arms, prover 4/5 vs
+    DSPy 2/5 and hunter 2/5 (union 4/5), including trigger.dev which neither arm found.
 
 
 ## Implementation Notes
