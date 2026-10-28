@@ -54,6 +54,14 @@ starts until the gates below are read.
      provenance as the deterministic object, the fact-proposal lane included.
    - it fails -> fix the trace, do not generalize. A failure traced to fact coverage grows the fact
      tables first; a logic failure revisits the prover.
+    - **Decided 2026-10-28**: neither pole -- a characterized logic gap with one lever. Fix the trace
+      first: interprocedural resolution in the prover (call depth past `do*` wrappers, overload
+      disambiguation, honoring `guards_before_call`, no base-class projection) + Jetty programmatic
+      entry facts for seatunnel. byobu (client-side Flarum JS) is declared out of the server-side
+      object's scope. Injection spec stays deferred until the post-fix pilot (gate 4 rerun) holds
+      recall with FA moving toward the gate. Pool negatives predating ~2019 must be re-audited before
+      any future run (3 of 12 sampled "ordinary" pushes contain real missing-check bugs). Route:
+      `/kiro-spec-requirements access-control-prover` for the resolution + entry-fact work.
 
 ### What is deferred, explicitly
 
