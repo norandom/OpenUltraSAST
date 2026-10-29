@@ -12,11 +12,15 @@ from __future__ import annotations
 import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from ..facts import SemanticFacts
 from ..ir import FileIR, FunctionIR, trailing_name
 from .facts import DischargerFact, ObligationFacts
 from .shapes import _call_matches, _constraint_provenance, _is_literal, _operations, _permissive
+
+if TYPE_CHECKING:
+    from .abstract_domain import AuthorityRef, ResourceRef
 
 SCOPES = ("decorator", "router", "statement", "hop")
 
@@ -42,6 +46,10 @@ class Discharge:
     provenance: str
     scope: str  # SCOPES
     detail: str = ""  # identifier only: the decorator or call name that witnessed the discharge
+    # Requirement 2.2 (access-control-prover): the resource identity and authority a witness binds.
+    # None means the binding was not established (unknown), matching the abstract domain's unknown grades.
+    resource: ResourceRef | None = None
+    authority: AuthorityRef | None = None
 
 
 def find_operations(

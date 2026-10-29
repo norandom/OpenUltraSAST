@@ -172,7 +172,7 @@ its final resolution, dominance, fact-acquisition and measurement semantics with
   - _Requirements: 10.1, 10.2, 10.3, 10.4, 10.5, 10.6, 10.7_
   - _Boundary: CFG Dominance_
   - _Depends: 7.1_
-- [ ] 10.2 Match witness kind, scope and resource
+- [x] 10.2 Match witness kind, scope and resource
   - Apply request-global sufficiency only when the operation fact declares it.
   - Return NO for definite mismatch and UNKNOWN for unresolved resource compatibility.
   - Done when same-resource, alias, global, mismatch and unknown fixtures match the design algebra.
