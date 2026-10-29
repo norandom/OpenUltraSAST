@@ -14,11 +14,15 @@ from pathlib import Path
 import pytest
 
 from openultrasast.tools.fact_init import (
+    AcquisitionRecord,
+    AdmissionLabelsExposed,
     CandidateRecord,
     PromotionResult,
+    acquire,
     extract_all,
     extract_fact_rows,
     extract_legacy_strategies,
+    population_is_spent,
     promote_proposals,
     verify_candidate,
 )
@@ -238,3 +242,55 @@ def test_candidate_record_is_frozen() -> None:
     )
     with pytest.raises(Exception):  # noqa: B017
         record.name = "other"  # type: ignore[misc]
+
+
+def test_label_blind_acquire_records_provenance() -> None:
+    record = acquire((_proposal(), _contradicted_proposal()), _promoted_corpus())
+    assert isinstance(record, AcquisitionRecord)
+    assert _VERSION_PATTERN.fullmatch(record.input_revision)
+    assert _VERSION_PATTERN.fullmatch(record.evidence_digest)
+    assert _VERSION_PATTERN.fullmatch(record.output_digest)
+    assert record.accepted_names == ("proposed-read",)
+    assert record.rejected_names == ("promoted-read",)
+
+
+def test_admission_labels_are_rejected_before_promotion() -> None:
+    promoted = _promoted_corpus()
+    with pytest.raises(AdmissionLabelsExposed):
+        acquire((_proposal(),), promoted, input_labels=("vulnerability-fix-label",))
+    assert promoted == _promoted_corpus()
+
+
+def test_every_forbidden_marker_raises() -> None:
+    for label in ("fix-location:Handler.java:4", "ordinary-change:repo-a", "vulnerability:case-9"):
+        with pytest.raises(AdmissionLabelsExposed):
+            acquire((_proposal(),), _promoted_corpus(), input_labels=(label,))
+
+
+def test_acquire_is_deterministic() -> None:
+    first = acquire((_proposal(),), _promoted_corpus())
+    second = acquire((_proposal(),), _promoted_corpus())
+    assert first == second
+
+
+def test_population_is_spent_detects_output_change() -> None:
+    blind = acquire((_proposal(),), _promoted_corpus())
+    assert population_is_spent(blind, blind.output_digest) is False
+    assert population_is_spent(blind, "0" * 12) is True
+
+
+def test_acquisition_record_is_frozen() -> None:
+    record = acquire((_proposal(),), _promoted_corpus())
+    with pytest.raises(Exception):  # noqa: B017
+        record.output_digest = "0" * 12  # type: ignore[misc]
+
+
+def _contradicted_proposal() -> CandidateRecord:
+    return CandidateRecord(
+        kind="operation",
+        name="promoted-read",
+        source="proposals.toml",
+        version="a" * 12,
+        region="proposals.toml:operation:promoted-read",
+        payload=(("calls", "write"), ("kind", "protected_read")),
+    )

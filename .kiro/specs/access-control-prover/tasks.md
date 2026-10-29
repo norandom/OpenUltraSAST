@@ -235,7 +235,7 @@ its final resolution, dominance, fact-acquisition and measurement semantics with
   - _Requirements: 2.9, 2.10_
   - _Boundary: Fact Initialization_
   - _Depends: 11.3_
-- [ ] 11.5 Record acquisition provenance and enforce label-isolated mode
+- [x] 11.5 Record acquisition provenance and enforce label-isolated mode
   - Persist input revision, evidence digest, accepted/rejected proposals and output digest.
   - Reject admission acquisition inputs containing vulnerability, fix-location or ordinary-change labels.
   - Done when changed output after labels are opened marks the population spent.

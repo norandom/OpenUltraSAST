@@ -157,11 +157,70 @@ def promote_proposals(candidates: tuple[CandidateRecord, ...], promoted: tuple[C
 
 
 __all__ = [
+    "AcquisitionRecord",
+    "AdmissionLabelsExposed",
     "CandidateRecord",
     "PromotionResult",
+    "acquire",
     "extract_all",
     "extract_fact_rows",
     "extract_legacy_strategies",
+    "population_is_spent",
     "promote_proposals",
     "verify_candidate",
 ]
+
+
+class AdmissionLabelsExposed(ValueError):
+    """Raised when acquisition input carries admission evaluation labels (Req 12.2)."""
+
+
+FORBIDDEN_LABEL_MARKERS: tuple[str, ...] = ("vulnerability", "fix-location", "ordinary-change")
+
+
+@dataclass(frozen=True)
+class AcquisitionRecord:
+    """Provenance record of one acquisition pass (Req 12.1)."""
+
+    input_revision: str
+    evidence_digest: str
+    accepted_names: tuple[str, ...]
+    rejected_names: tuple[str, ...]
+    output_digest: str
+
+
+def _corpus_digest(records: tuple[CandidateRecord, ...]) -> str:
+    lines = sorted(
+        f"{record.kind}\x1f{record.name}\x1f{record.source}\x1f{record.version}\x1f{record.region}\x1f{record.payload}"
+        for record in records
+    )
+    return hashlib.sha256("\n".join(lines).encode()).hexdigest()[:12]
+
+
+def acquire(
+    candidates: tuple[CandidateRecord, ...],
+    promoted: tuple[CandidateRecord, ...],
+    *,
+    input_labels: tuple[str, ...] = (),
+) -> AcquisitionRecord:
+    """Run one label-isolated acquisition pass (Reqs 12.1, 12.2).
+
+    The label guard runs first: an input carrying admission evaluation labels is
+    rejected before any promotion happens, leaving the promoted corpus untouched.
+    """
+    for label in input_labels:
+        if any(marker in label for marker in FORBIDDEN_LABEL_MARKERS):
+            raise AdmissionLabelsExposed(label)
+    result = promote_proposals(candidates, promoted)
+    return AcquisitionRecord(
+        input_revision=_corpus_digest(promoted),
+        evidence_digest=_corpus_digest(candidates),
+        accepted_names=tuple(sorted(record.name for record in result.accepted)),
+        rejected_names=tuple(sorted(record.name for record, _ in result.rejected)),
+        output_digest=_corpus_digest(result.promoted_after),
+    )
+
+
+def population_is_spent(blind_record: AcquisitionRecord, later_output_digest: str) -> bool:
+    """A changed acquisition output after labels opened spends the population (Req 12.3)."""
+    return later_output_digest != blind_record.output_digest
