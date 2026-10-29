@@ -150,7 +150,7 @@ its final resolution, dominance, fact-acquisition and measurement semantics with
   - _Requirements: 3.7, 11.6_
   - _Boundary: Function Summaries_
   - _Depends: 9.1_
-- [ ] 9.3 Add summary caches and explicit exploration cutoffs
+- [x] 9.3 Add summary caches and explicit exploration cutoffs
   - Reuse summaries per change and carry depth, fan-out, deadline and other cutoff reasons into completeness.
   - Done when each cutoff fixture returns accumulated evidence plus the exact incomplete reason.
   - _Requirements: 3.8, 6.2, 6.3, 7.2_

@@ -5,17 +5,25 @@ operations, local witnesses, resolved calls and local completeness WITHOUT
 traversing callers. Task 9.2 (Reqs 3.7, 11.6): a monotone fixpoint over
 strongly connected call components unions callee evidence into callers until
 stable, so direct and mutual recursion terminate with the accumulated
-evidence. Summaries are deterministic and carry no target names beyond fact
-identifiers (Req 11.7).
+evidence. Task 9.3 (Reqs 3.8, 6.2, 6.3, 7.2): an exploration budget bounds
+the fixpoint; depth, fan-out and deadline cutoffs stop growth, record the
+exact cutoff reason and leave the affected summaries incomplete while
+preserving the evidence accumulated so far. Summaries are deterministic and
+carry no target names beyond fact identifiers (Req 11.7).
 """
 
 from collections.abc import Iterable, Iterator, Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
+from time import monotonic
 
 from ..ir import FunctionIR
 from .abstract_domain import Completeness, join_completeness
 from .operations import Discharge, Operation
 from .resolution import CallTargetSet, SymbolId, SymbolIndex, resolve_call
+
+_DEPTH_CUTOFF = "summaries:depth_cutoff"
+_FAN_OUT_CUTOFF = "summaries:fan_out_cutoff"
+_DEADLINE_CUTOFF = "summaries:deadline_cutoff"
 
 
 @dataclass(frozen=True)
@@ -27,6 +35,20 @@ class FunctionSummary:
     witnesses: tuple[Discharge, ...] = ()
     calls: tuple[CallTargetSet, ...] = ()
     completeness: Completeness = field(default_factory=lambda: Completeness(is_complete=True))
+
+
+@dataclass(frozen=True)
+class ExplorationBudget:
+    """Work bounds for the summary fixpoint; ``None`` means unbounded.
+
+    Req 3.8: every bound that truncates exploration records its exact cutoff
+    reason and leaves affected summaries incomplete with the evidence
+    accumulated so far.
+    """
+
+    depth: int | None = None
+    fan_out: int | None = None
+    deadline: float | None = None
 
 
 def _enclosing_type(index: SymbolIndex, module: str, name: str) -> str | None:
@@ -245,22 +267,80 @@ def _propagated(summary: FunctionSummary, callees: Iterable[FunctionSummary]) ->
     )
 
 
+def _callees_for(
+    member_symbol: SymbolId,
+    edges: Mapping[SymbolId, tuple[SymbolId, ...]],
+    summaries_by_symbol: Mapping[SymbolId, FunctionSummary],
+    fan_out: int | None,
+) -> tuple[list[FunctionSummary], bool]:
+    """Resolve a member's exact callees, truncated to ``fan_out`` when set."""
+    callee_edges = [edge for edge in edges.get(member_symbol, ()) if edge in summaries_by_symbol]
+    truncated = fan_out is not None and len(callee_edges) > fan_out
+    if truncated:
+        callee_edges = callee_edges[:fan_out]
+    return [summaries_by_symbol[edge] for edge in callee_edges], truncated
+
+
+def _propagate_round(
+    members: tuple[FunctionSummary, ...],
+    summaries_by_symbol: dict[SymbolId, FunctionSummary],
+    edges: Mapping[SymbolId, tuple[SymbolId, ...]],
+    budget: ExplorationBudget,
+) -> bool:
+    """One union round over the component; returns whether anything changed."""
+    changed = False
+    for member in members:
+        current = summaries_by_symbol[member.symbol]
+        callees, truncated = _callees_for(member.symbol, edges, summaries_by_symbol, budget.fan_out)
+        propagated = _propagated(current, callees)
+        if truncated:
+            propagated = replace(
+                propagated,
+                completeness=join_completeness(
+                    propagated.completeness,
+                    Completeness(is_complete=False, reasons=(_FAN_OUT_CUTOFF,)),
+                ),
+            )
+        if propagated != current:
+            summaries_by_symbol[member.symbol] = propagated
+            changed = True
+    return changed
+
+
+def _apply_cutoff_reason(
+    members: tuple[FunctionSummary, ...],
+    summaries_by_symbol: dict[SymbolId, FunctionSummary],
+    reason: str,
+) -> None:
+    """Mark every member of a truncated component with the cutoff reason."""
+    for member in members:
+        current = summaries_by_symbol[member.symbol]
+        summaries_by_symbol[member.symbol] = replace(
+            current,
+            completeness=join_completeness(current.completeness, Completeness(is_complete=False, reasons=(reason,))),
+        )
+
+
 def _stabilise_component(
     members: tuple[FunctionSummary, ...],
     summaries_by_symbol: dict[SymbolId, FunctionSummary],
     edges: Mapping[SymbolId, tuple[SymbolId, ...]],
+    budget: ExplorationBudget,
 ) -> None:
-    """Iterate a component's members until every summary is stable."""
-    changed = True
-    while changed:
-        changed = False
-        for member in members:
-            current = summaries_by_symbol[member.symbol]
-            callees = [summaries_by_symbol[edge] for edge in edges.get(member.symbol, ()) if edge in summaries_by_symbol]
-            propagated = _propagated(current, callees)
-            if propagated != current:
-                summaries_by_symbol[member.symbol] = propagated
-                changed = True
+    """Iterate a component's members until stable or a budget bound fires."""
+    if not any(edges.get(member.symbol) for member in members):
+        return
+    rounds = 0
+    while True:
+        if budget.deadline is not None and monotonic() > budget.deadline:
+            _apply_cutoff_reason(members, summaries_by_symbol, _DEADLINE_CUTOFF)
+            return
+        if not _propagate_round(members, summaries_by_symbol, edges, budget):
+            return
+        rounds += 1
+        if budget.depth is not None and rounds >= budget.depth:
+            _apply_cutoff_reason(members, summaries_by_symbol, _DEPTH_CUTOFF)
+            return
 
 
 def monotone_summaries(
@@ -269,14 +349,18 @@ def monotone_summaries(
     *,
     operations_by_symbol: Mapping[SymbolId, tuple[Operation, ...]] | None = None,
     witnesses_by_symbol: Mapping[SymbolId, tuple[Discharge, ...]] | None = None,
+    budget: ExplorationBudget | None = None,
 ) -> tuple[FunctionSummary, ...]:
     """Summaries after the monotone fixpoint over strongly connected components.
 
     Local summaries first; then every component (callee components first) is
     iterated until union-stable, so recursion terminates with the accumulated
-    operations, witnesses and completeness reasons of its cycle. Output order
-    matches :func:`local_summaries`.
+    operations, witnesses and completeness reasons of its cycle. ``budget``
+    bounds the exploration (Req 3.8): a depth, fan-out or deadline cutoff
+    stops growth and leaves affected summaries incomplete with the exact
+    cutoff reason. Output order matches :func:`local_summaries`.
     """
+    bounded = budget if budget is not None else ExplorationBudget()
     local = local_summaries(
         functions_by_module,
         index,
@@ -287,5 +371,5 @@ def monotone_summaries(
     edges = _exact_caller_edges(summaries_by_symbol)
     for component in _sorted_scc_components(edges, summaries_by_symbol):
         members = tuple(summaries_by_symbol[member] for member in component)
-        _stabilise_component(members, summaries_by_symbol, edges)
+        _stabilise_component(members, summaries_by_symbol, edges, bounded)
     return tuple(summaries_by_symbol[summary.symbol] for summary in local)

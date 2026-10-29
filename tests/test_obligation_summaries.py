@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import inspect
+from dataclasses import FrozenInstanceError
+from time import monotonic
 
 import pytest
 
@@ -12,7 +14,12 @@ from openultrasast.semantic.obligations import summaries
 from openultrasast.semantic.obligations.abstract_domain import Completeness
 from openultrasast.semantic.obligations.operations import Discharge, Operation
 from openultrasast.semantic.obligations.resolution import SymbolId, SymbolIndex
-from openultrasast.semantic.obligations.summaries import FunctionSummary, local_summaries, monotone_summaries
+from openultrasast.semantic.obligations.summaries import (
+    ExplorationBudget,
+    FunctionSummary,
+    local_summaries,
+    monotone_summaries,
+)
 
 PHP_CLASS = """<?php
 class InvoiceController {
@@ -347,3 +354,148 @@ def test_monotone_output_order_matches_local_summaries() -> None:
     assert [summary.symbol for summary in monotone_summaries(functions, index)] == [
         summary.symbol for summary in local_summaries(functions, index)
     ]
+
+
+JAVA_FANOUT = """
+class Fan {
+    void helper1() { this.helper2(); this.helper3(); }
+    void helper2() {}
+    void helper3() {}
+}
+""".strip()
+
+
+def _java_operation(name: str, line: int) -> Operation:
+    return Operation(
+        path="src/C.java",
+        line=line,
+        function=name,
+        kind="protected_read",
+        fact_id=f"java:{name}-op",
+        resource=name,
+        requires=("path_guard",),
+    )
+
+
+def _fanout_functions() -> dict[str, tuple[FunctionIR, ...]]:
+    return {
+        "src/C.java": (
+            FunctionIR(
+                "helper1",
+                (),
+                3,
+                3,
+                (),
+                (_self_call("helper2", 3), _self_call("helper3", 3)),
+            ),
+            FunctionIR("helper2", (), 4, 4, (), ()),
+            FunctionIR("helper3", (), 5, 5, (), ()),
+        )
+    }
+
+
+def _mutual_functions() -> dict[str, tuple[FunctionIR, ...]]:
+    return {
+        "src/C.java": (
+            FunctionIR("a", (), 2, 4, (), (_self_call("b", 3),)),
+            FunctionIR("b", (), 5, 7, (), (_self_call("a", 6),)),
+        )
+    }
+
+
+def _operations_injected(
+    functions: dict[str, tuple[FunctionIR, ...]], index: SymbolIndex, injected: dict[str, Operation]
+) -> dict[SymbolId, tuple[Operation, ...]]:
+    operations_by_symbol: dict[SymbolId, tuple[Operation, ...]] = {}
+    for summary in local_summaries(functions, index):
+        operation = injected.get(summary.symbol.name)
+        if operation is not None:
+            operations_by_symbol[summary.symbol] = (operation,)
+    return operations_by_symbol
+
+
+def test_depth_cutoff_preserves_accumulated_evidence_and_reason() -> None:
+    index = _index((("src/C.java", JAVA_MUTUAL, "java"),))
+    functions = _mutual_functions()
+    operations_by_symbol = _operations_injected(functions, index, {"b": _java_operation("b", 6)})
+    summaries_with_cutoff = monotone_summaries(
+        functions, index, operations_by_symbol=operations_by_symbol, budget=ExplorationBudget(depth=1)
+    )
+    summaries_unbounded = monotone_summaries(functions, index, operations_by_symbol=operations_by_symbol)
+    by_name = {summary.symbol.name: summary for summary in summaries_with_cutoff}
+    unbounded_by_name = {summary.symbol.name: summary for summary in summaries_unbounded}
+    assert by_name["a"].operations == unbounded_by_name["a"].operations
+    assert by_name["a"].operations == (_java_operation("b", 6),)
+    assert "summaries:depth_cutoff" in by_name["a"].completeness.reasons
+    assert "summaries:depth_cutoff" in by_name["b"].completeness.reasons
+    assert not by_name["a"].completeness.is_complete
+
+
+def test_deadline_cutoff_returns_local_evidence() -> None:
+    index = _index((("src/C.java", JAVA_FANOUT, "java"),))
+    functions = _fanout_functions()
+    operations_by_symbol = _operations_injected(
+        functions, index, {"helper2": _java_operation("helper2", 4), "helper3": _java_operation("helper3", 5)}
+    )
+    summaries_with_cutoff = monotone_summaries(
+        functions, index, operations_by_symbol=operations_by_symbol, budget=ExplorationBudget(deadline=monotonic() - 1.0)
+    )
+    by_name = {summary.symbol.name: summary for summary in summaries_with_cutoff}
+    assert by_name["helper1"].operations == ()
+    assert "summaries:deadline_cutoff" in by_name["helper1"].completeness.reasons
+    assert not by_name["helper1"].completeness.is_complete
+    assert by_name["helper2"].completeness.is_complete
+    assert by_name["helper2"].operations == (_java_operation("helper2", 4),)
+
+
+def test_fan_out_cutoff_merges_sorted_prefix() -> None:
+    index = _index((("src/C.java", JAVA_FANOUT, "java"),))
+    functions = _fanout_functions()
+    operations_by_symbol = _operations_injected(
+        functions, index, {"helper2": _java_operation("helper2", 4), "helper3": _java_operation("helper3", 5)}
+    )
+    summaries_with_cutoff = monotone_summaries(
+        functions, index, operations_by_symbol=operations_by_symbol, budget=ExplorationBudget(fan_out=1)
+    )
+    by_name = {summary.symbol.name: summary for summary in summaries_with_cutoff}
+    assert by_name["helper1"].operations == (_java_operation("helper2", 4),)
+    assert "summaries:fan_out_cutoff" in by_name["helper1"].completeness.reasons
+    assert not by_name["helper1"].completeness.is_complete
+    assert by_name["helper3"].completeness.is_complete
+
+
+def test_all_none_budget_equals_default_behaviour() -> None:
+    index = _index((("src/C.java", JAVA_MUTUAL, "java"),))
+    functions = _mutual_functions()
+    operations_by_symbol = _operations_injected(functions, index, {"b": _java_operation("b", 6)})
+    with_default = monotone_summaries(functions, index, operations_by_symbol=operations_by_symbol)
+    with_empty_budget = monotone_summaries(functions, index, operations_by_symbol=operations_by_symbol, budget=ExplorationBudget())
+    assert with_default == with_empty_budget
+
+
+def test_exploration_budget_is_frozen() -> None:
+    budget = ExplorationBudget(depth=1)
+    with pytest.raises(FrozenInstanceError):
+        budget.depth = 2  # type: ignore[misc]
+
+
+def test_cutoff_reasons_join_existing_incompleteness() -> None:
+    index = _index((("src/C.java", JAVA_FANOUT, "java"),))
+    functions = {
+        "src/C.java": (
+            FunctionIR(
+                "helper1",
+                (),
+                3,
+                3,
+                (),
+                (_self_call("helper2", 3), CallSite("missing", 3, (), (), (), False, 0)),
+            ),
+            FunctionIR("helper2", (), 4, 4, (), ()),
+        )
+    }
+    summaries_with_cutoff = monotone_summaries(functions, index, budget=ExplorationBudget(deadline=monotonic() - 1.0))
+    by_name = {summary.symbol.name: summary for summary in summaries_with_cutoff}
+    reasons = by_name["helper1"].completeness.reasons
+    assert "resolution:no_candidate" in reasons
+    assert "summaries:deadline_cutoff" in reasons

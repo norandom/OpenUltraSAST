@@ -15,8 +15,9 @@ from .. import mapping, source
 from ..model.taxonomy import DEFAULT_FAMILIES_PATH, load_families
 from ..preprocess import build_file_target, detect_language
 from ..semantic.facts import load_facts
-from ..semantic.ir import FileIR, parse_file
+from ..semantic.ir import FileIR, FunctionIR, parse_file
 from ..semantic.obligations import check_obligations, load_obligation_facts, resolution
+from ..semantic.obligations import summaries as summaries_module
 from ..semantic.obligations.dominance import OrderDominance
 from ..semantic.obligations.operations import covers, find_operations, valid_witness
 from .labels import label_rows
@@ -115,6 +116,20 @@ class Context:
             language = source.canonical_language(detect_language(self.root / path))
             files.append((path, text, language))
         return resolution.SymbolIndex.build(files)
+
+    @cached_property
+    def summaries(self) -> tuple[summaries_module.FunctionSummary, ...]:
+        """Monotone function summaries over the product tree, computed once per change (Req 6.2)."""
+        functions_by_module: dict[str, list[FunctionIR]] = {}
+        for path in self.product_files:
+            try:
+                file_ir = self.ir(path)
+            except _Absent:
+                # Same guard as entry_points and symbol_index: an unreadable product file
+                # contributes no functions, not a failure of the summary cache.
+                continue
+            functions_by_module.setdefault(path, []).extend(file_ir.functions)
+        return summaries_module.monotone_summaries(functions_by_module, index=self.symbol_index)
 
     @cached_property
     def hunks(self) -> dict[str, list[list[int]]]:
