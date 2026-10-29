@@ -115,7 +115,7 @@ its final resolution, dominance, fact-acquisition and measurement semantics with
   - Done when language fixtures retain receiver and arity evidence without regressing existing IR consumers.
   - _Requirements: 3.2, 3.3_
   - _Boundary: Semantic IR_
-- [ ] 8.2 Build stable declaration identities and the per-change symbol index
+- [x] 8.2 Build stable declaration identities and the per-change symbol index
   - Identify declarations by module, enclosing type, name and available signature.
   - Cache the symbol and inheritance indexes on the per-change context.
   - Done when duplicate type names, same-name methods and overloads receive stable distinct identities.

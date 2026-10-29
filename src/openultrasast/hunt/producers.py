@@ -16,7 +16,7 @@ from ..model.taxonomy import DEFAULT_FAMILIES_PATH, load_families
 from ..preprocess import build_file_target, detect_language
 from ..semantic.facts import load_facts
 from ..semantic.ir import FileIR, parse_file
-from ..semantic.obligations import check_obligations, load_obligation_facts
+from ..semantic.obligations import check_obligations, load_obligation_facts, resolution
 from ..semantic.obligations.dominance import OrderDominance
 from ..semantic.obligations.operations import covers, find_operations, valid_witness
 from .labels import label_rows
@@ -101,6 +101,20 @@ class Context:
                 # cache so every row re-read the whole tree.
                 continue
         return mapping.analyze_entry_points(self.root, [build_file_target(self.root, self.root / path) for path in self.product_files])
+
+    @cached_property
+    def symbol_index(self) -> resolution.SymbolIndex:
+        """Declarations and inheritance for the product tree, read once per change (Req 6.2)."""
+        files: list[tuple[str, str, str]] = []
+        for path in self.product_files:
+            try:
+                text = self.read(path)
+            except _Absent:
+                # Same guard as entry_points: an empty product file is not this index's problem.
+                continue
+            language = source.canonical_language(detect_language(self.root / path))
+            files.append((path, text, language))
+        return resolution.SymbolIndex.build(files)
 
     @cached_property
     def hunks(self) -> dict[str, list[list[int]]]:

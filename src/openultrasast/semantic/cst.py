@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Any
 
 from .ir import Bind, CallSite, FileIR, FunctionIR
@@ -109,6 +110,105 @@ def parse_function_nodes(path: str, text: str, language: str) -> list[Any]:
     if bool(getattr(tree.root_node, "has_error", False)):
         return []
     return [node for node in _walk(tree.root_node) if node.type in kinds["function"]]
+
+
+@dataclass(frozen=True)
+class DeclarationScope:
+    """One function declaration with the enclosing type it is declared in and that type's base names."""
+
+    function_name: str
+    params: tuple[str, ...]
+    start_line: int
+    enclosing_type: str | None
+    enclosing_base_types: tuple[str, ...]
+
+
+_CLASS_KINDS = frozenset({"class_declaration", "class_definition"})
+_BASE_NAME_KINDS = frozenset({"identifier", "type_identifier", "name", "property_identifier"})
+_BASE_CLAUSE_FIELDS = ("superclass", "interfaces", "superclasses", "base_clause", "class_heritage", "extends_clause")
+_BASE_CLAUSE_KINDS = frozenset({"base_clause", "class_heritage", "extends_clause", "superclasses"})
+
+
+def declaration_scopes(path: str, text: str, language: str) -> tuple[DeclarationScope, ...]:
+    """Every function declaration in the file with its enclosing type chain.
+
+    The symbol index (task 8.2) needs what the flat FileIR drops: which class a method is declared in and
+    which bases that class names. An unparsable file or a language without a grammar yields no scopes.
+    """
+    from .extra import grammar_for
+
+    kinds = _KIND.get(language)
+    grammar = grammar_for(_grammar_language(language, path))
+    if grammar is None or kinds is None:
+        return ()
+    try:
+        from tree_sitter import Parser
+
+        tree = Parser(grammar).parse(text.encode())
+    except Exception:
+        return ()
+    if bool(getattr(tree.root_node, "has_error", False)):
+        return ()
+    scopes: list[DeclarationScope] = []
+    _collect_scopes(tree.root_node, kinds, None, (), scopes)
+    return tuple(scopes)
+
+
+def _collect_scopes(
+    node: Any,
+    kinds: dict[str, frozenset[str]],
+    enclosing_type: str | None,
+    enclosing_base_types: tuple[str, ...],
+    scopes: list[DeclarationScope],
+) -> None:
+    if node.type in _CLASS_KINDS:
+        name_node = node.child_by_field_name("name")
+        enclosing_type = _text(name_node) if name_node is not None else None
+        enclosing_base_types = _class_bases(node)
+    if node.type in kinds["function"]:
+        scopes.append(
+            DeclarationScope(
+                function_name=_declaration_name(node),
+                params=_params(node, kinds),
+                start_line=_line(node),
+                enclosing_type=enclosing_type,
+                enclosing_base_types=enclosing_base_types,
+            )
+        )
+    for child in getattr(node, "named_children", ()) or ():
+        _collect_scopes(child, kinds, enclosing_type, enclosing_base_types, scopes)
+
+
+def _declaration_name(node: Any) -> str:
+    """The declared name for the symbol index.
+
+    Same resolution as `_function_name`, plus the property_identifier kind a TypeScript
+    method_declaration names itself with; the flat FileIR keeps its own naming.
+    """
+    for child in getattr(node, "named_children", ()) or ():
+        if child.type in {"identifier", "name", "property_identifier"}:
+            return _text(child)
+        if child.type == "function_declarator":
+            for grandchild in getattr(child, "named_children", ()) or ():
+                if grandchild.type == "identifier":
+                    return _text(grandchild)
+    return "<anon>"
+
+
+def _class_bases(node: Any) -> tuple[str, ...]:
+    """The base type names a class declaration names, in declaration order, deduplicated."""
+    clauses: list[Any] = []
+    for base_field in _BASE_CLAUSE_FIELDS:
+        clause = node.child_by_field_name(base_field)
+        if clause is not None:
+            clauses.append(clause)
+    clauses.extend(child for child in getattr(node, "named_children", ()) or () if child.type in _BASE_CLAUSE_KINDS)
+    names: list[str] = []
+    for clause in clauses:
+        names.extend(
+            _text(child) for child in _walk(clause, skip=frozenset()) if child.type in _BASE_NAME_KINDS and not _text(child).startswith("$")
+        )
+    return tuple(dict.fromkeys(names))
 
 
 def _grammar_language(language: str, path: str) -> str:
