@@ -8,7 +8,8 @@ from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from typing import Any, Literal, cast
 
-from .preprocess import FileTarget
+from ..preprocess import FileTarget
+from .registry import registry_entries
 
 MappingKind = Literal["semgrep", "codeql", "differential", "sharp_edge"]
 AccessLevel = Literal[
@@ -107,6 +108,7 @@ def analyze_entry_points(
     for target in targets:
         text = source_texts[target.path]
         records.extend(_language_entry_points(target, text))
+        records.extend(registry_entries(target, text))
         if target.language == "php":
             framework_entries = _php_framework_entries(target, text, source_texts)
             names = {e.function_name for e in framework_entries}
@@ -138,7 +140,7 @@ def php_hook_callbacks(root: Path, targets: list[FileTarget], register_calls: Se
     plugin system's event bus -- and a second framework is a row in a TOML, not a change to this function.
     """
     if register_calls is None:
-        from .semantic.facts import load_facts
+        from ..semantic.facts import load_facts
 
         register_calls = tuple(sorted({call for fact in load_facts().for_language("php").dispatches for call in fact.register}))
     if not register_calls:
@@ -222,7 +224,7 @@ class _PhpMethod:
 
 def _php_methods(text: str) -> list[_PhpMethod]:
     """CST class and method boundaries, including the method's own attributes and docblock."""
-    from .semantic.extra import grammar_for
+    from ..semantic.extra import grammar_for
 
     grammar = grammar_for("php")
     if grammar is None:
@@ -417,7 +419,7 @@ def _tornado_entries(target: FileTarget, text: str) -> list[EntryPointRecord]:
 def _remix_exports(target: FileTarget, text: str) -> list[EntryPointRecord]:
     if "app/routes/" not in "/" + target.path:
         return []
-    from .semantic.extra import grammar_for
+    from ..semantic.extra import grammar_for
 
     grammar = grammar_for("tsx" if Path(target.path).suffix == ".tsx" else target.language)
     if grammar is None:
@@ -490,7 +492,7 @@ def entry_framework(entry: object) -> str | None:
 
 def _java_methods(target: FileTarget, text: str) -> list[tuple[object, str, str]]:
     """Use the CST to keep class declarations, parameters and method bodies separate."""
-    from .semantic.extra import grammar_for
+    from ..semantic.extra import grammar_for
 
     grammar = grammar_for("java")
     if grammar is None:

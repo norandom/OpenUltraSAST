@@ -211,7 +211,7 @@ its final resolution, dominance, fact-acquisition and measurement semantics with
   - _Depends: 7.4, 9.4, 10.5_
 
 - [ ] 11. Target knowledge registry and acquisition
-- [ ] 11.1 (P) Add the entry-recognition strategy registry
+- [x] 11.1 (P) Add the entry-recognition strategy registry
   - Route mapping dispatch through one registry without embedding target names in engine modules.
   - Done when a fixture strategy registers, runs and records its strategy identifier and evidence.
   - _Requirements: 1.1, 1.5, 1.7_
