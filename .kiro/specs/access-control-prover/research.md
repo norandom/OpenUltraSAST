@@ -205,3 +205,72 @@ records the code survey behind the design amendment (same date tag).
   lane (deferred injection spec) is the designated place to grow type facts, not this spec.
 - `down_depth` widens target enumeration; the fan-out bound and the 120 s budget cap it. Per-repository
   seconds-per-change in the runner summary will show any cost.
+
+---
+
+## Abstract judgment and admission amendment -- 2026-10-29
+
+### Context
+
+The design review after the capability-level lift found that the proposed amendment still allowed two degraded
+instruments to participate in binary decisions: unresolved receivers fell back to a bare-name call key, and
+unavailable CFGs fell back to source order. It also found that the fact-initialization task used known development
+misses and then remeasured the same population, which is valid regression work but cannot qualify an admission arm.
+
+### Synthesis
+
+1. **Generalization**: call certainty, path completeness, resource compatibility, authority compatibility and
+   dominance are instances of one evidence-relation problem. They share a finite domain
+   (`MUST | MAY | NO | UNKNOWN`) and one incompleteness record instead of separate booleans and counters.
+2. **Build vs adopt**: the repository already owns the semantic IR, structural CFG, obligation checker and path
+   records. A small abstract-domain layer and monotone function summaries extend those contracts; adopting another
+   graph or abstract-interpretation engine would duplicate the current architecture and violate steering.
+3. **Simplification**: the prover keeps one checker and one concrete trace. Function summaries accelerate and
+   stabilize interprocedural discovery, but final evidence remains a materialised path. No second verdict engine is
+   introduced.
+
+### Decisions
+
+#### Decision: three-way judgment
+- **Selected approach**: every path and aggregate pair is `unguarded`, `discharged`, or `indeterminate`.
+- **Invariant**: less precise evidence may preserve a verdict or move it to `indeterminate`; it may not switch
+  directly between the two final verdicts.
+- **Algebra**: `MUST` and `NO` are incomparable, both below `MAY`, which is below `UNKNOWN`. Alternative
+  evidence uses the least-upper-bound table; dimensions of one witness use conjunction; witnesses for one
+  obligation use existential aggregation. These operations are distinct so `MUST + NO` on alternative paths
+  becomes `MAY`, while one definite governing witness remains sufficient for the obligation it covers.
+- **Consequence**: prover mode does not use textual order as a semantic fallback. Legacy checker callers retain it.
+
+#### Decision: stable symbols and finite candidate sets
+- **Selected approach**: identify repository declarations by module, enclosing type, method and available signature.
+  Partial resolution returns a finite candidate set plus incompleteness; unbounded resolution returns unresolved.
+- **Rejected approach**: global bare-name fallback, because it conflates unrelated methods and can both invent paths
+  and borrow unrelated guards.
+
+#### Decision: resource and authority are separate abstract values
+- **Selected approach**: match witness kind, scope, resource and authority independently, joining each relation into
+  the pair judgment. Request-global guards are valid only when the operation fact explicitly allows that scope.
+- **Rejected approach**: `None` as a resource wildcard. It cannot distinguish intentionally global authentication
+  from missing resource evidence.
+
+#### Decision: summaries discover; concrete paths prove
+- **Selected approach**: monotone summaries over strongly connected call components collect operations, witnesses,
+  call target sets and incompleteness. Concrete paths are materialised from exact edges for trace evidence.
+- **Trade-off**: summary and path code add one engine boundary, but they remove recursion and depth handling from
+  ad-hoc traversal and make every cutoff explicit.
+
+#### Decision: development attribution before admission
+- **Selected approach**: compare old/new analyzer crossed with old/new facts on the current development population,
+  then freeze analyzer, facts, acquisition record, configuration and a separate untouched population for admission.
+- **Consequence**: the 2026-10-28 numbers remain the immutable baseline. A better rerun on the same repositories is
+  regression evidence, not a G1 admission claim.
+
+### Risks and mitigations
+- **Indeterminate inflation**: strict uncertainty may initially lower apparent coverage. Report the stage funnel and
+  reason distribution; improve the dominant reason rather than weakening the lattice.
+- **Summary cost**: a repository-wide symbol graph may threaten the pre-push budget. Reuse Context caches, use finite
+  summary sets, and fail the budget gate when any measured change exceeds 120 seconds.
+- **Authority vocabulary growth**: permission implication can become target-specific code. Keep implications in
+  promoted facts and include the fact identifier in every match.
+- **Admission scarcity**: the current pool is already development data. Source and review a separate population
+  through `valid-detection-benchmark`; do not relabel the current pool as untouched.

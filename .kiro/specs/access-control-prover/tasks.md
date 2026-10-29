@@ -1,321 +1,348 @@
 # Implementation Plan
 
-- [x] 1. Paths from the caller index
-- [x] 1.1 Add `PathRecord` and `compose_paths` in `src/openultrasast/semantic/obligations/paths.py` (P)
-  - Upward walk through a `callers(path, function)` callable, depth and fan-out bounds, stop at the first entry,
-    chains kept per file, deduplicated; unreached targets returned
-  - Done when `tests/test_obligation_paths.py` covers depth 1 to 3, unreached, fan-out cut and same-name files,
-    and `check_obligations` accepts the records as `paths` (one test runs the checker with them)
-  - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6_
-  - _Boundary: obligations.paths_
+## Completed baseline
 
-- [x] 1.2 Checker opt-in `assume_entries_protected` and label `unguarded_path` in `semantic/obligations/check.py`
-  - Default off; `_finding` receives the entry records' access by handler; evidence as the design states;
-    `findings_to_static` explains the label; `LABELS` updated
-  - Done when the existing checker tests pass unchanged and a new test shows: with paths, no policy, no siblings,
-    the default gives no finding and the opt-in gives one `unguarded_path` finding for a non-public entry and none
-    for an entry whose record access is `public`
-  - _Requirements: 4.1a_
-  - _Boundary: obligations.check (opt-in only)_
+The completed work below produced the immutable 2026-10-28 development baseline. Amendment tasks 7-13 replace
+its final resolution, dominance, fact-acquisition and measurement semantics without erasing the evidence.
 
-- [x] 2. Entry recognisers
-- [x] 2.1 Stapler and Jetty recognisers in `mapping.py` (P)
-  - Public `do[A-Z]...` methods on exposed types or with Stapler-typed or `@QueryParameter` parameters; Jetty
-    `AbstractHandler`, `HttpServlet`, JAX-RS resources; evidence strings; `public` only for `UnprotectedRootAction`
-  - Done when `tests/test_mapping_frameworks.py` names the entries of a fixture Descriptor, rejects a private
-    helper named `doX`, and the existing mapping tests still pass
-  - _Requirements: 1.1, 1.6, 1.7, 1.8_
-  - _Boundary: mapping_
-- [x] 2.2 Symfony, Livewire and Laravel controller, Remix export and Tornado recognisers in `mapping.py` (P)
-  - Done when fixture files of each shape yield `route` entries with evidence and the negative fixtures yield none
-  - _Requirements: 1.2, 1.3, 1.4, 1.5, 1.7, 1.8_
-  - _Boundary: mapping_
+- [x] 1. Baseline paths and checker premise
+- [x] 1.1 Add bounded caller-index paths with concrete hop records
+  - Delivered depth/fan-out traversal, entry stopping, file-qualified hops and unreached targets.
+  - Baseline fixtures cover depth, fan-out, deduplication and multiple same-name files.
+  - The final call semantics are superseded by tasks 8-9.
+  - _Requirements: 3.1, 3.9, 3.10_
+  - _Boundary: Concrete Paths_
+- [x] 1.2 Add the opt-in recognised-entry-is-protected premise
+  - Existing checker defaults remain unchanged; prover evidence identifies the premise.
+  - _Requirements: 4.6_
+  - _Boundary: Obligation Checker_
 
-- [ ] 3. Enforcement witnesses and facts
-- [x] 3.1 `semantic/obligations/enforcement.py` producing router and decorator `Discharge` witnesses (P)
-  - Laravel route middleware and controller `middleware`/`authorizeResource`; Symfony `IsGranted`, `Security`,
-    security.yaml `access_control`; Tornado `authenticated`; names listed in the facts headers
-  - Done when `tests/test_obligation_enforcement.py` shows a guarded Laravel route, a Symfony attribute and a
-    Tornado decorator each produce one witness that `OrderDominance` accepts for the handler's operation
-  - _Requirements: 2.1, 2.2, 2.5, 2.6_
-  - _Boundary: obligations.enforcement_
-- [ ] 3.2 Operation and discharger rows for the pool's shapes in `ruleset/obligations/{java,php,python,typescript}.toml` (P)
-  - Java: credential lookups and outbound connection tests in `doTestConnection`-style handlers, item reads and
-    writes, `checkPermission`/`checkAnyPermission` as path guards, `hasPermission` as ownership check;
-    Remix: session requirements as path guards, record reads by request id as protected reads needing
-    `ownership_check`; Tornado: handler `open`/`get` as entries needing `path_guard`; Jetty service start as
-    privileged action. Every name checked in the clones or documentation, said in the header
-  - Done when `tests/test_obligation_facts.py` loads the files and one operation and one discharger per
-    language resolve
-  - _Requirements: 2.3, 2.4, 2.7_
-  - _Boundary: ruleset/obligations_
+- [x] 2. Baseline entry recognition
+- [x] 2.1 Add the first Java entry recognisers and evidence
+  - Delivered development cases for declared web methods, servlets, resources and handlers.
+  - _Requirements: 1.1, 1.5_
+  - _Boundary: Mapping_
+- [x] 2.2 Add the initial PHP, JavaScript, TypeScript and Python entry recognisers
+  - Delivered positive and negative fixture coverage with entry evidence.
+  - _Requirements: 1.1, 1.5_
+  - _Boundary: Mapping_
 
-- [x] 3.3 Handler-named operations: `handlers` and `framework` fields in the facts loader, `find_operations(..., handlers_of=)`, Stapler form-validation rows in `java.toml`, Tornado handler rows in `python.toml`, Remix action rows in `typescript.toml`
-  - Done when `tests/test_obligation_facts.py` loads a handler-named row, `tests/test_obligation_operations.py`
-    (or the existing operations test file) yields the operation at the declaration line only for listed
-    handlers, and the prover smoke on the 23 fixes reaches and checks the Jenkins form-validation methods
-  - _Requirements: 2.8_
-  - _Boundary: obligations.facts, obligations.operations_
+- [x] 3. Baseline enforcement and operation facts
+- [x] 3.1 Add route-, declaration- and policy-scoped enforcement witnesses
+  - Delivered initial external-handler witnesses and integration fixtures.
+  - _Requirements: 2.2, 2.4_
+  - _Boundary: Enforcement Adapter_
+- [x] 3.2 Close the unfinished per-target fact inventory as superseded
+  - The partially completed inventory is not treated as complete implementation.
+  - Tasks 11.3-11.7 replace it with label-blind acquisition and promoted target knowledge.
+  - _Requirements: 2.1, 2.2, 2.9, 2.10_
+  - _Boundary: Target Knowledge_
+- [x] 3.3 Add handler-named operation facts
+  - Delivered opt-in handler operations at declaration lines for recognised entries.
+  - _Requirements: 2.3_
+  - _Boundary: Fact Interpreter_
 
-- [x] 4. The prover
-- [x] 4.1 `hunt/prover.py`: `prove_change` over the hunter `Context`, `Coverage`, findings as hunt defects
-  - Touched functions from head lines, build output left out, targets include direct callees holding operations,
-    IRs of hop files passed to the checker, extra witnesses from enforcement, coverage counts by reason, no model
-  - Done when `tests/test_hunt_prover.py` shows: an unguarded Stapler handler calling `lookupCredentials` gives
-    one finding with entry, hops and missing `path_guard`; a `checkPermission` above the call gives none; a
-    guarded Laravel route gives none; an unrecognised framework gives coverage only; the finding dict has
-    `path`, `line`, `family`, `function`, `evidence`, `id`
-  - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 6.2, 7.1, 8.1, 8.2_
-  - _Depends: 1.1, 2.1, 3.1, 3.2_
+- [x] 4. Baseline prover, traces and structural control flow
+- [x] 4.1 Integrate entries, paths, operations and witnesses in the deterministic prover
+  - Delivered hunt-defect findings and failure-visible baseline coverage with no model calls.
+  - Final three-way judgment is superseded by task 10.6.
+  - _Requirements: 4.7_
+  - _Boundary: Prover Integration_
+- [x] 4.2 Emit deterministic ordered traces and local argument provenance
+  - Delivered canonical text/JSON traces for discharged and unguarded baseline pairs.
+  - _Requirements: 9.1, 9.2, 9.3, 9.5_
+  - _Boundary: Canonical Trace_
+- [x] 4.3 Attach traces to prover records and findings
+  - Delivered trace references through the replay envelope.
+  - _Requirements: 8.1, 9.7_
+  - _Boundary: Prover Integration_
+- [x] 4.4 Build structural control-flow graphs
+  - Delivered branches, loops, exits, exception regions, dominators and control context.
+  - _Requirements: 10.1, 10.2, 10.3, 10.4_
+  - _Boundary: Structural CFG_
+- [x] 4.5 Add baseline CFG dominance and guard effects
+  - Delivered value-only rejection and control-context trace fields.
+  - Strict unknown semantics are superseded by task 10.1.
+  - _Requirements: 10.1, 10.2, 10.3, 10.4, 10.5_
+  - _Boundary: CFG Dominance_
 
-- [x] 4.2 `semantic/obligations/trace.py`: `Guard`, `Hop`, `Trace`, `text()` and `record()`; argument provenance through the IR's binds within each hop, forwarded along the path
-  - Done when `tests/test_obligation_trace.py` serialises a three-hop fixture deterministically (text and JSON),
-    traces an argument from an entry parameter to `request_input`, from a literal to `constant`, from an identity
-    source to `authenticated_context`, and marks an unfollowable value `unknown`
-  - _Requirements: 9.1, 9.3, 9.4, 9.5_
-  - _Boundary: obligations.trace_
-- [x] 4.3 The prover emits a trace per examined pair (discharged and unguarded), the record and the defect carry them
-  - Done when `tests/test_hunt_prover.py` shows a discharged pair and an unguarded pair each produce one trace with
-    the verdict, the unguarded finding references its trace, and `prover_arm` records carry `traces`
-  - _Requirements: 9.1, 9.2, 9.5, 9.6_
-  - _Depends: 4.2_
+- [x] 5. Baseline replay arm
+  - Delivered checkpointed records, standard metrics, coverage tables, zero-byte refusal and immutable records.
+  - _Requirements: 5.1, 5.2, 5.4, 5.6_
+  - _Boundary: Development Runner_
 
-- [x] 4.4 `semantic/cfg.py`: structural control-flow graph per function from the syntax tree, dominators, control context (P)
-  - Java, PHP, Python, JavaScript and TypeScript constructs of requirement 10.1; `cfg_unavailable` otherwise
-  - Done when `tests/test_semantic_cfg.py` shows, per language, that a guard before an unconditional return
-    dominates, a guard inside an if-branch does not dominate a statement after the branch, a guard inside a
-    loop body does not dominate a statement after the loop, a try/catch is represented, and context reports
-    conditions and loops
-  - _Requirements: 10.1, 10.2, 10.4_
-  - _Boundary: semantic.cfg_
-- [x] 4.5 `obligations/cfg_dominance.py::CfgDominance`, failure effects, and the trace's control components; the prover selects it; Java parameter names and handler-operation arguments cleaned
-  - Done when `tests/test_obligation_cfg_dominance.py` shows a value-only predicate does not discharge while the
-    same predicate guarding a throw does; a branch-only guard yields `some_paths` and no discharge; the prover
-    smoke on the 23 fixes keeps or raises its recall; `tests/test_mapping_frameworks.py` shows Java parameter
-    names without annotations
-  - _Requirements: 10.2, 10.3, 10.4, 10.5, 10.6, 10.7_
-  - _Depends: 4.4_
+- [x] 6. Baseline development measurement
+  - Measured 23 repositories and 483 changes: 65.2% fix-push recall, 15.0 flagged ordinary pushes per 100,
+    0 instrument failures; recorded at benchmarks/measurements/2026-10-28-access-control-prover/.
+  - The population is development evidence only and remains immutable.
+  - _Requirements: 5.2, 5.7, 12.9_
+  - _Boundary: Development Measurement_
 
-- [ ] 5. The arm
-- [x] 5.1 `benchmarks/valid/prover_arm.py`: run over a pool slice with checkpoints, summarise with the valid metrics
-  - Record envelope copied from `hunter_arm`; instrument fields; resume; `summary.json` with recall (pushes and
-    locations, Wilson), false alarms per 100, precision, instrument failures, seconds per change and the list
-    over 120 s, per-repository and per-framework coverage, `uncovered` repositories; refuse on zero-byte reads
-  - Done when `tests/test_prover_arm.py` runs a two-change fixture pool end to end and the summary carries
-    every field above; a record with zero bytes read makes `summarize` refuse
-  - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 6.1, 7.2_
-  - _Depends: 4.1_
+## Amendment implementation
 
-- [ ] 6. Measurement (maintainer, not Codex)
-- [x] 6.1 Run the arm on `benchmarks/valid/train/pool-train.toml` over the training clones; write
-  `benchmarks/measurements/<date>-access-control-prover/` with NOTES, summary, coverage table; compare with the
-  DSPy and hunter arms of the same pool
-  - _Requirements: 5.2, 5.3, 7.2_
-  - Done 2026-10-28: `benchmarks/measurements/2026-10-28-access-control-prover/` -- 23-repo
-    pool (483 changes, 93 locations), recall 65.2% (Wilson 44.9-81.2), 15.0 FA/100, 0
-    instrument failures; on the 5 repos shared with the 2026-10-14 hunt arms, prover 4/5 vs
-    DSPy 2/5 and hunter 2/5 (union 4/5), including trigger.dev which neither arm found.
+- [ ] 7. Abstract evidence foundation
+- [ ] 7.1 Implement the evidence-relation algebra and completeness value
+  - Encode the specified precision order, complete join table, dimension conjunction and witness aggregation.
+  - Preserve every incompleteness reason deterministically and deduplicate reasons without losing stage identity.
+  - Done when exhaustive table tests and algebraic law tests pass for every relation pair.
+  - _Requirements: 11.1, 11.6, 11.7_
+  - _Boundary: Abstract Evidence Domain_
+- [ ] 7.2 Add resource abstract values and operation-fact fields
+  - Represent exact resources, finite alias sets, request-global scope and unknown resources.
+  - Extend operation facts to state when a request-global guard is sufficient.
+  - Done when resource parsing and joins distinguish exact, alias, global and unknown fixtures.
+  - _Requirements: 2.1, 2.5, 2.6, 2.7, 11.1_
+  - _Boundary: Resource Domain_
+  - _Depends: 7.1_
+- [ ] 7.3 Add authority abstract values and promoted implication facts
+  - Represent exact, finite and unknown authorities separately from resources.
+  - Load authority implications from promoted facts and retain the supporting fact identifier.
+  - Done when sufficient, insufficient and unknown authority fixtures produce the specified relations.
+  - _Requirements: 2.1, 2.2, 2.5, 2.7, 2.8, 11.1_
+  - _Boundary: Authority Domain_
+  - _Depends: 7.1_
+- [ ] 7.4 Extend judgment, trace and coverage contracts with abstract state
+  - Add three-way judgments, completeness and evidence relations without changing legacy defaults.
+  - Add canonical serialization for resource and authority relations and all incompleteness reasons.
+  - Done when old trace fixtures remain stable in legacy mode and new fixtures round-trip all abstract fields.
+  - _Requirements: 7.1, 7.2, 7.5, 7.6, 9.1, 9.2, 9.6_
+  - _Boundary: Judgment Contracts, Canonical Trace_
+  - _Depends: 7.1, 7.2, 7.3_
 
-- [ ] 7. Resolution foundation `[2026-10-29]`
-- [ ] 7.1 `CallSite` receiver capture: `receiver: str | None` field on `semantic/ir.py`'s `CallSite`, captured
-  in `semantic/cst.py` call extraction (receiver expression text for `$obj->method` and `x.y.z` shapes; `None`
-  for bare calls); every existing consumer unchanged
-  - Done when IR fixtures show receiver text carried through call extraction for PHP/TS shapes, `CallSite` still
-    constructs without it for existing callers, and all existing IR/cst tests pass unchanged
-  - _Requirements: 3.9_
-  - _Boundary: semantic.ir, semantic.cst_
-- [ ] 7.2 (P) `obligations.resolution`: `ClassRecord`, `class_table(texts, language)` cached per change on the
-  hunter `Context`, `qualify(receiver, enclosing_class, name, arity, table)` returning `Class.name`,
-  `Class.name/arity`, or the bare name; base-class attachment rule (attaches to extending classes only)
-  - Done when `tests/test_obligation_resolution.py` covers: two same-name methods on different classes give
-    distinct keys; same name different arity gives distinct keys; an unresolvable receiver gives the bare name
-    with `receiver_unresolved` counted; an abstract-base method attaches to a subclass call and not to an
-    unrelated class
-  - _Requirements: 3.9_
-  - _Boundary: obligations.resolution, hunt.producers (Context cache field only)_
-
-- [ ] 8. Guard binding and policy witnesses `[2026-10-29]`
-- [ ] 8.1 (P) Resource-bound witnesses: optional `resource` field on `Discharge` (additive, default `None`);
-  enforcement mints tokens (route path for router middleware, attribute/subject for a policy-layer guard,
-  `None` for auth-class guards); policy-layer witness scoped to the action with the attribute or subject as
-  resource (a policy decision -- voter, capability check, or equivalent -- reachable from the action or a
-  function it calls). Which constructs count as policy decisions comes from the facts rows (task 10), never
-  engine code
-  - Done when `tests/test_obligation_enforcement.py` shows a resource-mismatch fixture (guard binds another
-    object's resource, the operation stays undischarged under `resource_bound`) and a policy-witness fixture
-    yielding a witness scoped to the action with the attribute as resource
-  - _Requirements: 2.10_
-  - _Boundary: obligations.enforcement, obligations.operations (dataclass field only)_
-- [ ] 8.2 Checker opt-in `resource_bound` and all-kind caller-hop re-judgement in `check.py`'s `_on_caller_hop`:
-  a witness with `resource` set suppresses only operations whose resource token matches; every discharger kind
-  is re-judged on earlier hops at the hop's call line; `guards_before_call` participates in the re-judgement
-  - Done when the existing checker tests pass unchanged and new tests show: keyword off keeps today's behaviour
-    (including the `assume_entries_protected`-gated hop re-judgement); keyword on, a mismatched-resource witness
-    does not suppress; a guard one call deeper than the handler discharges; a guard dominating before a hop
-    call yields no finding
-  - _Requirements: 2.10, 3.8, 3.10_
-  - _Boundary: obligations.check (opt-in only)_
+- [ ] 8. Stable symbols and conservative call resolution
+- [ ] 8.1 Capture call receiver and arity evidence in the semantic IR
+  - Preserve receiver expression and argument count for supported syntax while keeping existing constructors valid.
+  - Done when language fixtures retain receiver and arity evidence without regressing existing IR consumers.
+  - _Requirements: 3.2, 3.3_
+  - _Boundary: Semantic IR_
+- [ ] 8.2 Build stable declaration identities and the per-change symbol index
+  - Identify declarations by module, enclosing type, name and available signature.
+  - Cache the symbol and inheritance indexes on the per-change context.
+  - Done when duplicate type names, same-name methods and overloads receive stable distinct identities.
+  - _Requirements: 3.2, 3.5, 6.2_
+  - _Boundary: Symbol Index_
   - _Depends: 8.1_
+- [ ] 8.3 Resolve exact, finite-candidate and unresolved call targets
+  - Return complete exact targets, incomplete finite candidate sets, or unresolved results with reasons.
+  - Remove global bare-name fallback from prover-mode resolution.
+  - Done when ambiguity never merges methods and unresolved calls cannot produce complete paths.
+  - _Requirements: 3.3, 3.4, 11.1, 11.6_
+  - _Boundary: Call Resolution_
+  - _Depends: 8.2_
+- [ ] 8.4 Resolve inheritance and base-declaration attachment
+  - Attach base operations and entries only through repository-defined descendant relations.
+  - Preserve ambiguous inheritance as incomplete rather than projecting to unrelated routes.
+  - Done when subclass and unrelated-class fixtures produce distinct attachments and judgments.
+  - _Requirements: 3.5_
+  - _Boundary: Call Resolution_
+  - _Depends: 8.2, 8.3_
 
-- [ ] 9. Recogniser registry `[2026-10-29]`
-- [ ] 9.1 `mapping/` package with a recogniser registry (Strategy pattern): registry table consulted by the
-  language dispatch in `mapping.py`; the registration-sites strategy lands first -- call-site handler
-  registration resolved through `resolution.class_table`, entries at the registered class's request-method
-  declarations with `registered_by` evidence, registration-site vocabulary carried as fact data (task 10), not
-  engine code; the recogniser returns unresolved registrations alongside the entries so the prover can count
-  them
-  - Done when `tests/test_mapping_registration_sites.py` shows a registration-site fixture (vocabulary from
-    data rows) yielding entries at the registered class's file with registration evidence, an unresolved
-    registration returned as such (no entry), `mapping.py`'s dispatch consults the registry, and the existing
-    mapping tests pass unchanged
-  - _Requirements: 1.9_
-  - _Boundary: mapping_
-  - _Depends: 7.2_
-- [ ] 9.2 Migrate the first legacy recogniser family (Stapler) from `mapping.py`'s inline blocks into a
-  `mapping/` strategy module, proving the migration path; remaining families migrate per the breadth map, not
-  this task
-  - Done when Stapler entries come from `mapping/stapler.py` through the registry with the existing Stapler
-    tests unchanged, and `mapping.py` contains no Stapler-specific regex
-  - _Requirements: 1.1_
-  - _Boundary: mapping_
+- [ ] 9. Interprocedural summaries and concrete paths
+- [ ] 9.1 Extract local function summaries
+  - Collect each function's operations, witnesses, resolved calls and local completeness without traversing callers.
+  - Done when summaries are deterministic and contain no target names outside fact identifiers.
+  - _Requirements: 3.1, 3.6, 11.7_
+  - _Boundary: Function Summaries_
+  - _Depends: 7.4, 8.3_
+- [ ] 9.2 Compute monotone summaries over recursive call components
+  - Iterate finite summary sets over strongly connected components until stable.
+  - Done when direct recursion and mutual recursion terminate with stable accumulated evidence.
+  - _Requirements: 3.7, 11.6_
+  - _Boundary: Function Summaries_
+  - _Depends: 9.1_
+- [ ] 9.3 Add summary caches and explicit exploration cutoffs
+  - Reuse summaries per change and carry depth, fan-out, deadline and other cutoff reasons into completeness.
+  - Done when each cutoff fixture returns accumulated evidence plus the exact incomplete reason.
+  - _Requirements: 3.8, 6.2, 6.3, 7.2_
+  - _Boundary: Function Summaries, Context Cache_
+  - _Depends: 9.2_
+- [ ] 9.4 Materialise exact evidence paths from summaries
+  - Emit concrete entry-to-operation hops only through exact target edges.
+  - Preserve every complete chain independently and retain candidate-edge diagnostics separately.
+  - Done when guarded and unguarded paths to one operation remain separate and candidate edges never complete a path.
+  - _Requirements: 3.9, 3.10, 11.4, 11.5_
+  - _Boundary: Concrete Paths_
+  - _Depends: 9.3_
 
-- [ ] 10. Fact initialization job `[2026-10-29]`
-- [ ] 10.1 (P) `tools/fact_init.py`: the one-time initialization pass per target. Extraction mode walks the
-  legacy `mapping.py` blocks and current TOML rows and extracts embedded target vocabulary into the acquirable
-  structures. Proposal mode takes an LLM or maintainer proposal for a target's vocabulary (entry shapes,
-  registration sites, handler-name families, policy-decision constructs). The gate: every row passes the facts
-  header discipline (source, version, region) and engine verification admits it (the row must match what the
-  target's code says); only then promoted to a closed row
-  - Done when `tests/test_fact_init.py` shows: extraction mode recovers the vocabulary of one legacy family
-    into rows; a proposal matching a fixture repository is promoted; a proposal the fixture contradicts is
-    rejected with the reason; nothing lands in the TOML files without passing the gate
-  - _Requirements: 2.7_
-  - _Boundary: tools.fact_init, ruleset/obligations (rows it produces)_
-- [ ] 10.2 First initialization run for the training pool's target families: produce the handler-name rows for
-  webhook/build-trigger and data-exposure shapes, the registration-site vocabulary, and the policy-decision
-  constructs, as data rows admitted through the gate (names verified against the pool clones; header updated)
-  - Done when the pool's gate-1 miss shapes (Stapler webhook/data-exposure handlers, programmatic registration,
-    policy voters) are all carried as rows with headers, no engine module names a target, and
-    `tests/test_obligation_facts.py` loads each family
-  - _Requirements: 2.7, 2.9, 2.10, 1.9_
-  - _Boundary: ruleset/obligations_
-  - _Depends: 10.1, 9.1, 8.1_
+- [ ] 10. Strict authorization judgment
+- [ ] 10.1 Return abstract dominance relations without prover fallback
+  - Return MUST, MAY, NO or UNKNOWN with guard effect and control context.
+  - Keep legacy order dominance unchanged, but return UNKNOWN in prover mode for unavailable graphs or line mappings.
+  - Done when no prover fixture is discharged or flagged solely through textual-order fallback.
+  - _Requirements: 10.1, 10.2, 10.3, 10.4, 10.5, 10.6, 10.7_
+  - _Boundary: CFG Dominance_
+  - _Depends: 7.1_
+- [ ] 10.2 Match witness kind, scope and resource
+  - Apply request-global sufficiency only when the operation fact declares it.
+  - Return NO for definite mismatch and UNKNOWN for unresolved resource compatibility.
+  - Done when same-resource, alias, global, mismatch and unknown fixtures match the design algebra.
+  - _Requirements: 2.1, 2.2, 2.5, 2.6, 2.7, 11.1_
+  - _Boundary: Witness Matcher_
+  - _Depends: 7.2, 10.1_
+- [ ] 10.3 Match authority and promoted implications
+  - Apply only promoted authority implications and preserve their evidence.
+  - Return NO for insufficient authority and UNKNOWN when compatibility cannot be decided.
+  - Done when stronger, weaker, unrelated and unknown authorities produce the expected relations.
+  - _Requirements: 2.2, 2.5, 2.7, 2.8, 11.1_
+  - _Boundary: Witness Matcher_
+  - _Depends: 7.3, 10.1_
+- [ ] 10.4 Compute one judgment per complete or diagnostic path
+  - Conjoin witness dimensions, aggregate witnesses per obligation and apply the mixed-obligation rule.
+  - Emit discharged only for all-MUST, indeterminate for any MAY/UNKNOWN, and unguarded for at least one NO.
+  - Done when MUST/NO, MAY/NO, UNKNOWN and empty-witness fixtures match the specified truth table.
+  - _Requirements: 4.1, 4.2, 4.3, 11.2, 11.3, 11.4_
+  - _Boundary: Pair Judgment_
+  - _Depends: 10.2, 10.3_
+- [ ] 10.5 Aggregate multiple paths in the opt-in checker mode
+  - Return unguarded if any complete path is unguarded, discharged only for complete all-discharged enumeration,
+    and indeterminate otherwise.
+  - Keep the legacy checker API and defaults unchanged.
+  - Done when mixed guarded, unguarded and incomplete path sets produce the specified aggregate.
+  - _Requirements: 3.10, 4.1, 4.2, 4.3, 4.4, 4.5, 11.5_
+  - _Boundary: Obligation Checker_
+  - _Depends: 9.4, 10.4_
+- [ ] 10.6 Integrate three-way judgments into the prover
+  - Emit hunt findings only for unguarded pairs and send no indeterminate pair to the proof arm.
+  - Carry all judgments, completeness reasons, resources, authorities and stable identifiers in traces and coverage.
+  - Record stage-specific exceptions without folding them into quiet coverage.
+  - Done when end-to-end fixtures distinguish unguarded, discharged and indeterminate records and findings.
+  - _Requirements: 4.4, 4.5, 4.6, 4.7, 7.1, 7.2, 7.3, 7.4, 7.5, 7.6, 8.1, 8.2, 8.3, 9.1, 9.2, 9.3, 9.4, 9.5, 9.6, 9.7_
+  - _Boundary: Prover Integration, Canonical Trace_
+  - _Depends: 7.4, 9.4, 10.5_
 
-- [ ] 11. Prover resolution integration `[2026-10-29]`
-- [ ] 11.1 Target enumeration joins callees by qualified key with a `down_depth` budget (default 2, sharing the
-  fan-out bound) so operations one call deeper are reached; the `callers` adapter keeps only callers whose
-  receiver binds to the target's class or subclass; unresolvable receivers fall back to the bare name and are
-  counted `receiver_unresolved`; unresolved registrations from mapping are counted `registration_unresolved` in
-  `Coverage`
-  - Done when `tests/test_hunt_prover.py` shows: an operation one call deeper than the handler is reached and
-    checked; a same-name method on another class yields a separate verdict (no cross-contamination); coverage
-    carries `receiver_unresolved` when a receiver does not resolve and `registration_unresolved` when a
-    registration target is outside the repository
-  - _Requirements: 3.7, 3.9_
-  - _Boundary: hunt.prover_
-  - _Depends: 7.1, 7.2, 9.1_
+- [ ] 11. Target knowledge registry and acquisition
+- [ ] 11.1 (P) Add the entry-recognition strategy registry
+  - Route mapping dispatch through one registry without embedding target names in engine modules.
+  - Done when a fixture strategy registers, runs and records its strategy identifier and evidence.
+  - _Requirements: 1.1, 1.5, 1.7_
+  - _Boundary: Mapping Registry_
+  - _Depends: 7.1_
+- [ ] 11.2 Add the generic call-site registration strategy
+  - Resolve repository-defined registered handlers through stable symbols and return unresolved registration coverage.
+  - Done when exact and unresolved registration fixtures produce entries or coverage respectively.
+  - _Requirements: 1.2, 1.3, 1.4, 1.5, 1.6_
+  - _Boundary: Registration Adapter_
+  - _Depends: 8.4, 11.1_
+- [ ] 11.3 (P) Extract existing target knowledge into candidate records
+  - Read legacy recognition strategies and current facts without changing promoted outputs.
+  - Done when extraction produces deterministic candidate records with source/version/region evidence.
+  - _Requirements: 2.9_
+  - _Boundary: Fact Initialization_
+  - _Depends: 7.1_
+- [ ] 11.4 Verify and promote proposed target knowledge
+  - Accept source- or approved-documentation proposals, reject contradictions, and write only verified outputs.
+  - Done when matching proposals promote and contradicted or evidence-free proposals leave promoted knowledge unchanged.
+  - _Requirements: 2.9, 2.10_
+  - _Boundary: Fact Initialization_
+  - _Depends: 11.3_
+- [ ] 11.5 Record acquisition provenance and enforce label-isolated mode
+  - Persist input revision, evidence digest, accepted/rejected proposals and output digest.
+  - Reject admission acquisition inputs containing vulnerability, fix-location or ordinary-change labels.
+  - Done when changed output after labels are opened marks the population spent.
+  - _Requirements: 12.1, 12.2, 12.3_
+  - _Boundary: Fact Initialization, Admission Guard_
+  - _Depends: 11.4_
+- [ ] 11.6 Migrate one legacy recogniser through the registry
+  - Move one development-evidence family out of inline dispatch without changing its entries.
+  - Done when old fixtures stay stable and inline target-specific matching is removed for that family.
+  - _Requirements: 1.1, 1.7_
+  - _Boundary: Mapping Registry_
+  - _Depends: 11.1_
+- [ ] 11.7 Run the first label-blind development acquisition
+  - Produce registration, handler-operation, enforcement, resource and authority knowledge through the gate.
+  - Treat the output as development data and record its acquisition digest; do not encode names in engine modules.
+  - Done when promoted outputs load, rejected proposals have reasons, and the old unfinished task 3.2 has no residue.
+  - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 2.9, 2.10, 5.7, 12.9_
+  - _Boundary: Target Knowledge_
+  - _Depends: 10.3, 11.2, 11.5, 11.6_
 
-- [ ] 12. Arm and coverage `[2026-10-29]`
-- [ ] 12.1 (P) Recognition or resolution exceptions inside `prove_change` are recorded under
-  `error:<exception class name>` reason keys in coverage, never folded into `framework_unrecognised` or any
-  other quiet reason
-  - Done when a fixture raising inside a recognition or resolution pass counts under `error:<class>` and
-    `framework_unrecognised` stays empty for that fixture
-  - _Requirements: 7.3_
-  - _Boundary: hunt.prover_
-- [ ] 12.2 (P) Stale-anchor refusal in `prover_arm._prove`: every returned finding's `path` is validated
-  against the files actually read; an absent path marks the record `instrument_failure` with reason
-  `stale_anchor` and findings cleared; `summarize` refuses such runs listing the record ids
-  - Done when `tests/test_prover_arm.py` shows a fixture finding on an absent path makes `_prove` mark the
-    record and makes `summarize` refuse, mirroring the zero-byte refusal
-  - _Requirements: 5.6_
-  - _Boundary: prover_arm_
+- [ ] 12. Development and admission runners
+- [ ] 12.1 Materialise and verify baseline and candidate analyzer bundles
+  - Resolve analyzer revisions, fact sets, acquisition records and configurations to immutable digest-verified inputs.
+  - Refuse comparison when any bundle artifact is unavailable or mismatched.
+  - Done when the immutable baseline and a fixture candidate bundle can be reconstructed exactly.
+  - _Requirements: 5.1, 5.5, 12.1_
+  - _Boundary: Run Manifests_
+- [ ] 12.2 Add record provenance, stage funnel and judgment transitions
+  - Persist analyzer, fact, acquisition, configuration, population and input digests per record.
+  - Summarise every analysis stage, completeness reason and transition between compared judgments.
+  - Done when a fixture run accounts for every record from entry recognition through final judgment.
+  - _Requirements: 5.1, 5.3, 5.4, 7.1, 7.6, 9.7, 11.8_
+  - _Boundary: Development Runner_
+  - _Depends: 10.6, 12.1_
+- [ ] 12.3 Enforce instrument and hard runtime gates
+  - Preserve zero-byte and stale-anchor refusal and add stage-aware deadline records.
+  - Fail the run if any measured change exceeds 120 seconds; never summarize the overrun as a passing result.
+  - Done when zero-byte, stale-anchor, deadline and 121-second fixtures all refuse the summary.
+  - _Requirements: 5.6, 6.1, 6.3_
+  - _Boundary: Runner Gates_
+  - _Depends: 12.2_
+- [ ] 12.4 Register the four-arm development comparison
+  - Run baseline/candidate analyzer crossed with baseline/candidate facts over identical inputs.
+  - Report metric deltas, stage-funnel deltas and judgment transitions without admission language.
+  - Done when fixture arms isolate a fact-only lift from an analyzer-only lift.
+  - _Requirements: 5.2, 5.5, 5.7, 11.8_
+  - _Boundary: Development Runner_
+  - _Depends: 12.1, 12.2, 12.3_
+- [ ] 12.5 Consume and validate an externally reviewed admission manifest
+  - Accept only a manifest produced by valid-detection-benchmark with review, isolation and immutable digest fields.
+  - Reject label exposure, changed acquisition output or a spent population.
+  - Done when valid, malformed, exposed and spent manifests produce deterministic accept/refuse results.
+  - _Requirements: 12.1, 12.2, 12.3, 12.6, 12.8_
+  - _Boundary: Admission Runner_
+  - _Depends: 11.5, 12.3_
+- [ ] 12.6 Add paired scoring and the admission report
+  - Score vulnerable/fixed twins, reviewed ordinary changes, indeterminate rate, coverage, runtime and instruments.
+  - Preserve sample counts and uncertainty intervals and return NO-GO on any pre-registered gate failure.
+  - Done when fixture pairs detect vulnerable-only, fixed-side regression and mislabeled-negative cases.
+  - _Requirements: 5.2, 12.4, 12.5, 12.7, 12.8, 12.9_
+  - _Boundary: Admission Runner_
+  - _Depends: 12.5_
 
-- [ ] 13. Measurement after the amendment (maintainer, not Codex) `[2026-10-29]`
-- [ ] 13.1 Re-run the arm on `benchmarks/valid/train/pool-train.toml` after tasks 7-12 land; write
-  `benchmarks/measurements/<date>-access-control-prover-v2/` with NOTES, summary, coverage table; compare
-  against the 2026-10-28 gate 1 run (recall 65.2%, FA 15.0/100) on the same pool
-  - _Requirements: 5.2, 5.3, 7.2_
+- [ ] 13. Cross-cutting validation and measurements
+- [ ] 13.1 Validate abstract-domain and metamorphic laws
+  - Cover the full join table, conjunction, witness aggregation, monotonicity and mixed-obligation rule.
+  - Prove that type renaming preserves a judgment and adding ambiguity can only preserve it or make it indeterminate.
+  - Done when property and fixture tests pass deterministically across repeated runs.
+  - _Requirements: 11.2, 11.3, 11.4, 11.5, 11.6, 11.7_
+  - _Boundary: Abstract Evidence Validation_
+  - _Depends: 10.5_
+- [ ] 13.2 (P) Validate cross-component analysis scenarios
+  - Exercise helper guards, registration entries, base attachment, resource mismatch, authority insufficiency,
+    ambiguous calls, unavailable CFGs, recursion and budget cutoff.
+  - Done when every scenario yields the expected trace, coverage reasons and three-way judgment.
+  - _Requirements: 1.1, 1.2, 1.3, 2.1, 2.2, 2.5, 2.7, 3.4, 3.5, 3.6, 3.7, 3.8, 4.1, 4.2, 4.3, 10.6_
+  - _Boundary: Prover Integration Validation_
+  - _Depends: 10.6, 11.7_
+- [ ] 13.3 Run the four-arm development regression
+  - Run all four registered arms on the immutable current development population after proving nonzero input reads.
+  - Publish analyzer/fact attribution, stage funnel, three-way judgments, budget result and comparison to the
+    2026-10-28 baseline; label the result development-only.
+  - Done when all arm records and summary digests are complete and no admission claim appears.
+  - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 6.1, 7.3, 11.8, 12.9_
+  - _Boundary: Development Measurement_
+  - _Depends: 12.4, 13.1, 13.2_
+- [ ] 13.4 Run admission from an externally prepared untouched manifest
+  - Consume a reviewed manifest from valid-detection-benchmark after analyzer and facts are frozen.
+  - Verify label isolation, paired vulnerable/fixed behavior, reviewed ordinary labels and every admission gate.
+  - Done when the report returns an evidence-backed GO or NO-GO without modifying facts, strategies or thresholds.
+  - _Requirements: 12.1, 12.2, 12.3, 12.4, 12.5, 12.6, 12.7, 12.8, 12.9_
+  - _Boundary: Admission Measurement_
+  - _Depends: 12.6, 13.3_
 
-### Task constraints `[2026-10-29]`
+## Task constraints
 
-From `.kiro/steering/code-standards.md`, binding on every task above:
+- Complexity: McCabe at most 10 per touched function, at most 50 logical lines per function and 400 per new module.
+- Engine/target split: abstract-domain, resolution, summary, judgment and trace modules contain no target names.
+- Target knowledge: names enter only through promoted facts or registered target-aware strategies.
+- Compatibility: legacy checker defaults and completed baseline records remain unchanged.
+- Instrument rule: validation must prove nonzero input reads before interpreting any clean or zero result.
 
-- Complexity caps: McCabe <= 10 per function; <= 50 LLOC per function; <= 400 LLOC per new module. A task is
-  not done while a function it touched exceeds a cap; split the function.
-- Pattern discipline: tasks 9.1-9.2 implement Strategy + Registry; task 10.1 implements the acquisition
-  pipeline behind the Interpreter discipline (rows are the language); task 11.1 is the Adapter at the
-  engine seam. New recognisers land in `mapping/` strategy modules, never as `mapping.py` blocks.
-- Idiomatic naming: names state what a value semantically is in the pipeline vocabulary; collections name
-  their elements (`entry_point_records`, `judgments_by_key`); booleans are predicates; no abbreviations like
-  `eps`, `recs`, `d2`.
+## Baseline implementation record
 
-
-## Implementation Notes
-
-- Delivery A (2026-10-14) implements paths, the opt-in checker premise, Stapler/Jetty/Servlet/JAX-RS
-  entries, the Java facts, the deterministic prover and the checkpointed arm. No commit was made.
-- Task 3.2 stays open for the PHP, Python and TypeScript facts. Task 4.1's delivery A core is delivered;
-  its full-spec checkbox stays open for delivery B's enforcement witnesses and guarded Laravel acceptance
-  case. This delivery intentionally passes `extra_witnesses=()` as required by the maintainer's brief.
-- Default checker behavior is preserved. Only opt-in checking includes a caller's statement witness,
-  using the existing dominance contract at the outgoing call site. The prover checks each complete path
-  independently so a guarded chain cannot hide an unguarded chain to the same operation.
-- Java additions were checked against actual Git HEAD source objects in the sparse training clones;
-  checked call sites are named in the Java TOML header. No network or model call was made.
-- Mapping accepts cached source texts and an opt-out from external manifest scanning. Default callers
-  retain their previous behavior; the delivery A prover uses source entries and its Context caches.
-- Delivery A review was performed in the main context because the brief forbids model calls. The exact
-  requested static gate passed (format, Ruff and mypy); the exact pytest gate passed with 112 passed,
-  zero failed, exit 0. UV_NO_SYNC=1 was set; UV_CACHE_DIR was placed under /tmp because the default
-  cache is outside the writable sandbox. The unchanged unjustified-path checker test remains intact.
-
-- Delivery B (2026-10-14) implements task 2.2's Symfony, Livewire/Laravel, Remix and Tornado
-  entries, task 3.1's scoped enforcement witnesses, task 3.3's handler facts and operation discovery,
-  and task 4.1's integration. Changes remain uncommitted as the brief requires.
-- Handler facts are explicitly opt-in through file-qualified handler maps in the checker. The prover
-  uses handler obligations where a Stapler or Tornado entry reaches no listed call operation; existing
-  call-site findings and Delivery A tests remain unchanged. Remix retains its handler operation even
-  when listed calls exist, and independently requires a path guard and an ownership check. Public
-  access waives only the path guard for these handler facts. The checker default is unchanged.
-- The prover supplies a local dominance adapter for handler facts: it checks guards within the handler
-  body while reporting the operation at its declaration. A final ordinary return does not turn a bare
-  permission predicate into a guard. OrderDominance and the existing producers and arms are unchanged.
-- Remix arrow exports are named locally in the prover's IR copy, including TSX route modules. Symfony
-  recognises positional and named route paths and class prefixes. Tornado recognises local subclasses
-  and the pool terminal's terminado base when it explicitly invokes Tornado's WebSocketHandler method.
-- PHP CST Point.row access crashed on the larger Kimai controller with the installed native parser.
-  New recognisers derive line numbers from byte offsets instead; a fixture past line 320 and the
-  23-change source smoke complete without a crash. Existing CST code was not modified.
-- Task 3.2 remains partially complete: TypeScript adds clone-verified requireUserId and
-  authenticateApiRequest, retaining requireUser and authorize; PHP rows are retained and their header
-  records enforcement sources. Python retains the existing authenticated decorator and gains the
-  Tornado handler operation. No get_current_user fact was added: Git searches of Mage HEAD, the pool
-  revision and websocket fix 66440e4d3 found neither that API nor an authenticated decorator use, and
-  local framework documentation was unavailable. The brief forbids network access and unsourced names.
-- Review used the main-context fallback because the brief prohibits model calls. Verdict: APPROVED
-  for tasks 2.2, 3.1, 3.3 and 4.1; task 3.2 remains open for its source-verification gap. No new
-  placeholder markers, credentials, dependencies, producer edits or arm edits were introduced.
-- Fresh verification: UV_NO_SYNC=1 and UV_CACHE_DIR=/tmp/ousast-uv. The exact static gate passed:
-  ruff format --check ., ruff check ., mypy src/openultrasast (178 source files). The exact requested
-  pytest gate plus test_obligation_operations.py passed with 145 passed, zero failed, exit 0.
-  Initial missing-feature tests produced 24 failed and 14 passed; integration tests initially produced
-  eight failed and 20 passed. No test_search_* test was run.
-- A separate file-scoped smoke read immutable Git source objects for all 23 access-control changes,
-  validated their commit objects and source digests, and recorded nonzero input bytes for every change.
-  All 23 executions completed, zero errors; 16 changes checked operations and seven remained unchecked.
-  It materialised only changed source files in temporary directories, so it is not a full-repository
-  recall measurement. The maintainer-owned task 6.1 and release readiness remain unclaimed.
-
-- Delivery C (2026-10-14) implements tasks 4.2 and 4.3: ordered traces for every examined
-  path/operation pair, argument origins through local bindings and forwarded parameters, traces in
-  prover results and arm records, and trace references on unguarded findings. Existing checker
-  decisions and coverage accounting are unchanged. Declared route access is retained in the trace.
-- Delivery C review used the main context because the brief prohibits model calls. Verdict: APPROVED
-  for tasks 4.2 and 4.3. Regression cases cover unresolved collections, overwritten bindings,
-  source-name boundaries, missing IR arguments, method parameter forwarding and return-order guards.
-- Fresh delivery C verification with UV_NO_SYNC=1 and UV_CACHE_DIR=/tmp/ousast-uv: the exact
-  requested static gate passed (format, Ruff, mypy over 179 source files); the exact pytest gate
-  passed with 102 passed, zero failed, exit 0. The initial trace test failed collection because
-  trace.py did not yet exist; additional regression tests failed before their fixes. No
-  test_search_* test, network request or model call was made. Changes remain uncommitted.
+- Deliveries A-C implemented the baseline paths, recognisers, witnesses, handler facts, prover, traces and CFG with
+  static checks and focused tests passing at delivery time.
+- The full development arm then processed all 483 changes with zero instrument failures. Its maximum runtime exceeded
+  the amended hard budget, so the baseline is evidence, not an eligible arm.
+- The 2026-10-28 ablation identified call resolution, resource/authority precision and failure visibility as the
+  amendment levers. Those observations inform tasks 7-13 but are not admission labels.

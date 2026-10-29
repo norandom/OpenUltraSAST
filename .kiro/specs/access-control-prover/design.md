@@ -1,474 +1,418 @@
 # Design Document
 
 ## Overview
-**Purpose**: a deterministic prover for the access-control family: given a change checked out at head, find
-every protected operation reachable from an entry point without a check dominating the path, and say what is
-unchecked. **Users**: the maintainer, scoring it as an arm on the training pool; the pre-push hook and the proof
-arm, consuming its findings. **Impact**: adds Java and framework entry recognition to the mapper, receiver- and signature-precise call
-resolution in the obligations package `[2026-10-29]`, a path builder and enforcement witnesses in the
-obligations package, a prover over the hunter's per-change context, and a runner that scores it with the
-valid-benchmark metrics.
+The access-control prover remains a deterministic rule arm over the existing obligation checker. The amendment
+changes the semantic contract: resolution, resource matching, authority matching and dominance return abstract
+relations rather than booleans, and every examined path receives one of three judgments: `unguarded`,
+`discharged`, or `indeterminate`. A degraded instrument may reduce precision to `indeterminate`; it cannot
+manufacture either final verdict.
+
+Target knowledge remains outside the engine. Entry shapes live in registered recognition strategies, while
+operations, dischargers, resource rules and authority implications live in promoted fact data. A label-blind
+initialization job produces that knowledge, and evaluation freezes its digest before admission labels are opened.
 
 ### Goals
-- A finding names an entry point, the hops, the operation and the missing check; nothing else is a finding.
-- Scored on the pool: recall on 23 fixes and 93 locations, false alarms per 100 ordinary pushes, seconds per change.
-- Resolution precision `[2026-10-29]`: a guard discharges only the operation whose resource it binds, and a
-  call resolves to the class and signature it targets; an operation declared on a base class attaches only to
-  the classes that extend it.
-- Coverage stated per repository: what was recognised, reached, checked, and left unchecked by reason.
+- Produce an unguarded finding only from a complete, sufficiently resolved evidence path.
+- Make call, path, resource, authority and control-flow uncertainty explicit and monotone.
+- Carry target knowledge as verified data or recogniser strategies, never engine branches.
+- Attribute development gains across analyzer and fact changes before measuring an untouched admission population.
+- Fail the runtime and instrument gates rather than summarize partial work as a result.
 
 ### Non-Goals
-- Taint flow, the Joern engine, nesting-aware dominance, families other than access control.
-- Model calls inside the prover; intent adjudication stays a separate arm.
-- The unseen pilot measurement and the pre-push wiring (later increments of other specs).
+- Taint analysis, Joern integration, model calls inside the prover, or vulnerability families beyond access control.
+- Client-side presentation gating, proof execution, pre-push wiring, or admission-policy thresholds.
+- Replacing the existing order-based checker mode for consumers that do not opt into prover semantics.
 
 ## Boundary Commitments
 
 ### This Spec Owns
-- Entry recognisers for Stapler, Jetty handlers, Symfony attributes, Livewire and Laravel controllers, Remix
-  exports, Tornado handlers, and programmatic servlet/handler registration sites `[2026-10-29]`
-  (`mapping.py` blocks, each with evidence).
-- `semantic/obligations/resolution.py`: the class table and receiver- and signature-qualified call
-  resolution `[2026-10-29]`.
-- The optional `receiver` field of `semantic/ir.py`'s `CallSite` and its capture in `semantic/cst.py`
-  (additive, default `None`; every existing consumer unchanged) `[2026-10-29]`.
-- `semantic/obligations/paths.py`: `PathRecord` and `compose_paths` over the caller index.
-- `semantic/obligations/enforcement.py`: router, decorator, voter `[2026-10-29]` witnesses from route files
-  and attributes, each carrying the resource it binds `[2026-10-29]`.
-- `hunt/prover.py`: `prove_change` and `Coverage`.
-- `benchmarks/valid/prover_arm.py`: the runner and its summary.
-- Operation and discharger rows added to `ruleset/obligations/{java,php,python,typescript}.toml`.
+- The abstract evidence domain and three-way pair/path judgment.
+- Stable program identities, conservative call-target sets and bounded interprocedural summaries.
+- Resource- and authority-sensitive operation/witness matching.
+- Prover-mode control-flow dominance without textual-order fallback.
+- Acquired entry, operation, discharger and authority knowledge needed by this family.
+- Deterministic traces, failure-visible coverage, development arms and the admission-run contract.
 
 ### Out of Boundary
-- The facts loader's existing fields, `OrderDominance`, and the checker's existing decision rules (owned by
-  `authorization-obligations`). Three extensions are allowed and owned here: the handler-named operation fields
-  (`handlers`, `framework`) in the facts; the `assume_entries_protected` keyword and the `unguarded_path` label
-  (see the checker block below); and, `[2026-10-29]`, the optional `resource` field on `Discharge` with the
-  `resource_bound` keyword and the all-kind caller-hop re-judgement in `_on_caller_hop` (see the checker block
-  below). Each is additive or default-off; every existing checker test unchanged.
-- The feature table, the DSPy and hunter arms, the ablation (`hunter-learning-loop`).
-- The proof arm's demonstration logic (`search-with-proof`); this spec only shapes the finding.
+- The legacy checker behavior used by existing callers; default APIs remain backward compatible.
+- Target labels and benchmark curation, owned by `valid-detection-benchmark`.
+- Runtime demonstrations, owned by `search-with-proof`.
+- Hook admission and rollout, owned by `pre-push-safety-net`.
+- Continuous fact evolution after the one-time initialization pass.
 
 ### Allowed Dependencies
-- `openultrasast.source` (callers_of, code_index, product_files, generated_reason), `openultrasast.mapping`,
-  `openultrasast.semantic.cst` and `ir`, `openultrasast.semantic.obligations` (check, facts, dominance),
-  `openultrasast.hunt.producers.Context`, `benchmarks.valid.metrics`, `benchmarks.unseen.score`.
+- `openultrasast.source`, `openultrasast.mapping`, the existing semantic IR and CFG, and the existing obligation
+  facts/checker contracts.
+- The hunter `Context` caches, valid-benchmark metrics, replay record envelopes and reserved-population guard.
 - No new third-party dependency.
 
 ### Revalidation Triggers
-- A change to `EntryPointRecord` fields or `Discharge` scopes.
-- A change to `CallSite` fields or the caller-index keying `[2026-10-29]`.
-- A change to the replay record shape `benchmarks.valid.metrics` scores.
-- A change to the hunt defect shape (`defect_from`).
+- A change to `EntryPointRecord`, `Operation`, `Discharge`, `Trace`, hunt-defect or replay-record contracts.
+- A change to call-site receiver/signature capture, target-knowledge schemas or authority implication semantics.
+- A change to path aggregation, judgment ordering, admission population isolation or the 120-second budget.
 
 ## Architecture
 
 ### Existing Architecture Analysis
-The checker already judges reached operations by path and witnesses by scope; the hunter's `Context` already
-caches everything the prover reads. The missing pieces are the inputs: entries for Java and the pool's PHP,
-TypeScript and Python frameworks; paths; witnesses from outside the function; operation rows for the pool's
-protected calls. The prover is wiring plus those inputs.
+The delivered baseline already recognises entries, composes bounded paths, discovers operations and witnesses,
+builds structural CFGs, emits traces and scores replay records. Its decision interfaces are boolean: unresolved
+receivers fall back to a bare name, unavailable CFGs fall back to textual order, and a witness either discharges or
+does not. The amendment preserves the existing checker as the single verdict owner while inserting typed abstract
+values before that boolean boundary and adding an opt-in three-way judgment path.
 
 ### Architecture Pattern & Boundary Map
-```mermaid
+~~~mermaid
 flowchart LR
-  C[hunt.producers.Context\nproduct files, texts, IR, call index, entry points] --> P[hunt.prover.prove_change]
-  M[mapping.analyze_entry_points\n+ Stapler, Jetty, Symfony, Livewire, Remix, Tornado\n+ programmatic registration] --> C
-  C --> RES[obligations.resolution\nclass table, receiver-qualified calls]
-  RES --> P
-  P --> PA[obligations.paths.compose_paths]
-  P --> EN[obligations.enforcement.witnesses\nrouter, decorator, voter, resource-bound]
-  PA --> CK[obligations.check.check_obligations]
-  EN --> CK
-  RES --> CK
-  F[ruleset/obligations/*.toml\noperations, dischargers] --> CK
-  CK --> P
-  P --> R[benchmarks/valid/prover_arm.py\nrecords, metrics, coverage, anchor refusal]
-  P --> H[pre-push admission / proof arm\nhunt defects]
-```
-- Selected pattern: inputs assembled in the prover, decision in the existing checker.
-- Existing patterns preserved: closed facts in TOML with checked headers; `_entry` recogniser blocks; per-change
-  `Context`; replay record shape; counts and digests in records.
-- Steering compliance: no model call, instrument gate (bytes read), plain English, standard metrics.
+  TK[Target knowledge] --> MR[Mapping registry]
+  TK --> FI[Fact interpreter]
+  MR --> CTX[Per change context]
+  FI --> OP[Operations and witnesses]
+  CTX --> SI[Symbol index]
+  SI --> CR[Call resolution]
+  CR --> FS[Function summaries]
+  OP --> FS
+  FS --> PM[Concrete path materializer]
+  CTX --> CFG[Control flow relations]
+  PM --> J[Three way judgment]
+  CFG --> J
+  OP --> J
+  J --> TR[Canonical traces]
+  J --> PR[Prover findings and coverage]
+  TR --> RUN[Development and admission runners]
+  PR --> RUN
+~~~
+
+Dependency direction is:
+`abstract domain -> fact and recogniser adapters -> symbol resolution -> summaries and CFG -> checker judgment
+-> prover integration -> runners`. Engine modules never import target-named strategy modules. Target-aware
+adapters may import engine contracts.
+
+- **Strategy + Registry**: entry recognisers are registered per recognition concern.
+- **Interpreter**: promoted fact rows describe operations, dischargers, resource rules and authority implications.
+- **Adapter**: the prover converts repository IR, target knowledge and context caches into engine contracts.
+- **Abstract interpretation**: finite domains and monotone joins propagate evidence and incompleteness.
 
 ### Technology Stack
-| Layer | Choice | Role | Notes |
-|---|---|---|---|
-| Analysis | Python 3.11, tree-sitter IR, regex caller index | entries, paths, operations | existing |
-| Facts | TOML under `ruleset/obligations/` | operations, dischargers | existing loader |
-| Scoring | `benchmarks.valid.metrics`, `benchmarks.unseen.score` | recall, false alarms per 100 | existing |
+| Layer | Choice | Role |
+|---|---|---|
+| Analysis | Python 3.11, existing semantic IR and structural CFG | symbols, calls, summaries, dominance |
+| Knowledge | Existing TOML fact files and mapping strategies | target-specific vocabulary |
+| Scoring | Existing valid-benchmark metrics and replay records | development and admission results |
 
 ## File Structure Plan
-```
+~~~text
 src/openultrasast/
-├── mapping/                                 # recogniser registry [2026-10-29]: one strategy module per
-│   │                                        #   recognition concern, each registering itself in one table
-│   ├── registry.py                          # the registry the language dispatch consults
-│   ├── registration_sites.py                # call-site handler registration strategy (data-driven vocabulary)
-│   └── stapler.py, jetty.py, symfony.py, livewire.py, remix.py, tornado.py
-│                                            # strategy modules migrating from mapping.py's legacy blocks
-├── mapping.py                               # dispatch consults the registry during migration; blocks retire
-│                                            #   family by family (breadth map tracks the order)
+├── mapping/
+│   ├── registry.py                      # strategy registration and dispatch
+│   ├── registration_sites.py            # generic call-site registration adapter
+│   └── <target>.py                       # one target-aware strategy per migrated concern
 ├── semantic/
-│   ├── cst.py                               # + capture call receiver text in _call [2026-10-29]
-│   ├── ir.py                                # + CallSite.receiver: str | None [2026-10-29]
+│   ├── ir.py                             # CallSite receiver and signature evidence
+│   ├── cst.py                            # receiver, arity and signature capture
 │   └── obligations/
-│       ├── resolution.py                    # ClassRecord, class_table, qualify — receiver/signature resolution [2026-10-29]
-│       ├── paths.py                         # PathRecord, compose_paths(callers, entries, targets, depth, fan_out)
-│       └── enforcement.py                   # witnesses(root, texts, entries, facts) -> list[Discharge]
-├── hunt/prover.py                           # prove_change(root, change, ctx) -> ProverResult(findings, coverage)
-└── ruleset/obligations/{java,php,python,typescript}.toml    # + operation and discharger rows, checked headers
-src/openultrasast/tools/fact_init.py         # the one-time initialization job: extract + propose -> verify -> promote [2026-10-29]
-benchmarks/valid/prover_arm.py               # run / summarize; records per change; coverage table; anchor refusal
-tests/test_mapping_registry.py, tests/test_mapping_registration_sites.py, tests/test_obligation_resolution.py,
-tests/test_obligation_paths.py, tests/test_obligation_enforcement.py, tests/test_hunt_prover.py,
-tests/test_prover_arm.py, tests/test_fact_init.py
-```
+│       ├── abstract_domain.py            # relations, completeness, resources, authorities, judgments
+│       ├── resolution.py                 # SymbolId, symbol index and CallTargetSet
+│       ├── summaries.py                  # monotone FunctionSummary computation over call components
+│       ├── paths.py                      # concrete evidence paths and cutoff records
+│       ├── operations.py                 # operation/witness abstract identities
+│       ├── dominance.py                  # legacy order mode, unchanged by default
+│       ├── cfg_dominance.py              # prover-mode control-flow relation, no order fallback
+│       ├── check.py                      # opt-in abstract matching and PairJudgment
+│       ├── enforcement.py                # target-aware enforcement adapter
+│       └── trace.py                      # canonical trace with abstract relations and completeness
+├── hunt/
+│   ├── producers.py                      # cached symbol index and summaries
+│   └── prover.py                         # integration, path aggregation, findings and coverage
+└── tools/
+    └── fact_init.py                      # label-blind extract/propose/verify/promote workflow
+ruleset/obligations/*.toml                # promoted operation, witness and authority knowledge
+benchmarks/valid/
+├── prover_arm.py                         # records, stage funnel, gates and four-arm comparison
+└── prover_admission.py                   # frozen-manifest admission orchestration
+tests/
+├── test_obligation_abstract_domain.py
+├── test_obligation_resolution.py
+├── test_obligation_summaries.py
+├── test_obligation_judgment.py
+├── test_obligation_trace.py
+├── test_mapping_registry.py
+├── test_fact_init.py
+├── test_hunt_prover.py
+└── test_prover_arm.py
+~~~
 
 ### Modified Files
-- `src/openultrasast/mapping.py`: dispatch consults the `mapping/` registry (Strategy pattern); legacy blocks
-  migrate into strategy modules family by family; `EntryPointRecord` unchanged.
-- `src/openultrasast/hunt/producers.py`: `Context` exposes `entry_points` and `ir(path)` already; add nothing
-  unless a cache is missing (then a `cached_property`, same pattern).
-- `src/openultrasast/ruleset/obligations/*.toml`: rows only, admitted through the fact gate.
+- Existing facts, IR, checker, dominance, trace, prover and arm modules receive additive or opt-in contracts.
+- Existing callers retain legacy defaults; only the prover selects three-way judgment and strict CFG semantics.
+- Existing completed benchmark records remain immutable development baselines.
 
 ## System Flows
-```mermaid
-sequenceDiagram
-  participant R as prover_arm
-  participant X as Context
-  participant P as prove_change
-  participant PA as compose_paths
-  participant EN as enforcement
-  participant CK as check_obligations
-  R->>X: checkout head, Context(root, change)
-  R->>P: prove_change(root, change, ctx)
-  P->>X: entry_points, call_index, texts, ir(path) per touched file
-  P->>PA: targets = touched functions + callees holding operations
-  PA-->>P: PathRecords (hops entry..operation function), unreached list
-  P->>EN: route files, attributes, entries
-  EN-->>P: router/decorator Discharges
-  P->>CK: irs of touched + hop files, entries, facts, paths, OrderDominance(texts), extra_witnesses
-  CK-->>P: ObligationResult (findings, discharges, degradations)
-  P-->>R: ProverResult(findings as hunt defects with entry, hops, operation, missing; coverage)
-  R->>R: record per change; metrics.summarize; coverage table
-```
-Gating: a file that fails to parse, a language without facts, or an unrecognised framework yields coverage
-counts and no finding. A declared-public route suppresses `path_guard` only.
+
+### Analysis
+~~~mermaid
+flowchart TD
+  A[Read cached source] --> B[Recognise entries and facts]
+  B --> C[Build symbol index]
+  C --> D[Resolve call target sets]
+  D --> E[Compute function summaries]
+  E --> F[Materialise evidence paths]
+  F --> G[Match witnesses to obligations]
+  G --> H[Evaluate control flow]
+  H --> I{Path state}
+  I -->|complete and missing| U[Unguarded]
+  I -->|complete and governed| DCH[Discharged]
+  I -->|possible unknown or cut| IND[Indeterminate]
+  U --> FIND[Finding and trace]
+  DCH --> TRACE[Trace only]
+  IND --> TRACE
+~~~
+
+### Evaluation
+~~~mermaid
+flowchart LR
+  ACQ[Label blind acquisition] --> FREEZE[Freeze candidate bundle]
+  BASE[Materialize baseline bundle] --> DEV[Four arm development comparison]
+  FREEZE --> DEV
+  DEV --> AUDIT[Review ordinary labels]
+  AUDIT --> HOLD[Untouched paired admission run]
+  HOLD --> GATE{Instrument budget and quality gates}
+  GATE -->|pass| GO[G1 eligible]
+  GATE -->|fail| NOGO[No go]
+~~~
 
 ## Requirements Traceability
 | Requirement | Components |
 |---|---|
-| 1.1-1.8 | mapping recognisers |
-| 1.9 | mapping `_jetty_registration_entries` + `resolution.class_table` |
-| 2.1-2.8 | enforcement.witnesses, facts rows, checker (existing) |
-| 2.9 | facts rows (handler-named webhook and data-exposure patterns), `handlers_of` |
-| 2.10 | enforcement resource tokens and voter witnesses; checker `resource_bound` |
-| 3.1-3.6 | paths.compose_paths |
-| 3.7 | hunt.prover target enumeration (down-call budget) |
-| 3.8 | trace `guards_before_call` + checker `_on_caller_hop` all-kind re-judgement |
-| 3.9 | resolution.qualify, class_table, `CallSite.receiver` |
-| 3.10 | checker `_on_caller_hop` + prover witness assembly |
-| 4.1-4.6 | hunt.prover.prove_change |
-| 5.1-5.5 | prover_arm |
-| 5.6 | prover_arm anchor refusal |
-| 6.1-6.2 | prover_arm timing, Context caches |
-| 7.1-7.2 | Coverage in prove_change, prover_arm summary |
-| 7.3 | prove_change error reasons |
-| 8.1-8.2 | finding shape in prove_change |
-| 9.1-9.6 | trace serialisation in prove_change (obligations.trace) |
-| 10.1-10.7 | cfg.FunctionCfg, CfgDominance |
-
-## Pattern Application and Fact Acquisition `[2026-10-29]`
-
-The implementation follows the steering pattern discipline (`code-standards.md`): the engine stays
-target-agnostic; per-target vocabulary is data. Concretely for this spec:
-
-- **Strategy + Registry** for entry recognisers: the recognisers this spec adds (registration sites, and the
-  migration of existing framework blocks) live as strategy modules in a `mapping/` registry -- one module per
-  recognition concern, each naming its target family in the filename, registering itself in one table. The
-  dispatch in `mapping.py` consults the registry; it does not name frameworks.
-- **Interpreter** for obligation facts: operation rows, discharger rows, handler-name families and
-  registration-site vocabulary are TOML data interpreted by the engine; adding a target's vocabulary is a data
-  change reviewable in one place.
-- **Adapter** at the engine seams: `hunt/prover.py`'s callers adapter binds the IR to the caller index
-  (receiver-qualified through `resolution`); `obligations/enforcement.py` adapts framework constructs into
-  `Discharge` witnesses and is target-aware territory -- engine modules never import it.
-
-### Fact acquisition (the one-time initialization pass)
-
-Per-target vocabulary is produced by a one-time initialization job, not by hand-specced enumerations. The job
-has two modes and one gate:
-
-1. **Extraction mode**: walks the repository's existing recogniser code and framework knowledge (the legacy
-   `mapping.py` blocks, the current TOML rows) and extracts the target vocabulary already embedded there into
-   the acquirable structures (row families, strategy registrations).
-2. **Proposal mode**: an LLM pass (or the maintainer) proposes the vocabulary a new target needs -- entry
-   shapes, registration sites, handler-name families, policy-decision constructs -- against the target's
-   repository.
-3. **The gate**: every extracted or proposed row passes the same header discipline the facts files already
-   enforce (source, version, region) and engine verification admits each row (the row must match what the
-   code says); only then is it promoted to a closed row. Nothing skips the gate.
-
-The initialization job is a pipeline tool in this spec's scope (it produces the data the engine consumes);
-the standing fact-proposal lane (LLM proposes continuously, engine verifies, repetition promotes) remains the
-roadmap's growth path and is out of boundary here. First runs: extraction over the current embedded
-vocabulary, proposal for the training pool's target families, with the pool repositories as evidence.
-
+| 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7 | mapping registry, registration adapter, fact initialization, coverage |
+| 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 2.9, 2.10 | fact interpreter, abstract domain, operations, enforcement, witness matcher |
+| 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8, 3.9, 3.10 | symbol resolution, summaries, path materializer |
+| 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7 | pair judgment, checker integration, prover findings |
+| 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7 | prover arm, four-arm development comparison |
+| 6.1, 6.2, 6.3 | context caches, deadline state, runner budget gate |
+| 7.1, 7.2, 7.3, 7.4, 7.5, 7.6 | completeness, prover coverage, runner funnel |
+| 8.1, 8.2, 8.3 | finding contract, trace references, proof-arm filter |
+| 9.1, 9.2, 9.3, 9.4, 9.5, 9.6, 9.7 | canonical trace and record provenance |
+| 10.1, 10.2, 10.3, 10.4, 10.5, 10.6, 10.7 | strict CFG dominance and legacy order compatibility |
+| 11.1, 11.2, 11.3, 11.4, 11.5, 11.6, 11.7, 11.8 | abstract domain, path and operation aggregation, transition report |
+| 12.1, 12.2, 12.3, 12.4, 12.5, 12.6, 12.7, 12.8, 12.9 | acquisition record, freeze manifest, admission runner |
 
 ## Components and Interfaces
 
-### mapping recognisers
-| Field | Detail |
-|---|---|
-| Intent | name web-exposed methods of the pool's frameworks as `route` entries with evidence |
-| Requirements | 1.1-1.8 |
+### Abstract evidence domain
+~~~python
+class EvidenceRelation(Enum):
+    MUST = "must"
+    MAY = "may"
+    NO = "no"
+    UNKNOWN = "unknown"
 
-Each block follows the existing pattern: scan the file text (and the IR's function spans when a method body is
-needed), call `_entry(target, start, end, handler, name, kind, access, trust_boundary, evidence, conditions)`.
-Stapler: class text matches `extends|implements` one of the exposed types, or a method parameter is typed
-`StaplerRequest`, `StaplerRequest2`, `StaplerResponse` or annotated `@QueryParameter`/`@AncestorInPath`; method is
-`public` and its name matches `^do[A-Z]`. Access `public` only for `UnprotectedRootAction`. Jetty: classes
-extending `AbstractHandler`, `HttpServlet` or annotated `@Path`/`@GET`/`@POST`. Symfony: methods with
-`#[Route(` or `@Route(`; classes extending `AbstractController`. Livewire: classes extending `Component`, public
-methods not starting with `_`, plus `Route::` registrations naming a controller method. Remix: `export const|function
-action|loader` under `app/routes`. Tornado: classes extending `RequestHandler` or `WebSocketHandler`, request
-methods and `open`.
+class PairJudgment(Enum):
+    UNGUARDED = "unguarded"
+    DISCHARGED = "discharged"
+    INDETERMINATE = "indeterminate"
 
-Registration sites `[2026-10-29]` (1.9): the call-site registration concept the Python route
-registrations and the WordPress registration table already use, stated once, generically: when the
-repository's own code registers a handler at a call site (a constructor or registration method whose argument
-names the handler class), the registered class's request methods become `route` entries at the method's
-declaration line in the registered class's file, with the registration site (`path:line`) and the registered
-class name as evidence and `registered_by` set. The registration-site vocabulary -- which constructors and
-methods count as registrations, and which methods of the registered class are request methods -- is acquirable
-data under the facts discipline (R2 AC7), carried by a registration strategy module in the recogniser
-registry, never hardcoded in the engine. Class-literal resolution goes through `resolution.class_table`. A
-registration whose target class the repository does not define yields coverage (`registration_unresolved`) and
-no entry. Jetty's programmatic servlet registration is the first data case (seatunnel evidence), not the
-definition.
-
-### obligations.paths
-```python
 @dataclass(frozen=True)
-class PathRecord:
-    hops: tuple[tuple[str, int | None], ...]   # ("path::function", line of the call site in the caller), entry first
-    entry: str                                 # "path::function" of the entry hop
-    complete: bool                             # True when hops[0] is an entry point
+class Completeness:
+    is_complete: bool
+    reasons: tuple[str, ...] = ()
 
-def compose_paths(
-    *, callers: Callable[[str, str], Sequence[tuple[str, int]]],  # (path, function) -> caller sites
-    entries: set[str], targets: Sequence[tuple[str, str]], max_depth: int = 3, fan_out: int = 25,
-) -> tuple[list[PathRecord], list[str]]:  # complete paths, unreached "path::function" targets
-```
-- Preconditions: targets name functions with IR; `callers` resolves a function to its call sites through the
-  cached index and the enclosing function of each site (`source.enclosing_at` or the IR spans).
-- Postconditions: every path's last hop is a target; no path implies nothing; unreached targets are listed.
-
-### obligations.resolution `[2026-10-29]` (3.7, 3.9; feeds 1.9, 2.10, 3.10)
-```python
 @dataclass(frozen=True)
-class ClassRecord:
-    path: str                       # file declaring the class
+class ResourceRef:
+    kind: Literal["exact", "aliases", "request_global", "unknown"]
+    values: tuple[str, ...] = ()
+
+@dataclass(frozen=True)
+class AuthorityRef:
+    values: tuple[str, ...]
+    is_unknown: bool = False
+~~~
+
+The partial order places definite evidence below possible or unknown evidence. Join never converts `MAY` or
+`UNKNOWN` into `MUST` or `NO`. The precision order is:
+
+~~~text
+MUST  <= MAY <= UNKNOWN
+NO    <= MAY <= UNKNOWN
+~~~
+
+`MUST` and `NO` are incomparable. The alternative-path join is fixed by this table:
+
+| join | MUST | NO | MAY | UNKNOWN |
+|---|---|---|---|---|
+| MUST | MUST | MAY | MAY | UNKNOWN |
+| NO | MAY | NO | MAY | UNKNOWN |
+| MAY | MAY | MAY | MAY | UNKNOWN |
+| UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN |
+
+Three separate operations prevent one table from being used for the wrong quantifier:
+
+1. `join_alternatives` uses the table above when alternative call targets or control paths contribute evidence.
+2. `conjoin_dimensions` combines kind, scope, resource, authority and dominance for one witness: any `NO`
+   produces `NO`; otherwise any `UNKNOWN` produces `UNKNOWN`; otherwise any `MAY` produces `MAY`; only
+   all-`MUST` produces `MUST`.
+3. `aggregate_witnesses` asks whether any witness definitely governs one obligation: any `MUST` produces
+   `MUST`; otherwise `UNKNOWN` takes precedence over `MAY`, and `MAY` takes precedence over `NO`.
+   An empty witness set is `NO` only when discovery and facts are complete; otherwise it is `UNKNOWN`.
+
+For one complete path, all required obligations at `MUST` yield `discharged`; any `MAY` or `UNKNOWN` yields
+`indeterminate`; otherwise any `NO` yields `unguarded` and every `NO` obligation is reported missing.
+Thus a mixed `[MUST, NO]` obligation vector is unguarded for the `NO` obligation. Resource
+alias sets join by finite union; an unbounded or unresolvable value joins to `unknown`. Authority implication is
+read from promoted facts and contributes its fact identifier to the match evidence.
+
+### Symbol resolution
+~~~python
+@dataclass(frozen=True, order=True)
+class SymbolId:
+    module: str
+    enclosing_type: str | None
     name: str
-    superclass: str | None
-    abstract: bool
-    methods: tuple[str, ...]
-
-def class_table(texts: Mapping[str, str], language: str) -> Mapping[str, ClassRecord]
-    # bare class name -> record; one table per change, cached on the Context
-
-def qualify(*, receiver: str | None, enclosing_class: str | None, name: str,
-            arity: int | None, table: Mapping[str, ClassRecord]) -> str
-    # the qualified key for a callee: "Class.name" when the receiver text names a class
-    # in the table (or `this`/`self`/bare call in a class's own file), "Class.name/arity"
-    # when the class declares same-name methods with distinct parameter lists and the
-    # call site's arity is known, and the bare "name" when the receiver is unresolvable
-    # (dynamic languages, framework objects the repository does not define).
-```
-- Preconditions: `receiver` is the receiver expression text captured on `CallSite` (new field; `None` for
-  bare calls in dynamic languages); `class_table` covers the repository's own classes only.
-- Postconditions: same-name methods on different classes yield different keys; overloads with known distinct
-  arity yield different keys; unresolvable receivers fall back to the bare name and are counted
-  `receiver_unresolved` in coverage, never silently merged.
-- Base-class attachment rule: an operation or handler-named entry declared on a class attaches to a path only
-  when the entry's (or call site's) class is that class or an in-repo subclass of it; `abstract` classes and
-  framework bases never project onto unrelated routes.
-- Consumers: the prover's `callers` adapter returns, for a target key `Class.name`, only caller files whose
-  IR binds the callee to a receiver of that class (or subclass); the target enumeration joins callees by
-  qualified key instead of trailing name. `compose_paths` and `check_obligations` consume `path::function`
-  strings unchanged -- qualification happens before them, so `PathRecord` keeps its shape.
-- Budget: the class table is one pass over texts (already read); resolution adds no tree walks. The target
-  enumeration extends down through calls within its own budget (`down_depth`, default 2, sharing the fan-out
-  bound), so an operation one call deeper than the handler is reached without unbounded descent.
-
-### checker extension (opt-in)
-`check_obligations(..., assume_entries_protected: bool = False)`. With path records, no declared clause and no
-sibling norm, the checker today returns no finding (gating 3 of `authorization-obligations`): nothing justified
-the obligation. The prover's premise justifies it: a recognised entry is protected unless declared public. With
-the keyword on, `_finding` labels such a case `unguarded_path` when the path's entry hop is an entry record whose
-access is not `public` and the route is not declared public; evidence carries the entry's kind and evidence
-strings and the sentence "no declared policy clause and no sibling norm; the prover assumes a recognised entry is
-protected". `findings_to_static` explains the label like the others. `LABELS` gains the value.
-
-Resource-bound discharge `[2026-10-29]` (2.10): `check_obligations(..., resource_bound: bool = False)`. With the
-keyword on, a witness whose `resource` field is set suppresses only operations whose resource token equals it
-(a token computed the way `Operation.resource` already is: receiver first segment, table name, or the row's
-`resource_arg`); a witness with `resource` unset keeps today's behaviour. Default off; existing tests unchanged.
-
-Caller-hop re-judgement `[2026-10-29]` (3.8, 3.10): `_on_caller_hop` re-judges a witness on an earlier hop for
-every discharger kind, not only `path_guard` and `ownership_check`: the witness is re-judged against the
-operation moved to the hop's call line, by the selected dominance. A guard recorded on a hop before the call
-(`guards_before_call`) participates in the same re-judgement, so a finding is never emitted when the pair's own
-trace shows a dominating guard of a required kind. Router and decorator scopes keep their whole-handler
-semantics.
-
-### facts extension: handler-named operations (owned here, schema change)
-`[[operation]]` rows gain two optional fields: `handlers` (a list of regular expressions over the function name)
-and `framework` (a recogniser id the mapper's evidence names: `stapler`, `tornado`, `remix`, `jetty`,
-`symfony`, `laravel`). A row with `handlers` and no `calls` is a handler-named operation: `find_operations`
-yields it at the function's declaration line for every function whose name matches and that the caller lists as
-a recognised entry of that framework (new keyword `handlers_of: Mapping[str, str] | None`, function name to
-framework id; default None keeps today's behaviour). The smoke run of delivery A showed why: 15 of the 17
-Jenkins fixes are form-validation and list-filling web methods whose body calls no listed operation; the
-method is the operation. Jenkins documents the rule (form validation methods must check a permission).
-
-Handler-named rows for the webhook, build-trigger and data-exposure shapes `[2026-10-29]` (2.9): the
-`handlers` patterns extend to verb families whose handler name itself carries the obligation -- endpoints
-that act with repository or job privileges when called (webhook and build-trigger shapes) and endpoints that
-expose protected data (data-exposure shapes) -- as operation rows on framework-recognised entries, at the
-declaration line. The families are rows in the facts files, not code: a new verb family is a row addition
-acquired through the one-time initialization pass for the target (or proposed by the fact-proposal lane), and
-a row without `handlers` never matches a declaration name. The gate-1 misses (Stapler webhook and
-chart-data endpoints) are the first evidence set, not the definition.
-
-### trace: the ordered serialisation (owned here)
-```python
-@dataclass(frozen=True)
-class Guard: kind: str; scope: str; line: int | None; provenance: str; fact_id: str
-@dataclass(frozen=True)
-class Hop: function: str; call_line: int | None; guards_before_call: tuple[Guard, ...]; forwarded: tuple[str, ...]
-@dataclass(frozen=True)
-class Trace:
-    entry_kind: str; boundary: str; access: str; parameters: tuple[str, ...]
-    hops: tuple[Hop, ...]                     # entry first; the last hop holds the operation
-    operation_kind: str; fact_id: str; operation_line: int
-    arguments: tuple[tuple[str, str], ...]   # (argument text, provenance) in call order
-    guards_after: tuple[Guard, ...]
-    requires: tuple[str, ...]; dominating: tuple[str, ...]; missing: str | None
-    def text(self) -> str: ...               # one component per line, in order
-    def record(self) -> dict: ...            # canonical JSON
-```
-Argument provenance: within each hop's function, follow the IR's binds backwards from the operation's argument
-identifiers to the function's parameters or to a request-source fact (`request_input`), to an identity source
-(`authenticated_context`), or to a literal (`constant`); a parameter that the previous hop's call site fills
-from its own request-derived values keeps `request_input`; anything the walk cannot follow is `unknown`. No
-inter-procedural dataflow beyond the call sites on the path. The trace never carries language, framework,
-repository, size or count fields.
-
-### cfg and CfgDominance (owned here)
-`src/openultrasast/semantic/cfg.py`: `FunctionCfg.from_cst(node, language)` builds basic blocks and edges from
-the tree-sitter syntax tree of one function (blocks, if/else, switch arms, loops with back edges, try/catch/
-finally, return, throw, break, continue, exit) and computes dominators (`dominates(a_line, b_line)`) and the
-control context of a line (`context(line) -> ControlContext(conditions, in_loop, in_try, catches, on_exception_path)`).
-`src/openultrasast/semantic/obligations/cfg_dominance.py::CfgDominance` implements the `Dominance` protocol:
-a statement witness dominates when its block dominates the operation's block and the operation is unreachable
-from the guard's failing arm: either that arm exits (`throws`, `returns`, `exits`), or the operation lies only
-inside the passing branch (`if (can(x)) { op(); }`, effect `branches`); a bare boolean whose value no branch or
-exit consumes before the operation is `value_only` and never discharges; router and decorator scopes
-dominate as before; along a path record, a witness on an earlier hop dominates as before. Without a graph for
-a function, `CfgDominance` falls back to `OrderDominance` and records `cfg_unavailable`.
-The trace's `Guard` gains `relation` (`all_paths`, `some_paths`, `none`, `after`) and `effect`
-(`throws`, `returns`, `exits`, `branches`, `value_only`; `constrains` for an identity constraint or a
-non-permissive value on the operation's own line, which has no failing arm; router and decorator witnesses carry
-`exits`); the trace gains `operation_context: ControlContext`. Coarse spots accepted for this increment: a
-ternary or switch expression is one node, several statements on one line share it, a guard's result held in a
-variable is followed by name without reassignment tracking.
-
-### obligations.enforcement
-```python
-def witnesses(*, root: Path, texts: Mapping[str, str], entries: Sequence[EntryPointRecord], language: str) -> list[Discharge]
-```
-Reads Laravel route files (`routes/*.php`) for `->middleware([...])` and controller constructors for
-`$this->middleware`/`authorizeResource`; Symfony attributes and `config/packages/security.yaml`
-`access_control`; Tornado `@authenticated`; emits `Discharge(kind="path_guard", scope="router"|"decorator", path,
-function, line=None, evidence=...)` for each covered handler. Names recognised live in the facts files' headers.
-
-Resource binding and policy witnesses `[2026-10-29]` (2.10): every witness this module mints carries the
-resource it binds (`Discharge` gains an optional `resource: str | None`, default `None`): the route path for
-router middleware, the attribute or subject expression for a policy-layer guard, the middleware name for
-`auth`-class guards (no resource -- `None`). A policy-layer witness covers an action's operations when a
-policy decision (voter, capability check, or equivalent) reachable from the action -- in the action body or a
-function it calls -- names the action's attribute or subject; the witness is scoped to that action's
-operations with the attribute or subject as its resource. Which constructs count as policy decisions is
-acquirable data in the facts files (the discharger rows already carry the vocabulary); the witness shapes are
-engine behaviour. Discharge matching is the checker's `resource_bound` keyword (above); the resource token
-computation is shared with `Operation.resource` so the two sides compare like with like. Symfony's voter
-attributes are the first data case (kimai evidence), not the definition.
-
-### hunt.prover
-```python
-@dataclass(frozen=True)
-class Coverage: files_by_language, frameworks_recognised, entry_points, reached, unreached, operations_checked,
-                operations_discharged, unchecked_by_reason  # all ints or dicts of ints
+    signature: tuple[str, ...] | None
 
 @dataclass(frozen=True)
-class ProverResult: findings: tuple[dict, ...]; coverage: Coverage; degradations: tuple[dict, ...]
+class CallTargetSet:
+    targets: tuple[SymbolId, ...]
+    completeness: Completeness
+~~~
 
-def prove_change(root: Path, change: Mapping[str, Any], ctx: Context | None = None, *, max_depth: int = 3) -> ProverResult
-```
-- Touched functions come from `_candidates`-style enumeration (touched head lines to function spans), build
-  output left out via `source.generated_reason`.
-- Targets = touched functions plus callees that hold a protected operation, joined by qualified key
-  (`resolution.qualify`) and followed down through calls within the `down_depth` budget (default 2) sharing the
-  fan-out bound, so an operation one call deeper than the handler is reached `[2026-10-29]` (3.7).
-- The `callers` adapter resolves a target to its call sites through the caller index and keeps only callers
-  whose receiver binds to the target's class (or subclass); unresolvable receivers fall back to the bare name
-  and are counted `receiver_unresolved` in coverage `[2026-10-29]` (3.9).
-- Findings: for each `ObligationFinding`, a hunt defect dict with `path`, `line`, `family="access_control"`,
-  `function`, `evidence` (entry record summary, hops, operation id and calls, missing kind), `id` as the checker
-  emits.
-- Degradations and every unchecked reason land in `Coverage`.
+The symbol index covers repository-defined declarations and inheritance. Exact receiver and full signature produce
+one complete target. Partial type or signature information produces a finite candidate set with an incompleteness
+reason. No call falls back to a global bare-name key. Base declarations attach through explicit descendant edges.
 
-### prover_arm
-`python -m benchmarks.valid.prover_arm run POOL --repos REPOS --out DIR [--slice 1] [--only all] [--max-depth 3]`
-writes `<sha256(change id)>.json` per change (replay record envelope copied from `hunter_arm`: id, case_id,
-repo, kind, family, path, function_lines, files, head, instrument {changed_bytes, hook_bytes_read, head_verified},
-findings, coverage, seconds, status), resumes by skipping done records, then `summarize` writes `summary.json`
-(metrics from `benchmarks.valid.metrics.summarize`, per-repository and per-framework coverage, changes over 120 s,
-instrument failures) and refuses when any record read zero bytes of a file git holds.
+### Function summaries and paths
+~~~python
+@dataclass(frozen=True)
+class FunctionSummary:
+    symbol: SymbolId
+    operations: tuple[Operation, ...]
+    witnesses: tuple[Discharge, ...]
+    calls: tuple[CallTargetSet, ...]
+    completeness: Completeness
+~~~
 
-Anchor refusal `[2026-10-29]` (5.6): `_prove` validates every returned finding's `path` against the files it
-actually read (`instrument.file_bytes`); a finding on an absent path marks the record
-`status="instrument_failure"`, reason `stale_anchor`, findings cleared -- the same treatment as a zero-byte
-read. `summarize` refuses to summarise a run containing such records, listing them by record id.
+Summaries are computed by a monotone worklist over strongly connected call components. Their finite contents grow
+by union until stable. A budget cutoff stops growth, records the cutoff and leaves affected summaries incomplete.
+Concrete paths are then materialised from recognised entries through exact targets for evidence. Candidate edges
+may contribute diagnostic traces but cannot complete a final path.
+
+### Witness matching and judgment
+~~~python
+@dataclass(frozen=True)
+class WitnessMatch:
+    relation: EvidenceRelation
+    resource_relation: EvidenceRelation
+    authority_relation: EvidenceRelation
+    evidence: tuple[str, ...]
+
+@dataclass(frozen=True)
+class PathJudgment:
+    judgment: PairJudgment
+    missing: tuple[str, ...]
+    completeness: Completeness
+    matches: tuple[WitnessMatch, ...]
+~~~
+
+A witness governs an obligation only when kind, scope, resource, authority and dominance are all `MUST`.
+Any `MAY` or `UNKNOWN` required relation makes the path indeterminate. With complete evidence and no governing
+witness for a required kind, the path is unguarded. Multiple paths aggregate as follows:
+
+- any complete unguarded path -> `unguarded`;
+- complete enumeration and every path discharged -> `discharged`;
+- otherwise -> `indeterminate`.
+
+The checker gains an opt-in abstract mode. Legacy callers keep the current boolean result and order-based default.
+
+### Strict CFG dominance
+`CfgDominance.relation` returns an evidence relation and a guard effect. Prover mode never calls
+`OrderDominance` when a graph, line mapping or construct is unavailable; it returns `UNKNOWN` with
+`cfg_unavailable` or `line_without_node`. Route and declaration scopes return `MUST` only after exact handler
+attachment. The legacy dominance class remains unchanged.
+
+### Target knowledge and acquisition
+The mapping registry and fact interpreter are target-aware adapters. The initialization job has:
+
+- extraction mode for existing strategies and fact rows;
+- proposal mode for source- or documentation-derived candidate knowledge;
+- verification that checks source, version, region and concrete matches;
+- promotion that writes only verified rows or enabled strategies;
+- an acquisition record containing input revision, evidence digest, accepted/rejected proposals and output digest.
+
+Admission mode prevents the acquisition process from receiving benchmark labels or fix locations. A changed output
+digest after labels are opened spends the population.
+
+### Prover integration
+`prove_change` orchestrates cached reads, recognition, resolution, summaries, paths, strict dominance and
+judgment. It emits findings only for `unguarded` pairs and preserves all three judgments as traces. Coverage
+contains stage counts, reason counts, pair judgments and exploration cutoffs. Exceptions are recorded at the stage
+that raised them.
+
+### Development and admission runners
+Before comparison, the development runner materialises and validates two immutable bundles:
+
+~~~python
+@dataclass(frozen=True)
+class AnalyzerBundle:
+    analyzer_revision: str
+    fact_set_digest: str
+    acquisition_record_digest: str
+    configuration_digest: str
+~~~
+
+The baseline bundle points to the analyzer revision and fact set that produced the immutable 2026-10-28 records;
+the candidate bundle points to the amended equivalents. The runner refuses a four-arm comparison if either
+revision or fact artifact cannot be materialised and digest-verified. It then registers baseline
+analyzer/baseline facts, baseline analyzer/candidate facts, candidate analyzer/baseline facts and candidate
+analyzer/candidate facts. This separates knowledge coverage from engine behavior.
+
+The admission runner accepts only a frozen manifest naming analyzer, facts, acquisition, configuration and
+population digests. The population manifest is produced and reviewed by `valid-detection-benchmark`; this spec
+only consumes and validates it. The runner verifies its review and isolation fields, scores its paired
+vulnerable/fixed cases and reviewed ordinary labels, refuses zero-byte or stale-anchor records, fails any change
+over 120 seconds, and never converts indeterminate pairs to clean results.
+
+## Data Models
+
+### Canonical trace
+Each trace carries:
+- entry identity and target-knowledge evidence;
+- exact hops and call-target completeness;
+- operation kind, resource and authority;
+- witnesses with kind, scope, provenance, resource, authority, dominance and match relations;
+- control context and guard effects;
+- completeness reasons and final path judgment;
+- analyzer, fact-set and input digests.
+
+Repository identity, repository size and function-size features remain outside decision input.
+
+### Run manifest
+The manifest contains population role (`development` or `admission`), immutable input digest, analyzer revision,
+fact-set digest, acquisition-record digest, configuration digest, label-review state and spent-state marker.
+The analyzer/fact bundle is a separate immutable input whose artifacts must be materialisable by revision and
+digest; a manifest cannot redefine or synthesize the baseline.
 
 ## Error Handling
-- Exceptions inside `prove_change` per file are recorded under their own reason key
-  `error:<exception class name>` `[2026-10-29]` (7.3), never folded into `framework_unrecognised` or any other
-  quiet reason; the change is still proved for the other files. A provider never appears (no model call). A
-  checkout failure is an instrument failure on the record (`status="instrument_failure"`, reason type only).
+- Parse, recognition, resolution, summary, CFG and judgment exceptions become stage-specific incompleteness reasons.
+- Deadline, fan-out, depth and recursion limits preserve accumulated evidence and return indeterminate affected
+  pairs.
+- Zero-byte reads and stale anchors are instrument failures that invalidate the run.
+- Missing or mismatched manifest digests invalidate admission rather than falling back to development mode.
 
 ## Testing Strategy
-- Unit: each recogniser on a fixture file written in the test (not copied from clones) with positive and negative
-  cases; `compose_paths` on a three-file fixture (depth 1, 2, 3, unreached, fan-out cut, same-name in two files);
-  `witnesses` for a Laravel route file, a Symfony attribute, a Tornado decorator. `[2026-10-29]`:
-  `class_table`/`qualify` on a fixture with two same-name methods on different classes (distinct keys), two
-  same-name methods with different arity (distinct keys), an unresolvable receiver (bare name +
-  `receiver_unresolved` counted), an abstract base method reached through a subclass (attaches) and through an
-  unrelated class (does not); a programmatic `addServlet` registration fixture yielding entries at the
-  registered class's methods with registration evidence, and an unresolved registration yielding coverage only;
-  a voter fixture (`isGranted` with attribute, `voteOnAttribute` implementation) yielding a `voter` witness with
-  the attribute as resource; a resource-mismatch fixture (guard binds another object's resource -> operation
-  stays undischarged).
-- Integration: `prove_change` on a git fixture with a Stapler-style class: an unguarded `doTestConnection` that
-  calls `lookupCredentials` yields one finding with hops and missing `path_guard`; the same with
-  `Jenkins.get().checkPermission(...)` above the call yields none; a Laravel controller behind `auth` middleware
-  yields none; an unrecognised framework yields coverage only. `[2026-10-29]`: the guard sits one call deeper
-  than the handler (a helper checks permission before the operation) and discharges; a guard whose trace shows
-  it dominating before the call produces no finding; an operation on a base handler class attaches to the
-  subclass route only; two classes with the same method name keep separate verdicts.
-- Runner: a two-change fixture pool produces records the metrics summarise; a zero-byte read refuses;
-  a fixture finding anchored to an absent path refuses with `stale_anchor` `[2026-10-29]`; a fixture raising a
-  recognition exception counts it under `error:<class>` and not under `framework_unrecognised`
-  `[2026-10-29]`.
+- Unit: the complete join table, dimension conjunction, witness aggregation and monotonicity laws; symbol
+  collisions and overload candidates; resource aliases and authority
+  implication; SCC termination; CFG unknown behavior; three-way aggregation.
+- Metamorphic: renaming a type preserves judgment; adding an unresolved overload can only preserve a judgment or
+  move it to indeterminate; removing semantic evidence cannot switch directly between discharged and unguarded.
+- Integration: exact unguarded and discharged paths; a guard in a called helper; registration-site entries; base
+  attachment; resource mismatch; authority insufficiency; ambiguous calls; CFG unavailable; budget cutoff.
+- Runner: baseline/candidate bundle materialisation, four-arm attribution, paired vulnerable/fixed scoring,
+  reviewed-manifest validation, freeze-digest guard, zero-byte and stale-anchor refusal, indeterminate rate, and
+  hard 120-second gate.
+
+## Migration Strategy
+1. Add abstract types and adapters without changing legacy checker defaults.
+2. Add strict resolution, summaries and judgment behind the prover's opt-in path.
+3. Migrate traces and coverage, then enable the amended development arms.
+4. Freeze facts and analyzer before running a separate admission population.
+
+Rollback is the previous prover arm and fact-set digest; baseline records remain immutable and comparable.

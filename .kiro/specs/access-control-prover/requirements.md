@@ -1,304 +1,279 @@
 # Requirements Document
 
 ## Project Description (Input)
-An access-control prover: a deterministic check that an operation needing authorization is reachable from an
-entry point without a check dominating the path, modelled per framework, built from the existing obligation facts,
-caller index and entry-point mapper, scored as a rule on the access-control training pool (recall on 23 fix
-changes, false alarms per 100 ordinary pushes) and feeding the proof arm.
+An access-control prover: a deterministic check that a protected operation is reachable from an attacker-facing
+entry point without a required authorization check governing that path. The prover consumes acquired entry,
+operation and enforcement facts, resolves calls and resources conservatively, emits an ordered trace for every
+examined pair, and is measured separately on development and admission populations.
 
 ## Introduction
-The maintainer's finding of 2026-10-14: the hunter's features (diff shape, function size, callers, entry-point
-counts, name roles, textual obligation order) describe the shape of code around a change and cannot decide that
-code is unsafe. Unsafety for access control is a property: an operation that needs authorization is reachable by a
-caller that no check has constrained. The access-control training pool (23 fix changes, 93 verified locations,
-460 ordinary pushes, 23 application repositories) holds exactly that shape: a permission check added before a
-protected operation in a web-exposed method. Seventeen of the 23 fixes are Jenkins plugin web methods.
+The security object for access control is not the shape of a changed function. It is an ordered path from an
+attacker-facing entry to a protected operation, together with the authorization evidence that governs every
+relevant control-flow and call-flow step. The 2026-10-28 development measurement established a useful baseline:
+15 of 23 fix changes detected, 15.0 flagged ordinary pushes per 100, and no instrument failures. The subsequent
+ablation showed that unresolved calls, over-broad resource matching, missing registration facts and silent
+fallbacks account for both missed detections and false alarms.
 
-This spec delivers the prover for that one family, as a deterministic rule with no model call, measured on the
-pool with the standard metrics, and emitting findings that carry the unguarded path so the proof arm can act on
-them. It is the increment that follows the annotation ablation in `hunter-learning-loop`.
+This amendment makes uncertainty part of the result rather than a side counter. A pair is `unguarded`,
+`discharged`, or `indeterminate`; degraded resolution, missing control-flow semantics, incomplete facts and
+budget cutoffs cannot create a final security verdict. It also separates label-blind fact acquisition and
+development regression from admission measurement on untouched repositories.
 
-**Amendment 2026-10-29 (after the 2026-10-28 measurements).** Gates 1-3 measured the built prover on the pool:
-recall 65.2% (15/23), 15.0 false alarms per 100 ordinary pushes, a zero-shot judge that costs no recall but
-drops almost no false alarms. The taxonomy of the 8 misses and of 12 sampled kept false alarms points at one
-cross-cutting gap: the prover resolves too shallowly and too loosely. Operations and guards one call deeper
-than a handler are invisible; same-name methods on different classes are conflated; operations declared on
-abstract bases are projected onto routes that never implement them; coarse guards (a path guard, a generic
-ownership check) discharge operations whose resource they do not bind. This amendment adds the resolution
-requirements (Requirement 3 acceptance criteria 7-10, Requirement 2 acceptance criteria 9-10), the
-programmatic-registration entry facts (Requirement 1 acceptance criterion 9), and the failure-visibility
-criteria (Requirement 5 acceptance criterion 6, Requirement 7 acceptance criterion 3). Acceptance criteria
-added or changed by this amendment carry the tag `[2026-10-29]`.
-
-Per the specification-level steering rule, this amendment states **acquisition capabilities**, not per-target
-inventories: the target vocabulary implied below (registration sites, handler-name families, policy-witness
-shapes) is data the fact pipeline acquires per target -- a one-time initialization job per target can produce
-it, and can extract the target knowledge already embedded in the repository's recogniser code into the same
-structures -- with the engine's verification discipline admitting each row. The named repositories appear only
-as benchmark evidence the acquired data must satisfy.
+Concrete frameworks and repositories are benchmark evidence, not acceptance-criteria inventories. Target
+vocabulary is acquired as reviewed data or recogniser strategies and is verified before promotion. The abstract
+interpretation engine remains target-agnostic.
 
 ## Boundary Context
-- **In scope**: entry-point recognition for the pool's frameworks; reachability paths from entry points to
-  touched functions through the existing caller index; framework enforcement points that discharge an obligation
-  outside the function (route middleware, controller attributes, declared public routes); resolution of calls on
-  those paths precise enough to place operations and guards in the function that holds them `[2026-10-29]`;
-  the verdict per change; a runner that scores the verdict as an arm on the pool; a coverage statement per
-  repository.
-- **Out of scope**: taint flow, the Joern engine, any model call inside the prover, new families beyond access
-  control, a project-owned declared policy file (exists in `authorization-obligations` and is consumed as is),
-  the unseen pilot measurement (G1 exit, run by the maintainer after this arm exists), the pre-push hook wiring
-  (`pre-push-safety-net`), client-side JavaScript permission gating (hiding controls in a browser frontend --
-  the byobu miss of gate 3 is not a server-side security object) `[2026-10-29]`, tuning the zero-shot judge
-  prompt (gate 2 measured the judge inert on this pool; the lever is the trace, not the prompt)
-  `[2026-10-29]`, re-auditing the pool's negative pushes (owned by `valid-detection-benchmark`)
-  `[2026-10-29]`.
-- **Adjacent expectations**: `authorization-obligations` owns the facts schema, the checker and the dominance
-  protocol; this spec extends facts and supplies paths and witnesses through the checker's existing parameters.
-  `hunter-learning-loop` owns the feature table and the hunter arms; the prover is scored beside them with the
-  same metric functions. `search-with-proof` consumes the finding's path and operation to build a demonstration.
-  `valid-detection-benchmark` owns the pool: 3 of 12 sampled "ordinary" pushes carry real missing-check bugs
-  (pre-2019 negatives), so false-alarm counts read against that pool overstate the prover's error until the
-  negatives are re-audited `[2026-10-29]`.
+- **In scope**: acquired entry, operation and enforcement knowledge; exact and conservative call resolution;
+  resource- and authority-sensitive witness matching; bounded interprocedural summaries and concrete evidence
+  paths; control-flow-sensitive dominance; three-way pair judgments; failure-visible coverage; development and
+  admission runners.
+- **Out of scope**: taint flow; the Joern engine; model calls inside the prover; vulnerability families other than
+  access control; client-side presentation gating; pre-push hook wiring; proof execution; hand-tuning vocabulary
+  from evaluation labels.
+- **Adjacent expectations**: `authorization-obligations` supplies the existing checker and fact contracts;
+  `valid-detection-benchmark` supplies reviewed populations; `search-with-proof` consumes unguarded traces;
+  `pre-push-safety-net` may consume the arm only after admission passes.
 
 ## Requirements
 
-### Requirement 1: Entry points of the pool's frameworks
-**Objective:** As a maintainer, I want the entry-point mapper to name the web-exposed methods of the frameworks
-the pool uses, so that reachability starts where an attacker starts.
+### Requirement 1: Acquired attacker-facing entry points
+**Objective:** As a maintainer, I want entry recognition to consume verified target knowledge, so that new targets
+can be covered without adding target vocabulary to the analysis engine.
 
 #### Acceptance Criteria
-1. When a Java file declares a public method whose name starts with `do` in a class that extends or implements
-   a Jenkins or Stapler exposed type (Descriptor, Action, RootAction, Plugin, UnprotectedRootAction,
-   AbstractDescribableImpl, or a parameter typed StaplerRequest, StaplerResponse or annotated QueryParameter),
-   the mapper shall record an entry point of kind `route` with trust boundary `http_request` and the method's
-   line range, with access `public` when the class implements UnprotectedRootAction and `unknown` otherwise.
-2. When a PHP file declares a Symfony controller action (a method carrying a `Route` attribute or annotation, or
-   a class extending AbstractController with public methods named by a routes file), the mapper shall record it
-   as a `route` entry with the attribute's path as evidence.
-3. When a PHP Livewire component or Laravel controller method is registered by a route file, a `Route::` call, a
-   `wire:` binding or a public method on a class extending Livewire Component, the mapper shall record it as a
-   `route` entry, and shall carry a declared access of `public` only when the route file names no middleware.
-4. When a TypeScript or JavaScript file under a Remix or React Router routes directory exports `action` or
-   `loader`, the mapper shall record each export as a `route` entry with trust boundary `http_request`.
-5. When a Python class extends a Tornado RequestHandler or WebSocketHandler, the mapper shall record its `get`,
-   `post`, `put`, `delete`, `patch` and `open` methods as `route` entries.
-6. When a Java class extends a Servlet, a Jetty handler or a JAX-RS resource, the mapper shall record the
-   request methods as `route` entries (existing Servlet and JAX-RS rows are kept; Jetty handlers are added).
-7. The mapper shall record every recogniser's evidence strings so a finding can name why a method is an entry.
-8. If a file's framework is not recognised, then the mapper shall record nothing for it and the coverage
-   statement (Requirement 7) shall count the file as unchecked; silence is never a pass.
-9. `[2026-10-29]` When the repository's own code registers a handler at a call site rather than declaring it
-   through annotations or configuration, the mapper shall record the registered class's request methods as
-   `route` entries with the registration site and the registered class as evidence, so that a server assembled
-   in code still yields entry points. The registration-site vocabulary for a target is acquirable data under
-   Requirement 2 acceptance criterion 7's discipline, not engine code; Jetty's programmatic servlet
-   registrations are the first case (the seatunnel miss of gate 3).
+1. When verified target knowledge describes a declarative entry shape, the mapper shall record every matching
+   repository-defined handler as an entry with its source range, trust boundary and recognition evidence.
+2. When verified target knowledge describes a call-site registration, the mapper shall resolve the registered
+   repository-defined handler and record its request methods as entries with the registration site and resolved
+   handler identity as evidence.
+3. If a registration target cannot be resolved to repository-defined code, the mapper shall emit no entry for it
+   and shall record `registration_unresolved` coverage.
+4. When acquired knowledge proves that an entry is intentionally public, the mapper shall record access `public`;
+   otherwise, the mapper shall record access `unknown` rather than infer public access.
+5. The mapper shall preserve the promoted fact or strategy identifier and the concrete source evidence on every
+   entry record.
+6. If no promoted entry knowledge covers a file, the prover shall record `framework_unrecognised` and shall not
+   interpret the absence of entries as a clean result.
+7. When target entry knowledge is added or updated, the system shall apply it through data or a registered
+   recognition strategy without changing target-agnostic analysis modules.
 
-### Requirement 2: Enforcement points outside the function
-**Objective:** As a maintainer, I want checks that frameworks apply outside the handler to count as discharges,
-so that a guarded route is not reported because its handler body shows no check.
+### Requirement 2: Acquired protected operations and enforcement evidence
+**Objective:** As a maintainer, I want operations and authorization evidence represented as verified knowledge,
+so that the prover compares the correct action, resource and authority.
 
 #### Acceptance Criteria
-1. When a Laravel route registration attaches `auth`, `can:`, `role` or `permission` middleware, or a controller
-   calls `authorizeResource` or `middleware` in its constructor, the prover shall supply a discharge witness of
-   scope `router` for every handler the registration covers.
-2. When a Symfony action carries `IsGranted`, `Security` or a `denyAccessUnlessGranted` call, or security.yaml's
-   `access_control` covers its path with a role, the prover shall supply a `decorator` or `router` witness.
-3. When a Jenkins web method, or a method it calls on its own path, calls `checkPermission`,
-   `checkAnyPermission` or guards on `hasPermission` with an exit, the existing statement witnesses shall apply;
-   `RequirePOST`, `POST` and `Interceptor` annotations shall not count as authorization.
-4. When a Remix action or loader calls a session requirement (`requireUser`, `requireUserId`,
-   `requireAuthentication`, `authenticateApiRequest`, `authorize`) before the operation, the prover shall treat
-   that call as a path guard, and when the operation reads a record by an identifier from the request without an
-   ownership constraint bound to the authenticated principal the prover shall report the missing
-   `ownership_check` (the pool's CWE-639 case).
-5. When a Tornado handler is decorated with `authenticated` or `tornado.web.authenticated`, or the class
-   overrides `get_current_user` and checks it before the operation, the prover shall treat that as a path guard.
-6. Where a declared policy marks a route public, the prover shall suppress `path_guard` findings for it and
-   keep `ownership_check` findings, as the checker already does.
-8. Where a framework's security model makes the web method itself the protected operation (Jenkins form
-   validation and list-filling methods `doCheck*`, `doFill*Items`, `doTest*`, `doValidate*`, `doVerify*`, which
-   Jenkins requires to check a permission; Tornado handler methods; a Remix action), the facts shall be able to
-   name the obligation by handler name pattern and framework, and the prover shall apply such an operation only
-   to functions the mapper recognised as entries of that framework, at the method's declaration line.
-7. The prover shall write every enforcement fact as closed data in the obligation facts files, with the header
-   naming the clones and references checked, and shall never add a name that does not occur in the checked code
-   or the framework's documentation. A proposed fact (from a maintainer or an LLM proposal pass) is promoted to
-   a closed row only after the same header discipline is satisfied `[2026-10-29]`; per-target vocabulary enters
-   as data through this gate, never as engine code.
-9. `[2026-10-29]` The facts shall be able to name, by handler-name pattern and by the privileged calls the
-   handler makes, webhook and build-trigger obligations and protected-data exposure obligations, applied at the
-   method's declaration line to entries the mapper recognised. The name families for a target are acquirable
-   data under acceptance criterion 7's discipline -- a one-time initialization pass per target can produce them
-   (and can extract the vocabulary already embedded in the repository's recogniser code into those structures)
-   -- and the pool's Stapler webhook and data-exposure handlers are the first cases (the git-plugin, p4,
-   analysis-core and global-build-stats misses of gate 3 all reached the entry and checked no operation).
-10. `[2026-10-29]` A guard shall discharge an operation only when it binds that operation's resource: when the
-   guard constrains a different path, a different object, or a permission level the operation does not require,
-   the prover shall treat the operation as undischarged (the crx and kimai misses of gate 3: a generic
-   `path_guard` or `ownership_check` dominated a credentials form-fill and invoice actions whose resource it
-   never touches). Where the target's policy layer decides access by an attribute or subject of the request --
-   a voter, policy, or capability decision reachable from the action or a function it calls -- the prover shall
-   supply a policy witness scoped to that action's operations with the attribute or subject as its resource;
-   Symfony's voter decisions are the first case.
+1. When promoted operation knowledge matches a call or recognised handler, the prover shall record the protected
+   operation, its required authorization kinds, its resource identity and any required authority.
+2. When promoted enforcement knowledge matches a statement, decorator, route, policy decision or equivalent
+   construct, the prover shall record a witness with its scope, resource identity, authority and provenance.
+3. When a handler name itself denotes a protected action, the prover shall apply that operation only to an entry
+   recognised for the same promoted target knowledge.
+4. When a route or declared policy marks an entry public, the prover shall waive only a request-level path guard
+   and shall preserve resource, ownership and authority obligations.
+5. When a witness binds a different resource or an insufficient authority, the prover shall not use that witness
+   to discharge the operation.
+6. When a witness is request-global, the prover shall use it without resource equality only when the operation
+   fact explicitly declares that witness kind sufficient at request scope.
+7. If resource identity or authority compatibility cannot be decided, the prover shall treat the witness match as
+   unknown rather than matching it broadly or rejecting it as definitely unrelated.
+8. When one authority implies another, the prover shall apply that implication only from promoted target
+   knowledge and shall record the implication used in the trace.
+9. When target knowledge is extracted or proposed, the acquisition workflow shall verify its source, version,
+   region and match evidence before promoting it to closed data or an enabled strategy.
+10. If proposed target knowledge contradicts the inspected source or lacks verification evidence, the acquisition
+    workflow shall reject it with a reason and shall not modify promoted knowledge.
 
-### Requirement 3: Reachability paths through the caller index
-**Objective:** As a maintainer, I want a path from an entry point to each touched function, so that an
-obligation inside a helper is judged by the checks on the way to it.
+### Requirement 3: Conservative interprocedural reachability
+**Objective:** As a maintainer, I want calls resolved to stable program identities and paths carried through
+helpers, so that unrelated same-name code neither creates nor suppresses findings.
 
 #### Acceptance Criteria
-1. When a change is checked out at head, the prover shall build, for every touched function and every function
-   that holds a protected operation it calls, the caller chains that end at an entry point, through the
-   per-change caller index, up to a configurable depth with default 3 and a configurable fan-out with default 25
-   callers per step.
-2. The prover shall emit each chain as a path record whose hops are `path::function` strings from the entry to
-   the operation's function, in the shape `check_obligations` and `OrderDominance` already consume.
-3. If a touched function is itself an entry point, then the prover shall emit the one-hop path.
-4. If no chain reaches an entry point within the depth, then the prover shall record the function as
-   `unreached` in the coverage statement and shall produce no finding for it.
-5. The prover shall deduplicate chains, shall stop at the first entry point on a chain, and shall bound the work
-   so a change of the pool's largest repositories finishes within the budget of Requirement 6.
-6. When two functions share a name in different files, the prover shall keep the chains separate by file.
-7. `[2026-10-29]` When a function on a path calls another function of the repository that holds a protected
-   operation, the prover shall extend the path through that call (within the depth and fan-out budget) so the
-   operation is checked even though no touched function holds it directly; an operation buried one call deeper
-   than the handler shall not be invisible (the gate 3 operation-fact misses).
-8. `[2026-10-29]` When a guard sits in a called function on the path, before the call or before the operation,
-   the trace shall carry it with its own function, line and kind, and dominance shall honour it as if it sat in
-   the hop's own function; a guard one call deeper than the handler shall still discharge (the dependency-track
-   and shopper false alarms of gate 3).
-9. `[2026-10-29]` The prover shall resolve calls by signature and receiver: same-name methods on different
-   classes (the vault and p4 false alarms) and same-name overloads with different parameter lists shall stay
-   distinct, and an operation or entry declared on an abstract or base class shall attach only to paths whose
-   concrete class the repository defines (the mage-ai false alarm: `BaseDetailHandler.get` projected onto an
-   unrelated internal route).
-10. `[2026-10-29]` A guard already recorded on a hop before a call shall be carried into the pair's trace and
-   dominance verdict; the prover shall not emit a finding whose own trace shows a dominating guard of the
-   required kind (the trigger.dev false alarm of gate 3).
+1. When a touched function or reachable helper contains a protected operation, the prover shall construct caller
+   chains from recognised entries to that operation within the configured work budget.
+2. When a call target can be identified by module, enclosing type, method and signature, the prover shall keep
+   that identity distinct from every other same-name target.
+3. When more than one call target remains feasible, the prover shall preserve the finite candidate set and shall
+   mark the call incomplete rather than merge the candidates under a bare name.
+4. If no bounded candidate set can be established, the prover shall mark the call unresolved and shall not use it
+   to create a final discharged or unguarded judgment.
+5. When an operation or entry is declared on a base type, the prover shall attach it only to repository-defined
+   concrete descendants whose resolved identities support that attachment.
+6. When a helper calls another helper that contains an operation or governing authorization evidence, the prover
+   shall continue the analysis through that call while budget remains.
+7. When recursion is present, the prover shall terminate and shall preserve the accumulated operations,
+   authorization effects and incompleteness reasons for the recursive component.
+8. If depth, fan-out, time or another work bound truncates exploration, the prover shall record the exact cutoff
+   reason and shall treat affected pairs as incomplete.
+9. When a complete chain is materialised, the prover shall emit its hops from entry to operation with the call
+   site of every transition.
+10. When multiple complete chains reach the same operation, the prover shall evaluate each chain independently so
+    that a guarded chain cannot hide an unguarded chain.
 
-### Requirement 4: The verdict
-**Objective:** As a developer about to push, I want a finding only when the tool can show an unguarded path to a
-protected operation, so that every alarm names what to add and where.
+### Requirement 4: Access-control verdicts
+**Objective:** As a developer about to push, I want a finding only for a demonstrated unguarded path, so that every
+alarm names a concrete security obligation and repair location.
 
 #### Acceptance Criteria
-1. When a protected operation is reached by a path record and no witness of a required discharger kind
-   dominates it along that path or inside its function, the prover shall emit one finding per operation and
-   missing kind with family `access_control`, the operation's path and line, the entry point, the hops, the
-   missing kind and the evidence strings.
-1a. The prover's premise shall be explicit: a recognised entry point is protected unless the framework or a
-   declared policy marks it public. The checker shall apply that premise only when the caller opts in, shall
-   label such findings `unguarded_path` (distinct from `declared_policy_violation` and
-   `consistency_violation`), and shall say in the evidence that no policy clause and no sibling norm backed it.
-   The checker's default behaviour with path records (no clause, no sibling norm, no finding) is unchanged.
-2. When every required discharger kind is dominated, the prover shall emit no finding and shall count the
-   operation as `discharged` in the coverage statement.
-3. The prover shall never emit a finding for a function whose file failed to parse, whose language has no
-   obligation facts, or whose framework is unrecognised; each such case shall be counted under its reason.
-4. The prover shall make no model call.
-5. The prover shall report findings in the hunt defect shape (`path`, `line`, `family`, `evidence`,
-   `function`), so the existing scoring, the proof arm and the pre-push admission consume them unchanged.
-6. When a touched function holds no protected operation and reaches none, the prover shall emit nothing for it.
+1. When a complete path reaches a protected operation, at least one required authorization kind is proven absent,
+   and every other required kind is proven either governing or absent, the prover shall judge the pair
+   `unguarded` and shall report each absent kind.
+2. When every required authorization kind is proven to govern the operation on a complete path, the prover shall
+   judge the pair `discharged`.
+3. If the evidence is insufficient for either final judgment, the prover shall judge the pair `indeterminate`.
+4. When a pair is `unguarded`, the prover shall emit one finding per operation and missing authorization kind with
+   family `access_control`, exact source anchor, entry, hops and evidence.
+5. When a pair is `discharged` or `indeterminate`, the prover shall emit no vulnerability finding for that pair.
+6. The prover shall apply the recognised-entry-is-protected premise only in its explicit opt-in mode and shall
+   identify that premise in the evidence.
+7. The prover shall make no model call and shall return findings in the existing hunt-defect contract.
 
-### Requirement 5: Scoring as a rule arm on the pool
-**Objective:** As a maintainer, I want the prover scored on the training pool with the standard metrics, so that
-its number stands beside the hunter arms and decides whether it becomes a G1 arm.
+### Requirement 5: Development measurement
+**Objective:** As a maintainer, I want repeatable development measurements, so that changes to facts and analysis
+can be attributed without being mistaken for admission evidence.
 
 #### Acceptance Criteria
-1. The runner shall run the prover over every change of a pool slice on the training clones, one checkout per
-   change, and shall write one record per change in the replay record shape that `benchmarks.valid.metrics`
-   scores (id, kind, repo, status, findings, bytes read, seconds).
-2. The runner shall report recall on fix changes and on verified locations with Wilson intervals, false alarms
-   per 100 ordinary pushes, precision, instrument failures, and seconds per change, and shall refuse to
-   summarise when any record read zero bytes of a tree git holds.
-3. The runner shall report a per-framework and per-repository coverage table: entry points found, touched
-   functions reached, operations checked, functions unchecked by reason.
-4. The runner shall checkpoint records per change and resume by skipping finished ones.
-5. The record of a run shall carry counts, digests and framework names, never repository names of reserved
-   populations, as the reserved-repository guard requires.
-6. `[2026-10-29]` The runner shall refuse to summarise a run whose findings anchor to a path that is not
-   present in the change's analysed tree, the same way it refuses zero-byte reads: a finding on an absent file
-   is an instrument defect, not a result (the crx stale anchor of gate 3).
+1. When a development population is run, the runner shall write one resumable record per change with analyzer,
+   fact-set, population and input digests.
+2. When development records are summarised, the runner shall report recall on fix changes and verified locations,
+   flagged ordinary pushes per 100, precision, vulnerable/fixed pair correctness, instrument failures and runtime
+   distributions with uncertainty intervals where defined.
+3. The runner shall report a stage funnel from entry recognition through call resolution, operation discovery,
+   control-flow evaluation, witness matching and pair judgment.
+4. The runner shall report per-target-family and per-repository coverage without disclosing reserved repository
+   identities in shared records.
+5. When comparing an amended analyzer and amended facts, the runner shall support the four registered arms formed
+   by old/new analyzer crossed with old/new fact set.
+6. If any record reads zero bytes for a file present in the analysed tree or anchors a finding outside files read,
+   the runner shall mark an instrument failure and shall refuse the summary.
+7. The runner shall label results from populations used to choose facts or analyzer behavior as development or
+   regression evidence and shall not present them as admission evidence.
 
-### Requirement 6: Budget
-**Objective:** As a developer, I want the prover to finish inside the pre-push window, so that it can run on
-every push.
-
-#### Acceptance Criteria
-1. The prover shall finish a change of the pool within 120 seconds on the development host, measured by the
-   runner, and the runner shall list every change over that bound.
-2. The prover shall reuse the per-change context caches (product files, texts, call index, file IR, entry
-   points) and shall not walk or read the product tree more than once per change.
-
-### Requirement 7: Coverage statement
-**Objective:** As a developer, I want the tool to say what it did not check, so that no finding count reads as a
-clean bill.
+### Requirement 6: Pre-push budget
+**Objective:** As a developer, I want the prover to finish inside the pre-push window, so that eligible detection
+can run on every push.
 
 #### Acceptance Criteria
-1. The prover shall return, with its findings, the counts of files by language, files whose framework was
-   recognised, entry points found, touched functions reached and unreached, operations checked and discharged,
-   and functions unchecked by reason (`parse_failed`, `language_unsupported`, `framework_unrecognised`,
-   `unreached`, `no_facts`).
-2. When the coverage statement shows zero recognised frameworks for a repository, the runner shall mark the
-   repository `uncovered` in its summary, and recall for that repository shall be reported separately from the
-   covered recall.
-3. `[2026-10-29]` When a recognition or resolution pass over a file raises an exception, the coverage statement
-   shall count that file under a reason that names the exception class, and shall never fold it into
-   `framework_unrecognised` or any other quiet reason (the byobu ValueErrors of gate 3 surfaced only by
-   inspection of the record).
+1. When a measured change exceeds 120 seconds, the runner shall fail the budget gate and shall identify the
+   change, stage and elapsed time.
+2. The prover shall reuse per-change file, text, syntax, call, entry, symbol and summary caches and shall not read
+   the product tree more than once per change.
+3. If analysis stops because of a deadline, the prover shall return incomplete coverage and indeterminate affected
+   pairs rather than a partial clean verdict.
+
+### Requirement 7: Failure-visible coverage
+**Objective:** As a developer, I want the tool to state what it could not decide, so that silence never reads as a
+clean bill of health.
+
+#### Acceptance Criteria
+1. The prover shall report files by language, recognised entry families, entries, reached and unreached targets,
+   operations, discharged pairs, unguarded pairs and indeterminate pairs.
+2. The prover shall count unchecked or incomplete work by specific reason, including parse failure, unsupported
+   language, unrecognised target, absent facts, unresolved registration, ambiguous or unresolved call, exploration
+   cutoff, unavailable control flow, unknown resource, unknown authority and analysis exception.
+3. If no target family is recognised for a repository, the runner shall mark the repository `uncovered` and shall
+   report its recall separately from covered recall.
+4. When a recognition, resolution, summary or judgment pass raises an exception, the prover shall record the
+   exception class at that stage and shall not fold it into a quiet coverage reason.
+5. When the same pair has multiple incompleteness reasons, the prover shall preserve every reason in the trace and
+   aggregate each reason in coverage.
+6. The runner shall report the indeterminate rate separately and shall not include indeterminate pairs in either
+   clean or discharged counts.
 
 ### Requirement 8: Proof-arm feed
-**Objective:** As the proof arm, I want each finding to carry what a demonstration needs, so that a finding
-can be proved or dismissed without re-deriving it.
+**Objective:** As the proof arm, I want each unguarded finding to carry a complete analysis witness, so that a
+demonstration can be attempted without re-deriving the decision.
 
 #### Acceptance Criteria
-1. Each finding shall carry the entry point record (kind, path, line, evidence), the hop list, the operation
-   (id, kind, calls matched, line) and the missing discharger kind.
-2. The finding id shall be `obligation:<operation kind>:<path>:<line>:<missing>` as the checker already emits.
+1. When a finding is emitted, it shall carry the entry record, exact hop list, operation, missing authorization
+   kind, resource and authority relations, pair judgment, trace identifier and completeness evidence.
+2. The finding identifier shall remain stable for the same operation, source anchor and missing authorization
+   kind across deterministic replays.
+3. If the pair is indeterminate, the prover shall expose its trace only as diagnostic coverage and shall not send
+   it to the proof arm as a vulnerability finding.
 
-### Requirement 9: The ordered trace is the prover's output for every examined pair
-**Objective:** As the maintainer, I want every (entry, operation) pair the prover examined serialised as an ordered
-trace with its verdict, so that a decision model sees the security-relevant structure and nothing else.
-
-#### Acceptance Criteria
-1. For every path record and every protected operation at its end, the prover shall emit one trace: the entry
-   (kind, trust boundary, declared access, parameter names), each hop in order (function, the call line, the
-   guards that dominate the call in that function with their kind, scope, line and provenance, the entry
-   parameters and request-derived values forwarded through the call), the operation (kind, fact id, line, the
-   provenance of each argument: request_input, authenticated_context, constant, unknown), the guards after the
-   operation, and the verdict (required kinds, dominating kinds, missing kind or discharged).
-2. The prover shall emit traces for discharged pairs and for unguarded pairs alike, and shall list unreached
-   targets with their reason, so that negatives carry the same structure as positives.
-3. The argument provenance shall be traced within each hop's function through the IR's binds from the entry's
-   parameters and the request-source facts, forwarded through the call sites on the path; a value the trace
-   cannot follow shall be `unknown`, never `constant`.
-4. The trace shall carry no language, framework name, repository name, file size, line count, or any count over
-   the function or the repository: only the ordered components above.
-5. The prover-arm record shall carry the traces, and a trace shall serialise to one canonical text form (one
-   component per line, in order) and one canonical JSON form, both deterministic.
-6. The hunt defect of an unguarded pair shall reference its trace, so the proof arm and the pre-push admission
-   can show the path.
-
-### Requirement 10: Control flow decides dominance, and the trace says so
-**Objective:** As the maintainer, I want a guard to count only when control flow makes the operation unreachable
-without it, so that a check in a branch the attacker can avoid, or one whose result is ignored, is not a discharge.
+### Requirement 9: Ordered traces for every examined pair
+**Objective:** As a maintainer, I want every examined pair represented by the same deterministic trace, so that
+decisions and degradations can be inspected and compared.
 
 #### Acceptance Criteria
-1. The prover shall build a structural control-flow graph per function on a path from the syntax tree it already
-   parses: statement blocks, if and else branches, switch arms, loops, try, catch and finally, return, throw,
-   break and continue, and the function's exit; with no grammar for a construct the function shall be marked
-   `cfg_unavailable` and judged by order with that degradation recorded.
-2. A guard shall dominate an operation when every path from the function's entry to the operation passes the
-   guard's statement (dominators over the graph); the trace shall record each guard's relation to the operation
-   as `all_paths`, `some_paths`, `none` or `after`.
-3. The trace shall record each guard's failure effect: `throws`, `returns`, `exits` (break, continue, exit call),
-   `branches` (the operation lies only inside the guard's passing branch), or `value_only` when the guard's
-   result is not consumed by a branch or an exit before the operation; a `value_only` guard shall not discharge.
-4. The trace shall record the operation's control context: the branch conditions it sits under in order (the
-   guard's own condition when it is one), whether it is inside a loop, inside a try whose catch swallows the
-   guard's exception type, or on an exception path.
-5. Router and decorator witnesses shall keep their scope semantics (they dominate the handler as a whole).
-6. The parameter list of a Java entry shall carry parameter names only, never annotation names; the arguments
-   of a handler-named operation shall be the handler's own parameters with their provenance.
-7. The existing order-based dominance shall remain the default of the checker; the prover shall select the
-   control-flow dominance, and the checker's tests shall stay unchanged.
+1. When the prover examines an entry-operation path, it shall emit one trace containing the entry, ordered hops,
+   operation, authorization witnesses, resource and authority relations, control-flow relations, completeness
+   state and pair judgment.
+2. The prover shall emit traces for unguarded, discharged and indeterminate pairs alike.
+3. When an argument or resource is forwarded through a call, the trace shall preserve its origin through the
+   resolved hop; if origin cannot be followed, the trace shall record `unknown`.
+4. The trace shall carry target knowledge identifiers and source evidence needed to reproduce the judgment but
+   shall omit repository identity, file-size and repository-size features from decision input.
+5. The trace shall serialise to one deterministic canonical text form and one deterministic canonical JSON form.
+6. When a work bound or fallback would have been required, the trace shall record the cutoff or unavailable
+   semantic fact rather than silently substituting a weaker analysis.
+7. The runner shall persist traces and their analyzer, fact-set and input digests with the corresponding record.
 
+### Requirement 10: Control-flow-sensitive dominance
+**Objective:** As a maintainer, I want authorization evidence to count only when control flow guarantees it governs
+the operation, so that avoidable or ignored checks do not discharge obligations.
+
+#### Acceptance Criteria
+1. When authorization evidence appears before an operation, the prover shall determine whether every feasible
+   path to the operation passes that evidence.
+2. When a guard's failing branch terminates or the operation exists only in the passing branch, the prover shall
+   record the guard effect and may treat it as governing the operation when resource and authority also match.
+3. When a predicate result is ignored or appears only on some paths, the prover shall not treat it as a governing
+   authorization check.
+4. When an operation is inside a loop, exception region or conditional branch, the trace shall record that control
+   context and any exception handling that can bypass the guard.
+5. When route- or declaration-scoped authorization evidence covers the whole handler, the prover shall preserve
+   that declared scope without inventing a statement location.
+6. If control-flow semantics or source-to-control-flow correspondence is unavailable, the prover shall mark the
+   affected relation unknown and the pair indeterminate rather than decide it by textual order.
+7. The existing order-based checker mode shall remain available to callers that do not opt into prover semantics.
+
+### Requirement 11: Three-way abstract judgment
+**Objective:** As a maintainer, I want uncertainty to propagate monotonically through the analysis, so that losing
+precision cannot manufacture a vulnerability or a discharge.
+
+#### Acceptance Criteria
+1. The prover shall represent call resolution, path completeness, resource compatibility, authority compatibility
+   and dominance with values that distinguish definite, possible, absent and unknown evidence.
+2. When all required evidence on a complete path is definite and at least one required obligation has no governing
+   witness, the prover shall produce `unguarded` and shall report every such obligation, including when other
+   required obligations are definitely governed.
+3. When every required obligation has a definite governing witness on a complete path, the prover shall produce
+   `discharged` for that path.
+4. If any required relation is possible or unknown, or path enumeration is incomplete, the prover shall produce
+   `indeterminate` unless another complete path already proves `unguarded`.
+5. When multiple paths reach one operation, the prover shall aggregate them as `unguarded` if any complete path
+   is unguarded, `discharged` only if enumeration is complete and every path is discharged, and `indeterminate`
+   otherwise.
+6. When analysis precision is reduced by adding an unresolved candidate or removing semantic information, a final
+   judgment shall remain unchanged or move to `indeterminate`; it shall not switch directly between `unguarded`
+   and `discharged`.
+7. The prover shall keep abstract-domain operations deterministic and independent of target names.
+8. The runner shall expose judgment counts and transitions between compared arms so that precision loss cannot be
+   hidden inside aggregate recall or false-alarm metrics.
+
+### Requirement 12: Label-isolated admission workflow
+**Objective:** As a maintainer, I want admission measured on untouched, reviewed evidence after the analyzer and
+facts are frozen, so that a better development score is not mistaken for generalisation.
+
+#### Acceptance Criteria
+1. When an admission run is prepared, the workflow shall freeze the analyzer revision, promoted fact-set digest,
+   acquisition record, configuration and population manifest before opening admission labels.
+2. While acquiring target knowledge for an admission repository, the workflow shall use repository source and
+   approved documentation without vulnerability, fix-location or ordinary-change labels.
+3. If acquisition observes evaluation labels or is changed in response to an admission result, the workflow shall
+   mark that population spent and shall not use it for admission.
+4. When ordinary changes are prepared for a false-alarm denominator, the benchmark workflow shall review and
+   remove or relabel changes that contain real missing-authorization defects before scoring.
+5. When a vulnerable case has a fixed twin, the admission run shall require the expected unguarded trace on the
+   vulnerable side and quiet or discharged behavior at the corresponding fixed operation.
+6. When an amended prover is considered for the G1 arm, the workflow shall measure it on untouched repositories
+   that were not used to choose facts, recognition strategies, abstract-domain behavior or thresholds.
+7. The admission report shall include recall, verified-location recall, flagged ordinary pushes per 100,
+   precision, paired vulnerable/fixed correctness, indeterminate rate, coverage, runtime and instrument failures
+   with sample counts and uncertainty intervals.
+8. If the budget gate, instrument gate or pre-registered quality criteria fail, the workflow shall return NO-GO
+   and shall not enable the arm in pre-push admission.
+9. The workflow shall retain the current 23-repository population as development regression evidence and shall
+   require a separate untouched population for admission claims.
