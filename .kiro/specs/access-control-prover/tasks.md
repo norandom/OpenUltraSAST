@@ -101,7 +101,7 @@ its final resolution, dominance, fact-acquisition and measurement semantics with
   - _Requirements: 2.1, 2.2, 2.5, 2.7, 2.8, 11.1_
   - _Boundary: Authority Domain_
   - _Depends: 7.1_
-- [ ] 7.4 Extend judgment, trace and coverage contracts with abstract state
+- [x] 7.4 Extend judgment, trace and coverage contracts with abstract state
   - Add three-way judgments, completeness and evidence relations without changing legacy defaults.
   - Add canonical serialization for resource and authority relations and all incompleteness reasons.
   - Done when old trace fixtures remain stable in legacy mode and new fixtures round-trip all abstract fields.

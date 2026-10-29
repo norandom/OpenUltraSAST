@@ -15,6 +15,7 @@ from ..semantic.cfg import ControlContext, FunctionCfg
 from ..semantic.cst import parse_function_nodes
 from ..semantic.facts import load_facts
 from ..semantic.ir import FileIR, FunctionIR, trailing_name
+from ..semantic.obligations.abstract_domain import PairJudgmentCounts
 from ..semantic.obligations.cfg_dominance import CfgDominance
 from ..semantic.obligations.check import _on_caller_hop, _relevant, _route_path, check_obligations
 from ..semantic.obligations.enforcement import witnesses
@@ -36,6 +37,10 @@ class Coverage:
     operations_checked: int
     operations_discharged: int
     unchecked_by_reason: dict[str, int]
+    # Requirement 7.1/7.6 (access-control-prover): three-way pair judgment totals, additive and zero
+    # until the prover opts into abstract judgment (task 10.6). Indeterminate pairs are counted
+    # neither clean nor discharged.
+    pair_judgments: PairJudgmentCounts = PairJudgmentCounts()
 
 
 @dataclass(frozen=True)

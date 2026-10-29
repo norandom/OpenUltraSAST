@@ -7,10 +7,20 @@ import json
 import re
 from collections.abc import Mapping, Sequence
 from dataclasses import asdict, dataclass, replace
+from enum import Enum
 from typing import Any
 
 from ..cfg import ControlContext
 from ..ir import FileIR, FunctionIR, trailing_name
+from .abstract_domain import (
+    AuthorityRef,
+    Completeness,
+    EvidenceRelation,
+    PairJudgment,
+    PathJudgment,
+    ResourceRef,
+    WitnessMatch,
+)
 from .cfg_dominance import describe, operation_context
 from .dominance import Dominance
 from .facts import ObligationFacts
@@ -39,6 +49,73 @@ class Hop:
 
 
 @dataclass(frozen=True)
+class AbstractTraceState:
+    """The abstract evidence a prover-mode trace carries beyond the legacy verdict (Req 9.1, 9.2, 9.6).
+
+    ``path_judgment`` is the three-way judgment with its missing kinds, every incompleteness reason
+    and the per-witness match relations; ``resource`` and ``authority`` are the operation's abstract
+    values and ``resource_relation``/``authority_relation`` the pair-level compatibility relations.
+    The state is absent from legacy traces, which stay byte-stable (task 7.4).
+    """
+
+    path_judgment: PathJudgment
+    resource: ResourceRef
+    authority: AuthorityRef
+    resource_relation: EvidenceRelation
+    authority_relation: EvidenceRelation
+
+
+def _enum_json_value(value: Any) -> str:
+    """The canonical JSON encoding of a relation or judgment: its value string."""
+    if isinstance(value, Enum):
+        return str(value.value)
+    raise TypeError(f"not canonically serializable: {type(value).__name__}")
+
+
+def _parse_path_judgment(payload: Mapping[str, Any]) -> PathJudgment:
+    """Rebuild one ``PathJudgment`` from its canonical JSON (round-trip half of Req 9.5)."""
+    completeness_payload = payload["completeness"]
+    return PathJudgment(
+        judgment=PairJudgment(payload["judgment"]),
+        missing=tuple(payload["missing"]),
+        completeness=Completeness(
+            is_complete=bool(completeness_payload["is_complete"]),
+            reasons=tuple(completeness_payload["reasons"]),
+        ),
+        matches=tuple(
+            WitnessMatch(
+                relation=EvidenceRelation(match["relation"]),
+                resource_relation=EvidenceRelation(match["resource_relation"]),
+                authority_relation=EvidenceRelation(match["authority_relation"]),
+                evidence=tuple(match["evidence"]),
+            )
+            for match in payload["matches"]
+        ),
+    )
+
+
+def parse_abstract_state(payload: Mapping[str, Any]) -> AbstractTraceState:
+    """Rebuild the abstract trace state from its canonical JSON record.
+
+    The inverse of the canonical encoding: value strings name relations and judgments again, field
+    dicts become ``ResourceRef``/``AuthorityRef`` values and every incompleteness reason is kept.
+    Anything outside the closed vocabularies fails loud rather than degrading to a quieter value.
+    """
+    resource_payload = payload["resource"]
+    authority_payload = payload["authority"]
+    return AbstractTraceState(
+        path_judgment=_parse_path_judgment(payload["path_judgment"]),
+        resource=ResourceRef(kind=resource_payload["kind"], values=tuple(resource_payload["values"])),
+        authority=AuthorityRef(
+            values=tuple(authority_payload["values"]),
+            is_unknown=bool(authority_payload["is_unknown"]),
+        ),
+        resource_relation=EvidenceRelation(payload["resource_relation"]),
+        authority_relation=EvidenceRelation(payload["authority_relation"]),
+    )
+
+
+@dataclass(frozen=True)
 class Trace:
     entry_kind: str
     boundary: str
@@ -54,14 +131,24 @@ class Trace:
     dominating: tuple[str, ...]
     missing: str | None
     operation_context: ControlContext = ControlContext()
+    # Opt-in abstract evidence (task 7.4): absent (None) in legacy mode, so legacy serialization is
+    # byte-stable; set only by the prover's abstract judgment path (task 10.6).
+    abstract_state: AbstractTraceState | None = None
 
     def record(self) -> dict[str, Any]:
-        """Return JSON values with keys sorted recursively, retaining sequence order."""
-        result: dict[str, Any] = json.loads(json.dumps(asdict(self), sort_keys=True))
-        return result
+        """Return JSON values with keys sorted recursively, retaining sequence order.
+
+        The abstract state is omitted entirely when unset, so a legacy trace's record keeps its exact
+        historical shape; when set, relations and judgments encode as their value strings.
+        """
+        payload = asdict(self)
+        if payload["abstract_state"] is None:
+            del payload["abstract_state"]
+        record: dict[str, Any] = json.loads(json.dumps(payload, sort_keys=True, default=_enum_json_value))
+        return record
 
     def text(self) -> str:
-        """Emit entry, hops, operation, later guards and verdict in that order."""
+        """Emit entry, hops, operation, later guards, verdict and, when present, the abstract state."""
         record = self.record()
         components = [("entry", {key: record[key] for key in ("entry_kind", "boundary", "access", "parameters")})]
         components.extend(("hop", hop) for hop in record["hops"])
@@ -69,6 +156,8 @@ class Trace:
         components.append(("operation", {key: record[key] for key in operation_keys}))
         components.extend(("guard_after", guard) for guard in record["guards_after"])
         components.append(("verdict", {key: record[key] for key in ("requires", "dominating", "missing")}))
+        if "abstract_state" in record:
+            components.append(("abstract", record["abstract_state"]))
         return "\n".join(f"{label} {json.dumps(value, sort_keys=True, separators=(',', ':'))}" for label, value in components)
 
 
@@ -168,6 +257,7 @@ def build_trace(
     dominating: tuple[str, ...],
     missing: str | None,
     access: str | None = None,
+    abstract_state: AbstractTraceState | None = None,
 ) -> Trace:
     """Build one trace without changing the checker's verdict or coverage."""
     texts = {file: text for file, (_, text) in irs.items()}
@@ -244,4 +334,5 @@ def build_trace(
         tuple(sorted(dominating)),
         missing,
         operation_context(dominance, operation),
+        abstract_state,
     )

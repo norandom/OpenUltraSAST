@@ -1,6 +1,6 @@
 """Evidence relations, the completeness value, resource and authority abstract values (access-control-prover).
 
-Covers Req 2.1, 2.2, 2.5, 2.6, 2.7, 2.8, 11.1, 11.6, 11.7.
+Covers Req 2.1, 2.2, 2.5, 2.6, 2.7, 2.8, 7.1, 7.2, 7.5, 7.6, 9.1, 9.2, 9.6, 11.1, 11.6, 11.7.
 
 ``EvidenceRelation`` is the abstract evidence domain: definite presence (``MUST``), definite absence
 (``NO``), possibility (``MAY``) and unknown (``UNKNOWN``). Three separate operations keep one table
@@ -22,7 +22,7 @@ operation is deterministic, pure and independent of target names; join never con
 
 from __future__ import annotations
 
-from collections import deque
+from collections import Counter, deque
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from enum import Enum
@@ -35,6 +35,18 @@ class EvidenceRelation(Enum):
     MAY = "may"
     NO = "no"
     UNKNOWN = "unknown"
+
+
+class PairJudgment(Enum):
+    """The three-way judgment of one examined pair (design, "Abstract evidence domain"; Req 4.1-4.3, 9.2).
+
+    Degraded evidence can reduce a pair to ``INDETERMINATE`` but can never manufacture
+    ``UNGUARDED`` or ``DISCHARGED``.
+    """
+
+    UNGUARDED = "unguarded"
+    DISCHARGED = "discharged"
+    INDETERMINATE = "indeterminate"
 
 
 @dataclass(frozen=True)
@@ -352,3 +364,73 @@ def join_completeness(left: Completeness, right: Completeness) -> Completeness:
         is_complete=left.is_complete and right.is_complete,
         reasons=left.reasons + right.reasons,
     )
+
+
+@dataclass(frozen=True)
+class WitnessMatch:
+    """One witness's match relations for one obligation (design, "Witness matching and judgment"; Req 9.1).
+
+    ``relation`` is the conjoined kind/scope/dominance verdict, ``resource_relation`` and
+    ``authority_relation`` are the resource and authority compatibility relations, and ``evidence``
+    names the supporting fact identifiers (for example the authority implications used, Req 2.8).
+    """
+
+    relation: EvidenceRelation
+    resource_relation: EvidenceRelation
+    authority_relation: EvidenceRelation
+    evidence: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class PathJudgment:
+    """The abstract judgment of one examined path (design, "Witness matching and judgment"; Req 9.1, 11.4).
+
+    ``missing`` names every required obligation with no governing witness; ``completeness`` carries
+    each incompleteness reason of the path (Req 7.5) and ``matches`` holds one row per witness
+    examined. Computing these values is task 10.4; this is the contract they must fill.
+    """
+
+    judgment: PairJudgment
+    missing: tuple[str, ...]
+    completeness: Completeness
+    matches: tuple[WitnessMatch, ...]
+
+
+@dataclass(frozen=True)
+class PairJudgmentCounts:
+    """Pair judgment totals for failure-visible coverage (Req 7.1, 7.6).
+
+    ``indeterminate`` is a first-class count: an indeterminate pair is included in neither
+    ``unguarded`` nor ``discharged``, so a degraded instrument cannot read as a clean bill of health.
+    """
+
+    unguarded: int = 0
+    discharged: int = 0
+    indeterminate: int = 0
+
+    def examined(self) -> int:
+        """Examined pairs overall; the indeterminate rate is reported against this total (Req 7.6)."""
+        return self.unguarded + self.discharged + self.indeterminate
+
+
+def count_pair_judgments(judgments: Iterable[PairJudgment]) -> PairJudgmentCounts:
+    """Count the three pair judgments separately over one examined population (Req 7.1, 7.6)."""
+    counts = Counter(judgments)
+    return PairJudgmentCounts(
+        unguarded=counts[PairJudgment.UNGUARDED],
+        discharged=counts[PairJudgment.DISCHARGED],
+        indeterminate=counts[PairJudgment.INDETERMINATE],
+    )
+
+
+def reason_counts(completeness_values: Iterable[Completeness]) -> dict[str, int]:
+    """Aggregate every incompleteness reason across examined pairs (Req 7.2, 7.5).
+
+    Each pair contributes one count per distinct reason (``Completeness`` already deduplicates within
+    one value), so a reason two pairs share counts twice and no pair's reason is lost. Keys are
+    sorted, so the aggregate is deterministic however the pairs were ordered.
+    """
+    counts: Counter[str] = Counter()
+    for value in completeness_values:
+        counts.update(value.reasons)
+    return dict(sorted(counts.items()))
