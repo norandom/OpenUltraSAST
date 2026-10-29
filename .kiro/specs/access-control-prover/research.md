@@ -138,3 +138,70 @@
 - Symfony security: https://symfony.com/doc/current/security.html
 - Remix route module API: https://remix.run/docs/en/main/route/action
 - Tornado authentication: https://www.tornadoweb.org/en/stable/guide/security.html
+
+---
+
+## Design amendment synthesis -- 2026-10-29
+
+Context: gates 1-3 (measurements `2026-10-28-access-control-{prover,judge,ablation}`) found one cross-cutting
+lever -- interprocedural resolution -- behind both the 8 recall misses (B: operations never linked; C: coarse
+guards discharge) and the kept false alarms (guards present but unmodeled, name-collision resolution, base-class
+projection). Requirements amendment `[2026-10-29]` (AC 1.9, 2.9, 2.10, 3.7-3.10, 5.6, 7.3); this section
+records the code survey behind the design amendment (same date tag).
+
+### Research Log: resolution seams (verified against current code)
+
+- Caller index keys on bare function name only: `src/openultrasast/source.py:447` `callers_of` (regex over
+  `CodeLine` indexes); `CallSite(number, name)` at `source.py:22` carries no receiver. The prover adapter
+  `hunt/prover.py:161-172` re-qualifies hits to `file::enclosing_fn` by IR span containment.
+- Tree-sitter IR drops receiver text: `semantic/ir.py:21-29` `CallSite` (callee is trailing name only;
+  `semantic/cst.py:220` `_callee_name` strips `$obj->method` / `x.y.z`); receiver must be captured in
+  `cst.py:203` `_call` and added to `ir.CallSite` (python-ast path `ir.py:100+` likewise).
+- Target enumeration is one-hop trailing-name join: `hunt/prover.py:174-185` (`call_names` from touched
+  functions' IR calls; any `(path,name)` with that name and operations). Second receiver-blind seam.
+- Guards on hops: `Hop.guards_before_call` populated only at `semantic/obligations/trace.py:224-231`
+  (serialization); the verdict path uses `semantic/obligations/check.py:312-323` `_on_caller_hop`, which today
+  re-judges only `path_guard`/`ownership_check` (router/decorator => True; other kinds => False). Dominance
+  order rule `dominance.py:52-60`; CFG deferral `cfg_dominance.py:63-65`.
+- Discharge has no resource identity: `semantic/obligations/operations.py:35-44` (`detail` is identifier-only).
+  The only resource token today is `Operation.resource` (`operations.py:31`, `_resource_token` at 229-243:
+  receiver first segment, SQL table, or `resource_arg`). Suppression loop `check.py:117-122`; relevance
+  `check.py:326-327`; scope matching is `(path, function)` equality (`operations.py:124`, `dominance.py:38`).
+- Enforcement witnesses: `semantic/obligations/enforcement.py:18` covers Tornado decorators, Symfony
+  `IsGranted`/`Security`/`access_control`, Laravel middleware + `authorizeResource`; called per language at
+  `hunt/prover.py:223-227`. In-function recognizer `_call_witnesses` (`operations.py:163-183`) matches
+  discharger rows by trailing name -- `denyAccessUnlessGranted`/`isGranted` already match existing rows
+  (`ruleset/obligations/php.toml:68-78`); `voteOnAttribute` needs no row (interface method, trailing-name
+  match). Jenkins guard rows exist (`java.toml:68-76`).
+- Mapping: `_jetty_entries` (`mapping.py:562`) anchors at method declarations only; call-site registration
+  precedent exists (`_python_registered_routes` `mapping.py:945-1015`, WordPress `_PHP_REGISTRATION`
+  `mapping.py:657-680` with `registered_by` field on `EntryPointRecord`, `mapping.py:53-74`); java dispatch at
+  `mapping.py:185-198`; framework tag table `entry_framework` `mapping.py:472-488`.
+- prover_arm refusal seams: per-file zero-byte loop `benchmarks/valid/prover_arm.py:86-113`; stale-anchor
+  validation belongs in `_prove` between lines 114 and 125 (before `record.update(findings=...)`), mirrored in
+  `summarize()` (184-187); type-name-only catch at `_prove` 129-133.
+- Checker boundary: `authorization-obligations` owns check.py/facts.py/operations.py/paths.py/dominance.py.
+  The design's third extension (resource field + `resource_bound` keyword + all-kind `_on_caller_hop`) touches
+  `operations.py` (dataclass field) and `check.py` (keyword + relevance compare), default-off. Other
+  `check_obligations` callers (cli.py, hunt/producers.py, pairs.py) keep unchanged defaults.
+
+### Decisions
+
+1. New module `semantic/obligations/resolution.py` + additive `CallSite.receiver` (captured in `cst.py`)
+   rather than widening the source.py index: the index is shared with hunt search; a per-change class table
+   keeps resolution local, cacheable on the Context, and testable in isolation. Bare-name fallback +
+   `receiver_unresolved` coverage counter keeps dynamic languages (TS/PHP dynamic receivers) working as today.
+2. Resource binding as checker keyword (`resource_bound`) with emission-side tokens rather than prover-side
+   filtering: the suppression decision is per (witness, operation) pair inside `check_obligations`; filtering
+   outside would need a restructured call. Default-off keeps `authorization-obligations` tests untouched.
+3. Programmatic registration follows the existing call-site registration pattern (python routes, WordPress)
+   with class-literal resolution through `resolution.class_table` -- one owner for class resolution, reused
+   by the mapping recogniser and the callers adapter.
+
+### Risks
+
+- Dynamic receivers (TS `this.handler.get`, PHP `$container->get(...)`) stay name-keyed; the counter makes the
+  fallback visible instead of silent. If the pool shows large `receiver_unresolved` rates, the fact-proposal
+  lane (deferred injection spec) is the designated place to grow type facts, not this spec.
+- `down_depth` widens target enumeration; the fan-out bound and the 120 s budget cap it. Per-repository
+  seconds-per-change in the runner summary will show any cost.

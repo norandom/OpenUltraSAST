@@ -4,13 +4,17 @@
 **Purpose**: a deterministic prover for the access-control family: given a change checked out at head, find
 every protected operation reachable from an entry point without a check dominating the path, and say what is
 unchecked. **Users**: the maintainer, scoring it as an arm on the training pool; the pre-push hook and the proof
-arm, consuming its findings. **Impact**: adds Java and framework entry recognition to the mapper, a path builder
-and enforcement witnesses in the obligations package, a prover over the hunter's per-change context, and a
-runner that scores it with the valid-benchmark metrics.
+arm, consuming its findings. **Impact**: adds Java and framework entry recognition to the mapper, receiver- and signature-precise call
+resolution in the obligations package `[2026-10-29]`, a path builder and enforcement witnesses in the
+obligations package, a prover over the hunter's per-change context, and a runner that scores it with the
+valid-benchmark metrics.
 
 ### Goals
 - A finding names an entry point, the hops, the operation and the missing check; nothing else is a finding.
 - Scored on the pool: recall on 23 fixes and 93 locations, false alarms per 100 ordinary pushes, seconds per change.
+- Resolution precision `[2026-10-29]`: a guard discharges only the operation whose resource it binds, and a
+  call resolves to the class and signature it targets; an operation declared on a base class attaches only to
+  the classes that extend it.
 - Coverage stated per repository: what was recognised, reached, checked, and left unchecked by reason.
 
 ### Non-Goals
@@ -22,19 +26,26 @@ runner that scores it with the valid-benchmark metrics.
 
 ### This Spec Owns
 - Entry recognisers for Stapler, Jetty handlers, Symfony attributes, Livewire and Laravel controllers, Remix
-  exports, Tornado handlers (`mapping.py` blocks, each with evidence).
+  exports, Tornado handlers, and programmatic servlet/handler registration sites `[2026-10-29]`
+  (`mapping.py` blocks, each with evidence).
+- `semantic/obligations/resolution.py`: the class table and receiver- and signature-qualified call
+  resolution `[2026-10-29]`.
+- The optional `receiver` field of `semantic/ir.py`'s `CallSite` and its capture in `semantic/cst.py`
+  (additive, default `None`; every existing consumer unchanged) `[2026-10-29]`.
 - `semantic/obligations/paths.py`: `PathRecord` and `compose_paths` over the caller index.
-- `semantic/obligations/enforcement.py`: router and decorator witnesses from route files and attributes.
+- `semantic/obligations/enforcement.py`: router, decorator, voter `[2026-10-29]` witnesses from route files
+  and attributes, each carrying the resource it binds `[2026-10-29]`.
 - `hunt/prover.py`: `prove_change` and `Coverage`.
 - `benchmarks/valid/prover_arm.py`: the runner and its summary.
 - Operation and discharger rows added to `ruleset/obligations/{java,php,python,typescript}.toml`.
 
 ### Out of Boundary
 - The facts loader's existing fields, `OrderDominance`, and the checker's existing decision rules (owned by
-  `authorization-obligations`). Two extensions are allowed and owned here: the handler-named operation fields
-  (`handlers`, `framework`) in the facts, and the
-  `assume_entries_protected` keyword and the `unguarded_path` label (see the checker block below); default off,
-  every existing checker test unchanged.
+  `authorization-obligations`). Three extensions are allowed and owned here: the handler-named operation fields
+  (`handlers`, `framework`) in the facts; the `assume_entries_protected` keyword and the `unguarded_path` label
+  (see the checker block below); and, `[2026-10-29]`, the optional `resource` field on `Discharge` with the
+  `resource_bound` keyword and the all-kind caller-hop re-judgement in `_on_caller_hop` (see the checker block
+  below). Each is additive or default-off; every existing checker test unchanged.
 - The feature table, the DSPy and hunter arms, the ablation (`hunter-learning-loop`).
 - The proof arm's demonstration logic (`search-with-proof`); this spec only shapes the finding.
 
@@ -46,6 +57,7 @@ runner that scores it with the valid-benchmark metrics.
 
 ### Revalidation Triggers
 - A change to `EntryPointRecord` fields or `Discharge` scopes.
+- A change to `CallSite` fields or the caller-index keying `[2026-10-29]`.
 - A change to the replay record shape `benchmarks.valid.metrics` scores.
 - A change to the hunt defect shape (`defect_from`).
 
@@ -61,14 +73,17 @@ protected calls. The prover is wiring plus those inputs.
 ```mermaid
 flowchart LR
   C[hunt.producers.Context\nproduct files, texts, IR, call index, entry points] --> P[hunt.prover.prove_change]
-  M[mapping.analyze_entry_points\n+ Stapler, Jetty, Symfony, Livewire, Remix, Tornado] --> C
+  M[mapping.analyze_entry_points\n+ Stapler, Jetty, Symfony, Livewire, Remix, Tornado\n+ programmatic registration] --> C
+  C --> RES[obligations.resolution\nclass table, receiver-qualified calls]
+  RES --> P
   P --> PA[obligations.paths.compose_paths]
-  P --> EN[obligations.enforcement.witnesses]
+  P --> EN[obligations.enforcement.witnesses\nrouter, decorator, voter, resource-bound]
   PA --> CK[obligations.check.check_obligations]
   EN --> CK
+  RES --> CK
   F[ruleset/obligations/*.toml\noperations, dischargers] --> CK
   CK --> P
-  P --> R[benchmarks/valid/prover_arm.py\nrecords, metrics, coverage]
+  P --> R[benchmarks/valid/prover_arm.py\nrecords, metrics, coverage, anchor refusal]
   P --> H[pre-push admission / proof arm\nhunt defects]
 ```
 - Selected pattern: inputs assembled in the prover, decision in the existing checker.
@@ -87,15 +102,20 @@ flowchart LR
 ```
 src/openultrasast/
 ├── mapping.py                              # + recognisers: _stapler_entries, _jetty_entries, _symfony_entries,
-│                                           #   _livewire_entries, _remix_exports (extend), _tornado_entries
-├── semantic/obligations/
-│   ├── paths.py                            # PathRecord, compose_paths(callers, entries, targets, depth, fan_out)
-│   └── enforcement.py                      # witnesses(root, texts, entries, facts) -> list[Discharge]
+│                                           #   _livewire_entries, _remix_exports (extend), _tornado_entries,
+│                                           #   _jetty_registration_entries [2026-10-29]
+├── semantic/
+│   ├── cst.py                              # + capture call receiver text in _call [2026-10-29]
+│   ├── ir.py                               # + CallSite.receiver: str | None [2026-10-29]
+│   └── obligations/
+│       ├── resolution.py                   # ClassRecord, class_table, qualify — receiver/signature resolution [2026-10-29]
+│       ├── paths.py                        # PathRecord, compose_paths(callers, entries, targets, depth, fan_out)
+│       └── enforcement.py                  # witnesses(root, texts, entries, facts) -> list[Discharge]
 ├── hunt/prover.py                          # prove_change(root, change, ctx) -> ProverResult(findings, coverage)
 └── ruleset/obligations/{java,php,python,typescript}.toml   # + operation and discharger rows, checked headers
-benchmarks/valid/prover_arm.py              # run / summarize; records per change; coverage table
-tests/test_mapping_frameworks.py, tests/test_obligation_paths.py, tests/test_obligation_enforcement.py,
-tests/test_hunt_prover.py, tests/test_prover_arm.py
+benchmarks/valid/prover_arm.py              # run / summarize; records per change; coverage table; anchor refusal
+tests/test_mapping_frameworks.py, tests/test_obligation_resolution.py, tests/test_obligation_paths.py,
+tests/test_obligation_enforcement.py, tests/test_hunt_prover.py, tests/test_prover_arm.py
 ```
 
 ### Modified Files
@@ -133,13 +153,24 @@ counts and no finding. A declared-public route suppresses `path_guard` only.
 | Requirement | Components |
 |---|---|
 | 1.1-1.8 | mapping recognisers |
-| 2.1-2.7 | enforcement.witnesses, facts rows, checker (existing) |
+| 1.9 | mapping `_jetty_registration_entries` + `resolution.class_table` |
+| 2.1-2.8 | enforcement.witnesses, facts rows, checker (existing) |
+| 2.9 | facts rows (handler-named webhook and data-exposure patterns), `handlers_of` |
+| 2.10 | enforcement resource tokens and voter witnesses; checker `resource_bound` |
 | 3.1-3.6 | paths.compose_paths |
+| 3.7 | hunt.prover target enumeration (down-call budget) |
+| 3.8 | trace `guards_before_call` + checker `_on_caller_hop` all-kind re-judgement |
+| 3.9 | resolution.qualify, class_table, `CallSite.receiver` |
+| 3.10 | checker `_on_caller_hop` + prover witness assembly |
 | 4.1-4.6 | hunt.prover.prove_change |
 | 5.1-5.5 | prover_arm |
+| 5.6 | prover_arm anchor refusal |
 | 6.1-6.2 | prover_arm timing, Context caches |
 | 7.1-7.2 | Coverage in prove_change, prover_arm summary |
+| 7.3 | prove_change error reasons |
 | 8.1-8.2 | finding shape in prove_change |
+| 9.1-9.6 | trace serialisation in prove_change (obligations.trace) |
+| 10.1-10.7 | cfg.FunctionCfg, CfgDominance |
 
 ## Components and Interfaces
 
@@ -160,6 +191,16 @@ methods not starting with `_`, plus `Route::` registrations naming a controller 
 action|loader` under `app/routes`. Tornado: classes extending `RequestHandler` or `WebSocketHandler`, request
 methods and `open`.
 
+Programmatic registration `[2026-10-29]` (1.9): a separate recogniser follows the call-site registration
+pattern the Python route registrations and the WordPress registration table already use. It scans Java text
+for registration sites -- `new ServletContextHandler(`, `new ServletHolder(`, `addServlet`,
+`addServletWithMapping`, `addHandler`, `addServletMapping` -- resolves the registered class literal through
+`resolution.class_table`, and emits the registered class's request methods (`doGet`, `doPost`, `service`,
+`handle`) as `route` entries at the method's declaration line in the registered class's file, with the
+registration site (`path:line`) and the registered class name as evidence and `registered_by` set. A
+registration whose target class the repository does not define yields coverage (`registration_unresolved`)
+and no entry. Framework tag: `jetty`.
+
 ### obligations.paths
 ```python
 @dataclass(frozen=True)
@@ -177,6 +218,43 @@ def compose_paths(
   cached index and the enclosing function of each site (`source.enclosing_at` or the IR spans).
 - Postconditions: every path's last hop is a target; no path implies nothing; unreached targets are listed.
 
+### obligations.resolution `[2026-10-29]` (3.7, 3.9; feeds 1.9, 2.10, 3.10)
+```python
+@dataclass(frozen=True)
+class ClassRecord:
+    path: str                       # file declaring the class
+    name: str
+    superclass: str | None
+    abstract: bool
+    methods: tuple[str, ...]
+
+def class_table(texts: Mapping[str, str], language: str) -> Mapping[str, ClassRecord]
+    # bare class name -> record; one table per change, cached on the Context
+
+def qualify(*, receiver: str | None, enclosing_class: str | None, name: str,
+            arity: int | None, table: Mapping[str, ClassRecord]) -> str
+    # the qualified key for a callee: "Class.name" when the receiver text names a class
+    # in the table (or `this`/`self`/bare call in a class's own file), "Class.name/arity"
+    # when the class declares same-name methods with distinct parameter lists and the
+    # call site's arity is known, and the bare "name" when the receiver is unresolvable
+    # (dynamic languages, framework objects the repository does not define).
+```
+- Preconditions: `receiver` is the receiver expression text captured on `CallSite` (new field; `None` for
+  bare calls in dynamic languages); `class_table` covers the repository's own classes only.
+- Postconditions: same-name methods on different classes yield different keys; overloads with known distinct
+  arity yield different keys; unresolvable receivers fall back to the bare name and are counted
+  `receiver_unresolved` in coverage, never silently merged.
+- Base-class attachment rule: an operation or handler-named entry declared on a class attaches to a path only
+  when the entry's (or call site's) class is that class or an in-repo subclass of it; `abstract` classes and
+  framework bases never project onto unrelated routes.
+- Consumers: the prover's `callers` adapter returns, for a target key `Class.name`, only caller files whose
+  IR binds the callee to a receiver of that class (or subclass); the target enumeration joins callees by
+  qualified key instead of trailing name. `compose_paths` and `check_obligations` consume `path::function`
+  strings unchanged -- qualification happens before them, so `PathRecord` keeps its shape.
+- Budget: the class table is one pass over texts (already read); resolution adds no tree walks. The target
+  enumeration extends down through calls within its own budget (`down_depth`, default 2, sharing the fan-out
+  bound), so an operation one call deeper than the handler is reached without unbounded descent.
+
 ### checker extension (opt-in)
 `check_obligations(..., assume_entries_protected: bool = False)`. With path records, no declared clause and no
 sibling norm, the checker today returns no finding (gating 3 of `authorization-obligations`): nothing justified
@@ -185,6 +263,18 @@ the keyword on, `_finding` labels such a case `unguarded_path` when the path's e
 access is not `public` and the route is not declared public; evidence carries the entry's kind and evidence
 strings and the sentence "no declared policy clause and no sibling norm; the prover assumes a recognised entry is
 protected". `findings_to_static` explains the label like the others. `LABELS` gains the value.
+
+Resource-bound discharge `[2026-10-29]` (2.10): `check_obligations(..., resource_bound: bool = False)`. With the
+keyword on, a witness whose `resource` field is set suppresses only operations whose resource token equals it
+(a token computed the way `Operation.resource` already is: receiver first segment, table name, or the row's
+`resource_arg`); a witness with `resource` unset keeps today's behaviour. Default off; existing tests unchanged.
+
+Caller-hop re-judgement `[2026-10-29]` (3.8, 3.10): `_on_caller_hop` re-judges a witness on an earlier hop for
+every discharger kind, not only `path_guard` and `ownership_check`: the witness is re-judged against the
+operation moved to the hop's call line, by the selected dominance. A guard recorded on a hop before the call
+(`guards_before_call`) participates in the same re-judgement, so a finding is never emitted when the pair's own
+trace shows a dominating guard of a required kind. Router and decorator scopes keep their whole-handler
+semantics.
 
 ### facts extension: handler-named operations (owned here, schema change)
 `[[operation]]` rows gain two optional fields: `handlers` (a list of regular expressions over the function name)
@@ -195,6 +285,13 @@ a recognised entry of that framework (new keyword `handlers_of: Mapping[str, str
 framework id; default None keeps today's behaviour). The smoke run of delivery A showed why: 15 of the 17
 Jenkins fixes are form-validation and list-filling web methods whose body calls no listed operation; the
 method is the operation. Jenkins documents the rule (form validation methods must check a permission).
+
+Handler-named rows for the webhook, build-trigger and data-exposure shapes `[2026-10-29]` (2.9): the
+`handlers` patterns extend to the verb families seen in the gate-1 misses -- `^doNotifyCommit$`,
+`^doChange(Submit)?$`, `^doEvent$`, `^doBuild(Submit)?$` (webhook and build-trigger endpoints that act with
+repository or job privileges) and `^doJson$`, `^doPython$` (protected-data exposure) -- as operation rows on
+`stapler`-recognised entries, at the declaration line. The families are rows in the facts files, not code: a
+new verb family is a row addition, and a row without `handlers` never matches a declaration name.
 
 ### trace: the ordered serialisation (owned here)
 ```python
@@ -248,6 +345,16 @@ Reads Laravel route files (`routes/*.php`) for `->middleware([...])` and control
 `access_control`; Tornado `@authenticated`; emits `Discharge(kind="path_guard", scope="router"|"decorator", path,
 function, line=None, evidence=...)` for each covered handler. Names recognised live in the facts files' headers.
 
+Resource binding and voters `[2026-10-29]` (2.10): every witness this module mints carries the resource it
+binds (`Discharge` gains an optional `resource: str | None`, default `None`): the route path for router
+middleware, the attribute or subject expression for `IsGranted`/`denyAccessUnlessGranted`/`isGranted`, the
+middleware name for `auth`-class guards (no resource -- `None`). A voter decision is a `voter` witness: when a
+Symfony action (or a function it calls) calls `isGranted`/`denyAccessUnlessGranted` with an attribute, or a
+voter class in the repository implements `voteOnAttribute` for that attribute, the witness is scoped to that
+action's operations with the attribute as its resource. Discharge matching is the checker's
+`resource_bound` keyword (above); the resource token computation is shared with `Operation.resource` so the two
+sides compare like with like.
+
 ### hunt.prover
 ```python
 @dataclass(frozen=True)
@@ -261,8 +368,12 @@ def prove_change(root: Path, change: Mapping[str, Any], ctx: Context | None = No
 ```
 - Touched functions come from `_candidates`-style enumeration (touched head lines to function spans), build
   output left out via `source.generated_reason`.
-- Targets = touched functions plus their direct callees that hold a protected operation (one hop down through
-  the IR's calls and the call index).
+- Targets = touched functions plus callees that hold a protected operation, joined by qualified key
+  (`resolution.qualify`) and followed down through calls within the `down_depth` budget (default 2) sharing the
+  fan-out bound, so an operation one call deeper than the handler is reached `[2026-10-29]` (3.7).
+- The `callers` adapter resolves a target to its call sites through the caller index and keeps only callers
+  whose receiver binds to the target's class (or subclass); unresolvable receivers fall back to the bare name
+  and are counted `receiver_unresolved` in coverage `[2026-10-29]` (3.9).
 - Findings: for each `ObligationFinding`, a hunt defect dict with `path`, `line`, `family="access_control"`,
   `function`, `evidence` (entry record summary, hops, operation id and calls, missing kind), `id` as the checker
   emits.
@@ -276,17 +387,37 @@ findings, coverage, seconds, status), resumes by skipping done records, then `su
 (metrics from `benchmarks.valid.metrics.summarize`, per-repository and per-framework coverage, changes over 120 s,
 instrument failures) and refuses when any record read zero bytes of a file git holds.
 
+Anchor refusal `[2026-10-29]` (5.6): `_prove` validates every returned finding's `path` against the files it
+actually read (`instrument.file_bytes`); a finding on an absent path marks the record
+`status="instrument_failure"`, reason `stale_anchor`, findings cleared -- the same treatment as a zero-byte
+read. `summarize` refuses to summarise a run containing such records, listing them by record id.
+
 ## Error Handling
-- Exceptions inside `prove_change` per file are recorded as `unchecked_by_reason[type name]`; the change is
-  still proved for the other files. A provider never appears (no model call). A checkout failure is an
-  instrument failure on the record (`status="instrument_failure"`, reason type only).
+- Exceptions inside `prove_change` per file are recorded under their own reason key
+  `error:<exception class name>` `[2026-10-29]` (7.3), never folded into `framework_unrecognised` or any other
+  quiet reason; the change is still proved for the other files. A provider never appears (no model call). A
+  checkout failure is an instrument failure on the record (`status="instrument_failure"`, reason type only).
 
 ## Testing Strategy
 - Unit: each recogniser on a fixture file written in the test (not copied from clones) with positive and negative
   cases; `compose_paths` on a three-file fixture (depth 1, 2, 3, unreached, fan-out cut, same-name in two files);
-  `witnesses` for a Laravel route file, a Symfony attribute, a Tornado decorator.
+  `witnesses` for a Laravel route file, a Symfony attribute, a Tornado decorator. `[2026-10-29]`:
+  `class_table`/`qualify` on a fixture with two same-name methods on different classes (distinct keys), two
+  same-name methods with different arity (distinct keys), an unresolvable receiver (bare name +
+  `receiver_unresolved` counted), an abstract base method reached through a subclass (attaches) and through an
+  unrelated class (does not); a programmatic `addServlet` registration fixture yielding entries at the
+  registered class's methods with registration evidence, and an unresolved registration yielding coverage only;
+  a voter fixture (`isGranted` with attribute, `voteOnAttribute` implementation) yielding a `voter` witness with
+  the attribute as resource; a resource-mismatch fixture (guard binds another object's resource -> operation
+  stays undischarged).
 - Integration: `prove_change` on a git fixture with a Stapler-style class: an unguarded `doTestConnection` that
   calls `lookupCredentials` yields one finding with hops and missing `path_guard`; the same with
   `Jenkins.get().checkPermission(...)` above the call yields none; a Laravel controller behind `auth` middleware
-  yields none; an unrecognised framework yields coverage only.
-- Runner: a two-change fixture pool produces records the metrics summarise; a zero-byte read refuses.
+  yields none; an unrecognised framework yields coverage only. `[2026-10-29]`: the guard sits one call deeper
+  than the handler (a helper checks permission before the operation) and discharges; a guard whose trace shows
+  it dominating before the call produces no finding; an operation on a base handler class attaches to the
+  subclass route only; two classes with the same method name keep separate verdicts.
+- Runner: a two-change fixture pool produces records the metrics summarise; a zero-byte read refuses;
+  a fixture finding anchored to an absent path refuses with `stale_anchor` `[2026-10-29]`; a fixture raising a
+  recognition exception counts it under `error:<class>` and not under `framework_unrecognised`
+  `[2026-10-29]`.
