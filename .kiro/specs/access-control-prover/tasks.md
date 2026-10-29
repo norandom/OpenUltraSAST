@@ -110,7 +110,7 @@ its final resolution, dominance, fact-acquisition and measurement semantics with
   - _Depends: 7.1, 7.2, 7.3_
 
 - [ ] 8. Stable symbols and conservative call resolution
-- [ ] 8.1 Capture call receiver and arity evidence in the semantic IR
+- [x] 8.1 Capture call receiver and arity evidence in the semantic IR
   - Preserve receiver expression and argument count for supported syntax while keeping existing constructors valid.
   - Done when language fixtures retain receiver and arity evidence without regressing existing IR consumers.
   - _Requirements: 3.2, 3.3_

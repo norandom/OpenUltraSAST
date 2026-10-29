@@ -27,6 +27,8 @@ class CallSite:
     arg_names: tuple[tuple[str, ...], ...]
     extra_arg_is_sequence: bool
     order: int = 0
+    receiver: str | None = None
+    arity: int | None = None
 
 
 @dataclass(frozen=True)
@@ -202,7 +204,15 @@ def _call_site(node: ast.Call) -> CallSite:
         arg_is_constant=tuple(arg_const),
         arg_names=tuple(arg_names),
         extra_arg_is_sequence=extra_sequence,
+        receiver=_receiver(node.func),
+        arity=len(node.args) + len(node.keywords),
     )
+
+
+def _receiver(func: ast.expr) -> str | None:
+    if isinstance(func, ast.Attribute):
+        return _unparse(func.value)
+    return None
 
 
 def _end_position(node: ast.AST) -> int:

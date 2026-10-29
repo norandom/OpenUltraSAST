@@ -206,15 +206,50 @@ def _call(node: Any, kinds: dict[str, frozenset[str]]) -> CallSite:
     # PHP wraps positional and named argument values in an `argument` node.
     arg_nodes = [arg.named_children[-1] if arg.type == "argument" and arg.named_children else arg for arg in arg_nodes]
     extra = len(arg_nodes) >= 2 and arg_nodes[1].type in _SEQUENCE
+    callee = _callee_name(node, args_node)
     return CallSite(
         order=int(node.end_byte),
-        name=_callee_name(node, args_node),
+        name=callee,
         line=_line(node),
         arg_texts=tuple(_text(arg) for arg in arg_nodes),
         arg_is_constant=tuple(_is_constant(arg, kinds) for arg in arg_nodes),
         arg_names=tuple(_identifiers(arg) for arg in arg_nodes),
         extra_arg_is_sequence=extra,
+        receiver=_receiver_text(node, args_node, callee),
+        arity=len(arg_nodes),
     )
+
+
+_RECEIVER_SEPARATORS = ("->", "::", "?.", ".")
+
+
+def _receiver_text(node: Any, args_node: Any, callee: str) -> str | None:
+    parts = [child for child in getattr(node, "named_children", ()) or () if child is not args_node]
+    final_identifier = callee
+    for separator in _RECEIVER_SEPARATORS:
+        final_identifier = final_identifier.rsplit(separator, 1)[-1]
+    final_identifier = final_identifier.strip()
+    for child in parts:
+        receiver = _receiver_before_separator(_text(child), final_identifier)
+        if receiver is not None:
+            return receiver
+    for index, child in enumerate(parts):
+        if _text(child).strip() == final_identifier:
+            before = [text for text in (_text(part).strip() for part in parts[:index]) if text]
+            if before:
+                return ".".join(before)
+            return None
+    return None
+
+
+def _receiver_before_separator(text: str, final_identifier: str) -> str | None:
+    for separator in _RECEIVER_SEPARATORS:
+        position = text.rfind(separator)
+        if position <= 0:
+            continue
+        if text[position + len(separator) :].strip() == final_identifier:
+            return text[:position].strip() or None
+    return None
 
 
 def _callee_name(node: Any, args_node: Any) -> str:
