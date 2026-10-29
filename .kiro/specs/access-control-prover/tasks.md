@@ -217,7 +217,7 @@ its final resolution, dominance, fact-acquisition and measurement semantics with
   - _Requirements: 1.1, 1.5, 1.7_
   - _Boundary: Mapping Registry_
   - _Depends: 7.1_
-- [ ] 11.2 Add the generic call-site registration strategy
+- [x] 11.2 Add the generic call-site registration strategy
   - Resolve repository-defined registered handlers through stable symbols and return unresolved registration coverage.
   - Done when exact and unresolved registration fixtures produce entries or coverage respectively.
   - _Requirements: 1.2, 1.3, 1.4, 1.5, 1.6_
