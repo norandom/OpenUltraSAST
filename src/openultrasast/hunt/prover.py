@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import re
 from collections import Counter
-from collections.abc import Iterator, Mapping
-from dataclasses import asdict, dataclass, replace
+from collections.abc import Callable, Iterator, Mapping
+from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
@@ -23,6 +23,7 @@ from ..semantic.obligations.facts import load_obligation_facts
 from ..semantic.obligations.operations import Discharge, Operation, find_discharges, find_operations, valid_witness
 from ..semantic.obligations.paths import compose_paths
 from ..semantic.obligations.policy import DEFAULT_POLICY_RELPATH, load_declared_policy
+from ..semantic.obligations.resolution import CallBindings, bind_calls
 from ..semantic.obligations.trace import build_trace
 from .producers import Context, _safe_path
 
@@ -41,6 +42,9 @@ class Coverage:
     # until the prover opts into abstract judgment (task 10.6). Indeterminate pairs are counted
     # neither clean nor discharged.
     pair_judgments: PairJudgmentCounts = PairJudgmentCounts()
+    # Requirement 3.3/3.4 (access-control-prover): call-resolution outcome totals. Prover-mode
+    # resolution has no bare-name fallback; every call lands in exactly one bucket.
+    resolution_counts: dict[str, int] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -49,6 +53,52 @@ class ProverResult:
     coverage: Coverage
     degradations: tuple[dict[str, Any], ...]
     traces: tuple[dict[str, Any], ...] = ()
+
+
+def _resolution_bindings(
+    readable: list[str],
+    read_ir: Callable[[str], FileIR | None],
+    functions: Mapping[tuple[str, str], FunctionIR],
+    ctx: Context,
+    reasons: Counter[str],
+    degradations: list[dict[str, str]],
+) -> CallBindings:
+    """Parse every readable file and resolve all calls (Reqs 3.3/3.4)."""
+    for path in readable:
+        try:
+            read_ir(path)
+        except Exception as error:
+            reasons[type(error).__name__] += 1
+            degradations.append({"path": path, "reason": type(error).__name__})
+    functions_by_module: dict[str, list[FunctionIR]] = {}
+    for (module, _name), function_ir in functions.items():
+        functions_by_module.setdefault(module, []).append(function_ir)
+    return bind_calls(functions_by_module=functions_by_module, index=ctx.symbol_index)
+
+
+def _exact_callers(bindings: CallBindings, ctx: Context, path: str, function: str) -> list[tuple[str, int]]:
+    """Caller sites from exact bindings only; no bare-name fallback (Reqs 3.3/3.4)."""
+    out = []
+    for symbol in ctx.symbol_index.by_name.get(function, ()):
+        if symbol.module != path:
+            continue
+        for binding in bindings.exact_callers(symbol):
+            out.append((f"{binding.module}::{binding.function}", binding.line))
+    return sorted(set(out))
+
+
+def _targets_from_bindings(
+    touched: set[tuple[str, str]],
+    functions: Mapping[tuple[str, str], FunctionIR],
+    bindings: CallBindings,
+) -> set[tuple[str, str]]:
+    """Targets join by resolved symbol identity, never by trailing name (Req 3.3)."""
+    target_functions = set(touched)
+    for key in touched:
+        for call in functions[key].calls:
+            for target_set in bindings.resolutions.get((key[0], key[1], call.line), ()):
+                target_functions.update((symbol.module, symbol.name) for symbol in target_set.targets)
+    return target_functions
 
 
 def prove_change(root: Path, change: Mapping[str, Any], ctx: Context | None = None, *, max_depth: int = 3) -> ProverResult:
@@ -162,32 +212,15 @@ def prove_change(root: Path, change: Mapping[str, Any], ctx: Context | None = No
         if file.get("head_lines") and not selected:
             reasons["function_unavailable"] += 1
 
-    # The existing name-based index supplies call sites; retain file-qualified enclosing functions.
-    def callers(path: str, function: str) -> list[tuple[str, int]]:
-        del path
-        out = []
-        for caller_path, line in source.callers_of(root, function, files=readable, texts=ctx.texts, index=ctx.call_index):
-            ir = read_ir(caller_path)
-            if ir is None:
-                continue
-            spans = [fn for fn in ir.functions if fn.name != "<module>" and fn.start_line <= line <= fn.end_line]
-            if spans:
-                fn = min(spans, key=lambda item: item.end_line - item.start_line)
-                out.append((f"{caller_path}::{fn.name}", line))
-        return out
+    # Full IR coverage first: conservative resolution (Req 3.3/3.4) needs every readable file parsed.
+    bindings = _resolution_bindings(readable, read_ir, functions, ctx, reasons, degradations)
 
-    target_functions = set(touched)
-    call_names = {trailing_name(call.name) for key in touched for call in functions[key].calls}
-    if call_names:
-        for path in readable:
-            # Ranges are cached and avoid parsing unrelated files just to look for direct callees.
-            try:
-                if any(span.name in call_names for span in ctx.ranges(path)):
-                    read_ir(path)
-            except Exception as error:
-                reasons[type(error).__name__] += 1
-                degradations.append({"path": path, "reason": type(error).__name__})
-        target_functions.update(key for key, ops in operations.items() if key[1] in call_names and ops)
+    # Conservative caller resolution: only exact (complete, single-target) bindings supply callers;
+    # the global bare-name index fallback is removed from the prover path (Req 3.3/3.4).
+    def callers(path: str, function: str) -> list[tuple[str, int]]:
+        return _exact_callers(bindings, ctx, path, function)
+
+    target_functions = _targets_from_bindings(touched, functions, bindings)
     paths, unreached = compose_paths(
         callers=callers, entries={f"{e.path}::{e.function_name}" for e in entries}, targets=sorted(target_functions), max_depth=max_depth
     )
@@ -343,6 +376,7 @@ def prove_change(root: Path, change: Mapping[str, Any], ctx: Context | None = No
         len(checked),
         len(checked - undischarged),
         dict(reasons),
+        resolution_counts=dict(bindings.counts),
     )
     return ProverResult(tuple(findings.values()), coverage, tuple(degradations), tuple(traces))
 

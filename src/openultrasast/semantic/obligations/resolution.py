@@ -12,6 +12,8 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 
 from ..cst import DeclarationScope, declaration_scopes
+from ..ir import CallSite
+from .abstract_domain import Completeness
 
 
 @dataclass(frozen=True)
@@ -74,3 +76,151 @@ def _inheritance_edges(module: str, scopes: Iterable[DeclarationScope]) -> dict[
         if scope.enclosing_type is not None:
             edges[(module, scope.enclosing_type)] = scope.enclosing_base_types
     return edges
+
+
+@dataclass(frozen=True)
+class CallTargetSet:
+    """The outcome of resolving one call: complete exact targets, incomplete candidates, or unresolved."""
+
+    targets: tuple[SymbolId, ...]
+    completeness: Completeness
+
+
+_SELF_RECEIVERS = frozenset({"self", "$this", "this", "cls", "static"})
+
+
+@dataclass(frozen=True)
+class CallerBinding:
+    """One call site bound to a target declaration, with whether the binding is exact."""
+
+    module: str
+    function: str
+    line: int
+    exact: bool
+
+
+@dataclass(frozen=True)
+class CallBindings:
+    """Forward and reverse views of every resolved call in one change."""
+
+    call_targets: tuple[CallTargetSet, ...]
+    exact_caller_index: Mapping[SymbolId, tuple[CallerBinding, ...]]
+    counts: Mapping[str, int]
+    resolutions: Mapping[tuple[str, str, int], tuple[CallTargetSet, ...]] = field(default_factory=dict)
+
+    def exact_callers(self, target: SymbolId) -> tuple[CallerBinding, ...]:
+        """Call sites whose resolution is complete and lands on this target."""
+        return self.exact_caller_index.get(target, ())
+
+
+def resolve_call(call: CallSite, *, module: str, index: SymbolIndex) -> CallTargetSet:
+    """Resolve one call site against the repository symbol index.
+
+    Exact receiver and full signature produce one complete target; partial information
+    produces a finite candidate set with an incompleteness reason; nothing falls back to
+    a global bare-name key (Reqs 3.3, 3.4, 11.1, 11.6).
+    """
+    same_name = index.by_name.get(call.name, ())
+    receiver = (call.receiver or "").strip()
+    if not receiver:
+        return _module_scope_targets(same_name, module, call.arity)
+    if receiver in _SELF_RECEIVERS:
+        return _method_targets(same_name, module, call.arity, "receiver_self_shared_across_classes")
+    if _is_declared_type(same_name, receiver):
+        return _type_receiver_targets(same_name, receiver, call.arity)
+    return _variable_receiver_targets(same_name, call.arity)
+
+
+def bind_calls(*, functions_by_module: Mapping[str, Iterable], index: SymbolIndex) -> CallBindings:
+    """Resolve every call in the given function IRs and index the exact caller edges."""
+    call_targets: list[CallTargetSet] = []
+    caller_index: dict[SymbolId, list[CallerBinding]] = {}
+    resolutions: dict[tuple[str, str, int], list[CallTargetSet]] = {}
+    counts = {"complete_calls": 0, "incomplete_calls": 0, "unresolved_calls": 0}
+    for module, functions in functions_by_module.items():
+        for function_ir in functions:
+            for call in function_ir.calls:
+                target_set = resolve_call(call, module=module, index=index)
+                call_targets.append(target_set)
+                resolutions.setdefault((module, function_ir.name, call.line), []).append(target_set)
+                _count_target_set(target_set, counts)
+                if not target_set.completeness.reasons and len(target_set.targets) == 1:
+                    binding = CallerBinding(module=module, function=function_ir.name, line=call.line, exact=True)
+                    bindings = caller_index.setdefault(target_set.targets[0], [])
+                    if binding not in bindings:
+                        bindings.append(binding)
+    return CallBindings(
+        call_targets=tuple(call_targets),
+        exact_caller_index={target: tuple(bindings) for target, bindings in sorted(caller_index.items())},
+        counts=dict(sorted(counts.items())),
+        resolutions={key: tuple(sets) for key, sets in sorted(resolutions.items())},
+    )
+
+
+def _count_target_set(target_set: CallTargetSet, counts: dict[str, int]) -> None:
+    if not target_set.targets:
+        counts["unresolved_calls"] += 1
+    elif target_set.completeness.reasons:
+        counts["incomplete_calls"] += 1
+    else:
+        counts["complete_calls"] += 1
+
+
+def _module_scope_targets(same_name: tuple[SymbolId, ...], module: str, arity: int | None) -> CallTargetSet:
+    # A receiver-less call (implicit this in class languages, plain call in
+    # module languages) resolves against every same-name declaration in the
+    # calling module: module-level functions and class methods alike. Complete
+    # only when exactly one candidate exists; a shared name stays a finite
+    # candidate set with an incompleteness reason, never a bare-name merge.
+    module_scope = tuple(symbol for symbol in same_name if symbol.module == module)
+    narrowed = _arity_narrow(module_scope, arity)
+    if module_scope and not narrowed:
+        return CallTargetSet(targets=(), completeness=Completeness(is_complete=False, reasons=("resolution:arity_mismatch",)))
+    return _finish(narrowed, shared_reason="name_shared_across_module_scopes")
+
+
+def _method_targets(same_name: tuple[SymbolId, ...], module: str, arity: int | None, shared_reason: str) -> CallTargetSet:
+    methods = tuple(symbol for symbol in same_name if symbol.enclosing_type is not None and symbol.module == module)
+    return _narrowed_or_unresolved(methods, arity, shared_reason)
+
+
+def _type_receiver_targets(same_name: tuple[SymbolId, ...], type_name: str, arity: int | None) -> CallTargetSet:
+    methods = tuple(symbol for symbol in same_name if symbol.enclosing_type == type_name)
+    return _narrowed_or_unresolved(methods, arity, "class_shared_across_modules" if len({s.module for s in methods}) > 1 else "")
+
+
+def _variable_receiver_targets(same_name: tuple[SymbolId, ...], arity: int | None) -> CallTargetSet:
+    methods = tuple(symbol for symbol in same_name if symbol.enclosing_type is not None)
+    narrowed = _arity_narrow(methods, arity)
+    if not narrowed:
+        return CallTargetSet(targets=(), completeness=Completeness(is_complete=False, reasons=("resolution:no_candidate",)))
+    return CallTargetSet(
+        targets=narrowed,
+        completeness=Completeness(is_complete=False, reasons=("resolution:receiver_type_unknown",)),
+    )
+
+
+def _narrowed_or_unresolved(methods: tuple[SymbolId, ...], arity: int | None, shared_reason: str) -> CallTargetSet:
+    narrowed = _arity_narrow(methods, arity)
+    if methods and not narrowed:
+        return CallTargetSet(targets=(), completeness=Completeness(is_complete=False, reasons=("resolution:arity_mismatch",)))
+    return _finish(narrowed, shared_reason=shared_reason)
+
+
+def _is_declared_type(same_name: tuple[SymbolId, ...], receiver: str) -> bool:
+    return any(symbol.enclosing_type == receiver for symbol in same_name)
+
+
+def _arity_narrow(symbols: tuple[SymbolId, ...], arity: int | None) -> tuple[SymbolId, ...]:
+    if arity is None:
+        return symbols
+    narrowed = tuple(symbol for symbol in symbols if len(symbol.signature or ()) == arity)
+    return narrowed or symbols
+
+
+def _finish(targets: tuple[SymbolId, ...], shared_reason: str) -> CallTargetSet:
+    if not targets:
+        return CallTargetSet(targets=(), completeness=Completeness(is_complete=False, reasons=("resolution:no_candidate",)))
+    if len(targets) == 1:
+        return CallTargetSet(targets=targets, completeness=Completeness(is_complete=True))
+    return CallTargetSet(targets=targets, completeness=Completeness(is_complete=False, reasons=(f"resolution:{shared_reason}",)))

@@ -122,7 +122,7 @@ its final resolution, dominance, fact-acquisition and measurement semantics with
   - _Requirements: 3.2, 3.5, 6.2_
   - _Boundary: Symbol Index_
   - _Depends: 8.1_
-- [ ] 8.3 Resolve exact, finite-candidate and unresolved call targets
+- [x] 8.3 Resolve exact, finite-candidate and unresolved call targets
   - Return complete exact targets, incomplete finite candidate sets, or unresolved results with reasons.
   - Remove global bare-name fallback from prover-mode resolution.
   - Done when ambiguity never merges methods and unresolved calls cannot produce complete paths.
