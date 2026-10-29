@@ -81,7 +81,7 @@ its final resolution, dominance, fact-acquisition and measurement semantics with
 ## Amendment implementation
 
 - [ ] 7. Abstract evidence foundation
-- [ ] 7.1 Implement the evidence-relation algebra and completeness value
+- [x] 7.1 Implement the evidence-relation algebra and completeness value
   - Encode the specified precision order, complete join table, dimension conjunction and witness aggregation.
   - Preserve every incompleteness reason deterministically and deduplicate reasons without losing stage identity.
   - Done when exhaustive table tests and algebraic law tests pass for every relation pair.

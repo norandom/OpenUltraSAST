@@ -1,15 +1,15 @@
 {
   "feature_name": "access-control-prover",
   "created_at": "2026-10-14T13:48:18Z",
-  "updated_at": "2026-10-29T12:16:52Z",
+  "updated_at": "2026-10-29T13:05:00Z",
   "language": "en",
   "phase": "tasks-generated",
   "approvals": {
     "requirements": {"generated": true, "approved": true},
     "design": {"generated": true, "approved": true},
-    "tasks": {"generated": true, "approved": false}
+    "tasks": {"generated": true, "approved": true}
   },
-  "ready_for_implementation": false,
+  "ready_for_implementation": true,
   "depends_on": ["authorization-obligations", "valid-detection-benchmark", "hunter-learning-loop"],
-  "approval_note": "2026-10-14 maintainer directive in session: spec the prover and queue implementation with Codex (fast-track; the three gates were passed on that instruction, review the documents before the second delivery). 2026-10-29: requirements amended after the 2026-10-28 gates 1-5 measurements (trace resolution, programmatic entry facts, failure visibility). 2026-10-29 (later): maintainer instruction in session ('can you address the issues?') treated as requirements approval and as the directive to regenerate the design. 2026-10-29 (capability lift): per-target vocabulary became acquired data; engine/target split, pattern discipline and complexity caps were recorded in steering; all phases reopened. 2026-10-29 (abstract-interpretation amendment): the maintainer accepted the design-review recommendations by asking to make the amendments. Requirements and design were regenerated with a three-way judgment, explicit evidence algebra, stable symbols, resource/authority domains, label-blind acquisition and separate admission measurement; that directive is recorded as approval to regenerate tasks. The merged task plan passed an independent task-graph sanity review after two design repairs. Tasks await human approval before implementation."
+  "approval_note": "2026-10-14 maintainer directive in session: spec the prover and queue implementation with Codex (fast-track; the three gates were passed on that instruction, review the documents before the second delivery). 2026-10-29: requirements amended after the 2026-10-28 gates 1-5 measurements (trace resolution, programmatic entry facts, failure visibility). 2026-10-29 (later): maintainer instruction in session ('can you address the issues?') treated as requirements approval and as the directive to regenerate the design. 2026-10-29 (capability lift): per-target vocabulary became acquired data; engine/target split, pattern discipline and complexity caps were recorded in steering; all phases reopened. 2026-10-29 (abstract-interpretation amendment): the maintainer accepted the design-review recommendations by asking to make the amendments. Requirements and design were regenerated with a three-way judgment, explicit evidence algebra, stable symbols, resource/authority domains, label-blind acquisition and separate admission measurement; that directive is recorded as approval to regenerate tasks. The merged task plan passed an independent task-graph sanity review after two design repairs. Tasks await human approval before implementation. 2026-10-29 (implementation start): the maintainer invoked /kiro-impl access-control-prover in session; that directive is recorded as tasks approval."
 }
