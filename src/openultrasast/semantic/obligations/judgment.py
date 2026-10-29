@@ -1,9 +1,12 @@
-"""Task 10.4 -- one judgment per path (Reqs 4.1-4.3, 11.2-11.4).
+"""Tasks 10.4-10.5 -- per-path judgment and multi-path aggregation (Reqs 4.1-4.5, 11.2-11.5).
 
 A witness governs an obligation only when every required relation is MUST.
 With complete evidence and no governing witness for a required kind the path
 is unguarded; any MAY or UNKNOWN among required relations, or an incomplete
-path enumeration, makes it indeterminate. Engine module: no target names.
+path enumeration, makes it indeterminate. Aggregation over paths: any
+complete unguarded path is unguarded; a complete enumeration with every path
+discharged is discharged; otherwise indeterminate. Engine module: no target
+names.
 """
 
 from collections.abc import Mapping
@@ -15,6 +18,7 @@ from .abstract_domain import (
     PathJudgment,
     WitnessMatch,
     aggregate_witnesses,
+    join_completeness,
 )
 from .cfg_dominance import DominanceEvidence
 from .operations import Operation
@@ -34,6 +38,40 @@ def judgment_for_path(
     relations_by_kind = {kind: _kind_relation(pairs, discovery_complete) for kind, pairs in matches_by_kind.items()}
     judgment, missing = _mixed_obligation(relations_by_kind)
     return PathJudgment(judgment, missing, completeness, matches)
+
+
+def aggregate_judgments(judgments: tuple[PathJudgment, ...]) -> PathJudgment:
+    """Aggregate path judgments: Reqs 3.10, 4.1-4.5, 11.5 (task 10.5).
+
+    Any complete unguarded path decides unguarded; a complete enumeration
+    with every path discharged decides discharged; anything else, including
+    an empty enumeration, stays indeterminate.
+    """
+    completeness = _joined_completeness(judgments)
+    matches = tuple(dict.fromkeys(match for judgment in judgments for match in judgment.matches))
+    for judgment in judgments:
+        if judgment.judgment is PairJudgment.UNGUARDED and judgment.completeness.is_complete:
+            missing = tuple(
+                sorted(
+                    {
+                        kind
+                        for other in judgments
+                        if other.judgment is PairJudgment.UNGUARDED and other.completeness.is_complete
+                        for kind in other.missing
+                    }
+                )
+            )
+            return PathJudgment(PairJudgment.UNGUARDED, missing, completeness, matches)
+    if judgments and all(judgment.judgment is PairJudgment.DISCHARGED and judgment.completeness.is_complete for judgment in judgments):
+        return PathJudgment(PairJudgment.DISCHARGED, (), completeness, matches)
+    return PathJudgment(PairJudgment.INDETERMINATE, (), completeness, matches)
+
+
+def _joined_completeness(judgments: tuple[PathJudgment, ...]) -> Completeness:
+    joined = Completeness(is_complete=True)
+    for judgment in judgments:
+        joined = join_completeness(joined, judgment.completeness)
+    return joined
 
 
 def _conjoined(pair: tuple[WitnessMatch, DominanceEvidence]) -> EvidenceRelation:
@@ -65,4 +103,4 @@ def _mixed_obligation(
     return PairJudgment.DISCHARGED, ()
 
 
-__all__ = ["judgment_for_path"]
+__all__ = ["aggregate_judgments", "judgment_for_path"]

@@ -193,7 +193,7 @@ its final resolution, dominance, fact-acquisition and measurement semantics with
   - _Requirements: 4.1, 4.2, 4.3, 11.2, 11.3, 11.4_
   - _Boundary: Pair Judgment_
   - _Depends: 10.2, 10.3_
-- [ ] 10.5 Aggregate multiple paths in the opt-in checker mode
+- [x] 10.5 Aggregate multiple paths in the opt-in checker mode
   - Return unguarded if any complete path is unguarded, discharged only for complete all-discharged enumeration,
     and indeterminate otherwise.
   - Keep the legacy checker API and defaults unchanged.
