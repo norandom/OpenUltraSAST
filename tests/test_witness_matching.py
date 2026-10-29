@@ -2,6 +2,7 @@
 
 from openultrasast.semantic.obligations.abstract_domain import (
     UNKNOWN_RESOURCE,
+    AuthorityRef,
     EvidenceRelation,
     ResourceRef,
     parse_resource,
@@ -20,6 +21,7 @@ def _witness(
     scope: str = "statement",
     function: str = "handle",
     line: int | None = 3,
+    authority: AuthorityRef | None = None,
 ) -> Discharge:
     return Discharge(
         path=PATH,
@@ -30,6 +32,7 @@ def _witness(
         provenance="call",
         scope=scope,
         resource=resource,
+        authority=authority,
     )
 
 
@@ -62,7 +65,7 @@ def test_same_resource_exact_match_is_must() -> None:
     match = match_witness(_witness(resource=parse_resource("book")), _operation(resource="book"), _fact())
     assert match.resource_relation is EvidenceRelation.MUST
     assert match.relation is EvidenceRelation.MUST
-    assert match.authority_relation is EvidenceRelation.UNKNOWN
+    assert match.authority_relation is EvidenceRelation.MUST  # no authority obligation: vacuous MUST (10.3)
 
 
 def test_definite_resource_mismatch_is_no() -> None:
@@ -132,3 +135,117 @@ def test_matching_is_deterministic() -> None:
     witness = _witness(resource=parse_resource("book"))
     operation = _operation(resource="book")
     assert match_witness(witness, operation, _fact()) == match_witness(witness, operation, _fact())
+
+
+# --- Task 10.3: authority matching through promoted implications (Reqs 2.2, 2.5, 2.7, 2.8, 11.1) ---
+
+
+def _authority_witness(authority: AuthorityRef | None) -> Discharge:
+    return _witness(resource=ResourceRef(kind="exact", values=("book",)), authority=authority)
+
+
+def test_stronger_authority_via_promoted_implication_is_must_and_keeps_fact_id() -> None:
+    from openultrasast.semantic.obligations.abstract_domain import AuthorityImplication, AuthorityRef
+
+    witness = _authority_witness(AuthorityRef(values=("admin",)))
+    required = AuthorityRef(values=("supervisor",))
+    implications = (AuthorityImplication(id="php:admin-implies-supervisor", authority="admin", implies="supervisor"),)
+    match = match_witness(
+        witness,
+        _operation(),
+        required_authority=required,
+        implications=implications,
+    )
+    assert match.authority_relation is EvidenceRelation.MUST
+    assert "implication:php:admin-implies-supervisor" in match.evidence
+
+
+def test_identity_authority_is_must() -> None:
+    from openultrasast.semantic.obligations.abstract_domain import AuthorityRef
+
+    match = match_witness(
+        _authority_witness(AuthorityRef(values=("admin",))),
+        _operation(),
+        required_authority=AuthorityRef(values=("admin",)),
+    )
+    assert match.authority_relation is EvidenceRelation.MUST
+
+
+def test_weaker_authority_is_no() -> None:
+    from openultrasast.semantic.obligations.abstract_domain import AuthorityRef
+
+    match = match_witness(
+        _authority_witness(AuthorityRef(values=("user",))),
+        _operation(),
+        required_authority=AuthorityRef(values=("admin",)),
+    )
+    assert match.authority_relation is EvidenceRelation.NO
+
+
+def test_unrelated_authority_is_no() -> None:
+    from openultrasast.semantic.obligations.abstract_domain import AuthorityRef
+
+    match = match_witness(
+        _authority_witness(AuthorityRef(values=("auditor",))),
+        _operation(),
+        required_authority=AuthorityRef(values=("admin",)),
+    )
+    assert match.authority_relation is EvidenceRelation.NO
+
+
+def test_unknown_witness_authority_is_unknown() -> None:
+    from openultrasast.semantic.obligations.abstract_domain import AuthorityRef
+
+    match = match_witness(
+        _authority_witness(None),
+        _operation(),
+        required_authority=AuthorityRef(values=("admin",)),
+    )
+    assert match.authority_relation is EvidenceRelation.UNKNOWN
+
+
+def test_unknown_required_authority_is_unknown() -> None:
+    from openultrasast.semantic.obligations.abstract_domain import AuthorityRef
+
+    match = match_witness(
+        _authority_witness(AuthorityRef(values=("admin",))),
+        _operation(),
+        required_authority=AuthorityRef(values=(), is_unknown=True),
+    )
+    assert match.authority_relation is EvidenceRelation.UNKNOWN
+
+
+def test_multi_value_requirement_is_may_never_must() -> None:
+    from openultrasast.semantic.obligations.abstract_domain import AuthorityRef
+
+    match = match_witness(
+        _authority_witness(AuthorityRef(values=("admin",))),
+        _operation(),
+        required_authority=AuthorityRef(values=("admin", "guest")),
+    )
+    assert match.authority_relation is EvidenceRelation.MAY
+
+
+def test_no_authority_requirement_is_vacuous_must() -> None:
+    from openultrasast.semantic.obligations.abstract_domain import AuthorityRef
+
+    match = match_witness(
+        _authority_witness(AuthorityRef(values=("admin",))),
+        _operation(),
+        required_authority=None,
+    )
+    assert match.authority_relation is EvidenceRelation.MUST
+
+
+def test_overall_relation_conjoins_authority() -> None:
+    from openultrasast.semantic.obligations.abstract_domain import AuthorityRef
+
+    witness = _authority_witness(AuthorityRef(values=("user",)))
+    match = match_witness(
+        witness,
+        _operation(),
+        required_authority=AuthorityRef(values=("admin",)),
+    )
+    assert match.resource_relation is EvidenceRelation.MUST
+    assert match.authority_relation is EvidenceRelation.NO
+    assert match.relation is EvidenceRelation.NO

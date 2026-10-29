@@ -179,7 +179,7 @@ its final resolution, dominance, fact-acquisition and measurement semantics with
   - _Requirements: 2.1, 2.2, 2.5, 2.6, 2.7, 11.1_
   - _Boundary: Witness Matcher_
   - _Depends: 7.2, 10.1_
-- [ ] 10.3 Match authority and promoted implications
+- [x] 10.3 Match authority and promoted implications
   - Apply only promoted authority implications and preserve their evidence.
   - Return NO for insufficient authority and UNKNOWN when compatibility cannot be decided.
   - Done when stronger, weaker, unrelated and unknown authorities produce the expected relations.
