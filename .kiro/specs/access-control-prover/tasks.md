@@ -223,7 +223,7 @@ its final resolution, dominance, fact-acquisition and measurement semantics with
   - _Requirements: 1.2, 1.3, 1.4, 1.5, 1.6_
   - _Boundary: Registration Adapter_
   - _Depends: 8.4, 11.1_
-- [ ] 11.3 (P) Extract existing target knowledge into candidate records
+- [x] 11.3 (P) Extract existing target knowledge into candidate records
   - Read legacy recognition strategies and current facts without changing promoted outputs.
   - Done when extraction produces deterministic candidate records with source/version/region evidence.
   - _Requirements: 2.9_
