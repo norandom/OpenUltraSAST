@@ -22,7 +22,18 @@ SENSITIVITIES = ("low", "medium", "high")
 DEFAULT_OBLIGATION_FACTS_DIR = Path(__file__).resolve().parents[2] / "ruleset" / "obligations"
 
 _OPERATION_FIELDS = frozenset(
-    {"id", "kind", "calls", "resource_arg", "requires", "sensitivity", "query_document_arg", "handlers", "framework"}
+    {
+        "id",
+        "kind",
+        "calls",
+        "resource_arg",
+        "requires",
+        "sensitivity",
+        "query_document_arg",
+        "handlers",
+        "framework",
+        "request_global_kinds",
+    }
 )
 _DISCHARGER_FIELDS = frozenset(
     {"id", "kind", "calls", "decorators", "identity_sources", "constraint_params", "request_sources", "permissive_values"}
@@ -50,6 +61,9 @@ class OperationFact:
     query_document_arg: int | None = None
     handlers: tuple[str, ...] = ()
     framework: str | None = None
+    # Requirement 2.6 (access-control-prover): discharger kinds a request-global witness may discharge for
+    # this operation at request scope, without resource equality. Declared by the fact, never inferred.
+    request_global_kinds: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -97,48 +111,7 @@ def _load_obligation_facts_uncached(directory: Path | None = None) -> Obligation
         language = str(payload.get("language") or path.stem)
         versions.append(str(payload.get("version", "1")))
         for row in _rows(payload.get("operation"), path):
-            _only_fields(row, _OPERATION_FIELDS, path)
-            kind = str(row.get("kind", ""))
-            if kind not in OPERATION_KINDS:
-                raise ObligationFactsError(f"{path}: operation {row.get('id')!r} has unknown kind {kind!r}")
-            requires = _strings(row.get("requires"), "requires", path)
-            for item in requires:
-                if item not in DISCHARGER_KINDS:
-                    raise ObligationFactsError(f"{path}: operation {row.get('id')!r} requires unknown discharger kind {item!r}")
-            sensitivity = str(row.get("sensitivity", "medium"))
-            if sensitivity not in SENSITIVITIES:
-                raise ObligationFactsError(f"{path}: operation {row.get('id')!r} has unknown sensitivity {sensitivity!r}")
-            resource_arg = row.get("resource_arg")
-            if resource_arg is not None and not isinstance(resource_arg, int):
-                raise ObligationFactsError(f"{path}: operation {row.get('id')!r} resource_arg must be an integer")
-            document_arg = row.get("query_document_arg")
-            if document_arg is not None and (not isinstance(document_arg, int) or document_arg < 1):
-                raise ObligationFactsError(f"{path}: operation {row.get('id')!r} query_document_arg must be a positive integer")
-            handlers = _strings(row.get("handlers"), "handlers", path)
-            framework = row.get("framework")
-            if framework is not None and (not isinstance(framework, str) or not framework):
-                raise ObligationFactsError("invalid operation framework")
-            if handlers and framework is None:
-                raise ObligationFactsError("handler operation needs a framework")
-            for pattern in handlers:
-                try:
-                    re.compile(pattern)
-                except re.error as exc:
-                    raise ObligationFactsError(type(exc).__name__) from exc
-            operations.append(
-                OperationFact(
-                    id=str(row["id"]),
-                    kind=kind,
-                    language=language,
-                    calls=_strings(row.get("calls"), "calls", path),
-                    resource_arg=resource_arg,
-                    requires=requires,
-                    sensitivity=sensitivity,
-                    query_document_arg=document_arg,
-                    handlers=handlers,
-                    framework=framework,
-                )
-            )
+            operations.append(_operation_fact(row, path, language))
         for row in _rows(payload.get("discharger"), path):
             _only_fields(row, _DISCHARGER_FIELDS, path)
             kind = str(row.get("kind", ""))
@@ -158,6 +131,64 @@ def _load_obligation_facts_uncached(directory: Path | None = None) -> Obligation
                 )
             )
     return ObligationFacts(version=versions[0] if versions else "1", operations=tuple(operations), dischargers=tuple(dischargers))
+
+
+def _operation_fact(row: dict[str, object], path: Path, language: str) -> OperationFact:
+    """Validate one operation row against the closed sets and parse it; any unknown kind or field fails loud."""
+    _only_fields(row, _OPERATION_FIELDS, path)
+    kind = str(row.get("kind", ""))
+    if kind not in OPERATION_KINDS:
+        raise ObligationFactsError(f"{path}: operation {row.get('id')!r} has unknown kind {kind!r}")
+    requires = _strings(row.get("requires"), "requires", path)
+    for item in requires:
+        if item not in DISCHARGER_KINDS:
+            raise ObligationFactsError(f"{path}: operation {row.get('id')!r} requires unknown discharger kind {item!r}")
+    sensitivity = str(row.get("sensitivity", "medium"))
+    if sensitivity not in SENSITIVITIES:
+        raise ObligationFactsError(f"{path}: operation {row.get('id')!r} has unknown sensitivity {sensitivity!r}")
+    request_global_kinds = _strings(row.get("request_global_kinds"), "request_global_kinds", path)
+    for item in request_global_kinds:
+        if item not in DISCHARGER_KINDS:
+            raise ObligationFactsError(f"{path}: operation {row.get('id')!r} request_global_kinds names unknown discharger kind {item!r}")
+    handler_patterns, handler_framework = _handler_shape(row, path)
+    return OperationFact(
+        id=str(row["id"]),
+        kind=kind,
+        language=language,
+        calls=_strings(row.get("calls"), "calls", path),
+        resource_arg=_optional_int(row, "resource_arg", path, positive=False),
+        requires=requires,
+        sensitivity=sensitivity,
+        query_document_arg=_optional_int(row, "query_document_arg", path, positive=True),
+        handlers=handler_patterns,
+        framework=handler_framework,
+        request_global_kinds=request_global_kinds,
+    )
+
+
+def _optional_int(row: dict[str, object], field: str, path: Path, *, positive: bool) -> int | None:
+    value = row.get(field)
+    if value is None:
+        return None
+    if not isinstance(value, int) or (positive and value < 1):
+        requirement = "a positive integer" if positive else "an integer"
+        raise ObligationFactsError(f"{path}: operation {row.get('id')!r} {field} must be {requirement}")
+    return value
+
+
+def _handler_shape(row: dict[str, object], path: Path) -> tuple[tuple[str, ...], str | None]:
+    handler_patterns = _strings(row.get("handlers"), "handlers", path)
+    framework = row.get("framework")
+    if framework is not None and (not isinstance(framework, str) or not framework):
+        raise ObligationFactsError("invalid operation framework")
+    if handler_patterns and framework is None:
+        raise ObligationFactsError("handler operation needs a framework")
+    for pattern in handler_patterns:
+        try:
+            re.compile(pattern)
+        except re.error as exc:
+            raise ObligationFactsError(type(exc).__name__) from exc
+    return handler_patterns, framework
 
 
 def _rows(value: object, path: Path) -> list[dict[str, object]]:

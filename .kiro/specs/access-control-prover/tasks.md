@@ -87,7 +87,7 @@ its final resolution, dominance, fact-acquisition and measurement semantics with
   - Done when exhaustive table tests and algebraic law tests pass for every relation pair.
   - _Requirements: 11.1, 11.6, 11.7_
   - _Boundary: Abstract Evidence Domain_
-- [ ] 7.2 Add resource abstract values and operation-fact fields
+- [x] 7.2 Add resource abstract values and operation-fact fields
   - Represent exact resources, finite alias sets, request-global scope and unknown resources.
   - Extend operation facts to state when a request-global guard is sufficient.
   - Done when resource parsing and joins distinguish exact, alias, global and unknown fixtures.
