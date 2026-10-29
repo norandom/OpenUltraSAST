@@ -18,19 +18,40 @@ This spec delivers the prover for that one family, as a deterministic rule with 
 pool with the standard metrics, and emitting findings that carry the unguarded path so the proof arm can act on
 them. It is the increment that follows the annotation ablation in `hunter-learning-loop`.
 
+**Amendment 2026-10-29 (after the 2026-10-28 measurements).** Gates 1-3 measured the built prover on the pool:
+recall 65.2% (15/23), 15.0 false alarms per 100 ordinary pushes, a zero-shot judge that costs no recall but
+drops almost no false alarms. The taxonomy of the 8 misses and of 12 sampled kept false alarms points at one
+cross-cutting gap: the prover resolves too shallowly and too loosely. Operations and guards one call deeper
+than a handler are invisible; same-name methods on different classes are conflated; operations declared on
+abstract bases are projected onto routes that never implement them; coarse guards (a path guard, a generic
+ownership check) discharge operations whose resource they do not bind. This amendment adds the resolution
+requirements (Requirement 3 acceptance criteria 7-10, Requirement 2 acceptance criteria 9-10), the
+programmatic-registration entry facts (Requirement 1 acceptance criterion 9), and the failure-visibility
+criteria (Requirement 5 acceptance criterion 6, Requirement 7 acceptance criterion 3). Acceptance criteria
+added or changed by this amendment carry the tag `[2026-10-29]`.
+
 ## Boundary Context
 - **In scope**: entry-point recognition for the pool's frameworks; reachability paths from entry points to
   touched functions through the existing caller index; framework enforcement points that discharge an obligation
-  outside the function (route middleware, controller attributes, declared public routes); the verdict per change;
-  a runner that scores the verdict as an arm on the pool; a coverage statement per repository.
+  outside the function (route middleware, controller attributes, declared public routes); resolution of calls on
+  those paths precise enough to place operations and guards in the function that holds them `[2026-10-29]`;
+  the verdict per change; a runner that scores the verdict as an arm on the pool; a coverage statement per
+  repository.
 - **Out of scope**: taint flow, the Joern engine, any model call inside the prover, new families beyond access
   control, a project-owned declared policy file (exists in `authorization-obligations` and is consumed as is),
   the unseen pilot measurement (G1 exit, run by the maintainer after this arm exists), the pre-push hook wiring
-  (`pre-push-safety-net`).
+  (`pre-push-safety-net`), client-side JavaScript permission gating (hiding controls in a browser frontend --
+  the byobu miss of gate 3 is not a server-side security object) `[2026-10-29]`, tuning the zero-shot judge
+  prompt (gate 2 measured the judge inert on this pool; the lever is the trace, not the prompt)
+  `[2026-10-29]`, re-auditing the pool's negative pushes (owned by `valid-detection-benchmark`)
+  `[2026-10-29]`.
 - **Adjacent expectations**: `authorization-obligations` owns the facts schema, the checker and the dominance
   protocol; this spec extends facts and supplies paths and witnesses through the checker's existing parameters.
   `hunter-learning-loop` owns the feature table and the hunter arms; the prover is scored beside them with the
   same metric functions. `search-with-proof` consumes the finding's path and operation to build a demonstration.
+  `valid-detection-benchmark` owns the pool: 3 of 12 sampled "ordinary" pushes carry real missing-check bugs
+  (pre-2019 negatives), so false-alarm counts read against that pool overstate the prover's error until the
+  negatives are re-audited `[2026-10-29]`.
 
 ## Requirements
 
@@ -59,6 +80,11 @@ the pool uses, so that reachability starts where an attacker starts.
 7. The mapper shall record every recogniser's evidence strings so a finding can name why a method is an entry.
 8. If a file's framework is not recognised, then the mapper shall record nothing for it and the coverage
    statement (Requirement 7) shall count the file as unchecked; silence is never a pass.
+9. `[2026-10-29]` When a Java program in the repository registers a servlet or handler programmatically (Jetty
+   `ServletContextHandler`, `ServletHolder`, an add-servlet or add-handler registration call in the repository's
+   own code), the mapper shall record the registered class's request methods as `route` entries with the
+   registration site and the registered class as evidence, so that a server assembled in code, not annotations,
+   still yields entry points (the seatunnel miss of gate 3).
 
 ### Requirement 2: Enforcement points outside the function
 **Objective:** As a maintainer, I want checks that frameworks apply outside the handler to count as discharges,
@@ -90,6 +116,20 @@ so that a guarded route is not reported because its handler body shows no check.
 7. The prover shall write every enforcement fact as closed data in the obligation facts files, with the header
    naming the clones and references checked, and shall never add a name that does not occur in the checked code
    or the framework's documentation.
+9. `[2026-10-29]` The handler-named operations shall cover the pool's webhook and data-exposure handlers: the
+   facts shall name, by handler-name pattern and by the privileged calls the handler makes, the build-trigger
+   and webhook-submit operations (the pool's `doNotifyCommit`, `doChange`, `doChangeSubmit`, `doEvent`,
+   `doBuild`, `doBuildSubmit` shapes) and the protected-data exposure operations (the pool's `doJson`,
+   `doPython` shapes), applied at the method's declaration line to entries the mapper recognised (the
+   git-plugin, p4, analysis-core and global-build-stats misses of gate 3 all reached the entry and checked no
+   operation).
+10. `[2026-10-29]` A guard shall discharge an operation only when it binds that operation's resource: when the
+   guard constrains a different path, a different object, or a permission level the operation does not require,
+   the prover shall treat the operation as undischarged (the crx and kimai misses of gate 3: a generic
+   `path_guard` or `ownership_check` dominated a credentials form-fill and invoice actions whose resource it
+   never touches). Where a Symfony action or a function it calls is guarded by a voter decision on the action's
+   attribute (`isGranted`, `denyAccessUnlessGranted`, a voter's `voteOnAttribute`), the prover shall supply a
+   `voter` witness scoped to that action's operations.
 
 ### Requirement 3: Reachability paths through the caller index
 **Objective:** As a maintainer, I want a path from an entry point to each touched function, so that an
@@ -108,6 +148,22 @@ obligation inside a helper is judged by the checks on the way to it.
 5. The prover shall deduplicate chains, shall stop at the first entry point on a chain, and shall bound the work
    so a change of the pool's largest repositories finishes within the budget of Requirement 6.
 6. When two functions share a name in different files, the prover shall keep the chains separate by file.
+7. `[2026-10-29]` When a function on a path calls another function of the repository that holds a protected
+   operation, the prover shall extend the path through that call (within the depth and fan-out budget) so the
+   operation is checked even though no touched function holds it directly; an operation buried one call deeper
+   than the handler shall not be invisible (the gate 3 operation-fact misses).
+8. `[2026-10-29]` When a guard sits in a called function on the path, before the call or before the operation,
+   the trace shall carry it with its own function, line and kind, and dominance shall honour it as if it sat in
+   the hop's own function; a guard one call deeper than the handler shall still discharge (the dependency-track
+   and shopper false alarms of gate 3).
+9. `[2026-10-29]` The prover shall resolve calls by signature and receiver: same-name methods on different
+   classes (the vault and p4 false alarms) and same-name overloads with different parameter lists shall stay
+   distinct, and an operation or entry declared on an abstract or base class shall attach only to paths whose
+   concrete class the repository defines (the mage-ai false alarm: `BaseDetailHandler.get` projected onto an
+   unrelated internal route).
+10. `[2026-10-29]` A guard already recorded on a hop before a call shall be carried into the pair's trace and
+   dominance verdict; the prover shall not emit a finding whose own trace shows a dominating guard of the
+   required kind (the trigger.dev false alarm of gate 3).
 
 ### Requirement 4: The verdict
 **Objective:** As a developer about to push, I want a finding only when the tool can show an unguarded path to a
@@ -148,6 +204,9 @@ its number stands beside the hunter arms and decides whether it becomes a G1 arm
 4. The runner shall checkpoint records per change and resume by skipping finished ones.
 5. The record of a run shall carry counts, digests and framework names, never repository names of reserved
    populations, as the reserved-repository guard requires.
+6. `[2026-10-29]` The runner shall refuse to summarise a run whose findings anchor to a path that is not
+   present in the change's analysed tree, the same way it refuses zero-byte reads: a finding on an absent file
+   is an instrument defect, not a result (the crx stale anchor of gate 3).
 
 ### Requirement 6: Budget
 **Objective:** As a developer, I want the prover to finish inside the pre-push window, so that it can run on
@@ -171,6 +230,10 @@ clean bill.
 2. When the coverage statement shows zero recognised frameworks for a repository, the runner shall mark the
    repository `uncovered` in its summary, and recall for that repository shall be reported separately from the
    covered recall.
+3. `[2026-10-29]` When a recognition or resolution pass over a file raises an exception, the coverage statement
+   shall count that file under a reason that names the exception class, and shall never fold it into
+   `framework_unrecognised` or any other quiet reason (the byobu ValueErrors of gate 3 surfaced only by
+   inspection of the record).
 
 ### Requirement 8: Proof-arm feed
 **Objective:** As the proof arm, I want each finding to carry what a demonstration needs, so that a finding

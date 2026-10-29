@@ -1,15 +1,15 @@
 {
   "feature_name": "access-control-prover",
   "created_at": "2026-10-14T13:48:18Z",
-  "updated_at": "2026-10-14T13:48:18Z",
+  "updated_at": "2026-10-29T10:45:00Z",
   "language": "en",
-  "phase": "tasks-generated",
+  "phase": "requirements-generated",
   "approvals": {
-    "requirements": {"generated": true, "approved": true},
-    "design": {"generated": true, "approved": true},
-    "tasks": {"generated": true, "approved": true}
+    "requirements": {"generated": true, "approved": false},
+    "design": {"generated": true, "approved": false},
+    "tasks": {"generated": true, "approved": false}
   },
-  "ready_for_implementation": true,
+  "ready_for_implementation": false,
   "depends_on": ["authorization-obligations", "valid-detection-benchmark", "hunter-learning-loop"],
-  "approval_note": "2026-10-14 maintainer directive in session: spec the prover and queue implementation with Codex (fast-track; the three gates were passed on that instruction, review the documents before the second delivery)"
+  "approval_note": "2026-10-14 maintainer directive in session: spec the prover and queue implementation with Codex (fast-track; the three gates were passed on that instruction, review the documents before the second delivery). 2026-10-29: requirements amended after the 2026-10-28 gates 1-5 measurements (trace resolution, programmatic entry facts, failure visibility); requirements await re-approval, then design and tasks must be revisited against the amendment before implementation resumes."
 }
