@@ -165,7 +165,7 @@ its final resolution, dominance, fact-acquisition and measurement semantics with
   - _Depends: 9.3_
 
 - [ ] 10. Strict authorization judgment
-- [ ] 10.1 Return abstract dominance relations without prover fallback
+- [x] 10.1 Return abstract dominance relations without prover fallback
   - Return MUST, MAY, NO or UNKNOWN with guard effect and control context.
   - Keep legacy order dominance unchanged, but return UNKNOWN in prover mode for unavailable graphs or line mappings.
   - Done when no prover fixture is discharged or flagged solely through textual-order fallback.

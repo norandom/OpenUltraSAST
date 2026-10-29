@@ -16,9 +16,11 @@ from __future__ import annotations
 
 import re
 from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from typing import Any
 
 from ..cfg import ControlContext, FunctionCfg
+from .abstract_domain import EvidenceRelation
 from .dominance import Dominance, OrderDominance
 from .operations import Discharge, Operation
 
@@ -29,6 +31,15 @@ _IN_OPERATION = frozenset({"identity_constraint", "non_permissive_value"})
 _EXIT_LINE = re.compile(r"^\s*(?P<word>return\b|raise\b|throw\b|abort\(|sys\.exit\(|exit\(|res\.status\(|response\.status\()")
 
 CfgEntry = FunctionCfg | Sequence[FunctionCfg] | None
+
+
+@dataclass(frozen=True)
+class DominanceEvidence:
+    """The strict dominance answer for prover mode: a relation, the guard's failure effect, and a reason when unknown."""
+
+    relation: EvidenceRelation
+    guard_effect: str | None = None
+    reason: str | None = None
 
 
 class CfgDominance:
@@ -83,6 +94,36 @@ class CfgDominance:
             return False
         return cfg.effect(witness.line, operation.line, throwing=witness.kind in _THROWING) != "value_only"
 
+    def evidence(self, witness: Discharge, operation: Operation) -> DominanceEvidence:
+        """Strict abstract relation (task 10.1): never falls back to order dominance.
+
+        Unavailable graphs, unmapped lines and cross-function witnesses return UNKNOWN with a
+        reason; the legacy boolean surface keeps its order fallback for non-opt-in callers.
+        """
+        decided = _pre_graph_evidence(witness, operation)
+        if decided is not None:
+            return decided
+        guard_line = witness.line
+        if guard_line is None:  # decided above; kept for line-type narrowing
+            return DominanceEvidence(EvidenceRelation.UNKNOWN, None, "dominance:no_line")
+        cfg = self.graph(operation.path, operation.function, operation.line)
+        if cfg is None:
+            return DominanceEvidence(EvidenceRelation.UNKNOWN, None, "cfg_unavailable")
+        found = cfg.relation(guard_line, operation.line)
+        if found is None:
+            return DominanceEvidence(EvidenceRelation.UNKNOWN, None, "line_without_node")
+        if found == "all_paths":
+            effect = cfg.effect(guard_line, operation.line, throwing=witness.kind in _THROWING)
+            if effect == "value_only":
+                return DominanceEvidence(EvidenceRelation.NO, effect)
+            return DominanceEvidence(EvidenceRelation.MUST, effect)
+        if found == "some_paths":
+            effect = cfg.effect(guard_line, operation.line, throwing=witness.kind in _THROWING)
+            return DominanceEvidence(EvidenceRelation.MAY, effect)
+        if found in ("none", "after"):
+            return DominanceEvidence(EvidenceRelation.NO, None)
+        return DominanceEvidence(EvidenceRelation.UNKNOWN, None, "dominance:unmapped_relation")
+
     def relation(self, witness: Discharge, operation: Operation) -> str:
         cfg = self._local(witness, operation)
         found = cfg.relation(witness.line, operation.line) if cfg is not None and witness.line is not None else None
@@ -110,6 +151,23 @@ class CfgDominance:
         ):
             return None
         return self.graph(operation.path, operation.function, operation.line)
+
+
+def _pre_graph_evidence(witness: Discharge, operation: Operation) -> DominanceEvidence | None:
+    """Relation facts that need no graph: scopes, in-operation kinds, cross-function witnesses, line order."""
+    if witness.scope in _SCOPED:
+        return DominanceEvidence(EvidenceRelation.MUST, "handler")
+    if witness.scope == "hop" or (witness.path, witness.function) != (operation.path, operation.function):
+        return DominanceEvidence(EvidenceRelation.UNKNOWN, None, "dominance:cross_function")
+    if witness.kind in _IN_OPERATION:
+        if witness.line == operation.line:
+            return DominanceEvidence(EvidenceRelation.MUST, "constrains")
+        return DominanceEvidence(EvidenceRelation.NO, "constrains")
+    if witness.line is None:
+        return DominanceEvidence(EvidenceRelation.UNKNOWN, None, "dominance:no_line")
+    if witness.line >= operation.line:
+        return DominanceEvidence(EvidenceRelation.NO, None)
+    return None
 
 
 def describe(dominance: Dominance, witness: Discharge, operation: Operation, texts: Mapping[str, str]) -> tuple[str, str]:
@@ -154,4 +212,4 @@ def _order_effect(texts: Mapping[str, str], witness: Discharge, operation: Opera
     return "value_only"
 
 
-__all__ = ["CfgDominance", "describe", "operation_context"]
+__all__ = ["CfgDominance", "DominanceEvidence", "describe", "operation_context"]
