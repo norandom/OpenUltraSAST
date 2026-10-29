@@ -11,7 +11,7 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 
-from ..cst import DeclarationScope, declaration_scopes
+from ..cst import DeclarationScope, class_bases, declaration_scopes
 from ..ir import CallSite
 from .abstract_domain import Completeness
 
@@ -53,6 +53,8 @@ class SymbolIndex:
             scopes = declaration_scopes(path, text, language)
             declarations.update(_symbol_id(path, scope) for scope in scopes)
             base_types.update(_inheritance_edges(path, scopes))
+            for type_name, bases in class_bases(path, text, language):
+                base_types[(path, type_name)] = bases
         by_name: dict[str, list[SymbolId]] = {}
         for declaration in sorted(declarations):
             by_name.setdefault(declaration.name, []).append(declaration)
@@ -61,6 +63,53 @@ class SymbolIndex:
             base_types=dict(sorted(base_types.items())),
             by_name={name: tuple(symbols) for name, symbols in sorted(by_name.items())},
         )
+
+
+def ancestors_of(index: SymbolIndex, module: str, type_name: str) -> tuple[str, ...]:
+    """Repository-defined base types of one type, transitive, nearest first, cycle-safe."""
+    bases: list[str] = []
+    queue: list[str] = [type_name]
+    while queue:
+        current = queue.pop(0)
+        for base in index.base_types.get((module, current), ()):
+            if base in bases or base == type_name:
+                continue
+            bases.append(base)
+            queue.append(base)
+    return tuple(bases)
+
+
+def descendants_of(index: SymbolIndex, base_name: str) -> tuple[tuple[str, str], ...]:
+    """(module, type) pairs whose ancestry includes base_name; unrelated types never appear."""
+    return tuple(
+        sorted((module, type_name) for module, type_name in index.base_types if base_name in ancestors_of(index, module, type_name))
+    )
+
+
+def inherited_method(
+    index: SymbolIndex,
+    base_type: str,
+    method_name: str,
+    *,
+    arity: int | None,
+) -> CallTargetSet:
+    """Resolve a method as declared on base_type; attachment flows only along descendant edges.
+
+    A unique declaration resolves complete. Declarations of the same base name in
+    several modules stay a candidate set with an ambiguity reason (Req 3.5). No
+    same-name method on an unrelated class ever enters the target set.
+    """
+    same_name = index.by_name.get(method_name, ())
+    declared = [symbol for symbol in same_name if symbol.enclosing_type == base_type]
+    narrowed = _arity_narrow(tuple(declared), arity) if declared else ()
+    if not narrowed:
+        return CallTargetSet(targets=(), completeness=Completeness(is_complete=False, reasons=("resolution:no_candidate",)))
+    if len(narrowed) == 1:
+        return CallTargetSet(targets=(narrowed[0],), completeness=Completeness(is_complete=True))
+    return CallTargetSet(
+        targets=tuple(narrowed),
+        completeness=Completeness(is_complete=False, reasons=("resolution:inheritance_ambiguous_across_modules",)),
+    )
 
 
 def _symbol_id(module: str, scope: DeclarationScope) -> SymbolId:

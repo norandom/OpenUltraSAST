@@ -129,7 +129,7 @@ its final resolution, dominance, fact-acquisition and measurement semantics with
   - _Requirements: 3.3, 3.4, 11.1, 11.6_
   - _Boundary: Call Resolution_
   - _Depends: 8.2_
-- [ ] 8.4 Resolve inheritance and base-declaration attachment
+- [x] 8.4 Resolve inheritance and base-declaration attachment
   - Attach base operations and entries only through repository-defined descendant relations.
   - Preserve ambiguous inheritance as incomplete rather than projecting to unrelated routes.
   - Done when subclass and unrelated-class fixtures produce distinct attachments and judgments.

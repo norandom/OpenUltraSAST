@@ -154,6 +154,36 @@ def declaration_scopes(path: str, text: str, language: str) -> tuple[Declaration
     return tuple(scopes)
 
 
+def class_bases(path: str, text: str, language: str) -> tuple[tuple[str, tuple[str, ...]], ...]:
+    """Each class in the file with its declared base names; method-less classes included (task 8.4)."""
+    from .extra import grammar_for
+
+    kinds = _KIND.get(language)
+    grammar = grammar_for(_grammar_language(language, path))
+    if grammar is None or kinds is None:
+        return ()
+    try:
+        from tree_sitter import Parser
+
+        tree = Parser(grammar).parse(text.encode())
+    except Exception:
+        return ()
+    if bool(getattr(tree.root_node, "has_error", False)):
+        return ()
+    declarations: list[tuple[str, tuple[str, ...]]] = []
+    _collect_class_bases(tree.root_node, declarations)
+    return tuple(declarations)
+
+
+def _collect_class_bases(node: object, declarations: list[tuple[str, tuple[str, ...]]]) -> None:
+    if node.type in _CLASS_KINDS:  # type: ignore[attr-defined]
+        name_node = node.child_by_field_name("name")  # type: ignore[attr-defined]
+        if name_node is not None:
+            declarations.append((_text(name_node), _class_bases(node)))  # type: ignore[arg-type]
+    for child in getattr(node, "named_children", ()):  # type: ignore[attr-defined]
+        _collect_class_bases(child, declarations)
+
+
 def _collect_scopes(
     node: Any,
     kinds: dict[str, frozenset[str]],
