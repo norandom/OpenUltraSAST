@@ -1,8 +1,10 @@
-"""Task 11.3: extraction of existing target knowledge into candidate records (Req 2.9).
+"""Tasks 11.3 + 11.4: extraction and verified promotion of target knowledge (Reqs 2.9, 2.10).
 
 Extraction reads the legacy recognition strategies and the promoted fact rows and
 returns deterministic candidate records carrying source, version and region
-evidence. It never modifies promoted outputs.
+evidence. It never modifies promoted outputs. Verification and promotion accept
+only evidence-complete, non-contradicting proposals; rejected proposals leave the
+promoted corpus unchanged.
 """
 
 import hashlib
@@ -13,9 +15,12 @@ import pytest
 
 from openultrasast.tools.fact_init import (
     CandidateRecord,
+    PromotionResult,
     extract_all,
     extract_fact_rows,
     extract_legacy_strategies,
+    promote_proposals,
+    verify_candidate,
 )
 
 REPO_ROOT = Path(__file__).parents[1]
@@ -31,6 +36,122 @@ def _file_digest(path: Path) -> str:
 
 def _digest_dir(directory: Path) -> dict[str, str]:
     return {path.name: _file_digest(path) for path in sorted(directory.glob("*.toml"))}
+
+
+def _proposal(
+    name: str = "proposed-read", payload: tuple[tuple[str, str], ...] = (("calls", "read"), ("kind", "protected_read"))
+) -> CandidateRecord:
+    return CandidateRecord(
+        kind="operation",
+        name=name,
+        source="docs/target.md",
+        version="a1b2c3d4e5f6",
+        region="docs/target.md:proposed-read",
+        payload=payload,
+    )
+
+
+def _promoted_corpus() -> tuple[CandidateRecord, ...]:
+    return (
+        CandidateRecord(
+            kind="operation",
+            name="promoted-read",
+            source="src/openultrasast/ruleset/obligations/java.toml",
+            version="0123456789ab",
+            region="java.toml:operation:promoted-read",
+            payload=(("calls", "read"), ("kind", "protected_read")),
+        ),
+    )
+
+
+def test_verified_novel_proposal_is_accepted_and_promoted() -> None:
+    promoted = _promoted_corpus()
+    is_valid, reason = verify_candidate(_proposal(), promoted)
+    assert is_valid is True
+    assert reason is None
+    result = promote_proposals((_proposal(),), promoted)
+    assert result.accepted == (_proposal(),)
+    assert result.rejected == ()
+    assert _proposal() in result.promoted_after
+    assert promoted[0] in result.promoted_after
+
+
+def test_contradicted_proposal_is_rejected_and_promoted_knowledge_unchanged() -> None:
+    promoted = _promoted_corpus()
+    contradicted = CandidateRecord(
+        kind="operation",
+        name="promoted-read",
+        source="docs/target.md",
+        version="a1b2c3d4e5f6",
+        region="docs/target.md:promoted-read",
+        payload=(("calls", "write"),),
+    )
+    is_valid, reason = verify_candidate(contradicted, promoted)
+    assert is_valid is False
+    assert reason is not None and reason.startswith("contradicts-promoted")
+    result = promote_proposals((contradicted,), promoted)
+    assert result.rejected[0][0] == contradicted
+    assert result.promoted_after == promoted
+
+
+def test_evidence_free_proposal_is_rejected() -> None:
+    promoted = _promoted_corpus()
+    for broken in (
+        _proposal().__class__(**{**_proposal().__dict__, "source": ""}),
+        CandidateRecord(kind="operation", name="x", source="s", version="short", region="r"),
+        CandidateRecord(kind="operation", name="y", source="s", version="a1b2c3d4e5f6", region=""),
+    ):
+        is_valid, reason = verify_candidate(broken, promoted)
+        assert is_valid is False
+        assert reason is not None and reason.startswith("missing-evidence")
+    result = promote_proposals(
+        (CandidateRecord(kind="operation", name="z", source="", version="a1b2c3d4e5f6", region="r"),),
+        promoted,
+    )
+    assert result.promoted_after == promoted
+
+
+def test_exact_match_proposal_is_accepted_without_duplicate() -> None:
+    promoted = _promoted_corpus()
+    twin = CandidateRecord(
+        kind="operation",
+        name="promoted-read",
+        source="docs/target.md",
+        version="a1b2c3d4e5f6",
+        region="docs/target.md:promoted-read",
+        payload=promoted[0].payload,
+    )
+    result = promote_proposals((twin,), promoted)
+    assert result.accepted == (twin,)
+    assert result.rejected == ()
+    same_knowledge = [record for record in result.promoted_after if record.kind == twin.kind and record.name == twin.name]
+    assert len(same_knowledge) == 1
+    assert len(result.promoted_after) == len(promoted)
+
+
+def test_rejected_proposals_never_modify_promoted_corpus() -> None:
+    promoted = _promoted_corpus()
+    contradicted = CandidateRecord(
+        kind="operation",
+        name="promoted-read",
+        source="docs/target.md",
+        version="a1b2c3d4e5f6",
+        region="docs/target.md:promoted-read",
+        payload=(("calls", "purge"),),
+    )
+    result = promote_proposals((_proposal(), contradicted), promoted)
+    assert result.accepted == (_proposal(),)
+    assert len(result.rejected) == 1
+    assert contradicted not in result.promoted_after
+    assert promoted[0] in result.promoted_after
+
+
+def test_promotion_is_deterministic() -> None:
+    promoted = _promoted_corpus()
+    first = promote_proposals((_proposal(),), promoted)
+    second = promote_proposals((_proposal(),), promoted)
+    assert first == second
+    assert isinstance(first, PromotionResult)
 
 
 def test_fact_rows_extraction_yields_operation_and_discharger_records() -> None:

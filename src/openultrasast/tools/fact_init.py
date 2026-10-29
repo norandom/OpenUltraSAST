@@ -1,10 +1,15 @@
-"""Task 11.3: extract existing target knowledge into candidate records (Req 2.9).
+"""Tasks 11.3 + 11.4: extraction and verified promotion of target knowledge (Reqs 2.9, 2.10).
 
 Extraction mode of the initialization job: the legacy recognition strategies in
 ``mapping/legacy.py`` and the promoted fact rows in ``ruleset/obligations/*.toml``
 are read -- never modified -- and returned as deterministic candidate records
-carrying source, version and region evidence. Verification and promotion are the
-acquisition workflow's job (tasks 11.4+), not extraction's.
+carrying source, version and region evidence.
+
+Verification and promotion (task 11.4): a proposal is verified when its evidence
+is complete (source, version, region) and it does not contradict promoted
+knowledge. Promotion accepts only verified proposals; contradicted or
+evidence-free proposals are rejected with a reason and leave the promoted
+corpus unchanged (Req 2.10).
 
 This is a tools module, not an engine module: naming recognition targets here is
 legitimate (the whole point is to extract their vocabulary into data).
@@ -109,4 +114,54 @@ def _symbol_spans(text: str) -> Iterable[tuple[str, int, int]]:
         yield symbol, start, end_line - 1
 
 
-__all__ = ["CandidateRecord", "extract_all", "extract_fact_rows", "extract_legacy_strategies"]
+@dataclass(frozen=True)
+class PromotionResult:
+    """Outcome of promoting a batch of proposals (Reqs 2.9, 2.10)."""
+
+    accepted: tuple[CandidateRecord, ...]
+    rejected: tuple[tuple[CandidateRecord, str], ...]  # (record, reason)
+    promoted_after: tuple[CandidateRecord, ...]
+
+
+def verify_candidate(record: CandidateRecord, promoted: tuple[CandidateRecord, ...]) -> tuple[bool, str | None]:
+    """Verify one proposal against the promoted corpus.
+
+    Evidence must be complete (source, version, region) and the proposal must not
+    contradict promoted knowledge. Rejections carry a reason (Req 2.10).
+    """
+    if not record.source or not record.region or not re.fullmatch(r"[0-9a-f]{12}", record.version):
+        return False, "missing-evidence"
+    for existing in promoted:
+        if existing.kind == record.kind and existing.name == record.name:
+            if existing.payload != record.payload:
+                return False, f"contradicts-promoted:{record.kind}:{record.name}"
+            return True, None
+    return True, None
+
+
+def promote_proposals(candidates: tuple[CandidateRecord, ...], promoted: tuple[CandidateRecord, ...]) -> PromotionResult:
+    """Promote only verified proposals; rejects never modify the corpus (Req 2.10)."""
+    accepted: list[CandidateRecord] = []
+    rejected: list[tuple[CandidateRecord, str]] = []
+    promoted_after = list(promoted)
+    for record in candidates:
+        is_valid, reason = verify_candidate(record, tuple(promoted_after))
+        if not is_valid or reason is not None:
+            rejected.append((record, reason or "rejected"))
+            continue
+        accepted.append(record)
+        already_promoted = any(existing.kind == record.kind and existing.name == record.name for existing in promoted_after)
+        if not already_promoted:
+            promoted_after.append(record)
+    return PromotionResult(tuple(accepted), tuple(rejected), tuple(promoted_after))
+
+
+__all__ = [
+    "CandidateRecord",
+    "PromotionResult",
+    "extract_all",
+    "extract_fact_rows",
+    "extract_legacy_strategies",
+    "promote_proposals",
+    "verify_candidate",
+]

@@ -229,7 +229,7 @@ its final resolution, dominance, fact-acquisition and measurement semantics with
   - _Requirements: 2.9_
   - _Boundary: Fact Initialization_
   - _Depends: 7.1_
-- [ ] 11.4 Verify and promote proposed target knowledge
+- [x] 11.4 Verify and promote proposed target knowledge
   - Accept source- or approved-documentation proposals, reject contradictions, and write only verified outputs.
   - Done when matching proposals promote and contradicted or evidence-free proposals leave promoted knowledge unchanged.
   - _Requirements: 2.9, 2.10_
