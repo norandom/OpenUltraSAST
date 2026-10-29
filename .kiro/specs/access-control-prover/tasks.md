@@ -144,7 +144,7 @@ its final resolution, dominance, fact-acquisition and measurement semantics with
   - _Requirements: 3.1, 3.6, 11.7_
   - _Boundary: Function Summaries_
   - _Depends: 7.4, 8.3_
-- [ ] 9.2 Compute monotone summaries over recursive call components
+- [x] 9.2 Compute monotone summaries over recursive call components
   - Iterate finite summary sets over strongly connected components until stable.
   - Done when direct recursion and mutual recursion terminate with stable accumulated evidence.
   - _Requirements: 3.7, 11.6_
