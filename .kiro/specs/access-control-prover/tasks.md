@@ -186,7 +186,7 @@ its final resolution, dominance, fact-acquisition and measurement semantics with
   - _Requirements: 2.2, 2.5, 2.7, 2.8, 11.1_
   - _Boundary: Witness Matcher_
   - _Depends: 7.3, 10.1_
-- [ ] 10.4 Compute one judgment per complete or diagnostic path
+- [x] 10.4 Compute one judgment per complete or diagnostic path
   - Conjoin witness dimensions, aggregate witnesses per obligation and apply the mixed-obligation rule.
   - Emit discharged only for all-MUST, indeterminate for any MAY/UNKNOWN, and unguarded for at least one NO.
   - Done when MUST/NO, MAY/NO, UNKNOWN and empty-witness fixtures match the specified truth table.
