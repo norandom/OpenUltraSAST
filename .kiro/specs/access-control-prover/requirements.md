@@ -30,6 +30,13 @@ programmatic-registration entry facts (Requirement 1 acceptance criterion 9), an
 criteria (Requirement 5 acceptance criterion 6, Requirement 7 acceptance criterion 3). Acceptance criteria
 added or changed by this amendment carry the tag `[2026-10-29]`.
 
+Per the specification-level steering rule, this amendment states **acquisition capabilities**, not per-target
+inventories: the target vocabulary implied below (registration sites, handler-name families, policy-witness
+shapes) is data the fact pipeline acquires per target -- a one-time initialization job per target can produce
+it, and can extract the target knowledge already embedded in the repository's recogniser code into the same
+structures -- with the engine's verification discipline admitting each row. The named repositories appear only
+as benchmark evidence the acquired data must satisfy.
+
 ## Boundary Context
 - **In scope**: entry-point recognition for the pool's frameworks; reachability paths from entry points to
   touched functions through the existing caller index; framework enforcement points that discharge an obligation
@@ -80,11 +87,12 @@ the pool uses, so that reachability starts where an attacker starts.
 7. The mapper shall record every recogniser's evidence strings so a finding can name why a method is an entry.
 8. If a file's framework is not recognised, then the mapper shall record nothing for it and the coverage
    statement (Requirement 7) shall count the file as unchecked; silence is never a pass.
-9. `[2026-10-29]` When a Java program in the repository registers a servlet or handler programmatically (Jetty
-   `ServletContextHandler`, `ServletHolder`, an add-servlet or add-handler registration call in the repository's
-   own code), the mapper shall record the registered class's request methods as `route` entries with the
-   registration site and the registered class as evidence, so that a server assembled in code, not annotations,
-   still yields entry points (the seatunnel miss of gate 3).
+9. `[2026-10-29]` When the repository's own code registers a handler at a call site rather than declaring it
+   through annotations or configuration, the mapper shall record the registered class's request methods as
+   `route` entries with the registration site and the registered class as evidence, so that a server assembled
+   in code still yields entry points. The registration-site vocabulary for a target is acquirable data under
+   Requirement 2 acceptance criterion 7's discipline, not engine code; Jetty's programmatic servlet
+   registrations are the first case (the seatunnel miss of gate 3).
 
 ### Requirement 2: Enforcement points outside the function
 **Objective:** As a maintainer, I want checks that frameworks apply outside the handler to count as discharges,
@@ -115,21 +123,24 @@ so that a guarded route is not reported because its handler body shows no check.
    to functions the mapper recognised as entries of that framework, at the method's declaration line.
 7. The prover shall write every enforcement fact as closed data in the obligation facts files, with the header
    naming the clones and references checked, and shall never add a name that does not occur in the checked code
-   or the framework's documentation.
-9. `[2026-10-29]` The handler-named operations shall cover the pool's webhook and data-exposure handlers: the
-   facts shall name, by handler-name pattern and by the privileged calls the handler makes, the build-trigger
-   and webhook-submit operations (the pool's `doNotifyCommit`, `doChange`, `doChangeSubmit`, `doEvent`,
-   `doBuild`, `doBuildSubmit` shapes) and the protected-data exposure operations (the pool's `doJson`,
-   `doPython` shapes), applied at the method's declaration line to entries the mapper recognised (the
-   git-plugin, p4, analysis-core and global-build-stats misses of gate 3 all reached the entry and checked no
-   operation).
+   or the framework's documentation. A proposed fact (from a maintainer or an LLM proposal pass) is promoted to
+   a closed row only after the same header discipline is satisfied `[2026-10-29]`; per-target vocabulary enters
+   as data through this gate, never as engine code.
+9. `[2026-10-29]` The facts shall be able to name, by handler-name pattern and by the privileged calls the
+   handler makes, webhook and build-trigger obligations and protected-data exposure obligations, applied at the
+   method's declaration line to entries the mapper recognised. The name families for a target are acquirable
+   data under acceptance criterion 7's discipline -- a one-time initialization pass per target can produce them
+   (and can extract the vocabulary already embedded in the repository's recogniser code into those structures)
+   -- and the pool's Stapler webhook and data-exposure handlers are the first cases (the git-plugin, p4,
+   analysis-core and global-build-stats misses of gate 3 all reached the entry and checked no operation).
 10. `[2026-10-29]` A guard shall discharge an operation only when it binds that operation's resource: when the
    guard constrains a different path, a different object, or a permission level the operation does not require,
    the prover shall treat the operation as undischarged (the crx and kimai misses of gate 3: a generic
    `path_guard` or `ownership_check` dominated a credentials form-fill and invoice actions whose resource it
-   never touches). Where a Symfony action or a function it calls is guarded by a voter decision on the action's
-   attribute (`isGranted`, `denyAccessUnlessGranted`, a voter's `voteOnAttribute`), the prover shall supply a
-   `voter` witness scoped to that action's operations.
+   never touches). Where the target's policy layer decides access by an attribute or subject of the request --
+   a voter, policy, or capability decision reachable from the action or a function it calls -- the prover shall
+   supply a policy witness scoped to that action's operations with the attribute or subject as its resource;
+   Symfony's voter decisions are the first case.
 
 ### Requirement 3: Reachability paths through the caller index
 **Objective:** As a maintainer, I want a path from an entry point to each touched function, so that an

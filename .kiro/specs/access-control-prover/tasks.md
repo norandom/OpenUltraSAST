@@ -116,6 +116,140 @@
     instrument failures; on the 5 repos shared with the 2026-10-14 hunt arms, prover 4/5 vs
     DSPy 2/5 and hunter 2/5 (union 4/5), including trigger.dev which neither arm found.
 
+- [ ] 7. Resolution foundation `[2026-10-29]`
+- [ ] 7.1 `CallSite` receiver capture: `receiver: str | None` field on `semantic/ir.py`'s `CallSite`, captured
+  in `semantic/cst.py` call extraction (receiver expression text for `$obj->method` and `x.y.z` shapes; `None`
+  for bare calls); every existing consumer unchanged
+  - Done when IR fixtures show receiver text carried through call extraction for PHP/TS shapes, `CallSite` still
+    constructs without it for existing callers, and all existing IR/cst tests pass unchanged
+  - _Requirements: 3.9_
+  - _Boundary: semantic.ir, semantic.cst_
+- [ ] 7.2 (P) `obligations.resolution`: `ClassRecord`, `class_table(texts, language)` cached per change on the
+  hunter `Context`, `qualify(receiver, enclosing_class, name, arity, table)` returning `Class.name`,
+  `Class.name/arity`, or the bare name; base-class attachment rule (attaches to extending classes only)
+  - Done when `tests/test_obligation_resolution.py` covers: two same-name methods on different classes give
+    distinct keys; same name different arity gives distinct keys; an unresolvable receiver gives the bare name
+    with `receiver_unresolved` counted; an abstract-base method attaches to a subclass call and not to an
+    unrelated class
+  - _Requirements: 3.9_
+  - _Boundary: obligations.resolution, hunt.producers (Context cache field only)_
+
+- [ ] 8. Guard binding and policy witnesses `[2026-10-29]`
+- [ ] 8.1 (P) Resource-bound witnesses: optional `resource` field on `Discharge` (additive, default `None`);
+  enforcement mints tokens (route path for router middleware, attribute/subject for a policy-layer guard,
+  `None` for auth-class guards); policy-layer witness scoped to the action with the attribute or subject as
+  resource (a policy decision -- voter, capability check, or equivalent -- reachable from the action or a
+  function it calls). Which constructs count as policy decisions comes from the facts rows (task 10), never
+  engine code
+  - Done when `tests/test_obligation_enforcement.py` shows a resource-mismatch fixture (guard binds another
+    object's resource, the operation stays undischarged under `resource_bound`) and a policy-witness fixture
+    yielding a witness scoped to the action with the attribute as resource
+  - _Requirements: 2.10_
+  - _Boundary: obligations.enforcement, obligations.operations (dataclass field only)_
+- [ ] 8.2 Checker opt-in `resource_bound` and all-kind caller-hop re-judgement in `check.py`'s `_on_caller_hop`:
+  a witness with `resource` set suppresses only operations whose resource token matches; every discharger kind
+  is re-judged on earlier hops at the hop's call line; `guards_before_call` participates in the re-judgement
+  - Done when the existing checker tests pass unchanged and new tests show: keyword off keeps today's behaviour
+    (including the `assume_entries_protected`-gated hop re-judgement); keyword on, a mismatched-resource witness
+    does not suppress; a guard one call deeper than the handler discharges; a guard dominating before a hop
+    call yields no finding
+  - _Requirements: 2.10, 3.8, 3.10_
+  - _Boundary: obligations.check (opt-in only)_
+  - _Depends: 8.1_
+
+- [ ] 9. Recogniser registry `[2026-10-29]`
+- [ ] 9.1 `mapping/` package with a recogniser registry (Strategy pattern): registry table consulted by the
+  language dispatch in `mapping.py`; the registration-sites strategy lands first -- call-site handler
+  registration resolved through `resolution.class_table`, entries at the registered class's request-method
+  declarations with `registered_by` evidence, registration-site vocabulary carried as fact data (task 10), not
+  engine code; the recogniser returns unresolved registrations alongside the entries so the prover can count
+  them
+  - Done when `tests/test_mapping_registration_sites.py` shows a registration-site fixture (vocabulary from
+    data rows) yielding entries at the registered class's file with registration evidence, an unresolved
+    registration returned as such (no entry), `mapping.py`'s dispatch consults the registry, and the existing
+    mapping tests pass unchanged
+  - _Requirements: 1.9_
+  - _Boundary: mapping_
+  - _Depends: 7.2_
+- [ ] 9.2 Migrate the first legacy recogniser family (Stapler) from `mapping.py`'s inline blocks into a
+  `mapping/` strategy module, proving the migration path; remaining families migrate per the breadth map, not
+  this task
+  - Done when Stapler entries come from `mapping/stapler.py` through the registry with the existing Stapler
+    tests unchanged, and `mapping.py` contains no Stapler-specific regex
+  - _Requirements: 1.1_
+  - _Boundary: mapping_
+
+- [ ] 10. Fact initialization job `[2026-10-29]`
+- [ ] 10.1 (P) `tools/fact_init.py`: the one-time initialization pass per target. Extraction mode walks the
+  legacy `mapping.py` blocks and current TOML rows and extracts embedded target vocabulary into the acquirable
+  structures. Proposal mode takes an LLM or maintainer proposal for a target's vocabulary (entry shapes,
+  registration sites, handler-name families, policy-decision constructs). The gate: every row passes the facts
+  header discipline (source, version, region) and engine verification admits it (the row must match what the
+  target's code says); only then promoted to a closed row
+  - Done when `tests/test_fact_init.py` shows: extraction mode recovers the vocabulary of one legacy family
+    into rows; a proposal matching a fixture repository is promoted; a proposal the fixture contradicts is
+    rejected with the reason; nothing lands in the TOML files without passing the gate
+  - _Requirements: 2.7_
+  - _Boundary: tools.fact_init, ruleset/obligations (rows it produces)_
+- [ ] 10.2 First initialization run for the training pool's target families: produce the handler-name rows for
+  webhook/build-trigger and data-exposure shapes, the registration-site vocabulary, and the policy-decision
+  constructs, as data rows admitted through the gate (names verified against the pool clones; header updated)
+  - Done when the pool's gate-1 miss shapes (Stapler webhook/data-exposure handlers, programmatic registration,
+    policy voters) are all carried as rows with headers, no engine module names a target, and
+    `tests/test_obligation_facts.py` loads each family
+  - _Requirements: 2.7, 2.9, 2.10, 1.9_
+  - _Boundary: ruleset/obligations_
+  - _Depends: 10.1, 9.1, 8.1_
+
+- [ ] 11. Prover resolution integration `[2026-10-29]`
+- [ ] 11.1 Target enumeration joins callees by qualified key with a `down_depth` budget (default 2, sharing the
+  fan-out bound) so operations one call deeper are reached; the `callers` adapter keeps only callers whose
+  receiver binds to the target's class or subclass; unresolvable receivers fall back to the bare name and are
+  counted `receiver_unresolved`; unresolved registrations from mapping are counted `registration_unresolved` in
+  `Coverage`
+  - Done when `tests/test_hunt_prover.py` shows: an operation one call deeper than the handler is reached and
+    checked; a same-name method on another class yields a separate verdict (no cross-contamination); coverage
+    carries `receiver_unresolved` when a receiver does not resolve and `registration_unresolved` when a
+    registration target is outside the repository
+  - _Requirements: 3.7, 3.9_
+  - _Boundary: hunt.prover_
+  - _Depends: 7.1, 7.2, 9.1_
+
+- [ ] 12. Arm and coverage `[2026-10-29]`
+- [ ] 12.1 (P) Recognition or resolution exceptions inside `prove_change` are recorded under
+  `error:<exception class name>` reason keys in coverage, never folded into `framework_unrecognised` or any
+  other quiet reason
+  - Done when a fixture raising inside a recognition or resolution pass counts under `error:<class>` and
+    `framework_unrecognised` stays empty for that fixture
+  - _Requirements: 7.3_
+  - _Boundary: hunt.prover_
+- [ ] 12.2 (P) Stale-anchor refusal in `prover_arm._prove`: every returned finding's `path` is validated
+  against the files actually read; an absent path marks the record `instrument_failure` with reason
+  `stale_anchor` and findings cleared; `summarize` refuses such runs listing the record ids
+  - Done when `tests/test_prover_arm.py` shows a fixture finding on an absent path makes `_prove` mark the
+    record and makes `summarize` refuse, mirroring the zero-byte refusal
+  - _Requirements: 5.6_
+  - _Boundary: prover_arm_
+
+- [ ] 13. Measurement after the amendment (maintainer, not Codex) `[2026-10-29]`
+- [ ] 13.1 Re-run the arm on `benchmarks/valid/train/pool-train.toml` after tasks 7-12 land; write
+  `benchmarks/measurements/<date>-access-control-prover-v2/` with NOTES, summary, coverage table; compare
+  against the 2026-10-28 gate 1 run (recall 65.2%, FA 15.0/100) on the same pool
+  - _Requirements: 5.2, 5.3, 7.2_
+
+### Task constraints `[2026-10-29]`
+
+From `.kiro/steering/code-standards.md`, binding on every task above:
+
+- Complexity caps: McCabe <= 10 per function; <= 50 LLOC per function; <= 400 LLOC per new module. A task is
+  not done while a function it touched exceeds a cap; split the function.
+- Pattern discipline: tasks 9.1-9.2 implement Strategy + Registry; task 10.1 implements the acquisition
+  pipeline behind the Interpreter discipline (rows are the language); task 11.1 is the Adapter at the
+  engine seam. New recognisers land in `mapping/` strategy modules, never as `mapping.py` blocks.
+- Idiomatic naming: names state what a value semantically is in the pipeline vocabulary; collections name
+  their elements (`entry_point_records`, `judgments_by_key`); booleans are predicates; no abbreviations like
+  `eps`, `recs`, `d2`.
+
 
 ## Implementation Notes
 

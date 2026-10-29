@@ -1,15 +1,15 @@
 {
   "feature_name": "access-control-prover",
   "created_at": "2026-10-14T13:48:18Z",
-  "updated_at": "2026-10-29T13:05:00Z",
+  "updated_at": "2026-10-29T15:40:00Z",
   "language": "en",
-  "phase": "design-generated",
+  "phase": "requirements-generated",
   "approvals": {
-    "requirements": {"generated": true, "approved": true},
+    "requirements": {"generated": true, "approved": false},
     "design": {"generated": true, "approved": false},
     "tasks": {"generated": true, "approved": false}
   },
   "ready_for_implementation": false,
   "depends_on": ["authorization-obligations", "valid-detection-benchmark", "hunter-learning-loop"],
-  "approval_note": "2026-10-14 maintainer directive in session: spec the prover and queue implementation with Codex (fast-track; the three gates were passed on that instruction, review the documents before the second delivery). 2026-10-29: requirements amended after the 2026-10-28 gates 1-5 measurements (trace resolution, programmatic entry facts, failure visibility); requirements await re-approval, then design and tasks must be revisited against the amendment before implementation resumes. 2026-10-29 (later): maintainer instruction in session ('can you address the issues?') treated as requirements approval and as the directive to regenerate the design; design.md amended in merge mode against the amendment (resolution component, resource-bound and voter witnesses, programmatic Jetty registration, stale-anchor refusal, error reasons), tasks.md still to be regenerated after design approval."
+  "approval_note": "2026-10-14 maintainer directive in session: spec the prover and queue implementation with Codex (fast-track; the three gates were passed on that instruction, review the documents before the second delivery). 2026-10-29: requirements amended after the 2026-10-28 gates 1-5 measurements (trace resolution, programmatic entry facts, failure visibility); requirements await re-approval, then design and tasks must be revisited against the amendment before implementation resumes. 2026-10-29 (later): maintainer instruction in session ('can you address the issues?') treated as requirements approval and as the directive to regenerate the design; design.md amended in merge mode against the amendment (resolution component, resource-bound and voter witnesses, programmatic Jetty registration, stale-anchor refusal, error reasons), tasks.md still to be regenerated after design approval. 2026-10-29 (latest): maintainer directives lifted the specification to the capability level -- per-target vocabulary is acquired data (one-time initialization job with extraction and proposal modes behind the facts gate), never enumerated in acceptance criteria; engine/target split, GoF pattern discipline, complexity caps, and idiomatic naming recorded in .kiro/steering/code-standards.md; breadth map added at .kiro/steering/breadth-map.md. requirements.md, design.md and tasks.md were re-lifted accordingly; all three phases re-opened for approval in order."
 }

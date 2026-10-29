@@ -101,29 +101,36 @@ flowchart LR
 ## File Structure Plan
 ```
 src/openultrasast/
-├── mapping.py                              # + recognisers: _stapler_entries, _jetty_entries, _symfony_entries,
-│                                           #   _livewire_entries, _remix_exports (extend), _tornado_entries,
-│                                           #   _jetty_registration_entries [2026-10-29]
+├── mapping/                                 # recogniser registry [2026-10-29]: one strategy module per
+│   │                                        #   recognition concern, each registering itself in one table
+│   ├── registry.py                          # the registry the language dispatch consults
+│   ├── registration_sites.py                # call-site handler registration strategy (data-driven vocabulary)
+│   └── stapler.py, jetty.py, symfony.py, livewire.py, remix.py, tornado.py
+│                                            # strategy modules migrating from mapping.py's legacy blocks
+├── mapping.py                               # dispatch consults the registry during migration; blocks retire
+│                                            #   family by family (breadth map tracks the order)
 ├── semantic/
-│   ├── cst.py                              # + capture call receiver text in _call [2026-10-29]
-│   ├── ir.py                               # + CallSite.receiver: str | None [2026-10-29]
+│   ├── cst.py                               # + capture call receiver text in _call [2026-10-29]
+│   ├── ir.py                                # + CallSite.receiver: str | None [2026-10-29]
 │   └── obligations/
-│       ├── resolution.py                   # ClassRecord, class_table, qualify — receiver/signature resolution [2026-10-29]
-│       ├── paths.py                        # PathRecord, compose_paths(callers, entries, targets, depth, fan_out)
-│       └── enforcement.py                  # witnesses(root, texts, entries, facts) -> list[Discharge]
-├── hunt/prover.py                          # prove_change(root, change, ctx) -> ProverResult(findings, coverage)
-└── ruleset/obligations/{java,php,python,typescript}.toml   # + operation and discharger rows, checked headers
-benchmarks/valid/prover_arm.py              # run / summarize; records per change; coverage table; anchor refusal
-tests/test_mapping_frameworks.py, tests/test_obligation_resolution.py, tests/test_obligation_paths.py,
-tests/test_obligation_enforcement.py, tests/test_hunt_prover.py, tests/test_prover_arm.py
+│       ├── resolution.py                    # ClassRecord, class_table, qualify — receiver/signature resolution [2026-10-29]
+│       ├── paths.py                         # PathRecord, compose_paths(callers, entries, targets, depth, fan_out)
+│       └── enforcement.py                   # witnesses(root, texts, entries, facts) -> list[Discharge]
+├── hunt/prover.py                           # prove_change(root, change, ctx) -> ProverResult(findings, coverage)
+└── ruleset/obligations/{java,php,python,typescript}.toml    # + operation and discharger rows, checked headers
+src/openultrasast/tools/fact_init.py         # the one-time initialization job: extract + propose -> verify -> promote [2026-10-29]
+benchmarks/valid/prover_arm.py               # run / summarize; records per change; coverage table; anchor refusal
+tests/test_mapping_registry.py, tests/test_mapping_registration_sites.py, tests/test_obligation_resolution.py,
+tests/test_obligation_paths.py, tests/test_obligation_enforcement.py, tests/test_hunt_prover.py,
+tests/test_prover_arm.py, tests/test_fact_init.py
 ```
 
 ### Modified Files
-- `src/openultrasast/mapping.py`: new recogniser blocks, registered where `analyze_entry_points` dispatches by
-  language and path; `EntryPointRecord` unchanged.
+- `src/openultrasast/mapping.py`: dispatch consults the `mapping/` registry (Strategy pattern); legacy blocks
+  migrate into strategy modules family by family; `EntryPointRecord` unchanged.
 - `src/openultrasast/hunt/producers.py`: `Context` exposes `entry_points` and `ir(path)` already; add nothing
   unless a cache is missing (then a `cached_property`, same pattern).
-- `src/openultrasast/ruleset/obligations/*.toml`: rows only.
+- `src/openultrasast/ruleset/obligations/*.toml`: rows only, admitted through the fact gate.
 
 ## System Flows
 ```mermaid
@@ -172,6 +179,43 @@ counts and no finding. A declared-public route suppresses `path_guard` only.
 | 9.1-9.6 | trace serialisation in prove_change (obligations.trace) |
 | 10.1-10.7 | cfg.FunctionCfg, CfgDominance |
 
+## Pattern Application and Fact Acquisition `[2026-10-29]`
+
+The implementation follows the steering pattern discipline (`code-standards.md`): the engine stays
+target-agnostic; per-target vocabulary is data. Concretely for this spec:
+
+- **Strategy + Registry** for entry recognisers: the recognisers this spec adds (registration sites, and the
+  migration of existing framework blocks) live as strategy modules in a `mapping/` registry -- one module per
+  recognition concern, each naming its target family in the filename, registering itself in one table. The
+  dispatch in `mapping.py` consults the registry; it does not name frameworks.
+- **Interpreter** for obligation facts: operation rows, discharger rows, handler-name families and
+  registration-site vocabulary are TOML data interpreted by the engine; adding a target's vocabulary is a data
+  change reviewable in one place.
+- **Adapter** at the engine seams: `hunt/prover.py`'s callers adapter binds the IR to the caller index
+  (receiver-qualified through `resolution`); `obligations/enforcement.py` adapts framework constructs into
+  `Discharge` witnesses and is target-aware territory -- engine modules never import it.
+
+### Fact acquisition (the one-time initialization pass)
+
+Per-target vocabulary is produced by a one-time initialization job, not by hand-specced enumerations. The job
+has two modes and one gate:
+
+1. **Extraction mode**: walks the repository's existing recogniser code and framework knowledge (the legacy
+   `mapping.py` blocks, the current TOML rows) and extracts the target vocabulary already embedded there into
+   the acquirable structures (row families, strategy registrations).
+2. **Proposal mode**: an LLM pass (or the maintainer) proposes the vocabulary a new target needs -- entry
+   shapes, registration sites, handler-name families, policy-decision constructs -- against the target's
+   repository.
+3. **The gate**: every extracted or proposed row passes the same header discipline the facts files already
+   enforce (source, version, region) and engine verification admits each row (the row must match what the
+   code says); only then is it promoted to a closed row. Nothing skips the gate.
+
+The initialization job is a pipeline tool in this spec's scope (it produces the data the engine consumes);
+the standing fact-proposal lane (LLM proposes continuously, engine verifies, repetition promotes) remains the
+roadmap's growth path and is out of boundary here. First runs: extraction over the current embedded
+vocabulary, proposal for the training pool's target families, with the pool repositories as evidence.
+
+
 ## Components and Interfaces
 
 ### mapping recognisers
@@ -191,15 +235,18 @@ methods not starting with `_`, plus `Route::` registrations naming a controller 
 action|loader` under `app/routes`. Tornado: classes extending `RequestHandler` or `WebSocketHandler`, request
 methods and `open`.
 
-Programmatic registration `[2026-10-29]` (1.9): a separate recogniser follows the call-site registration
-pattern the Python route registrations and the WordPress registration table already use. It scans Java text
-for registration sites -- `new ServletContextHandler(`, `new ServletHolder(`, `addServlet`,
-`addServletWithMapping`, `addHandler`, `addServletMapping` -- resolves the registered class literal through
-`resolution.class_table`, and emits the registered class's request methods (`doGet`, `doPost`, `service`,
-`handle`) as `route` entries at the method's declaration line in the registered class's file, with the
-registration site (`path:line`) and the registered class name as evidence and `registered_by` set. A
-registration whose target class the repository does not define yields coverage (`registration_unresolved`)
-and no entry. Framework tag: `jetty`.
+Registration sites `[2026-10-29]` (1.9): the call-site registration concept the Python route
+registrations and the WordPress registration table already use, stated once, generically: when the
+repository's own code registers a handler at a call site (a constructor or registration method whose argument
+names the handler class), the registered class's request methods become `route` entries at the method's
+declaration line in the registered class's file, with the registration site (`path:line`) and the registered
+class name as evidence and `registered_by` set. The registration-site vocabulary -- which constructors and
+methods count as registrations, and which methods of the registered class are request methods -- is acquirable
+data under the facts discipline (R2 AC7), carried by a registration strategy module in the recogniser
+registry, never hardcoded in the engine. Class-literal resolution goes through `resolution.class_table`. A
+registration whose target class the repository does not define yields coverage (`registration_unresolved`) and
+no entry. Jetty's programmatic servlet registration is the first data case (seatunnel evidence), not the
+definition.
 
 ### obligations.paths
 ```python
@@ -287,11 +334,13 @@ Jenkins fixes are form-validation and list-filling web methods whose body calls 
 method is the operation. Jenkins documents the rule (form validation methods must check a permission).
 
 Handler-named rows for the webhook, build-trigger and data-exposure shapes `[2026-10-29]` (2.9): the
-`handlers` patterns extend to the verb families seen in the gate-1 misses -- `^doNotifyCommit$`,
-`^doChange(Submit)?$`, `^doEvent$`, `^doBuild(Submit)?$` (webhook and build-trigger endpoints that act with
-repository or job privileges) and `^doJson$`, `^doPython$` (protected-data exposure) -- as operation rows on
-`stapler`-recognised entries, at the declaration line. The families are rows in the facts files, not code: a
-new verb family is a row addition, and a row without `handlers` never matches a declaration name.
+`handlers` patterns extend to verb families whose handler name itself carries the obligation -- endpoints
+that act with repository or job privileges when called (webhook and build-trigger shapes) and endpoints that
+expose protected data (data-exposure shapes) -- as operation rows on framework-recognised entries, at the
+declaration line. The families are rows in the facts files, not code: a new verb family is a row addition
+acquired through the one-time initialization pass for the target (or proposed by the fact-proposal lane), and
+a row without `handlers` never matches a declaration name. The gate-1 misses (Stapler webhook and
+chart-data endpoints) are the first evidence set, not the definition.
 
 ### trace: the ordered serialisation (owned here)
 ```python
@@ -345,15 +394,17 @@ Reads Laravel route files (`routes/*.php`) for `->middleware([...])` and control
 `access_control`; Tornado `@authenticated`; emits `Discharge(kind="path_guard", scope="router"|"decorator", path,
 function, line=None, evidence=...)` for each covered handler. Names recognised live in the facts files' headers.
 
-Resource binding and voters `[2026-10-29]` (2.10): every witness this module mints carries the resource it
-binds (`Discharge` gains an optional `resource: str | None`, default `None`): the route path for router
-middleware, the attribute or subject expression for `IsGranted`/`denyAccessUnlessGranted`/`isGranted`, the
-middleware name for `auth`-class guards (no resource -- `None`). A voter decision is a `voter` witness: when a
-Symfony action (or a function it calls) calls `isGranted`/`denyAccessUnlessGranted` with an attribute, or a
-voter class in the repository implements `voteOnAttribute` for that attribute, the witness is scoped to that
-action's operations with the attribute as its resource. Discharge matching is the checker's
-`resource_bound` keyword (above); the resource token computation is shared with `Operation.resource` so the two
-sides compare like with like.
+Resource binding and policy witnesses `[2026-10-29]` (2.10): every witness this module mints carries the
+resource it binds (`Discharge` gains an optional `resource: str | None`, default `None`): the route path for
+router middleware, the attribute or subject expression for a policy-layer guard, the middleware name for
+`auth`-class guards (no resource -- `None`). A policy-layer witness covers an action's operations when a
+policy decision (voter, capability check, or equivalent) reachable from the action -- in the action body or a
+function it calls -- names the action's attribute or subject; the witness is scoped to that action's
+operations with the attribute or subject as its resource. Which constructs count as policy decisions is
+acquirable data in the facts files (the discharger rows already carry the vocabulary); the witness shapes are
+engine behaviour. Discharge matching is the checker's `resource_bound` keyword (above); the resource token
+computation is shared with `Operation.resource` so the two sides compare like with like. Symfony's voter
+attributes are the first data case (kimai evidence), not the definition.
 
 ### hunt.prover
 ```python
