@@ -8,8 +8,11 @@ stable, so direct and mutual recursion terminate with the accumulated
 evidence. Task 9.3 (Reqs 3.8, 6.2, 6.3, 7.2): an exploration budget bounds
 the fixpoint; depth, fan-out and deadline cutoffs stop growth, record the
 exact cutoff reason and leave the affected summaries incomplete while
-preserving the evidence accumulated so far. Summaries are deterministic and
-carry no target names beyond fact identifiers (Req 11.7).
+preserving the evidence accumulated so far. Task 9.4 (Reqs 3.9, 3.10, 11.4,
+11.5): concrete evidence paths run from recognised entries to operations only
+through exact target edges, every complete chain stays independent, and
+candidate edges are diagnostics that never complete a path. Summaries are
+deterministic and carry no target names beyond fact identifiers (Req 11.7).
 """
 
 from collections.abc import Iterable, Iterator, Mapping
@@ -373,3 +376,113 @@ def monotone_summaries(
         members = tuple(summaries_by_symbol[member] for member in component)
         _stabilise_component(members, summaries_by_symbol, edges, bounded)
     return tuple(summaries_by_symbol[summary.symbol] for summary in local)
+
+
+@dataclass(frozen=True)
+class EvidenceHop:
+    """One exact caller-to-callee transition with its call site line."""
+
+    caller: SymbolId
+    callee: SymbolId
+    line: int
+
+
+@dataclass(frozen=True)
+class EvidencePath:
+    """A concrete entry-to-operation chain of exact hops (Req 3.9)."""
+
+    entry: SymbolId
+    target: SymbolId
+    hops: tuple[EvidenceHop, ...] = ()
+
+
+@dataclass(frozen=True)
+class CandidateEdge:
+    """An ambiguous or unresolved call kept as a diagnostic (never a path edge)."""
+
+    caller: SymbolId
+    candidates: tuple[SymbolId, ...]
+    line: int
+    reason: str
+
+
+def exact_call_edges(
+    functions_by_module: Mapping[str, Iterable[FunctionIR]],
+    index: SymbolIndex,
+) -> tuple[EvidenceHop, ...]:
+    """Caller-to-callee hops over complete single-target resolutions only."""
+    hops: set[EvidenceHop] = set()
+    for module, functions in functions_by_module.items():
+        for function_ir in functions:
+            caller = _function_symbol(index, module, function_ir)
+            for call in function_ir.calls:
+                target_set = resolve_call(call, module=module, index=index)
+                if target_set.completeness.is_complete and len(target_set.targets) == 1:
+                    hops.add(EvidenceHop(caller, target_set.targets[0], call.line))
+    return tuple(sorted(hops, key=lambda hop: (hop.caller.sort_key, hop.line, hop.callee.sort_key)))
+
+
+def candidate_call_edges(
+    functions_by_module: Mapping[str, Iterable[FunctionIR]],
+    index: SymbolIndex,
+) -> tuple[CandidateEdge, ...]:
+    """Every ambiguous or unresolved call as a diagnostic candidate edge."""
+    edges: list[CandidateEdge] = []
+    for module, functions in functions_by_module.items():
+        for function_ir in functions:
+            caller = _function_symbol(index, module, function_ir)
+            for call in function_ir.calls:
+                target_set = resolve_call(call, module=module, index=index)
+                if target_set.completeness.is_complete and len(target_set.targets) == 1:
+                    continue
+                reason = target_set.completeness.reasons[0] if target_set.completeness.reasons else "resolution:unresolved"
+                edges.append(CandidateEdge(caller, target_set.targets, call.line, reason))
+    return tuple(sorted(edges, key=lambda edge: (edge.caller.sort_key, edge.line, edge.reason)))
+
+
+def exact_evidence_paths(
+    entries: Iterable[SymbolId],
+    edges: Iterable[EvidenceHop],
+    *,
+    operations_by_symbol: Mapping[SymbolId, tuple[Operation, ...]] | None = None,
+) -> tuple[EvidencePath, ...]:
+    """Materialise every concrete entry-to-operation chain through exact edges.
+
+    Req 3.9: each chain carries the call site of every hop. Req 3.10: chains
+    to the same operation stay independent. Req 11.5: candidate edges never
+    complete a path, so they cannot make an enumeration look complete.
+    """
+    operations_by_symbol = operations_by_symbol or {}
+    adjacency: dict[SymbolId, list[EvidenceHop]] = {}
+    for hop in sorted(edges, key=lambda hop: (hop.caller.sort_key, hop.line, hop.callee.sort_key)):
+        adjacency.setdefault(hop.caller, []).append(hop)
+    paths: list[EvidencePath] = []
+    for entry in sorted(entries, key=lambda symbol: symbol.sort_key):
+        _walk_exact_paths(entry, entry, (), adjacency, operations_by_symbol, paths, frozenset({entry}))
+    return tuple(paths)
+
+
+def _walk_exact_paths(
+    entry: SymbolId,
+    symbol: SymbolId,
+    hops_so_far: tuple[EvidenceHop, ...],
+    adjacency: Mapping[SymbolId, list[EvidenceHop]],
+    operations_by_symbol: Mapping[SymbolId, tuple[Operation, ...]],
+    paths: list[EvidencePath],
+    visited: frozenset[SymbolId],
+) -> None:
+    """Depth-first walk emitting one path per operation-holding symbol reached."""
+    if operations_by_symbol.get(symbol):
+        paths.append(EvidencePath(entry=entry, target=symbol, hops=hops_so_far))
+    for hop in adjacency.get(symbol, ()):
+        if hop.callee in visited:
+            continue
+        _walk_exact_paths(
+            entry,
+            hop.callee,
+            hops_so_far + (hop,),
+            adjacency,
+            operations_by_symbol,
+            paths,
+            visited | {hop.callee},
+        )

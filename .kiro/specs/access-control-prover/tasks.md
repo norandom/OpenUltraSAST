@@ -156,7 +156,7 @@ its final resolution, dominance, fact-acquisition and measurement semantics with
   - _Requirements: 3.8, 6.2, 6.3, 7.2_
   - _Boundary: Function Summaries, Context Cache_
   - _Depends: 9.2_
-- [ ] 9.4 Materialise exact evidence paths from summaries
+- [x] 9.4 Materialise exact evidence paths from summaries
   - Emit concrete entry-to-operation hops only through exact target edges.
   - Preserve every complete chain independently and retain candidate-edge diagnostics separately.
   - Done when guarded and unguarded paths to one operation remain separate and candidate edges never complete a path.

@@ -15,8 +15,12 @@ from openultrasast.semantic.obligations.abstract_domain import Completeness
 from openultrasast.semantic.obligations.operations import Discharge, Operation
 from openultrasast.semantic.obligations.resolution import SymbolId, SymbolIndex
 from openultrasast.semantic.obligations.summaries import (
+    EvidencePath,
     ExplorationBudget,
     FunctionSummary,
+    candidate_call_edges,
+    exact_call_edges,
+    exact_evidence_paths,
     local_summaries,
     monotone_summaries,
 )
@@ -499,3 +503,176 @@ def test_cutoff_reasons_join_existing_incompleteness() -> None:
     reasons = by_name["helper1"].completeness.reasons
     assert "resolution:no_candidate" in reasons
     assert "summaries:deadline_cutoff" in reasons
+
+
+# --- Task 9.4: exact evidence paths (Reqs 3.9, 3.10, 11.4, 11.5) ---
+
+JAVA_ENTRY_CHAIN = """class Handler {
+    public void handle() {
+        this.run("job");
+    }
+    public void run(String command) {
+        this.persist(command);
+    }
+    public void persist(String payload) {
+    }
+}
+"""
+
+JAVA_TWO_ROUTES = """class Gate {
+    public void enter() {
+        this.left();
+        this.right();
+    }
+    public void left() {
+        this.vault();
+    }
+    public void right() {
+        this.vault();
+    }
+    public void vault() {
+    }
+}
+"""
+
+
+JAVA_AUDITOR = """class Auditor {
+    public void check() {
+    }
+}
+"""
+
+
+def _chain_index() -> SymbolIndex:
+    return SymbolIndex.build(
+        (
+            ("src/Handler.java", JAVA_ENTRY_CHAIN, "java"),
+            ("src/Auditor.java", JAVA_AUDITOR, "java"),
+        )
+    )
+
+
+def _routes_index() -> SymbolIndex:
+    return SymbolIndex.build((("src/Gate.java", JAVA_TWO_ROUTES, "java"),))
+
+
+def _chain_functions() -> dict[str, tuple[FunctionIR, ...]]:
+    return {
+        "src/Handler.java": (
+            FunctionIR("handle", (), 2, 4, (), (CallSite("run", 3, (), (), (), False, 0, receiver="this", arity=1),)),
+            FunctionIR("run", ("command",), 5, 7, (), (CallSite("persist", 6, (), (), (), False, 0, receiver="this", arity=1),)),
+            FunctionIR("persist", ("payload",), 8, 9, (), ()),
+        )
+    }
+
+
+def _routes_functions() -> dict[str, tuple[FunctionIR, ...]]:
+    return {
+        "src/Gate.java": (
+            FunctionIR(
+                "enter",
+                (),
+                2,
+                5,
+                (),
+                (
+                    CallSite("left", 3, (), (), (), False, 0, receiver="this"),
+                    CallSite("right", 4, (), (), (), False, 0, receiver="this"),
+                ),
+            ),
+            FunctionIR("left", (), 6, 8, (), (CallSite("vault", 7, (), (), (), False, 0, receiver="this"),)),
+            FunctionIR("right", (), 9, 11, (), (CallSite("vault", 10, (), (), (), False, 0, receiver="this"),)),
+            FunctionIR("vault", (), 12, 13, (), ()),
+        )
+    }
+
+
+def _symbol(index: SymbolIndex, name: str) -> SymbolId:
+    return next(symbol for symbol in index.by_name[name] if symbol.module == "src/Handler.java")
+
+
+def _routes_symbol(index: SymbolIndex, name: str) -> SymbolId:
+    return next(symbol for symbol in index.by_name[name] if symbol.module == "src/Gate.java")
+
+
+def test_exact_edges_carry_call_site_lines() -> None:
+    index = _chain_index()
+    edges = exact_call_edges(_chain_functions(), index)
+    pairs = {(edge.caller.name, edge.callee.name): edge.line for edge in edges}
+    assert pairs[("handle", "run")] == 3
+    assert pairs[("run", "persist")] == 6
+
+
+def test_entry_chain_emits_hops_from_entry_to_operation() -> None:
+    index = _chain_index()
+    edges = exact_call_edges(_chain_functions(), index)
+    persist_symbol = _symbol(index, "persist")
+    paths = exact_evidence_paths(
+        (_symbol(index, "handle"),),
+        edges,
+        operations_by_symbol={persist_symbol: (_java_operation("persist", 9),)},
+    )
+    assert len(paths) == 1
+    assert paths[0].entry.name == "handle"
+    assert paths[0].target.name == "persist"
+    assert [hop.callee.name for hop in paths[0].hops] == ["run", "persist"]
+    assert paths[0].hops[0].line == 3
+
+
+def test_entry_itself_holding_an_operation_emits_a_zero_hop_path() -> None:
+    index = _chain_index()
+    edges = exact_call_edges(_chain_functions(), index)
+    handle_symbol = _symbol(index, "handle")
+    paths = exact_evidence_paths(
+        (handle_symbol,),
+        edges,
+        operations_by_symbol={handle_symbol: (_java_operation("handle", 3),)},
+    )
+    assert paths == (EvidencePath(entry=handle_symbol, target=handle_symbol, hops=()),)
+
+
+def test_two_complete_chains_to_one_operation_stay_independent() -> None:
+    index = _routes_index()
+    edges = exact_call_edges(_routes_functions(), index)
+    enter = _routes_symbol(index, "enter")
+    vault = _routes_symbol(index, "vault")
+    paths = exact_evidence_paths(
+        (enter,),
+        edges,
+        operations_by_symbol={vault: (_java_operation("vault", 12),)},
+    )
+    routes = sorted(tuple(hop.callee.name for hop in path.hops) for path in paths)
+    assert routes == [("left", "vault"), ("right", "vault")]
+    assert all(path.target == vault for path in paths)
+
+
+def test_candidate_edges_never_complete_a_path() -> None:
+    index = _chain_index()
+    functions = {
+        "src/Handler.java": (FunctionIR("handle", (), 2, 4, (), (CallSite("check", 3, (), (), (), False, 0, receiver="auditor"),)),)
+        + _chain_functions()["src/Handler.java"][1:]
+    }
+    edges = exact_call_edges(functions, index)
+    auditor = next(symbol for symbol in index.by_name["check"] if symbol.module == "src/Auditor.java")
+    paths = exact_evidence_paths(
+        (_symbol(index, "handle"),),
+        edges,
+        operations_by_symbol={auditor: (_java_operation("check", 1),)},
+    )
+    assert paths == ()
+    diagnostics = candidate_call_edges(functions, index)
+    assert len(diagnostics) == 1
+    assert diagnostics[0].caller.name == "handle"
+    assert diagnostics[0].reason == "resolution:receiver_type_unknown"
+    assert any(candidate.enclosing_type == "Auditor" for candidate in diagnostics[0].candidates)
+
+
+def test_exact_evidence_paths_are_deterministic() -> None:
+    index = _routes_index()
+    edges = exact_call_edges(_routes_functions(), index)
+    enter = _routes_symbol(index, "enter")
+    vault = _routes_symbol(index, "vault")
+    operations = {vault: (_java_operation("vault", 12),)}
+    assert exact_evidence_paths((enter,), edges, operations_by_symbol=operations) == exact_evidence_paths(
+        (enter,), edges, operations_by_symbol=operations
+    )
