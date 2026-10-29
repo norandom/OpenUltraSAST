@@ -35,8 +35,9 @@ def match_witness(
     """Match one witness against one operation on kind, scope, resource and authority."""
     if witness.kind not in operation.requires:
         return _match(EvidenceRelation.NO, EvidenceRelation.NO, EvidenceRelation.UNKNOWN, witness, operation, ())
-    if _out_of_scope(witness, operation):
-        return _match(EvidenceRelation.NO, EvidenceRelation.NO, EvidenceRelation.UNKNOWN, witness, operation, ())
+    scope_relation = _scope_relation(witness, operation)
+    if scope_relation is not EvidenceRelation.MUST:
+        return _match(scope_relation, EvidenceRelation.NO, EvidenceRelation.UNKNOWN, witness, operation, ())
     resource_relation = _resource_relation(witness, operation, fact)
     authority_relation, implication_ids = _authority_relation(witness, required_authority, implications)
     relation = conjoin_dimensions(
@@ -45,13 +46,15 @@ def match_witness(
     return _match(relation, resource_relation, authority_relation, witness, operation, implication_ids)
 
 
-def _out_of_scope(witness: Discharge, operation: Operation) -> bool:
+def _scope_relation(witness: Discharge, operation: Operation) -> EvidenceRelation:
+    """Whole-handler scopes on another handler are definitely unrelated; a statement-scope
+    witness in a caller of the operation's function is undecidable here (Req 2.7)."""
     same_function = (witness.path, witness.function) == (operation.path, operation.function)
+    if same_function or witness.scope == "hop":
+        return EvidenceRelation.MUST
     if witness.scope in _WHOLE_HANDLER_SCOPES:
-        return not same_function
-    if witness.scope == "hop":
-        return False
-    return not same_function
+        return EvidenceRelation.NO
+    return EvidenceRelation.UNKNOWN
 
 
 def _resource_relation(witness: Discharge, operation: Operation, fact: OperationFact | None) -> EvidenceRelation:

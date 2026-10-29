@@ -15,16 +15,28 @@ from ..semantic.cfg import ControlContext, FunctionCfg
 from ..semantic.cst import parse_function_nodes
 from ..semantic.facts import load_facts
 from ..semantic.ir import FileIR, FunctionIR, trailing_name
-from ..semantic.obligations.abstract_domain import PairJudgmentCounts
+from ..semantic.obligations.abstract_domain import (
+    Completeness,
+    EvidenceRelation,
+    PairJudgment,
+    PairJudgmentCounts,
+    PathJudgment,
+    count_pair_judgments,
+    join_alternatives,
+    parse_authority,
+    parse_resource,
+)
 from ..semantic.obligations.cfg_dominance import CfgDominance
 from ..semantic.obligations.check import _on_caller_hop, _relevant, _route_path, check_obligations
 from ..semantic.obligations.enforcement import witnesses
 from ..semantic.obligations.facts import load_obligation_facts
+from ..semantic.obligations.judgment import aggregate_judgments, judgment_for_path
 from ..semantic.obligations.operations import Discharge, Operation, find_discharges, find_operations, valid_witness
 from ..semantic.obligations.paths import compose_paths
 from ..semantic.obligations.policy import DEFAULT_POLICY_RELPATH, load_declared_policy
 from ..semantic.obligations.resolution import CallBindings, bind_calls
-from ..semantic.obligations.trace import build_trace
+from ..semantic.obligations.trace import AbstractTraceState, build_trace
+from ..semantic.obligations.witness import match_witness
 from .producers import Context, _safe_path
 
 
@@ -101,7 +113,120 @@ def _targets_from_bindings(
     return target_functions
 
 
-def prove_change(root: Path, change: Mapping[str, Any], ctx: Context | None = None, *, max_depth: int = 3) -> ProverResult:
+def _path_judgment(
+    result: Any,
+    op: Operation,
+    graphs: CfgDominance,
+    facts: Any,
+) -> PathJudgment:
+    """Judge one operation on one path with the strict three-way algebra (Req 4.1-4.3)."""
+    fact = next((f for f in facts.operations if f.id == op.fact_id), None)
+    pairs_by_kind = {
+        kind: tuple(
+            (match_witness(witness, op, fact), graphs.evidence(witness, op)) for witness in result.discharges if witness.kind == kind
+        )
+        for kind in op.requires
+    }
+    return judgment_for_path(op, pairs_by_kind, Completeness(is_complete=True))
+
+
+def _abstract_state(judgment: PathJudgment, op: Operation) -> AbstractTraceState:
+    """Pair-level abstract state for a strict-mode trace (Req 9.2)."""
+    matches = judgment.matches
+    return AbstractTraceState(
+        path_judgment=judgment,
+        resource=parse_resource(op.resource),
+        authority=parse_authority(None),
+        resource_relation=_joined_relation(match.resource_relation for match in matches),
+        authority_relation=_joined_relation(match.authority_relation for match in matches),
+    )
+
+
+def _joined_relation(relations: Iterator[EvidenceRelation]) -> EvidenceRelation:
+    values = tuple(relations)
+    if not values:
+        return EvidenceRelation.NO
+    joined = values[0]
+    for value in values[1:]:
+        joined = join_alternatives(joined, value)
+    return joined
+
+
+def _emit_unguarded(
+    findings: dict[str, dict[str, Any]],
+    op: Operation,
+    aggregate: PathJudgment,
+    record: Any,
+    trace: dict[str, Any],
+    entry_index: Mapping[str, Any],
+    facts: Any,
+    functions: Mapping[tuple[str, str], FunctionIR],
+) -> None:
+    """Emit one finding per missing kind for an unguarded aggregate (Req 4.4)."""
+    if aggregate.judgment is not PairJudgment.UNGUARDED:
+        return
+    op_fact = next(fact for fact in facts.operations if fact.id == op.fact_id)
+    fn = functions[op.path, op.function]
+    calls = sorted(
+        {
+            trailing_name(call.name)
+            for call in fn.calls
+            if call.line == op.line and any(call.name == name or call.name.endswith("." + name) for name in op_fact.calls)
+        }
+    )
+    entry_payload = asdict(entry_index[record.entry])
+    hops = [list(hop) for hop in record.hops]
+    for missing_kind in aggregate.missing:
+        identity = f"obligation:{op.kind}:{op.path}:{op.line}:{missing_kind}"
+        findings.setdefault(
+            identity,
+            dict(
+                path=op.path,
+                line=op.line,
+                family="access_control",
+                function=op.function,
+                evidence=[
+                    f"hops: {' -> '.join(node for node, _ in record.hops)}",
+                    f"operation {op.fact_id} ({op.kind}) at {op.path}:{op.line}; missing {missing_kind}",
+                    "judgment: unguarded (strict three-way mode)",
+                ],
+                id=identity,
+                entry=entry_payload,
+                hops=hops,
+                operation=dict(id=op.fact_id, kind=op.kind, calls=calls, line=op.line),
+                missing=missing_kind,
+                label="unguarded_path",
+                trace=trace,
+            ),
+        )
+
+
+def _judgment_findings(
+    judgments_by_op: Mapping[Operation, list[tuple[Any, PathJudgment]]],
+    trace_by_op: Mapping[Operation, dict[str, Any]],
+    entry_index: Mapping[str, Any],
+    facts: Any,
+    functions: Mapping[tuple[str, str], FunctionIR],
+) -> tuple[dict[str, dict[str, Any]], PairJudgmentCounts]:
+    """Aggregate per-path judgments per operation and emit unguarded findings only (Reqs 4.4-4.5, 11.5)."""
+    findings: dict[str, dict[str, Any]] = {}
+    aggregates: list[PathJudgment] = []
+    for op, pairs in judgments_by_op.items():
+        aggregate = aggregate_judgments(tuple(judgment for _, judgment in pairs))
+        aggregates.append(aggregate)
+        record, _ = pairs[0]
+        _emit_unguarded(findings, op, aggregate, record, trace_by_op[op], entry_index, facts, functions)
+    return findings, count_pair_judgments(tuple(aggregate.judgment for aggregate in aggregates))
+
+
+def prove_change(
+    root: Path,
+    change: Mapping[str, Any],
+    ctx: Context | None = None,
+    *,
+    max_depth: int = 3,
+    judgment_mode: bool = False,
+) -> ProverResult:
     """Check touched head functions and their direct operation-bearing callees, with no model."""
     if max_depth < 0:
         raise ValueError("invalid path depth")
@@ -275,6 +400,8 @@ def prove_change(root: Path, change: Mapping[str, Any], ctx: Context | None = No
             ):
                 extra_witnesses.append(replace(witness, kind="path_guard"))
     findings: dict[str, dict[str, Any]] = {}
+    judgments_by_op: dict[Operation, list[tuple[Any, PathJudgment]]] = {}
+    trace_by_op: dict[Operation, dict[str, Any]] = {}
     traces: list[dict[str, Any]] = []
     checked: set[Operation] = set()
     undischarged: set[Operation] = set()
@@ -302,6 +429,30 @@ def prove_change(root: Path, change: Mapping[str, Any], ctx: Context | None = No
         pair_traces: dict[Operation, dict[str, Any]] = {}
         for op in operations.get((target_path, target_name), ()):
             checked.add(op)
+            if judgment_mode:
+                judgment = _path_judgment(result, op, graphs, facts)
+                judgments_by_op.setdefault(op, []).append((record, judgment))
+                if judgment.judgment is PairJudgment.UNGUARDED:
+                    undischarged.add(op)
+                trace_entry = entry_index[record.entry]
+                route = _route_path(op, ctx.texts[op.path]) or trace_entry.name
+                declared_access = policy.route_access(route) if policy is not None and route else None
+                trace = build_trace(
+                    path=record,
+                    entry=trace_entry,
+                    access=declared_access,
+                    operation=op,
+                    irs=path_irs,
+                    facts=facts,
+                    witnesses=result.discharges,
+                    dominance=dominance,
+                    dominating=(),
+                    missing=judgment.missing[0] if judgment.missing else None,
+                    abstract_state=_abstract_state(judgment, op),
+                ).record()
+                traces.append(trace)
+                trace_by_op[op] = trace
+                continue
             # Silence from a public premise is not evidence that a check dominated the operation.
             dominated = {
                 w.kind
@@ -331,7 +482,7 @@ def prove_change(root: Path, change: Mapping[str, Any], ctx: Context | None = No
             ).record()
             traces.append(trace)
             pair_traces[op] = trace
-        for finding in result.findings:
+        for finding in result.findings if not judgment_mode else ():
             op = finding.operation
             identity = f"obligation:{op.kind}:{op.path}:{op.line}:{finding.missing}"
             op_fact = next(fact for fact in facts.operations if fact.id == op.fact_id)
@@ -367,6 +518,10 @@ def prove_change(root: Path, change: Mapping[str, Any], ctx: Context | None = No
                 ),
             )
     degradations.extend(graphs.degradations)
+    pair_counts = PairJudgmentCounts()
+    if judgment_mode:
+        judgment_findings, pair_counts = _judgment_findings(judgments_by_op, trace_by_op, entry_index, facts, functions)
+        findings.update(judgment_findings)
     coverage = Coverage(
         dict(languages),
         dict(frameworks),
@@ -377,6 +532,7 @@ def prove_change(root: Path, change: Mapping[str, Any], ctx: Context | None = No
         len(checked - undischarged),
         dict(reasons),
         resolution_counts=dict(bindings.counts),
+        pair_judgments=pair_counts,
     )
     return ProverResult(tuple(findings.values()), coverage, tuple(degradations), tuple(traces))
 

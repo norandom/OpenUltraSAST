@@ -201,7 +201,7 @@ its final resolution, dominance, fact-acquisition and measurement semantics with
   - _Requirements: 3.10, 4.1, 4.2, 4.3, 4.4, 4.5, 11.5_
   - _Boundary: Obligation Checker_
   - _Depends: 9.4, 10.4_
-- [ ] 10.6 Integrate three-way judgments into the prover
+- [x] 10.6 Integrate three-way judgments into the prover
   - Emit hunt findings only for unguarded pairs and send no indeterminate pair to the proof arm.
   - Carry all judgments, completeness reasons, resources, authorities and stable identifiers in traces and coverage.
   - Record stage-specific exceptions without folding them into quiet coverage.
