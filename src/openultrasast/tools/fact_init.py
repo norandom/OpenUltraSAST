@@ -16,10 +16,11 @@ legitimate (the whole point is to extract their vocabulary into data).
 """
 
 import hashlib
+import json
 import re
 import tomllib
 from collections.abc import Iterable, Iterator
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path
 
 _RECOGNISER_PATTERN = re.compile(
@@ -162,6 +163,8 @@ __all__ = [
     "CandidateRecord",
     "PromotionResult",
     "acquire",
+    "development_acquisition",
+    "engine_purity_of",
     "extract_all",
     "extract_fact_rows",
     "extract_legacy_strategies",
@@ -224,3 +227,55 @@ def acquire(
 def population_is_spent(blind_record: AcquisitionRecord, later_output_digest: str) -> bool:
     """A changed acquisition output after labels opened spends the population (Req 12.3)."""
     return later_output_digest != blind_record.output_digest
+
+
+def engine_purity_of(candidates: tuple[CandidateRecord, ...]) -> tuple[str, ...]:
+    """Return candidate sources that live inside engine modules (task 11.7).
+
+    Engine modules must stay free of target knowledge; a candidate sourced from
+    ``src/openultrasast/semantic/`` would mean target vocabulary leaked into the
+    engine, so the development acquisition refuses to run over such a corpus.
+    """
+    return tuple(sorted({record.source for record in candidates if record.source.startswith("src/openultrasast/semantic/")}))
+
+
+def development_acquisition(
+    repo_root: Path,
+    *,
+    artifact_dir: Path | None = None,
+    input_labels: tuple[str, ...] = (),
+) -> tuple[AcquisitionRecord, Path]:
+    """Run the first label-blind development acquisition (tasks 11.7, Reqs 5.7, 12.9).
+
+    Candidates come from extraction only (repository code and the promoted
+    ruleset -- never pool labels, never generated content). The pass runs
+    through the verification gate; the artifact is written only after the gate
+    returns, so a label-guard rejection leaves the artifact directory empty.
+    """
+    candidates = extract_all(repo_root)
+    impure_sources = engine_purity_of(candidates)
+    if impure_sources:
+        raise ValueError(f"engine modules carry target knowledge: {impure_sources}")
+    promoted = extract_fact_rows(repo_root / "src" / "openultrasast" / "ruleset" / "obligations")
+    record = acquire(candidates, promoted, input_labels=input_labels)
+    result = promote_proposals(candidates, promoted)
+    artifact_path = (artifact_dir or repo_root / ".acquisition") / (f"development-{record.output_digest[:6]}.json")
+    artifact_path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "generated_by": "fact_init.development_acquisition",
+        "label_blind": True,
+        "record": asdict(record),
+        "accepted": [
+            {
+                "kind": candidate.kind,
+                "name": candidate.name,
+                "source": candidate.source,
+                "version": candidate.version,
+                "region": candidate.region,
+            }
+            for candidate in result.accepted
+        ],
+        "rejected": [{"name": candidate.name, "reason": reason} for candidate, reason in result.rejected],
+    }
+    artifact_path.write_text(json.dumps(payload, indent=2, sort_keys=True))
+    return record, artifact_path

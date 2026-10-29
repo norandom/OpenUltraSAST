@@ -248,7 +248,7 @@ its final resolution, dominance, fact-acquisition and measurement semantics with
   - _Requirements: 1.1, 1.7_
   - _Boundary: Mapping Registry_
   - _Depends: 11.1_
-- [ ] 11.7 Run the first label-blind development acquisition
+- [x] 11.7 Run the first label-blind development acquisition
   - Produce registration, handler-operation, enforcement, resource and authority knowledge through the gate.
   - Treat the output as development data and record its acquisition digest; do not encode names in engine modules.
   - Done when promoted outputs load, rejected proposals have reasons, and the old unfinished task 3.2 has no residue.

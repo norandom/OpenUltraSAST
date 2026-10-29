@@ -1,4 +1,5 @@
-"""Tasks 11.3 + 11.4: extraction and verified promotion of target knowledge (Reqs 2.9, 2.10).
+"""Tasks 11.3 + 11.4 + 11.7: extraction, verified promotion and the first
+label-blind development acquisition (Reqs 2.9, 2.10, 5.7, 12.9).
 
 Extraction reads the legacy recognition strategies and the promoted fact rows and
 returns deterministic candidate records carrying source, version and region
@@ -8,6 +9,7 @@ promoted corpus unchanged.
 """
 
 import hashlib
+import json
 import re
 from pathlib import Path
 
@@ -19,6 +21,8 @@ from openultrasast.tools.fact_init import (
     CandidateRecord,
     PromotionResult,
     acquire,
+    development_acquisition,
+    engine_purity_of,
     extract_all,
     extract_fact_rows,
     extract_legacy_strategies,
@@ -295,3 +299,49 @@ def _contradicted_proposal() -> CandidateRecord:
         region="proposals.toml:operation:promoted-read",
         payload=(("calls", "write"), ("kind", "protected_read")),
     )
+
+
+def _development_record(tmp_path: Path) -> tuple[AcquisitionRecord, Path]:
+    return development_acquisition(REPO_ROOT, artifact_dir=tmp_path)
+
+
+def test_development_acquisition_writes_a_digest_artifact(tmp_path: Path) -> None:
+    record, artifact = _development_record(tmp_path)
+    assert re.fullmatch(r"[0-9a-f]{12}", record.input_revision)
+    assert re.fullmatch(r"[0-9a-f]{12}", record.evidence_digest)
+    assert re.fullmatch(r"[0-9a-f]{12}", record.output_digest)
+    assert artifact.parent == tmp_path
+    assert artifact.exists()
+    payload = json.loads(artifact.read_text())
+    assert payload["generated_by"] == "fact_init.development_acquisition"
+    assert payload["record"]["output_digest"] == record.output_digest
+    assert payload["label_blind"] is True
+
+
+def test_development_acquisition_is_reproducible(tmp_path: Path) -> None:
+    first_record, first_artifact = _development_record(tmp_path)
+    second_record, second_artifact = _development_record(tmp_path)
+    assert first_record == second_record
+    assert first_artifact.read_bytes() == second_artifact.read_bytes()
+
+
+def test_development_acquisition_rejects_admission_labels(tmp_path: Path) -> None:
+    with pytest.raises(AdmissionLabelsExposed):
+        development_acquisition(REPO_ROOT, artifact_dir=tmp_path, input_labels=("vulnerability:case-9",))
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_engine_purity_of_extraction_candidates() -> None:
+    candidates = extract_all(REPO_ROOT)
+    assert engine_purity_of(candidates) == ()
+
+
+def test_engine_purity_of_flags_engine_sources() -> None:
+    engine_candidate = CandidateRecord(
+        kind="operation",
+        name="engine-row",
+        source="src/openultrasast/semantic/obligations/facts.py",
+        version="a" * 12,
+        region="facts.py:1-2",
+    )
+    assert engine_purity_of((engine_candidate,)) == (engine_candidate.source,)
