@@ -186,7 +186,7 @@ def write_entry_points(entry_points: list[EntryPointRecord], path: Path) -> None
 
 def _language_entry_points(target: FileTarget, text: str) -> list[EntryPointRecord]:
     if target.language == "java":
-        return _stapler_entries(target, text) + _jetty_entries(target, text)
+        return _jetty_entries(target, text)
     if target.language == "python":
         return _python_entry_points(target, text) + _tornado_entries(target, text)
     if target.language in {"javascript", "typescript"}:
@@ -520,45 +520,6 @@ def _java_methods(target: FileTarget, text: str) -> list[tuple[object, str, str]
 
     walk(tree.root_node)
     return methods
-
-
-def _stapler_entries(target: FileTarget, text: str) -> list[EntryPointRecord]:
-    exposed = re.compile(
-        r"\b(?:extends|implements)\b[^\{]*\b(?:Descriptor|Action|RootAction|Plugin|UnprotectedRootAction|AbstractDescribableImpl)\b"
-    )
-    parameters = re.compile(r"\b(?:StaplerRequest2?|StaplerResponse2?)\b|@(?:QueryParameter|AncestorInPath)\b")
-    records = []
-    for raw_node, owner, header in _java_methods(target, text):
-        node = cast(Any, raw_node)
-        name_node = node.child_by_field_name("name")
-        name = name_node.text.decode("utf-8")
-        params = node.child_by_field_name("parameters").text.decode("utf-8")
-        class_match = exposed.search(owner)
-        param_match = parameters.search(params)
-        if not re.search(r"\bpublic\b", header) or not re.match(r"^do[A-Z]", name) or not (class_match or param_match):
-            continue
-        public = bool(re.search(r"\bimplements\b[^\{]*\bUnprotectedRootAction\b", owner))
-        evidence = ["Stapler public do method"]
-        if class_match:
-            evidence.append(class_match.group())
-        if param_match:
-            evidence.append("Stapler parameter: " + param_match.group())
-        records.append(
-            _entry(
-                target,
-                node.start_point[0] + 1,
-                node.end_point[0] + 1,
-                name,
-                name,
-                "route",
-                "public" if public else "unknown",
-                "http_request",
-                evidence,
-                [],
-                access_declared=public,
-            )
-        )
-    return records
 
 
 def _jetty_entries(target: FileTarget, text: str) -> list[EntryPointRecord]:

@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import importlib
 import inspect
+from collections.abc import Generator
 from pathlib import Path
 
 import pytest
@@ -18,11 +20,17 @@ from openultrasast.preprocess import FileTarget, detect_language
 
 
 @pytest.fixture(autouse=True)
-def _clean_registry() -> None:
+def _clean_registry() -> Generator[None, None, None]:
     """Each test registers its own strategies into the shared module registry."""
     from openultrasast.mapping import registry
 
+    saved_strategies = dict(registry._STRATEGIES)
     registry._STRATEGIES.clear()
+    stapler_module = importlib.import_module("openultrasast.mapping.stapler")
+    importlib.reload(stapler_module)
+    yield
+    registry._STRATEGIES.clear()
+    registry._STRATEGIES.update(saved_strategies)
 
 
 class FixtureRouteStrategy:
@@ -93,7 +101,8 @@ JAVA_TEXT = "package p;\nclass H {\n  // fixture marker line 3\n  void fixtureHa
 def test_registered_strategy_is_listed_for_its_language() -> None:
     register(FixtureRouteStrategy())
     strategies = registered_strategies("java")
-    assert [strategy.identifier for strategy in strategies] == ["test-fixture"]
+    identifiers = [strategy.identifier for strategy in strategies]
+    assert "test-fixture" in identifiers  # built-in strategies (e.g. stapler) may coexist
     assert registered_strategies("php") == ()
 
 
@@ -115,7 +124,8 @@ def test_strategy_set_provenance_is_preserved() -> None:
 def test_re_registration_replaces_the_strategy() -> None:
     register(FixtureRouteStrategy())
     register(FixtureRouteStrategy())
-    assert [s.identifier for s in registered_strategies("java")] == ["test-fixture"]
+    identifiers = [s.identifier for s in registered_strategies("java")]
+    assert identifiers.count("test-fixture") == 1  # replaced, never duplicated
 
 
 def test_registry_entries_are_deterministic() -> None:

@@ -242,7 +242,7 @@ its final resolution, dominance, fact-acquisition and measurement semantics with
   - _Requirements: 12.1, 12.2, 12.3_
   - _Boundary: Fact Initialization, Admission Guard_
   - _Depends: 11.4_
-- [ ] 11.6 Migrate one legacy recogniser through the registry
+- [x] 11.6 Migrate one legacy recogniser through the registry
   - Move one development-evidence family out of inline dispatch without changing its entries.
   - Done when old fixtures stay stable and inline target-specific matching is removed for that family.
   - _Requirements: 1.1, 1.7_

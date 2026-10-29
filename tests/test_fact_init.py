@@ -175,7 +175,8 @@ def test_extraction_includes_java_operation_rows() -> None:
 def test_legacy_strategy_extraction_names_recognisers() -> None:
     records = extract_legacy_strategies(MAPPING_FILE)
     names = {record.name for record in records}
-    assert "_stapler_entries" in names
+    # _stapler_entries migrated to mapping/stapler.py (task 11.6); legacy keeps the rest.
+    assert "_stapler_entries" not in names
     assert "_jetty_entries" in names
     assert "_python_registered_routes" in names
     for record in records:
