@@ -138,7 +138,7 @@ its final resolution, dominance, fact-acquisition and measurement semantics with
   - _Depends: 8.2, 8.3_
 
 - [ ] 9. Interprocedural summaries and concrete paths
-- [ ] 9.1 Extract local function summaries
+- [x] 9.1 Extract local function summaries
   - Collect each function's operations, witnesses, resolved calls and local completeness without traversing callers.
   - Done when summaries are deterministic and contain no target names outside fact identifiers.
   - _Requirements: 3.1, 3.6, 11.7_
