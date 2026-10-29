@@ -1,6 +1,6 @@
-"""Evidence relations, the completeness value and resource abstract values (access-control-prover).
+"""Evidence relations, the completeness value, resource and authority abstract values (access-control-prover).
 
-Covers Req 2.1, 2.5, 2.6, 2.7, 11.1, 11.6, 11.7.
+Covers Req 2.1, 2.2, 2.5, 2.6, 2.7, 2.8, 11.1, 11.6, 11.7.
 
 ``EvidenceRelation`` is the abstract evidence domain: definite presence (``MUST``), definite absence
 (``NO``), possibility (``MAY``) and unknown (``UNKNOWN``). Three separate operations keep one table
@@ -9,16 +9,24 @@ targets or control paths, ``conjoin_dimensions`` combines one witness's kind, sc
 and dominance dimensions, and ``aggregate_witnesses`` asks whether any witness definitely governs one
 obligation. ``ResourceRef`` abstracts one resource binding into an exact token, a finite alias set,
 request-global scope or an unknown value; ``join_resources`` unions alias sets finitely, lets
-request-global scope absorb concrete bindings and never lets an unresolvable value resolve. Every
+request-global scope absorb concrete bindings and never lets an unresolvable value resolve.
+``AuthorityRef`` abstracts one authority holding into an exact name, a finite alternative set or an
+unknown value; ``authority_satisfies`` asks whether a held authority satisfies a required one by
+folding ``join_alternatives`` over every held-by-required name pair, where a pair is ``MUST`` when a
+promoted ``AuthorityImplication`` chain connects them and ``NO`` otherwise, so sufficient authority is
+``MUST``, insufficient is ``NO`` and undecidable is ``UNKNOWN`` (Req 2.5, 2.7, 2.8). ``supporting_implications``
+returns the implications used with their supporting fact ids, retained for the trace (Req 2.8). Every
 operation is deterministic, pure and independent of target names; join never converts
 ``MAY`` or ``UNKNOWN`` into ``MUST`` or ``NO``, so losing precision cannot manufacture a verdict.
 """
 
 from __future__ import annotations
 
+from collections import deque
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from enum import Enum
+from functools import reduce
 from typing import Literal
 
 
@@ -106,6 +114,163 @@ def join_resources(left: ResourceRef, right: ResourceRef) -> ResourceRef:
     if left.kind == right.kind == "exact" and left.values == right.values:
         return left
     return ResourceRef(kind="aliases", values=left.values + right.values)
+
+
+@dataclass(frozen=True)
+class AuthorityRef:
+    """The abstract value of one authority holding (design, "Abstract evidence domain"; Req 2.1, 2.2, 2.5, 2.7, 11.1).
+
+    One value is an ``exact`` authority, several values are a ``finite`` alternative set (the authority is
+    one of them, not all of them) and ``is_unknown`` marks an unresolvable holding that can neither match
+    nor fail. Values are deduplicated and sorted, so equal holdings are equal however they were
+    constructed; a misshapen value fails loud rather than degrading silently.
+    """
+
+    values: tuple[str, ...]
+    is_unknown: bool = False
+
+    def __post_init__(self) -> None:
+        if not all(isinstance(value, str) and value for value in self.values):
+            raise ValueError(f"misshapen authority values: {self.values!r}")
+        if self.is_unknown and self.values:
+            raise ValueError(f"unknown authority binds no values: {self.values!r}")
+        if not self.is_unknown and not self.values:
+            raise ValueError("authority needs at least one value")
+        object.__setattr__(self, "values", tuple(sorted(set(self.values))))
+
+
+UNKNOWN_AUTHORITY = AuthorityRef(values=(), is_unknown=True)
+
+
+def parse_authority(binding: str | Sequence[str] | None) -> AuthorityRef:
+    """Parse one authority holding from fact or IR evidence into its abstract value.
+
+    A single name is ``exact``, a finite name collection is a finite alternative set, and ``None``
+    (no holding could be resolved) is ``unknown``; anything misshapen raises instead of quietly degrading.
+    """
+    if binding is None:
+        return UNKNOWN_AUTHORITY
+    names = (binding,) if isinstance(binding, str) else tuple(binding)
+    if not names or not all(isinstance(name, str) and name for name in names):
+        raise ValueError(f"misshapen authority binding: {binding!r}")
+    return AuthorityRef(values=names)
+
+
+def join_authorities(left: AuthorityRef, right: AuthorityRef) -> AuthorityRef:
+    """Join authority holdings from alternative paths or call targets.
+
+    Identical exact holdings stay exact and finite sets join by finite union, mirroring ``join_resources``;
+    an unresolvable holding joins to ``unknown`` so losing precision cannot manufacture a match
+    (Req 2.7, 11.1).
+    """
+    if left.is_unknown or right.is_unknown:
+        return UNKNOWN_AUTHORITY
+    if left.values == right.values:
+        return left
+    return AuthorityRef(values=left.values + right.values)
+
+
+@dataclass(frozen=True)
+class AuthorityImplication:
+    """One promoted implication fact: ``authority`` also covers ``implies`` (Req 2.8).
+
+    ``id`` is the supporting promoted fact row's identifier, retained so the trace can name the
+    implication used. The engine bakes in no implication of its own; only these facts connect authorities.
+    """
+
+    id: str
+    authority: str
+    implies: str
+
+
+def _implication_index(
+    implications: Iterable[AuthorityImplication],
+) -> dict[str, tuple[AuthorityImplication, ...]]:
+    """Group implications by the authority they extend, preserving first-occurrence order."""
+    grouped: dict[str, list[AuthorityImplication]] = {}
+    for implication in implications:
+        grouped.setdefault(implication.authority, []).append(implication)
+    return {authority: tuple(edges) for authority, edges in grouped.items()}
+
+
+def _implication_path(
+    source: str,
+    target: str,
+    index: Mapping[str, tuple[AuthorityImplication, ...]],
+) -> tuple[AuthorityImplication, ...] | None:
+    """The implications leading from ``source`` to ``target``, or ``None`` when no promoted chain reaches it.
+
+    Breadth-first over the finite edges in fact order, so the returned chain is deterministic and shortest
+    by edge count; ``()`` means the names are identical and no implication is needed.
+    """
+    if source == target:
+        return ()
+    parents: dict[str, tuple[str, AuthorityImplication] | None] = {source: None}
+    frontier: deque[str] = deque([source])
+    while frontier:
+        current = frontier.popleft()
+        for implication in index.get(current, ()):
+            reached = implication.implies
+            if reached in parents:
+                continue
+            parents[reached] = (current, implication)
+            if reached == target:
+                chain: list[AuthorityImplication] = []
+                node: str = target
+                while True:
+                    step = parents[node]
+                    if step is None:
+                        return tuple(reversed(chain))
+                    previous, edge = step
+                    chain.append(edge)
+                    node = previous
+            frontier.append(reached)
+    return None
+
+
+def authority_satisfies(
+    held: AuthorityRef,
+    required: AuthorityRef,
+    implications: Iterable[AuthorityImplication] = (),
+) -> EvidenceRelation:
+    """Ask whether one held authority value satisfies one required authority value (Req 2.5, 2.7, 2.8, 11.1).
+
+    Each held-by-required name pair is definite: ``MUST`` when the names match or a promoted implication
+    chain connects them, ``NO`` otherwise. The aggregate folds ``join_alternatives`` over every pair, so a
+    finite holding with one satisfying alternative is ``MAY``; an unresolvable holding or requirement is
+    ``UNKNOWN`` and can never match broadly or fail definitely.
+    """
+    if held.is_unknown or required.is_unknown:
+        return EvidenceRelation.UNKNOWN
+    index = _implication_index(implications)
+    pairs = [
+        EvidenceRelation.MUST if _implication_path(held_name, required_name, index) is not None else EvidenceRelation.NO
+        for held_name in held.values
+        for required_name in required.values
+    ]
+    return reduce(join_alternatives, pairs)
+
+
+def supporting_implications(
+    held: AuthorityRef,
+    required: AuthorityRef,
+    implications: Iterable[AuthorityImplication] = (),
+) -> tuple[AuthorityImplication, ...]:
+    """The implications used on satisfying paths, with supporting fact ids retained for the trace (Req 2.8).
+
+    First-occurrence order over the normalized names, deduplicated; empty when nothing matched or the
+    relation could not be decided.
+    """
+    if held.is_unknown or required.is_unknown:
+        return ()
+    index = _implication_index(implications)
+    used: list[AuthorityImplication] = []
+    for held_name in held.values:
+        for required_name in required.values:
+            chain = _implication_path(held_name, required_name, index)
+            if chain is not None:
+                used.extend(chain)
+    return tuple(dict.fromkeys(used))
 
 
 _ALTERNATIVE_JOIN: Mapping[tuple[EvidenceRelation, EvidenceRelation], EvidenceRelation] = {

@@ -94,7 +94,7 @@ its final resolution, dominance, fact-acquisition and measurement semantics with
   - _Requirements: 2.1, 2.5, 2.6, 2.7, 11.1_
   - _Boundary: Resource Domain_
   - _Depends: 7.1_
-- [ ] 7.3 Add authority abstract values and promoted implication facts
+- [x] 7.3 Add authority abstract values and promoted implication facts
   - Represent exact, finite and unknown authorities separately from resources.
   - Load authority implications from promoted facts and retain the supporting fact identifier.
   - Done when sufficient, insufficient and unknown authority fixtures produce the specified relations.

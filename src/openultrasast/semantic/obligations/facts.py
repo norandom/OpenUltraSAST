@@ -14,6 +14,7 @@ from pathlib import Path
 
 from ...source import canonical_language
 from ..facts import _ruleset_state
+from .abstract_domain import AuthorityImplication
 
 OPERATION_KINDS = ("protected_read", "protected_write", "privileged_action", "security_setting")
 DISCHARGER_KINDS = ("path_guard", "identity_constraint", "ownership_check", "non_permissive_value", "validated_input")
@@ -38,6 +39,7 @@ _OPERATION_FIELDS = frozenset(
 _DISCHARGER_FIELDS = frozenset(
     {"id", "kind", "calls", "decorators", "identity_sources", "constraint_params", "request_sources", "permissive_values"}
 )
+_IMPLICATION_FIELDS = frozenset({"id", "authority", "implies"})
 
 
 class ObligationFactsError(ValueError):
@@ -80,10 +82,24 @@ class DischargerFact:
 
 
 @dataclass(frozen=True)
+class ImplicationFact(AuthorityImplication):
+    """One promoted ``[[implication]]`` row: ``authority`` also covers ``implies`` (Req 2.8).
+
+    Extends the abstract domain's ``AuthorityImplication`` with the loader's language scope, so loaded
+    facts feed ``authority_satisfies`` directly while filtering per language like every other fact row.
+    """
+
+    language: str = ""
+
+
+@dataclass(frozen=True)
 class ObligationFacts:
     version: str
     operations: tuple[OperationFact, ...]
     dischargers: tuple[DischargerFact, ...]
+    # Requirement 2.8 (access-control-prover): promoted authority implications, each retaining the
+    # supporting fact row id so the trace can name the implication used. Default-empty; older data loads unchanged.
+    implications: tuple[ImplicationFact, ...] = ()
 
     def for_language(self, language: str) -> ObligationFacts:
         key = canonical_language(language)
@@ -93,6 +109,7 @@ class ObligationFacts:
             version=self.version,
             operations=tuple(item for item in self.operations if item.language == key),
             dischargers=tuple(item for item in self.dischargers if item.language == key),
+            implications=tuple(item for item in self.implications if item.language == key),
         )
 
 
@@ -102,6 +119,7 @@ def _load_obligation_facts_uncached(directory: Path | None = None) -> Obligation
         raise ObligationFactsError(f"obligation facts directory missing: {root}")
     operations: list[OperationFact] = []
     dischargers: list[DischargerFact] = []
+    implications: list[ImplicationFact] = []
     versions: list[str] = []
     for path in sorted(root.glob("*.toml")):
         try:
@@ -112,6 +130,8 @@ def _load_obligation_facts_uncached(directory: Path | None = None) -> Obligation
         versions.append(str(payload.get("version", "1")))
         for row in _rows(payload.get("operation"), path):
             operations.append(_operation_fact(row, path, language))
+        for row in _rows(payload.get("implication"), path):
+            implications.append(_implication_fact(row, path, language))
         for row in _rows(payload.get("discharger"), path):
             _only_fields(row, _DISCHARGER_FIELDS, path)
             kind = str(row.get("kind", ""))
@@ -130,7 +150,12 @@ def _load_obligation_facts_uncached(directory: Path | None = None) -> Obligation
                     permissive_values=_strings(row.get("permissive_values"), "permissive_values", path),
                 )
             )
-    return ObligationFacts(version=versions[0] if versions else "1", operations=tuple(operations), dischargers=tuple(dischargers))
+    return ObligationFacts(
+        version=versions[0] if versions else "1",
+        operations=tuple(operations),
+        dischargers=tuple(dischargers),
+        implications=tuple(implications),
+    )
 
 
 def _operation_fact(row: dict[str, object], path: Path, language: str) -> OperationFact:
@@ -164,6 +189,24 @@ def _operation_fact(row: dict[str, object], path: Path, language: str) -> Operat
         framework=handler_framework,
         request_global_kinds=request_global_kinds,
     )
+
+
+def _implication_fact(row: dict[str, object], path: Path, language: str) -> ImplicationFact:
+    """Validate one implication row against the closed fields; both names must be non-empty strings."""
+    _only_fields(row, _IMPLICATION_FIELDS, path)
+    return ImplicationFact(
+        id=str(row["id"]),
+        authority=_implication_name(row, "authority", path),
+        implies=_implication_name(row, "implies", path),
+        language=language,
+    )
+
+
+def _implication_name(row: dict[str, object], field: str, path: Path) -> str:
+    value = row.get(field)
+    if not isinstance(value, str) or not value:
+        raise ObligationFactsError(f"{path}: implication {row.get('id')!r} needs a non-empty {field}")
+    return value
 
 
 def _optional_int(row: dict[str, object], field: str, path: Path, *, positive: bool) -> int | None:
