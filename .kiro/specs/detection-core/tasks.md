@@ -53,13 +53,13 @@ _Requirement IDs use N.M where N is the requirement number in requirements.md an
   - _Depends: 2.2_
 
 - [ ] 3. Prover arm adopts the core contract
-- [ ] 3.1 Prover trace implements the core schema
+- [x] 3.1 Prover trace implements the core schema
   - Re-export/implement the core trace contract in the access_control arm without behavior change.
   - Done when a conformance test proves the prover's trace satisfies the core schema field-for-field.
   - _Requirements: 1.1, 1.2, 2.1_
   - _Boundary: prover arm_
   - _Depends: 1.1, 1.2_
-- [ ] 3.2 Prover verdict and coverage over the core contract
+- [x] 3.2 Prover verdict and coverage over the core contract
   - Emit verdicts and coverage through the core contracts; existing strict-lane behavior stays byte-identical.
   - Done when the keyword regression and prover suites pass unchanged after adoption.
   - _Requirements: 3.1, 5.1, 5.2_
