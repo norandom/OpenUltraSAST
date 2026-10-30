@@ -11,7 +11,9 @@ from openultrasast.core.admission import (
     validate_admission_manifest,
 )
 from openultrasast.core.budget import Budget, BudgetGateFailure, Complexity, check_budget, derive_budget
+from openultrasast.core.consumer import PushRequest, PushVerdict, consume_verdict
 from openultrasast.core.coverage import Coverage, InstrumentFailure, ResolutionOutcome, check_reads
+from openultrasast.core.factpack import FactPack, FactPackError, admit_fact_pack, verify_fact_pack
 from openultrasast.core.probes import (
     FittedComponentBlocked,
     ProbeResult,
@@ -33,6 +35,8 @@ __all__ = [
     "BudgetGateFailure",
     "Complexity",
     "Coverage",
+    "FactPack",
+    "FactPackError",
     "FittedComponentBlocked",
     "Guard",
     "Hop",
@@ -41,18 +45,23 @@ __all__ = [
     "ProbeResult",
     "ProvenClaim",
     "ProvenanceMismatch",
+    "PushRequest",
+    "PushVerdict",
     "ResolutionOutcome",
     "ShortcutDetected",
     "TraceRecord",
     "Witness",
+    "admit_fact_pack",
     "as_clean",
     "assert_no_shortcut",
     "check_budget",
     "check_reads",
+    "consume_verdict",
     "derive_budget",
     "require_admission_evidence",
     "reversed_pair_probe",
     "stamp",
     "validate_admission_manifest",
+    "verify_fact_pack",
     "verify_stamp",
 ]

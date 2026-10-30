@@ -101,13 +101,13 @@ _Requirement IDs use N.M where N is the requirement number in requirements.md an
   - _Depends: 4.1, 5.1_
 
 - [ ] 6. Fact packs and consumer interfaces
-- [ ] 6.1 Fact-pack admission contract
+- [x] 6.1 Fact-pack admission contract
   - Ruleset loader admits family fact packs only with review evidence and provenance stamping; packs carry their family tag.
   - Done when an unreviewed pack is refused and a reviewed pack stamps provenance in a test.
   - _Requirements: 10.1_
   - _Boundary: fact-pack contract_
   - _Depends: 1.4_
-- [ ] 6.2 Consumer interfaces for push and proof
+- [x] 6.2 Consumer interfaces for push and proof
   - Define the interfaces through which the pre-push transaction consumes traces/verdicts within its deadline and the proof layer attaches demonstrated evidence to a verdict; existing arms express behavior over the core contract.
   - Done when both interfaces are exercised by conformance tests from a mock consumer.
   - _Requirements: 9.2, 11.1, 11.2, 11.3_
