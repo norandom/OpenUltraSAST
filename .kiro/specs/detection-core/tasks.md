@@ -1,0 +1,135 @@
+# Implementation Plan
+
+_Requirement IDs use N.M where N is the requirement number in requirements.md and M is its acceptance criterion._
+
+## Task constraints
+
+- Complexity: McCabe at most 10 per touched function, at most 50 logical lines per function and 400 per new module.
+- The core contract package owns contracts only; no analysis logic moves into it.
+- Every migration step keeps existing behavior byte-identical; the 2026-10-30 admission suite is the regression gate.
+- Instrument rule: prove nonzero input reads before interpreting any zero.
+- Pool measures, never trains: no fitted component reads pool or admission labels.
+
+- [ ] 1. Foundation: core contract package skeleton
+- [x] 1.1 (P) Canonical trace schema in the core package with deterministic serialization
+  - Define the trace record (entry, hops with call-target completeness, operation, witnesses, guards, completeness reasons, judgment, digests) as a frozen, family-agnostic contract.
+  - Done when a fixed trace serializes to byte-identical canonical output on repeat runs and a conformance test pins the schema.
+  - _Requirements: 1.1, 1.2_
+  - _Boundary: core trace contract_
+- [x] 1.2 (P) Three-way verdict vocabulary and verdict contract
+  - Define unguarded/discharged/indeterminate, the proven-claim-with-witness vs bounded-silence verdict, and the rule that indeterminate never converts to clean.
+  - Done when unit tests cover all three judgments, the conversion refusal, and zero-shot-judge-over-trace as the only model role on verdicts.
+  - _Requirements: 2.1, 2.2, 5.1, 5.2, 9.1_
+  - _Boundary: core verdict contract_
+- [x] 1.3 (P) Coverage accounting schema with instrument refusal
+  - Define entry-recognition coverage, exactly-one-bucket-per-call resolution outcomes, named unchecked reasons, and zero-byte/unreadable input as an instrument failure at core level.
+  - Done when a zero-byte read fails the run in a unit test and the bucket exclusivity is pinned.
+  - _Requirements: 3.1, 3.2_
+  - _Boundary: core coverage contract_
+- [x] 1.4 (P) Provenance digest stamping with mismatch refusal
+  - Define the analyzer/fact/acquisition/configuration/population/input digest stamping and refusal when any digest cannot be re-derived.
+  - Done when a mismatched digest is refused in a unit test.
+  - _Requirements: 6.1, 6.2_
+  - _Boundary: core provenance contract_
+
+- [ ] 2. Measured budget replaces the static gate
+- [ ] 2.1 Record per-change complexity and reply time
+  - Extend runner records with complexity features (changed regions, call count, changed bytes) alongside the already-recorded seconds.
+  - Done when dev-pool records carry all complexity fields and seconds.
+  - _Requirements: 4.1, 12.1_
+  - _Boundary: runner records_
+  - _Depends: 1.3_
+- [ ] 2.2 Derive per-workload-class budgets from measurement
+  - Fit complexity to reply time on the dev (483-change) and pilot (264-change) record sets as measurement only; publish per-class budgets with n, percentile, and hardware; make the budget configurable per class, demoting the static constant to provisional default.
+  - Done when the derivation table (class, n, percentile, hardware, budget) is published under the fixed measurement schema and a new-baseline note records the change.
+  - _Requirements: 4.2, 12.1, 12.2_
+  - _Boundary: core budget contract_
+  - _Depends: 2.1_
+- [ ] 2.3 Budget gate and scoping record
+  - Gate failures name the change, elapsed time, and the derivation exceeded; the analyzed scope (change regions) is recorded per run.
+  - Done when an over-budget fixture fails with all three fields and the scope is present in the record.
+  - _Requirements: 4.3, 4.4_
+  - _Boundary: core budget contract_
+  - _Depends: 2.2_
+
+- [ ] 3. Prover arm adopts the core contract
+- [ ] 3.1 Prover trace implements the core schema
+  - Re-export/implement the core trace contract in the access_control arm without behavior change.
+  - Done when a conformance test proves the prover's trace satisfies the core schema field-for-field.
+  - _Requirements: 1.1, 1.2, 2.1_
+  - _Boundary: prover arm_
+  - _Depends: 1.1, 1.2_
+- [ ] 3.2 Prover verdict and coverage over the core contract
+  - Emit verdicts and coverage through the core contracts; existing strict-lane behavior stays byte-identical.
+  - Done when the keyword regression and prover suites pass unchanged after adoption.
+  - _Requirements: 3.1, 5.1, 5.2_
+  - _Boundary: prover arm_
+  - _Depends: 3.1, 1.3_
+
+- [ ] 4. Generalized admission contract
+- [ ] 4.1 (P) Consume-only manifest validation generalized into the core
+  - Move the ordered refusal chain (malformed, producer, unreviewed, label-isolated, label-exposure, acquisition-changed, spent) into the core admission contract; the benchmark validator becomes a thin wrapper.
+  - Done when all refusal branches pass unit tests through the core contract.
+  - _Requirements: 7.1, 7.2_
+  - _Boundary: core admission contract_
+  - _Depends: 1.4_
+- [ ] 4.2 Paired scoring and GO/NO-GO report schema with family scope
+  - Generalize paired vulnerable/fixed scoring, ordinary false alarms, gates, and the report schema into the core; add the claimed-families field.
+  - Done when the report schema includes family scope and every rate carries n and Wilson 95.
+  - _Requirements: 7.3, 10.2, 12.1_
+  - _Boundary: core admission contract_
+  - _Depends: 1.2, 4.1_
+- [ ] 4.3 Admission suite reproduces the 2026-10-30 NO-GO
+  - Re-run the pilot admission through the core contract and reproduce 0/12 pairs, 0.83 flagged/100, 0 instrument failures, NO-GO exactly.
+  - Done when the reproduced report matches the committed 2026-10-30 report field-for-field.
+  - _Requirements: 7.3, 12.1_
+  - _Boundary: admission measurement_
+  - _Depends: 4.2, 3.2_
+
+- [ ] 5. Anti-shortcut probes for any fitted component
+- [ ] 5.1 (P) Reversed-pair probe harness
+  - Build the fix/reversed-fix probe; the deletion-count shape feature must fail it (control test).
+  - Done when the control probe fails a shape-only component and passes a relation-based one.
+  - _Requirements: 8.1, 8.2_
+  - _Boundary: core probes_
+  - _Depends: 1.2_
+- [ ] 5.2 Fitted-component gate
+  - Require per-repository holdout and untouched-population admission before any fitted component makes a claim; BLOCK reserved for demonstrated proofs.
+  - Done when a fitted component without admission evidence is refused by the gate in a test.
+  - _Requirements: 8.2, 9.2_
+  - _Boundary: core probes + admission_
+  - _Depends: 4.1, 5.1_
+
+- [ ] 6. Fact packs and consumer interfaces
+- [ ] 6.1 Fact-pack admission contract
+  - Ruleset loader admits family fact packs only with review evidence and provenance stamping; packs carry their family tag.
+  - Done when an unreviewed pack is refused and a reviewed pack stamps provenance in a test.
+  - _Requirements: 10.1_
+  - _Boundary: fact-pack contract_
+  - _Depends: 1.4_
+- [ ] 6.2 Consumer interfaces for push and proof
+  - Define the interfaces through which the pre-push transaction consumes traces/verdicts within its deadline and the proof layer attaches demonstrated evidence to a verdict; existing arms express behavior over the core contract.
+  - Done when both interfaces are exercised by conformance tests from a mock consumer.
+  - _Requirements: 9.2, 11.1, 11.2, 11.3_
+  - _Boundary: core consumer contracts_
+  - _Depends: 1.2, 3.2_
+- [ ] 6.3 Runners adopt core coverage, budget, provenance incrementally
+  - Migrate development_runner, arm_regression, prover_arm, run_manifests onto the core contracts one at a time, re-running the regression suite after each.
+  - Done when all runners consume the core contracts and the keyword regression passes at the pre-migration count plus new tests.
+  - _Requirements: 3.1, 4.1, 4.3, 6.1, 11.3, 12.1_
+  - _Boundary: benchmark runners_
+  - _Depends: 2.3, 3.2, 6.2_
+
+- [ ] 7. Validation
+- [ ] 7.1 Fixed measurement schema enforced in reports
+  - Every report carries population/freeze digests, judgment vocabulary, rates with n and Wilson 95, coverage, instrument failures, runtime; vocabulary/population change starts a new baseline.
+  - Done when a schema-validation test rejects a report missing any field and accepts the 2026-10-30 report.
+  - _Requirements: 12.1, 12.2_
+  - _Boundary: measurement schema_
+  - _Depends: 4.2, 6.3_
+- [ ] 7.2 End-to-end: one push through core to verdict to admission report
+  - Run one dev-pool push end-to-end: scope, recognize, resolve, trace, verdict, digests, admission report on the dev pool.
+  - Done when the E2E test produces a verdict with witness or bounded silence plus a complete report.
+  - _Requirements: 5.1, 5.2, 7.3, 11.1_
+  - _Boundary: end-to-end integration_
+  - _Depends: 6.3, 7.1_
