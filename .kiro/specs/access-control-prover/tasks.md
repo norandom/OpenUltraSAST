@@ -307,7 +307,7 @@ its final resolution, dominance, fact-acquisition and measurement semantics with
   - _Requirements: 11.2, 11.3, 11.4, 11.5, 11.6, 11.7_
   - _Boundary: Abstract Evidence Validation_
   - _Depends: 10.5_
-- [ ] 13.2 (P) Validate cross-component analysis scenarios
+- [x] 13.2 (P) Validate cross-component analysis scenarios
   - Exercise helper guards, registration entries, base attachment, resource mismatch, authority insufficiency,
     ambiguous calls, unavailable CFGs, recursion and budget cutoff.
   - Done when every scenario yields the expected trace, coverage reasons and three-way judgment.
