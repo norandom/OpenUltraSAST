@@ -87,13 +87,13 @@ _Requirement IDs use N.M where N is the requirement number in requirements.md an
   - _Depends: 4.2, 3.2_
 
 - [ ] 5. Anti-shortcut probes for any fitted component
-- [ ] 5.1 (P) Reversed-pair probe harness
+- [x] 5.1 (P) Reversed-pair probe harness
   - Build the fix/reversed-fix probe; the deletion-count shape feature must fail it (control test).
   - Done when the control probe fails a shape-only component and passes a relation-based one.
   - _Requirements: 8.1, 8.2_
   - _Boundary: core probes_
   - _Depends: 1.2_
-- [ ] 5.2 Fitted-component gate
+- [x] 5.2 Fitted-component gate
   - Require per-repository holdout and untouched-population admission before any fitted component makes a claim; BLOCK reserved for demonstrated proofs.
   - Done when a fitted component without admission evidence is refused by the gate in a test.
   - _Requirements: 8.2, 9.2_
