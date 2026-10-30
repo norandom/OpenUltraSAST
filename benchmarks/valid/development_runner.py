@@ -182,12 +182,69 @@ def summarize_development(records: tuple[DevelopmentRecord, ...], *, budget_seco
     }
 
 
+_ARM_NAMES = (
+    "baseline-analyzer/baseline-facts",
+    "baseline-analyzer/candidate-facts",
+    "candidate-analyzer/baseline-facts",
+    "candidate-analyzer/candidate-facts",
+)
+
+
+def _judgment_totals(records: tuple[DevelopmentRecord, ...]) -> dict[str, int]:
+    """Sum unguarded/discharged/indeterminate counts across a run's records."""
+    totals = {"unguarded": 0, "discharged": 0, "indeterminate": 0}
+    for record in records:
+        judgment = record.stage_funnel.get("judgment", {})
+        for kind in totals:
+            totals[kind] += int(judgment.get(kind, 0))
+    return totals
+
+
+def _judgment_delta(after: dict[str, int], before: dict[str, int]) -> dict[str, int]:
+    """Per-kind difference between two judgment totals."""
+    return {kind: after[kind] - before[kind] for kind in after}
+
+
+def _mean_seconds(records: tuple[DevelopmentRecord, ...]) -> float:
+    """Mean per-change seconds of a run."""
+    if not records:
+        return 0.0
+    return sum(record.seconds for record in records) / len(records)
+
+
+def four_arm_report(
+    bab: tuple[DevelopmentRecord, ...],
+    bacf: tuple[DevelopmentRecord, ...],
+    cabf: tuple[DevelopmentRecord, ...],
+    cacfon: tuple[DevelopmentRecord, ...],
+) -> dict[str, object]:
+    """Attribute judgment movement to fact-only and analyzer-only variation.
+
+    The four arms share identical inputs by construction; the report never uses
+    admission vocabulary.
+    """
+    baseline_totals = _judgment_totals(bab)
+    fact_delta = _judgment_delta(_judgment_totals(bacf), baseline_totals)
+    analyzer_delta = _judgment_delta(_judgment_totals(cabf), baseline_totals)
+    transitions = sorted({record.judgment_transition for record in (*bab, *bacf, *cabf, *cacfon)})
+    return {
+        "arms": _ARM_NAMES,
+        "judgment_delta_fact_only": fact_delta,
+        "judgment_delta_analyzer_only": analyzer_delta,
+        "fact_only_lift": dict(fact_delta),
+        "analyzer_only_lift": dict(analyzer_delta),
+        "transitions": transitions,
+        "funnel_delta_fact_only": {"seconds": _mean_seconds(bacf) - _mean_seconds(bab)},
+    }
+
+
 __all__ = [
     "DevelopmentRecord",
     "GateFailure",
     "InstrumentFailure",
     "deadline_record",
     "enforce_gates",
+    "four_arm_report",
     "judgment_transition",
     "run_development",
     "stage_funnel",

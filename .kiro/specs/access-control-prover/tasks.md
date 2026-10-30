@@ -277,7 +277,7 @@ its final resolution, dominance, fact-acquisition and measurement semantics with
   - _Requirements: 5.6, 6.1, 6.3_
   - _Boundary: Runner Gates_
   - _Depends: 12.2_
-- [ ] 12.4 Register the four-arm development comparison
+- [x] 12.4 Register the four-arm development comparison
   - Run baseline/candidate analyzer crossed with baseline/candidate facts over identical inputs.
   - Report metric deltas, stage-funnel deltas and judgment transitions without admission language.
   - Done when fixture arms isolate a fact-only lift from an analyzer-only lift.
