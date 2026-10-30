@@ -10,7 +10,7 @@ _Requirement IDs use N.M where N is the requirement number in requirements.md an
 - Instrument rule: prove nonzero input reads before interpreting any zero.
 - Pool measures, never trains: no fitted component reads pool or admission labels.
 
-- [ ] 1. Foundation: core contract package skeleton
+- [x] 1. Foundation: core contract package skeleton
 - [x] 1.1 (P) Canonical trace schema in the core package with deterministic serialization
   - Define the trace record (entry, hops with call-target completeness, operation, witnesses, guards, completeness reasons, judgment, digests) as a frozen, family-agnostic contract.
   - Done when a fixed trace serializes to byte-identical canonical output on repeat runs and a conformance test pins the schema.
@@ -32,7 +32,7 @@ _Requirement IDs use N.M where N is the requirement number in requirements.md an
   - _Requirements: 6.1, 6.2_
   - _Boundary: core provenance contract_
 
-- [ ] 2. Measured budget replaces the static gate
+- [x] 2. Measured budget replaces the static gate
 - [x] 2.1 Record per-change complexity and reply time
   - Extend runner records with complexity features (changed regions, call count, changed bytes) alongside the already-recorded seconds.
   - Done when dev-pool records carry all complexity fields and seconds.
@@ -52,7 +52,7 @@ _Requirement IDs use N.M where N is the requirement number in requirements.md an
   - _Boundary: core budget contract_
   - _Depends: 2.2_
 
-- [ ] 3. Prover arm adopts the core contract
+- [x] 3. Prover arm adopts the core contract
 - [x] 3.1 Prover trace implements the core schema
   - Re-export/implement the core trace contract in the access_control arm without behavior change.
   - Done when a conformance test proves the prover's trace satisfies the core schema field-for-field.
@@ -66,7 +66,7 @@ _Requirement IDs use N.M where N is the requirement number in requirements.md an
   - _Boundary: prover arm_
   - _Depends: 3.1, 1.3_
 
-- [ ] 4. Generalized admission contract
+- [x] 4. Generalized admission contract
 - [x] 4.1 (P) Consume-only manifest validation generalized into the core
   - Move the ordered refusal chain (malformed, producer, unreviewed, label-isolated, label-exposure, acquisition-changed, spent) into the core admission contract; the benchmark validator becomes a thin wrapper.
   - Done when all refusal branches pass unit tests through the core contract.
@@ -86,7 +86,7 @@ _Requirement IDs use N.M where N is the requirement number in requirements.md an
   - _Boundary: admission measurement_
   - _Depends: 4.2, 3.2_
 
-- [ ] 5. Anti-shortcut probes for any fitted component
+- [x] 5. Anti-shortcut probes for any fitted component
 - [x] 5.1 (P) Reversed-pair probe harness
   - Build the fix/reversed-fix probe; the deletion-count shape feature must fail it (control test).
   - Done when the control probe fails a shape-only component and passes a relation-based one.
