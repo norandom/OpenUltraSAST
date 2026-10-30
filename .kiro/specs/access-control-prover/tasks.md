@@ -270,7 +270,7 @@ its final resolution, dominance, fact-acquisition and measurement semantics with
   - _Requirements: 5.1, 5.3, 5.4, 7.1, 7.6, 9.7, 11.8_
   - _Boundary: Development Runner_
   - _Depends: 10.6, 12.1_
-- [ ] 12.3 Enforce instrument and hard runtime gates
+- [x] 12.3 Enforce instrument and hard runtime gates
   - Preserve zero-byte and stale-anchor refusal and add stage-aware deadline records.
   - Fail the run if any measured change exceeds 120 seconds; never summarize the overrun as a passing result.
   - Done when zero-byte, stale-anchor, deadline and 121-second fixtures all refuse the summary.

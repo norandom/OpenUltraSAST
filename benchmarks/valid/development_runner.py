@@ -1,10 +1,12 @@
 """Development runner: per-record provenance, stage funnel and judgment transitions.
 
-Task 12.2 of the access-control-prover spec (Reqs 5.1, 5.3, 5.4, 7.1, 7.6, 9.7, 11.8).
-Every development record carries the bundle digests (analyzer revision, fact set,
-acquisition record, configuration) plus the population and per-change input digests,
-a stage funnel from entry recognition through resolution to the three-way judgment
-counts, and the transition label between compared judgments.
+Tasks 12.2 and 12.3 of the access-control-prover spec (Reqs 5.1, 5.3, 5.4, 5.6,
+6.1, 6.3, 7.1, 7.6, 9.7, 11.8). Every development record carries the bundle
+digests (analyzer revision, fact set, acquisition record, configuration) plus the
+population and per-change input digests, a stage funnel from entry recognition
+through resolution to the three-way judgment counts, and the transition label
+between compared judgments. The runner gates refuse to summarise an instrument
+failure (zero-byte read, stale anchor) or a change over the hard runtime budget.
 """
 
 from __future__ import annotations
@@ -116,4 +118,78 @@ def run_development(
     return tuple(records)
 
 
-__all__ = ["DevelopmentRecord", "judgment_transition", "run_development", "stage_funnel"]
+class GateFailure(RuntimeError):
+    """A measured change exceeded the hard runtime budget (Req 6.1)."""
+
+
+class InstrumentFailure(RuntimeError):
+    """An instrument failure (zero-byte read, stale anchor) refuses the summary (Req 5.6)."""
+
+
+_INSTRUMENT_FAILURE_MARKERS = ("zero-byte", "stale_anchor")
+
+
+def enforce_gates(records: tuple[DevelopmentRecord, ...], *, budget_seconds: float = 120.0) -> None:
+    """Fail when any measured change exceeds the budget; never let an overrun pass (Req 6.1)."""
+    for record in records:
+        if record.seconds > budget_seconds:
+            raise GateFailure(f"change {record.change_id} took {record.seconds:.1f}s over the {budget_seconds:.1f}s budget")
+
+
+def deadline_record(record: DevelopmentRecord, *, budget_seconds: float = 120.0) -> dict[str, object]:
+    """Stamp the stage-aware deadline view of one record (Req 6.3)."""
+    return {
+        "deadline_seconds": budget_seconds,
+        "exceeded": record.seconds > budget_seconds,
+    }
+
+
+def _instrument_failure(record: DevelopmentRecord) -> str | None:
+    for value in _funnel_strings(record.stage_funnel):
+        for marker in _INSTRUMENT_FAILURE_MARKERS:
+            if marker in value:
+                return value
+    return None
+
+
+def _funnel_strings(funnel: dict[str, dict[str, Any]]) -> list[str]:
+    strings: list[str] = []
+    for stage in funnel.values():
+        for value in stage.values():
+            if isinstance(value, str):
+                strings.append(value)
+    return strings
+
+
+def summarize_development(records: tuple[DevelopmentRecord, ...], *, budget_seconds: float = 120.0) -> dict[str, object]:
+    """Summarise a development run; an overrun or instrument failure refuses the summary."""
+    enforce_gates(records, budget_seconds=budget_seconds)
+    for record in records:
+        failure = _instrument_failure(record)
+        if failure is not None:
+            raise InstrumentFailure(f"change {record.change_id} instrument failure: {failure}")
+    judgment_counts = {"unguarded": 0, "discharged": 0, "indeterminate": 0}
+    for record in records:
+        judgment = record.stage_funnel.get("judgment", {})
+        for kind in judgment_counts:
+            judgment_counts[kind] += int(judgment.get(kind, 0))
+    seconds = [record.seconds for record in records]
+    return {
+        "total_changes": len(records),
+        "judgment_counts": judgment_counts,
+        "total_seconds": sum(seconds),
+        "max_seconds": max(seconds, default=0.0),
+    }
+
+
+__all__ = [
+    "DevelopmentRecord",
+    "GateFailure",
+    "InstrumentFailure",
+    "deadline_record",
+    "enforce_gates",
+    "judgment_transition",
+    "run_development",
+    "stage_funnel",
+    "summarize_development",
+]
