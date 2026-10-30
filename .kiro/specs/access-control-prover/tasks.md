@@ -284,7 +284,7 @@ its final resolution, dominance, fact-acquisition and measurement semantics with
   - _Requirements: 5.2, 5.5, 5.7, 11.8_
   - _Boundary: Development Runner_
   - _Depends: 12.1, 12.2, 12.3_
-- [ ] 12.5 Consume and validate an externally reviewed admission manifest
+- [x] 12.5 Consume and validate an externally reviewed admission manifest
   - Accept only a manifest produced by valid-detection-benchmark with review, isolation and immutable digest fields.
   - Reject label exposure, changed acquisition output or a spent population.
   - Done when valid, malformed, exposed and spent manifests produce deterministic accept/refuse results.
