@@ -9,6 +9,7 @@ from openultrasast.core.admission import (
     AdmissionManifest,
     AdmissionManifestError,
     validate_admission_manifest,
+    validate_report_schema,
 )
 from openultrasast.core.budget import Budget, BudgetGateFailure, Complexity, check_budget, derive_budget
 from openultrasast.core.consumer import PushRequest, PushVerdict, consume_verdict
@@ -62,6 +63,7 @@ __all__ = [
     "reversed_pair_probe",
     "stamp",
     "validate_admission_manifest",
+    "validate_report_schema",
     "verify_fact_pack",
     "verify_stamp",
 ]

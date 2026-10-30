@@ -10,6 +10,7 @@ the arm does not cover.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
 from openultrasast.tools.fact_init import FORBIDDEN_LABEL_MARKERS
 
@@ -113,9 +114,28 @@ def validate_admission_manifest(payload: dict[str, object], *, expected_acquisit
     )
 
 
+def validate_report_schema(report: dict[str, Any]) -> None:
+    """Refuse an admission report missing any fixed-schema key (Req 12.1)."""
+    missing = sorted(REPORT_SCHEMA_KEYS - set(report))
+    if missing:
+        raise AdmissionManifestError(f"report schema: missing keys {missing}")
+    for rate_key in (
+        "pair_correctness",
+        "fix_recall",
+        "verified_location_recall",
+        "flagged_ordinary_per_100",
+        "precision",
+        "indeterminate_rate",
+    ):
+        rate = report[rate_key]
+        if not {"n", "count", "rate", "wilson95"} <= set(rate):
+            raise AdmissionManifestError(f"report schema: {rate_key} lacks n/count/rate/wilson95")
+
+
 __all__ = [
     "REPORT_SCHEMA_KEYS",
     "AdmissionManifest",
     "AdmissionManifestError",
     "validate_admission_manifest",
+    "validate_report_schema",
 ]

@@ -100,7 +100,7 @@ _Requirement IDs use N.M where N is the requirement number in requirements.md an
   - _Boundary: core probes + admission_
   - _Depends: 4.1, 5.1_
 
-- [ ] 6. Fact packs and consumer interfaces
+- [x] 6. Fact packs and consumer interfaces
 - [x] 6.1 Fact-pack admission contract
   - Ruleset loader admits family fact packs only with review evidence and provenance stamping; packs carry their family tag.
   - Done when an unreviewed pack is refused and a reviewed pack stamps provenance in a test.
@@ -113,21 +113,21 @@ _Requirement IDs use N.M where N is the requirement number in requirements.md an
   - _Requirements: 9.2, 11.1, 11.2, 11.3_
   - _Boundary: core consumer contracts_
   - _Depends: 1.2, 3.2_
-- [ ] 6.3 Runners adopt core coverage, budget, provenance incrementally
+- [x] 6.3 Runners adopt core coverage, budget, provenance incrementally
   - Migrate development_runner, arm_regression, prover_arm, run_manifests onto the core contracts one at a time, re-running the regression suite after each.
   - Done when all runners consume the core contracts and the keyword regression passes at the pre-migration count plus new tests.
   - _Requirements: 3.1, 4.1, 4.3, 6.1, 11.3, 12.1_
   - _Boundary: benchmark runners_
   - _Depends: 2.3, 3.2, 6.2_
 
-- [ ] 7. Validation
-- [ ] 7.1 Fixed measurement schema enforced in reports
+- [x] 7. Validation
+- [x] 7.1 Fixed measurement schema enforced in reports
   - Every report carries population/freeze digests, judgment vocabulary, rates with n and Wilson 95, coverage, instrument failures, runtime; vocabulary/population change starts a new baseline.
   - Done when a schema-validation test rejects a report missing any field and accepts the 2026-10-30 report.
   - _Requirements: 12.1, 12.2_
   - _Boundary: measurement schema_
   - _Depends: 4.2, 6.3_
-- [ ] 7.2 End-to-end: one push through core to verdict to admission report
+- [x] 7.2 End-to-end: one push through core to verdict to admission report
   - Run one dev-pool push end-to-end: scope, recognize, resolve, trace, verdict, digests, admission report on the dev pool.
   - Done when the E2E test produces a verdict with witness or bounded silence plus a complete report.
   - _Requirements: 5.1, 5.2, 7.3, 11.1_

@@ -26,6 +26,8 @@ from benchmarks.unseen.replay import canonical
 from benchmarks.valid.catalog import local_git
 from benchmarks.valid.development_runner import AnalyzerBundle, stage_funnel
 from benchmarks.valid.prover_arm import _write_json
+from openultrasast.core.coverage import InstrumentFailure as CoreInstrumentFailure
+from openultrasast.core.coverage import check_reads
 from openultrasast.hunt.producers import Context, _Absent, _safe_path
 from openultrasast.hunt.prover import prove_change
 
@@ -262,8 +264,11 @@ def summarize_arm(records: tuple[dict[str, Any], ...]) -> dict[str, Any]:
     per_repository: dict[str, dict[str, Any]] = {}
     for record in records:
         instrument = record.get("instrument", {})
-        if any(size == 0 for field in ("changed_bytes", "file_bytes") for size in instrument.get(field, {}).values()):
-            raise InstrumentFailure(f"zero-byte read of a tracked file; summary refused: {record['id']}")
+        merged = {**instrument.get("file_bytes", {}), **instrument.get("changed_bytes", {})}
+        try:
+            check_reads(merged)  # core instrument refusal: a zero-byte read invalidates the run
+        except CoreInstrumentFailure as error:
+            raise InstrumentFailure(str(error)) from error
         funnel = record.get("stage_funnel", {})
         for kind, count in funnel.get("judgment", {}).items():
             judgment[kind] += int(count)
