@@ -1,5 +1,40 @@
 # Roadmap
 
+## Binding phase -- detection-core as the shared contract (2026-10-30)
+
+This section supersedes ordering questions below it for detection work. `detection-core`
+(spec complete, validated GO at 1cd6a39) is now the binding element: its contract package
+(`src/openultrasast/core/`) owns the canonical trace, verdict, coverage, measured budget,
+provenance, admission, probes, fact-pack and consumer contracts. Existing specs adopt it;
+they do not grow parallel runner contracts.
+
+### Integration sequence (each step admission-gated on the untouched pilot)
+
+1. **Prover native conformance** -- `access-control-prover`'s `Trace` implements
+   `core.TraceRecord` directly; `hunt/core_adapter.py` is deleted once conformance tests
+   pass. Touchpoint: access-control-prover.
+2. **Fact-pack workstream (recognition breadth)** -- `valid-detection-benchmark` task 7.1's
+   manifest-derived recognition table becomes reviewed fact packs admitted via
+   `core/factpack.py` (families tagged, digest-stamped). Target ecosystems: the valid
+   pool's Express/FastAPI/NestJS/Koa/MCP-style servers. Touchpoints: valid-detection-benchmark,
+   ruleset loader.
+3. **Resolution depth** -- interprocedural call resolution (today 11.9% complete) in the
+   engine/frontends; measured via `core/coverage.py` buckets. Touchpoint: contributor-scan
+   (engine internals stay out of detection-core).
+4. **Hook consumes the core** -- `pre-push-safety-net` builds `PushRequest` and consumes
+   `PushVerdict` via `core/consumer.py`, budget from the measured per-class derivation
+   (`benchmarks/measurements/2026-10-30-detection-core-budget/`), one real push E2E on a
+   dev-pool repo. Touchpoints: pre-push-safety-net.
+5. **Proof layer attaches** -- `search-with-proof` attaches demonstrated evidence to
+   `PushVerdict` claims; BLOCK only on proven claims. Touchpoint: search-with-proof.
+6. **Model lane bounded** -- `hunter-learning-loop` proposes only; every fitted component
+   passes `core/probes.py` (reversed-pair + holdout + admission GO). Touchpoint:
+   hunter-learning-loop.
+
+Stop conditions from `detection-quality.md` apply unchanged: two consecutive admission
+NO-GOs on the same arm park it for a strategy review; the fallback is the narrowed
+one-ecosystem advisory product plus proof-based BLOCK.
+
 ## Roadmap -- admission read, stop conditions (2026-10-30)
 
 This section supersedes the ordering below it for detection claims. The 2026-10-30 admission

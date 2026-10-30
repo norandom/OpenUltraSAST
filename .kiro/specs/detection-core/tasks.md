@@ -133,3 +133,29 @@ _Requirement IDs use N.M where N is the requirement number in requirements.md an
   - _Requirements: 5.1, 5.2, 7.3, 11.1_
   - _Boundary: end-to-end integration_
   - _Depends: 6.3, 7.1_
+
+- [ ] 8. Integration with existing specs (binding phase, roadmap 2026-10-30)
+- [ ] 8.1 Prover native conformance to the core trace contract
+  - access-control-prover's Trace implements core TraceRecord natively; hunt/core_adapter.py is removed once conformance tests pass; behavior byte-identical (admission suite regression gate).
+  - Done when test_core_adapter.py equivalents pass against native types and the adapter module is deleted.
+  - _Requirements: 1.1, 1.2, 11.3_
+  - _Boundary: prover arm_
+  - _Depends: 3.1_
+- [ ] 8.2 Fact-pack workstream from the recognition-coverage table
+  - valid-detection-benchmark task 7.1's manifest-derived table becomes reviewed fact packs admitted via core/factpack.py, family-tagged and digest-stamped; measured on pool-train, admission-gated on the untouched pilot.
+  - Done when one new ecosystem pack passes admission gates and appears with its family in the report.
+  - _Requirements: 10.1, 10.2, 7.3_
+  - _Boundary: fact-pack contract + benchmark_
+  - _Depends: 6.1, 4.2_
+- [ ] 8.3 Pre-push hook consumes the core consumer contract
+  - pre-push-safety-net builds PushRequest and consumes PushVerdict via core/consumer.py; budget from the measured per-class derivation; one real dev-pool push E2E.
+  - Done when an E2E hook run on a dev-pool repo emits a PushVerdict with witnesses/reasons and a measured-class budget.
+  - _Requirements: 4.2, 11.1, 11.3_
+  - _Boundary: pre-push transaction_
+  - _Depends: 6.2, 2.2_
+- [ ] 8.4 Proof layer attaches demonstrated evidence to verdicts
+  - search-with-proof attaches proof artifacts to PushVerdict claims; BLOCK only on proven claims; bounded-silence entries stay advisory.
+  - Done when a demonstrated-finding fixture blocks and an unproven claim stays advisory in a test.
+  - _Requirements: 9.2, 11.2_
+  - _Boundary: proof layer_
+  - _Depends: 6.2_
