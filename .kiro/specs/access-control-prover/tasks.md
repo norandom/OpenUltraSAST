@@ -314,7 +314,7 @@ its final resolution, dominance, fact-acquisition and measurement semantics with
   - _Requirements: 1.1, 1.2, 1.3, 2.1, 2.2, 2.5, 2.7, 3.4, 3.5, 3.6, 3.7, 3.8, 4.1, 4.2, 4.3, 10.6_
   - _Boundary: Prover Integration Validation_
   - _Depends: 10.6, 11.7_
-- [ ] 13.3 Run the four-arm development regression
+- [x] 13.3 Run the four-arm development regression
   - Run all four registered arms on the immutable current development population after proving nonzero input reads.
   - Publish analyzer/fact attribution, stage funnel, three-way judgments, budget result and comparison to the
     2026-10-28 baseline; label the result development-only.

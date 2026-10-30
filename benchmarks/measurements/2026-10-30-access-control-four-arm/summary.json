@@ -1,0 +1,489 @@
+{
+  "arm_execution": {
+    "baseline-analyzer/baseline-facts": "immutable 2026-10-28 records, adapted (vocabulary: binary)",
+    "baseline-analyzer/candidate-facts": "alias of baseline arm by proven input identity",
+    "candidate-analyzer/baseline-facts": "alias of candidate arm by proven input identity",
+    "candidate-analyzer/candidate-facts": "executed 2026-10-30 (vocabulary: three-way)"
+  },
+  "bundles": {
+    "baseline": {
+      "acquisition_artifact": null,
+      "acquisition_record_digest": "none",
+      "analyzer_revision": "c5341d79a21bfae49ee157bdac19f967754f0be4",
+      "configuration_digest": "bc4d444e2bc4",
+      "fact_artifact": "facts-baseline.json",
+      "fact_set_digest": "3eb5bf699434"
+    },
+    "candidate": {
+      "acquisition_artifact": null,
+      "acquisition_record_digest": "none",
+      "analyzer_revision": "9c95f842f7263710ec7d106794b37eb94a45425d",
+      "configuration_digest": "be6d0f688598",
+      "fact_artifact": "facts-candidate.json",
+      "fact_set_digest": "3eb5bf699434"
+    }
+  },
+  "candidate_arm": {
+    "budget": {
+      "budget_seconds": 120.0,
+      "gate": "failed",
+      "overruns": [
+        {
+          "id": "099364c093061a7d02d2e728a503b753441bd455ae6ae5f6970326d1815ee6f4",
+          "seconds": 160.65696239499812
+        },
+        {
+          "id": "1d77199cf964d7f168f3f0c157646f52aef7e3931b8da2f9fa829e1e32931964",
+          "seconds": 237.99327803600318
+        },
+        {
+          "id": "3a66c58b6c2b345f622f00820bd833932c5fa02ccc0d03626ac95f9b179baf55",
+          "seconds": 160.20379009899625
+        },
+        {
+          "id": "514850869e2c19bfc55dbc75b2c1e1766249e12f04385b1de7b4d116b6b209fa",
+          "seconds": 239.97186829699785
+        },
+        {
+          "id": "58a2ffe30e0bc6a166a01fe016ebf43b0c0f3385b0f4a2e8578d3e039371c17e",
+          "seconds": 135.12179498800106
+        },
+        {
+          "id": "59327d70f193338a3ae990177f6fa8aece8e6913e6e5d3a27888d383edb56165",
+          "seconds": 195.88553729499836
+        },
+        {
+          "id": "5c73c7dac092be000911ad6d4327156dbdc7a02d3d22545cfe47a25b67ce76ec",
+          "seconds": 201.59726526400482
+        },
+        {
+          "id": "5c9a822532e45241cb40e12ba6437837bf0301a6b2bead1261fbaa90e028f211",
+          "seconds": 238.12383715200122
+        },
+        {
+          "id": "720017c40d9dd8ad541f00c2577b2d1676ba3dfcaa997166a1065dbb36b42231",
+          "seconds": 136.7938399220002
+        },
+        {
+          "id": "75f92ee98982d750540239481ee8aa4258ec3cc3cb64cce6ca19835d9fcf2d99",
+          "seconds": 195.32054610600608
+        },
+        {
+          "id": "a505c341e4c5e363b3050d1523bd8f6868c10e3cd5ed383d3c8e155b49bf9a70",
+          "seconds": 168.9383434449992
+        },
+        {
+          "id": "bada9b8aaceaff26178d1940f7f6032b24d213071c54c30d2e7ce929e557df90",
+          "seconds": 170.55653589800204
+        },
+        {
+          "id": "c0fca5070cee86d26832638230b364f45d245c6e1a77333d38ee393832291e13",
+          "seconds": 238.88118421599938
+        },
+        {
+          "id": "c1859d8c2376e25dd46024b336bb8106a702f8139437934cf48d282cf0f396cb",
+          "seconds": 203.85092047799844
+        },
+        {
+          "id": "c2c52c1bb6b1f0d70b29b7b64009d6ca85c6e4d3659a195a904d577f6b02c886",
+          "seconds": 193.02569297700393
+        },
+        {
+          "id": "da89557ec3cada71aed38482d8269959d56e9a37877f66d69cf5b3905d0cbcff",
+          "seconds": 238.55912208399968
+        },
+        {
+          "id": "e0b9c856901ff36c6e54a0a73752b06f6a9996930702c18593c25936709d4c79",
+          "seconds": 162.15434529800405
+        },
+        {
+          "id": "e934b0222e338b768bfc594668434850f18e3a7ee35a76fb35c19898d4924349",
+          "seconds": 162.4909854649959
+        },
+        {
+          "id": "ea9ed8aad6259c9ea8ee1f8227a981710e8b4b1da838e74d6e68075455e78631",
+          "seconds": 163.5947257539956
+        },
+        {
+          "id": "f664ff98347b54ace35a50a499c77cfe3c6e06158e78f76f20b9d9317a29bb94",
+          "seconds": 160.8364557419991
+        }
+      ]
+    },
+    "development_only": true,
+    "instrument_failures": 0,
+    "judgment_counts": {
+      "discharged": 0,
+      "indeterminate": 102,
+      "unguarded": 94
+    },
+    "per_repository": {
+      "03d0eff98aa6": {
+        "changes": 21,
+        "discharged": 0,
+        "frameworks_recognised": 44,
+        "status": "covered",
+        "unguarded": 2
+      },
+      "0bdd00190b32": {
+        "changes": 21,
+        "discharged": 0,
+        "frameworks_recognised": 6179,
+        "status": "covered",
+        "unguarded": 3
+      },
+      "1ca62ca671af": {
+        "changes": 21,
+        "discharged": 0,
+        "frameworks_recognised": 0,
+        "status": "uncovered",
+        "unguarded": 0
+      },
+      "34b17c3454d8": {
+        "changes": 21,
+        "discharged": 0,
+        "frameworks_recognised": 828,
+        "status": "covered",
+        "unguarded": 13
+      },
+      "3caf85f05a65": {
+        "changes": 21,
+        "discharged": 0,
+        "frameworks_recognised": 559,
+        "status": "covered",
+        "unguarded": 23
+      },
+      "4b7075e3d5a1": {
+        "changes": 21,
+        "discharged": 0,
+        "frameworks_recognised": 93,
+        "status": "covered",
+        "unguarded": 11
+      },
+      "4dde9ea84248": {
+        "changes": 21,
+        "discharged": 0,
+        "frameworks_recognised": 100,
+        "status": "covered",
+        "unguarded": 3
+      },
+      "4e75cb1165d3": {
+        "changes": 21,
+        "discharged": 0,
+        "frameworks_recognised": 65,
+        "status": "covered",
+        "unguarded": 3
+      },
+      "69f3c5cdd90a": {
+        "changes": 21,
+        "discharged": 0,
+        "frameworks_recognised": 115,
+        "status": "covered",
+        "unguarded": 7
+      },
+      "6a4eac96c6ae": {
+        "changes": 21,
+        "discharged": 0,
+        "frameworks_recognised": 108,
+        "status": "covered",
+        "unguarded": 4
+      },
+      "6c1d234f9e23": {
+        "changes": 21,
+        "discharged": 0,
+        "frameworks_recognised": 21,
+        "status": "covered",
+        "unguarded": 0
+      },
+      "6c92cca94d4b": {
+        "changes": 21,
+        "discharged": 0,
+        "frameworks_recognised": 470,
+        "status": "covered",
+        "unguarded": 2
+      },
+      "760591cb57ba": {
+        "changes": 21,
+        "discharged": 0,
+        "frameworks_recognised": 87,
+        "status": "covered",
+        "unguarded": 5
+      },
+      "78d80100d68f": {
+        "changes": 21,
+        "discharged": 0,
+        "frameworks_recognised": 98,
+        "status": "covered",
+        "unguarded": 1
+      },
+      "89c10adb0673": {
+        "changes": 21,
+        "discharged": 0,
+        "frameworks_recognised": 91,
+        "status": "covered",
+        "unguarded": 0
+      },
+      "9047b2efc25b": {
+        "changes": 21,
+        "discharged": 0,
+        "frameworks_recognised": 86,
+        "status": "covered",
+        "unguarded": 0
+      },
+      "ba37e9ee7b7b": {
+        "changes": 21,
+        "discharged": 0,
+        "frameworks_recognised": 163,
+        "status": "covered",
+        "unguarded": 1
+      },
+      "c5bd586fae3f": {
+        "changes": 21,
+        "discharged": 0,
+        "frameworks_recognised": 33,
+        "status": "covered",
+        "unguarded": 6
+      },
+      "c690d767b023": {
+        "changes": 21,
+        "discharged": 0,
+        "frameworks_recognised": 29,
+        "status": "covered",
+        "unguarded": 5
+      },
+      "c92157c966cc": {
+        "changes": 21,
+        "discharged": 0,
+        "frameworks_recognised": 0,
+        "status": "uncovered",
+        "unguarded": 0
+      },
+      "d8eda62c6cc2": {
+        "changes": 21,
+        "discharged": 0,
+        "frameworks_recognised": 58,
+        "status": "covered",
+        "unguarded": 5
+      },
+      "e89a8c0f281c": {
+        "changes": 21,
+        "discharged": 0,
+        "frameworks_recognised": 375,
+        "status": "covered",
+        "unguarded": 0
+      },
+      "ed1f033972e0": {
+        "changes": 21,
+        "discharged": 0,
+        "frameworks_recognised": 355,
+        "status": "covered",
+        "unguarded": 0
+      }
+    },
+    "population_role": "development",
+    "seconds_per_change": {
+      "maximum": 239.97186829699785,
+      "mean": 17.395369377060025,
+      "median": 1.0545286380001926,
+      "n": 483
+    },
+    "total_changes": 483,
+    "uncovered_repositories": [
+      "1ca62ca671af",
+      "c92157c966cc"
+    ]
+  },
+  "comparison_to_immutable_baseline": {
+    "current": {
+      "covered_recall": {
+        "count": 8,
+        "n": 21,
+        "rate": 0.38095238095238093,
+        "wilson95": [
+          0.20750767797982506,
+          0.5912170418449848
+        ]
+      },
+      "false_alarms_per_100_pushes": {
+        "cluster95": [
+          2.608695652173913,
+          8.478260869565217
+        ],
+        "count": 24,
+        "icc": 0.06521124844323971,
+        "n": 460,
+        "rate": 5.217391304347826,
+        "wilson95": [
+          3.5308056950422455,
+          7.645768376796072
+        ]
+      },
+      "instrument_failures": 0,
+      "location_recall": {
+        "count": 25,
+        "n": 93,
+        "rate": 0.26881720430107525,
+        "wilson95": [
+          0.1892118216186081,
+          0.36676412260370955
+        ]
+      },
+      "precision": {
+        "count": 8,
+        "n": 32,
+        "rate": 0.25,
+        "wilson95": [
+          0.1325224398262155,
+          0.42106891770246624
+        ]
+      },
+      "recall_on_fix_changes": {
+        "count": 8,
+        "n": 23,
+        "rate": 0.34782608695652173,
+        "wilson95": [
+          0.18811054636982238,
+          0.5511002309310836
+        ]
+      },
+      "uncovered_recall": {
+        "count": 0,
+        "n": 2,
+        "rate": 0.0,
+        "wilson95": [
+          0,
+          0.6576280471103807
+        ]
+      }
+    },
+    "immutable_baseline": {
+      "false_alarms_per_100_pushes": {
+        "cluster95": [
+          8.695652173913043,
+          21.521739130434785
+        ],
+        "count": 69,
+        "icc": 0.144640754781103,
+        "n": 460,
+        "rate": 15.0,
+        "wilson95": [
+          12.027398310244092,
+          18.552351328425665
+        ]
+      },
+      "instrument_failures": 0,
+      "location_recall": {
+        "count": 55,
+        "n": 93,
+        "rate": 0.5913978494623656,
+        "wilson95": [
+          0.4897977403042717,
+          0.6857466538403933
+        ]
+      },
+      "precision": {
+        "count": 15,
+        "n": 84,
+        "rate": 0.17857142857142858,
+        "wilson95": [
+          0.1113109090339025,
+          0.2739461901081896
+        ]
+      },
+      "recall_on_fix_changes": {
+        "count": 15,
+        "n": 23,
+        "rate": 0.6521739130434783,
+        "wilson95": [
+          0.4488997690689164,
+          0.8118894536301776
+        ]
+      }
+    },
+    "note": "regression evidence against the immutable 2026-10-28 baseline; development population only, never an untouched-population result"
+  },
+  "date": "2026-10-30",
+  "development_only": true,
+  "fact_inputs_identical": {
+    "fact_set_digest": "e7db4031d3d5",
+    "identical": true
+  },
+  "four_arm": {
+    "arms": [
+      "baseline-analyzer/baseline-facts",
+      "baseline-analyzer/candidate-facts",
+      "candidate-analyzer/baseline-facts",
+      "candidate-analyzer/candidate-facts"
+    ],
+    "attribution": {
+      "analyzer_only_lift": {
+        "discharged": -130,
+        "indeterminate": 102,
+        "unguarded": -246
+      },
+      "arms": [
+        "baseline-analyzer/baseline-facts",
+        "baseline-analyzer/candidate-facts",
+        "candidate-analyzer/baseline-facts",
+        "candidate-analyzer/candidate-facts"
+      ],
+      "fact_only_lift": {
+        "discharged": 0,
+        "indeterminate": 0,
+        "unguarded": 0
+      },
+      "funnel_delta_fact_only": {
+        "seconds": 0.0
+      },
+      "judgment_delta_analyzer_only": {
+        "discharged": -130,
+        "indeterminate": 102,
+        "unguarded": -246
+      },
+      "judgment_delta_fact_only": {
+        "discharged": 0,
+        "indeterminate": 0,
+        "unguarded": 0
+      },
+      "transitions": [
+        "flagged->indeterminate",
+        "flagged->none",
+        "flagged->unguarded",
+        "quiet->indeterminate",
+        "quiet->none",
+        "quiet->unguarded",
+        "same"
+      ]
+    },
+    "fact_inputs_identical": true,
+    "per_change_transitions": {
+      "flagged->indeterminate": 25,
+      "flagged->none": 30,
+      "flagged->unguarded": 29,
+      "quiet->indeterminate": 8,
+      "quiet->none": 388,
+      "quiet->unguarded": 3
+    }
+  },
+  "population": {
+    "changes": 483,
+    "freeze_verified": true,
+    "per_record_stamp_note": "executed-arm records carry the shard-scoped population digest of the subset their worker processed (8b7be14b70df shard 0, 27fb15c10491 shard 1); this field is the authoritative full-population digest over all 483 change ids. Baseline-arm adapted records carry no population stamp from the immutable 2026-10-28 run; disclosed rather than back-filled.",
+    "pool": "benchmarks/valid/train/pool-train.toml",
+    "population_digest": "999594274a4e"
+  },
+  "population_role": "development",
+  "stage_funnel": {
+    "entry_points": 17046,
+    "judgment_counts": {
+      "discharged": 0,
+      "indeterminate": 102,
+      "unguarded": 94
+    },
+    "resolution": {
+      "complete_calls": 589520,
+      "incomplete_calls": 1451325,
+      "unresolved_calls": 2908559
+    }
+  }
+}
