@@ -291,7 +291,7 @@ its final resolution, dominance, fact-acquisition and measurement semantics with
   - _Requirements: 12.1, 12.2, 12.3, 12.6, 12.8_
   - _Boundary: Admission Runner_
   - _Depends: 11.5, 12.3_
-- [ ] 12.6 Add paired scoring and the admission report
+- [x] 12.6 Add paired scoring and the admission report
   - Score vulnerable/fixed twins, reviewed ordinary changes, indeterminate rate, coverage, runtime and instruments.
   - Preserve sample counts and uncertainty intervals and return NO-GO on any pre-registered gate failure.
   - Done when fixture pairs detect vulnerable-only, fixed-side regression and mislabeled-negative cases.
