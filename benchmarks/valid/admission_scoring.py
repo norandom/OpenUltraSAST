@@ -127,6 +127,7 @@ def admission_report(
             "max_seconds": max((case.seconds for case in cases), default=0.0),
         },
         "instrument_failures": instrument_failures,
+        "families": list(manifest.families),
     }
     failed_gates: list[str] = []
     for case in cases:

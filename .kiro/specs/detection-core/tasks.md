@@ -67,19 +67,19 @@ _Requirement IDs use N.M where N is the requirement number in requirements.md an
   - _Depends: 3.1, 1.3_
 
 - [ ] 4. Generalized admission contract
-- [ ] 4.1 (P) Consume-only manifest validation generalized into the core
+- [x] 4.1 (P) Consume-only manifest validation generalized into the core
   - Move the ordered refusal chain (malformed, producer, unreviewed, label-isolated, label-exposure, acquisition-changed, spent) into the core admission contract; the benchmark validator becomes a thin wrapper.
   - Done when all refusal branches pass unit tests through the core contract.
   - _Requirements: 7.1, 7.2_
   - _Boundary: core admission contract_
   - _Depends: 1.4_
-- [ ] 4.2 Paired scoring and GO/NO-GO report schema with family scope
+- [x] 4.2 Paired scoring and GO/NO-GO report schema with family scope
   - Generalize paired vulnerable/fixed scoring, ordinary false alarms, gates, and the report schema into the core; add the claimed-families field.
   - Done when the report schema includes family scope and every rate carries n and Wilson 95.
   - _Requirements: 7.3, 10.2, 12.1_
   - _Boundary: core admission contract_
   - _Depends: 1.2, 4.1_
-- [ ] 4.3 Admission suite reproduces the 2026-10-30 NO-GO
+- [x] 4.3 Admission suite reproduces the 2026-10-30 NO-GO
   - Re-run the pilot admission through the core contract and reproduce 0/12 pairs, 0.83 flagged/100, 0 instrument failures, NO-GO exactly.
   - Done when the reproduced report matches the committed 2026-10-30 report field-for-field.
   - _Requirements: 7.3, 12.1_
