@@ -257,7 +257,7 @@ its final resolution, dominance, fact-acquisition and measurement semantics with
   - _Depends: 10.3, 11.2, 11.5, 11.6_
 
 - [ ] 12. Development and admission runners
-- [ ] 12.1 Materialise and verify baseline and candidate analyzer bundles
+- [x] 12.1 Materialise and verify baseline and candidate analyzer bundles
   - Resolve analyzer revisions, fact sets, acquisition records and configurations to immutable digest-verified inputs.
   - Refuse comparison when any bundle artifact is unavailable or mismatched.
   - Done when the immutable baseline and a fixture candidate bundle can be reconstructed exactly.
