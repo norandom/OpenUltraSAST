@@ -9,7 +9,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from openultrasast.core.admission import AdmissionManifestError, validate_report_schema  # noqa: E402
 from openultrasast.core.consumer import PushRequest, consume_verdict  # noqa: E402
 from openultrasast.core.verdict import Judgment, ProvenClaim  # noqa: E402
-from openultrasast.hunt.core_adapter import trace_to_core  # noqa: E402
 from openultrasast.semantic.obligations.abstract_domain import (  # noqa: E402
     AuthorityRef,
     Completeness,
@@ -68,7 +67,7 @@ def test_end_to_end_push_through_core_contracts() -> None:
         missing="identity_constraint",
         abstract_state=state,
     )
-    record = trace_to_core(trace, entry="src/app.py::handler", digests={"input": "abc123"})
+    record = trace.to_core_record(entry="src/app.py::handler", digests={"input": "abc123"})
     claim = ProvenClaim(trace_id="t1", witness="fact:f", path="src/app.py", line=30, family="access_control")
     verdict = consume_verdict(PushRequest(base="b", head="h", budget_class="dev-pool"), record, (claim,), ())
     assert verdict.claims[0].witness == "fact:f"

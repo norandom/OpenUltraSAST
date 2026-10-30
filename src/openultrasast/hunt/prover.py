@@ -9,6 +9,8 @@ from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
+from openultrasast.core.coverage import Coverage as CoreCoverage
+
 from .. import mapping, source
 from ..preprocess import FileTarget, count_loc, detect_language, detect_tags
 from ..semantic.cfg import ControlContext, FunctionCfg
@@ -39,6 +41,12 @@ from ..semantic.obligations.trace import AbstractTraceState, build_trace
 from ..semantic.obligations.witness import match_witness
 from .producers import Context, _safe_path
 
+_CORE_RESOLUTION_KEYS = {
+    "complete_calls": "complete",
+    "incomplete_calls": "incomplete",
+    "unresolved_calls": "unresolved",
+}
+
 
 @dataclass(frozen=True)
 class Coverage:
@@ -57,6 +65,27 @@ class Coverage:
     # Requirement 3.3/3.4 (access-control-prover): call-resolution outcome totals. Prover-mode
     # resolution has no bare-name fallback; every call lands in exactly one bucket.
     resolution_counts: dict[str, int] = field(default_factory=dict)
+
+    def to_core(self) -> CoreCoverage:
+        """Native conformance to the detection-core coverage contract (detection-core task 8.1).
+
+        Unknown resolution bucket keys fail loud rather than under-counting calls.
+        """
+        unknown = sorted(key for key in self.resolution_counts if key not in _CORE_RESOLUTION_KEYS)
+        if unknown:
+            raise ValueError(f"unknown resolution bucket keys, refusing to under-count calls: {unknown}")
+        buckets = {name: 0 for name in ("complete", "incomplete", "unresolved")}
+        for key, value in self.resolution_counts.items():
+            buckets[_CORE_RESOLUTION_KEYS[key]] += int(value)
+        return CoreCoverage(
+            entry_points=int(self.entry_points),
+            frameworks_recognised=dict(self.frameworks_recognised),
+            calls=sum(buckets.values()),
+            complete=buckets["complete"],
+            incomplete=buckets["incomplete"],
+            unresolved=buckets["unresolved"],
+            unchecked_reasons=dict(self.unchecked_by_reason),
+        )
 
 
 @dataclass(frozen=True)

@@ -10,6 +10,12 @@ from dataclasses import asdict, dataclass, replace
 from enum import Enum
 from typing import Any
 
+from openultrasast.core.trace import Guard as CoreGuard
+from openultrasast.core.trace import Hop as CoreHop
+from openultrasast.core.trace import TraceRecord
+from openultrasast.core.trace import Witness as CoreWitness
+from openultrasast.core.verdict import Judgment as CoreJudgment
+
 from ..cfg import ControlContext
 from ..ir import FileIR, FunctionIR, trailing_name
 from .abstract_domain import (
@@ -146,6 +152,47 @@ class Trace:
             del payload["abstract_state"]
         record: dict[str, Any] = json.loads(json.dumps(payload, sort_keys=True, default=_enum_json_value))
         return record
+
+    def to_core_record(self, *, entry: str, digests: Mapping[str, str], complete: bool = False) -> TraceRecord:
+        """Native conformance to the detection-core trace contract (detection-core task 8.1).
+
+        ``complete`` defaults to False: a Trace carries no per-hop completeness, so the
+        record never asserts resolved call targets it did not see. Guards are mapped from
+        every hop's before-call guards plus the operation-level guards.
+        """
+        state = self.abstract_state
+        if state is None:
+            judgment = CoreJudgment.INDETERMINATE
+            reasons: tuple[str, ...] = ("abstract_state_unset",)
+            witnesses: tuple[CoreWitness, ...] = ()
+            resource = "unknown"
+            authority = "unknown"
+        else:
+            judgment = CoreJudgment(state.path_judgment.judgment.value)
+            completeness = state.path_judgment.completeness
+            reasons = tuple(completeness.reasons) or (("incomplete",) if not completeness.is_complete else ())
+            witnesses = tuple(
+                CoreWitness(kind="witness", provenance=evidence, relation=match.relation.value)
+                for match in state.path_judgment.matches
+                for evidence in match.evidence
+            )
+            resource = ",".join(state.resource.values) or "unknown"
+            authority = ",".join(state.authority.values) or "unknown"
+        hops = tuple(CoreHop(function=hop.function, call_line=hop.call_line, complete=complete) for hop in self.hops)
+        hop_guards = tuple(guard for hop in self.hops for guard in hop.guards_before_call)
+        guards = tuple(CoreGuard(kind=guard.kind, effect=guard.effect) for guard in (*hop_guards, *self.guards_after))
+        return TraceRecord(
+            entry=entry,
+            hops=hops,
+            operation_kind=self.operation_kind,
+            resource=resource,
+            authority=authority,
+            witnesses=witnesses,
+            guards=guards,
+            completeness_reasons=reasons,
+            judgment=judgment,
+            digests=dict(digests),
+        )
 
     def text(self) -> str:
         """Emit entry, hops, operation, later guards, verdict and, when present, the abstract state."""

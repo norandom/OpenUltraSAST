@@ -135,7 +135,7 @@ _Requirement IDs use N.M where N is the requirement number in requirements.md an
   - _Depends: 6.3, 7.1_
 
 - [ ] 8. Integration with existing specs (binding phase, roadmap 2026-10-30)
-- [ ] 8.1 Prover native conformance to the core trace contract
+- [x] 8.1 Prover native conformance to the core trace contract
   - access-control-prover's Trace implements core TraceRecord natively; hunt/core_adapter.py is removed once conformance tests pass; behavior byte-identical (admission suite regression gate).
   - Done when test_core_adapter.py equivalents pass against native types and the adapter module is deleted.
   - _Requirements: 1.1, 1.2, 11.3_
