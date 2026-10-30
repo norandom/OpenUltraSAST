@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any, Literal, cast
 
 from ..preprocess import FileTarget
+from .entry_packs import load_entry_pack_patterns
 from .registry import registry_entries
 
 MappingKind = Literal["semgrep", "codeql", "differential", "sharp_edge"]
@@ -107,7 +108,7 @@ def analyze_entry_points(
             source_texts[config] = (root / config).read_text(errors="ignore")
     for target in targets:
         text = source_texts[target.path]
-        records.extend(_language_entry_points(target, text))
+        records.extend(_language_entry_points(target, text, load_entry_pack_patterns()))
         records.extend(registry_entries(target, text))
         if target.language == "php":
             framework_entries = _php_framework_entries(target, text, source_texts)
@@ -184,13 +185,16 @@ def write_entry_points(entry_points: list[EntryPointRecord], path: Path) -> None
     path.write_text(json.dumps({"entry_points": [asdict(entry_point) for entry_point in entry_points]}, indent=2, sort_keys=True) + "\n")
 
 
-def _language_entry_points(target: FileTarget, text: str) -> list[EntryPointRecord]:
+def _language_entry_points(
+    target: FileTarget, text: str, pack_patterns: Mapping[str, list[re.Pattern[str]]] | None = None
+) -> list[EntryPointRecord]:
+    packs = pack_patterns or {}
     if target.language == "java":
         return _jetty_entries(target, text)
     if target.language == "python":
         return _python_entry_points(target, text) + _tornado_entries(target, text)
     if target.language in {"javascript", "typescript"}:
-        return _js_entry_points(target, text) + _remix_exports(target, text)
+        return _js_entry_points(target, text, packs.get(target.language, [])) + _remix_exports(target, text)
     if target.language in {"c", "cpp"}:
         return _c_entry_points(target, text)
     if target.language == "solidity":
@@ -484,6 +488,7 @@ def entry_framework(entry: object) -> str | None:
         ("Laravel", "laravel"),
         ("Remix", "remix"),
         ("Tornado", "tornado"),
+        ("Express", "express"),
     ):
         if name in evidence:
             return identifier
@@ -770,15 +775,22 @@ def _python_entry_points(target: FileTarget, text: str) -> list[EntryPointRecord
     return records
 
 
-def _js_entry_points(target: FileTarget, text: str) -> list[EntryPointRecord]:
+def _js_entry_points(target: FileTarget, text: str, pack_patterns: Sequence[re.Pattern[str]] | None = None) -> list[EntryPointRecord]:
     records: list[EntryPointRecord] = []
     route_tokens = (".get(", ".post(", ".put(", ".delete(", ".patch(", ".use(")
+    extra = list(pack_patterns or [])
     lines = text.splitlines()
     bounds = _js_function_bounds(lines)
     for number, stripped in _js_statements(lines):
-        if any(token in stripped for token in route_tokens) and any(prefix in stripped.lower() for prefix in ("app", "router", "server")):
+        token_route = any(token in stripped for token in route_tokens) and any(
+            prefix in stripped.lower() for prefix in ("app", "router", "server")
+        )
+        pack_route = any(pattern.search(stripped) for pattern in extra)
+        if token_route or pack_route:
             handler, middleware = _js_registration(stripped, bounds)
             access, evidence = _js_route_access(middleware, stripped)
+            if pack_route and not token_route:
+                evidence = [*evidence, "Express"]
             start, end = bounds.get(handler or "", (number, number))
             named = handler or _js_handler_name(stripped)
             records.append(

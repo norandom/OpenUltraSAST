@@ -44,11 +44,17 @@ def _sha256_bytes(payload: bytes) -> str:
 
 
 def fact_manifest_disk(directory: Path) -> dict[str, str]:
-    """Digest every TOML fact artifact under ``directory`` as it exists on disk."""
+    """Digest every fact artifact under ``directory`` as it exists on disk.
+
+    Covers ruleset TOMLs plus admitted entry-pack JSON files under ``entries/``, so a
+    pack is part of the frozen fact-set digest (2026-10-30 detection-core 8.2).
+    """
     manifest: dict[str, str] = {}
     for path in sorted(directory.rglob("*.toml")):
         if path.is_file():
             manifest[path.relative_to(directory).as_posix()] = _sha256_bytes(path.read_bytes())
+    for path in sorted((directory / "entries").glob("*.json")) if (directory / "entries").is_dir() else []:
+        manifest[path.relative_to(directory).as_posix()] = _sha256_bytes(path.read_bytes())
     return manifest
 
 

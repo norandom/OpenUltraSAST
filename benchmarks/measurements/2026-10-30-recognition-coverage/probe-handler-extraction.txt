@@ -1,0 +1,14 @@
+bytebase__dbhub: raw route entries=10
+   src/server.ts:208 name=None defines_handler=False fw=None
+   src/server.ts:216 name=next defines_handler=False fw=None
+   src/server.ts:247 name=arrow_handler defines_handler=False fw=None
+   src/server.ts:254 name=res defines_handler=False fw=None
+   src/server.ts:265 name=None defines_handler=False fw=None
+   src/server.ts:268 name=listSources defines_handler=False fw=None
+matrix-org__matrix-appservice-bridge: raw route entries=10
+   src/bridge.ts:1543 name=None defines_handler=False fw=None
+   src/components/media-proxy.ts:49 name=_res defines_handler=False fw=None
+   src/components/media-proxy.ts:53 name=None defines_handler=False fw=None
+   src/components/media-proxy.ts:54 name=res defines_handler=False fw=None
+   src/components/media-proxy.ts:57 name=None defines_handler=False fw=None
+   src/components/media-proxy.ts:62 name=None defines_handler=False fw=None
