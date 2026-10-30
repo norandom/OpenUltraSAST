@@ -33,19 +33,19 @@ _Requirement IDs use N.M where N is the requirement number in requirements.md an
   - _Boundary: core provenance contract_
 
 - [ ] 2. Measured budget replaces the static gate
-- [ ] 2.1 Record per-change complexity and reply time
+- [x] 2.1 Record per-change complexity and reply time
   - Extend runner records with complexity features (changed regions, call count, changed bytes) alongside the already-recorded seconds.
   - Done when dev-pool records carry all complexity fields and seconds.
   - _Requirements: 4.1, 12.1_
   - _Boundary: runner records_
   - _Depends: 1.3_
-- [ ] 2.2 Derive per-workload-class budgets from measurement
+- [x] 2.2 Derive per-workload-class budgets from measurement
   - Fit complexity to reply time on the dev (483-change) and pilot (264-change) record sets as measurement only; publish per-class budgets with n, percentile, and hardware; make the budget configurable per class, demoting the static constant to provisional default.
   - Done when the derivation table (class, n, percentile, hardware, budget) is published under the fixed measurement schema and a new-baseline note records the change.
   - _Requirements: 4.2, 12.1, 12.2_
   - _Boundary: core budget contract_
   - _Depends: 2.1_
-- [ ] 2.3 Budget gate and scoping record
+- [x] 2.3 Budget gate and scoping record
   - Gate failures name the change, elapsed time, and the derivation exceeded; the analyzed scope (change regions) is recorded per run.
   - Done when an over-budget fixture fails with all three fields and the scope is present in the record.
   - _Requirements: 4.3, 4.4_

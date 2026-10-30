@@ -165,13 +165,19 @@ def _prove_one(
                 _instrument_reads(ctx, root, change, instrument)
                 result = prove_change(root, change, ctx, judgment_mode=True)
                 instrument["hook_bytes_read"] = sum(instrument["file_bytes"].values())
+                funnel = stage_funnel(result)
                 record.update(
                     findings=list(result.findings),
                     traces=list(result.traces),
                     coverage=asdict(result.coverage),
                     degradations=list(result.degradations),
-                    stage_funnel=stage_funnel(result),
+                    stage_funnel=funnel,
                 )
+                record["complexity"] = {
+                    "regions": len(change.get("files", ())),
+                    "calls": sum(funnel.get("resolution", {}).values()),
+                    "changed_bytes": sum(instrument.get("changed_bytes", {}).values()),
+                }
                 record["push"]["admission"]["defects"] = [
                     {**finding, "defect_id": finding["id"], "source": "prover", "locations": [[finding["path"], finding["line"]]]}
                     for finding in result.findings

@@ -1,0 +1,46 @@
+{
+  "derivations": {
+    "admission-pilot:p90": {
+      "budget_seconds": 2.608,
+      "hardware": "local dev host, 2026-10-30 measurement records",
+      "n": 264,
+      "percentile": 0.9
+    },
+    "admission-pilot:p95": {
+      "budget_seconds": 3.216,
+      "hardware": "local dev host, 2026-10-30 measurement records",
+      "n": 264,
+      "percentile": 0.95
+    },
+    "admission-pilot:p99": {
+      "budget_seconds": 3.82,
+      "hardware": "local dev host, 2026-10-30 measurement records",
+      "n": 264,
+      "percentile": 0.99
+    },
+    "dev-pool:p90": {
+      "budget_seconds": 61.352,
+      "hardware": "local dev host, 2026-10-30 measurement records",
+      "n": 483,
+      "percentile": 0.9
+    },
+    "dev-pool:p95": {
+      "budget_seconds": 88.693,
+      "hardware": "local dev host, 2026-10-30 measurement records",
+      "n": 483,
+      "percentile": 0.95
+    },
+    "dev-pool:p99": {
+      "budget_seconds": 209.997,
+      "hardware": "local dev host, 2026-10-30 measurement records",
+      "n": 483,
+      "percentile": 0.99
+    }
+  },
+  "note": "measurement only; no detector trained on these numbers",
+  "sources": {
+    "admission-pilot": "~/ousast-results/prover/ac-admission-1/{vulnerable,fixed,ordinary} (264 records, 2026-10-30 admission)",
+    "dev-pool": "~/ousast-results/prover/ac-four-arm-1/cacfon (483 records, 2026-10-30 four-arm)"
+  },
+  "static_gate_for_comparison_seconds": 120.0
+}
