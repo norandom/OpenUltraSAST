@@ -1,5 +1,22 @@
 # Overview — what this is, and what is actually true of it
 
+## Current state, 2026-10-30
+
+Everything below this section is dated history; where it disagrees with this section, this section wins.
+
+- **Detection on unseen repositories is still the open problem, and now measured honestly.**
+  The valid benchmark pilot (2026-10-12): push hook 0/12, hunter 5-6/12 at 54 FA/100. The
+  access-control prover: 15/23 on the development pool (2026-10-28, binary vocabulary),
+  8/23 on the strict three-way lane (2026-10-30, FA 15.0 -> 5.2/100), and **admission NO-GO
+  0/12 on the untouched pilot** (in-family 0/3; 9/12 repos zero framework recognition). No
+  arm meets the gate; rollout stays NO-GO.
+- **Standing detection rules** (comparability schema, admission-before-generalization,
+  family-scope disclosure, stop conditions) are in `detection-quality.md`, which wins for
+  detection claims.
+- **The turns are comparable only within a fixed population and vocabulary.** The apparent
+  recall decline 65.2% -> 34.8% mixes a binary baseline with a strict three-way lane; both
+  numbers are real instruments, neither is a regression line against the other.
+
 ## Current state, 2026-10-13
 
 Everything below this section is dated history; where it disagrees with this section, this section wins.

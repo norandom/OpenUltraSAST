@@ -274,3 +274,13 @@ misses and then remeasured the same population, which is valid regression work b
   promoted facts and include the fact identifier in every match.
 - **Admission scarcity**: the current pool is already development data. Source and review a separate population
   through `valid-detection-benchmark`; do not relabel the current pool as untouched.
+
+## Admission outcome (2026-10-30)
+
+The first admission run on the untouched pilot population returned **NO-GO** (0/12 pairs,
+in-family 0/3; 9/12 repositories with zero framework recognition; 0 instrument failures;
+determinism 4/4). See `benchmarks/measurements/2026-10-30-access-control-admission/`. The
+next lever is entry-recognition and call-resolution breadth for the valid pool's
+ecosystems, gated by the same admission workflow. The pilot pool remains unspent: no
+acquisition observed its labels; only admission scoring read them. Standing rules:
+`steering/detection-quality.md`.

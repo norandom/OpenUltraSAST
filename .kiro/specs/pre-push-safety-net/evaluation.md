@@ -84,3 +84,15 @@ to remove Node from the evaluation or silently fall back to a PHP-only release c
 ## Task 1.2 input preparation
 
 The versioned push manifest records upstream PMPro vulnerable/fixed revisions, NodeGoat with an explicitly authored eval-removal repair, and comment-only benign changes that retain vulnerable backlog. Ghost is reserved independently for production Node module/async API evaluation; its reviewed supported-family pair population remains missing. The validator verifies immutable Git blob identities and source/license byte counts offline, retains every unresolved case, and keeps all capabilities experimental. Independent PHP and Python admission populations remain prerequisites; VAmPI regressions and the libpng unsupported-property envelope retain their separate roles. See `benchmarks/push/README.md` for the reproducible command and provenance boundaries.
+
+## Measurement schema and admission separation (amended 2026-10-30)
+
+- Every detection measurement on this workload matrix publishes one fixed schema: population
+  and freeze digests, judgment vocabulary, recall / false alarms per 100 / precision / pair
+  correctness each with sample counts and Wilson 95%, coverage, instrument failures, and
+  runtime. A change of population or vocabulary starts a new baseline; cross-vocabulary
+  trend claims are invalid.
+- M4 qualification reports per family scope (which families the capability claims) and per
+  untouched population, through the Req 12 admission workflow. No tuning on admission labels.
+- Stop conditions per `steering/detection-quality.md`: two consecutive admission NO-GOs on
+  the same capability park it for a strategy review; no incremental patching of parked arms.

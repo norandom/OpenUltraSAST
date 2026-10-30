@@ -1,5 +1,17 @@
 # Roadmap
 
+## Roadmap -- admission read, stop conditions (2026-10-30)
+
+This section supersedes the ordering below it for detection claims. The 2026-10-30 admission
+run (`benchmarks/measurements/2026-10-30-access-control-admission/`, committed 1edc479)
+returned **NO-GO** on the untouched pilot population: 0/12 pairs, in-family 0/3, 9/12
+repositories with zero framework recognition, 0 instrument failures. The standing rules,
+including pre-registered stop conditions (two consecutive admission NO-GOs park an arm;
+fallback is a narrowed one-ecosystem advisory product plus proof-based BLOCK), live in
+`detection-quality.md` and win over older sections here. Next lever: entry recognition and
+call resolution breadth for the valid pool's ecosystems, measured on pool-train and gated on
+the pilot pool. The injection spec stays deferred; its gate-5 condition is unmet.
+
 ## Roadmap -- measure the trace first (2026-10-28)
 
 This section supersedes the ordering below it. The older sections stay as history. It builds on the

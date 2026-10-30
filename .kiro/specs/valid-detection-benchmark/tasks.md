@@ -68,3 +68,10 @@ Order is dependency order. Each task is small enough to review on its own. New c
 - Running on kube `ax` (blocked on gVisor; Docker lane is enough here).
 - Any new detection capability, including wiring the hunter into the pre-push hook. That is product
   work in `pre-push-safety-net`; this spec measures the push path with and without it.
+
+## Group 7 - recognition-coverage target table (2026-10-30)
+
+- [ ] 7.1 Enumerate each pilot-pool repository's entry framework from its manifest
+  (package.json / pyproject.toml / composer.json, read-only) and record which of the
+  prover's registered entry frameworks match: the recognition-coverage target table for the
+  next detection workstream. No pool labels are read; manifests only.

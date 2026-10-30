@@ -87,6 +87,20 @@ alert admission per capability, and add scheduling sophistication only when it i
 developer outcome. Do not rebuild a custom IR, add a second engine, or assume incremental Joern
 updates as a shortcut to an unmeasured latency promise.
 
+## Detection-quality amendments (2026-10-30)
+
+- Every detection measurement publishes one fixed schema (population and freeze digests,
+  judgment vocabulary, recall / FA per 100 / precision / pair correctness with n and
+  Wilson 95%, coverage, instrument failures, runtime). A change of population or vocabulary
+  starts a new baseline, not a regression line.
+- No detection arm feeds a pre-push claim without a separate untouched admission population
+  consumed through the Req 12 workflow; no tuning on admission labels (observing them marks
+  the population spent).
+- Admission and rollout reports state the vulnerability families the arm claims.
+- Pre-registered stop conditions (two consecutive admission NO-GOs park an arm; fallback is
+  a narrowed one-ecosystem advisory product plus proof-based BLOCK) are in
+  `detection-quality.md`.
+
 ## Approval state
 
 The product direction above is user-requested. The amended requirements, design and initial

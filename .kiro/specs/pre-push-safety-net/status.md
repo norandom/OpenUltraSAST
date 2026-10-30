@@ -255,3 +255,10 @@ arbitration, so a scan could spend everything on queries and report none of what
 On the 500-region population that previously completed zero questions at every budget tried: 271 of
 406 completed, 213 findings, 2,950 seconds. The three declared comparisons are running at that
 budget; detection is not transfer, and only the comparison decides M3.
+
+## Detection is the release blocker (2026-10-30)
+
+Plumbing is implemented; detection on unseen repositories is not demonstrated by any arm
+(hook 0/12, hunter 5-6/12 at 54 FA/100 on the valid pilot; prover admission NO-GO 0/12 on the
+untouched pilot). M1b/M2 work continues, but no rollout claim may be made until some family
+passes admission. Standing rules and stop conditions: `steering/detection-quality.md`.
