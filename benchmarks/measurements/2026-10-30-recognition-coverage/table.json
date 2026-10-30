@@ -1,0 +1,105 @@
+{
+  "entry_vocabulary": [
+    "jaxrs",
+    "jetty",
+    "laravel",
+    "livewire",
+    "remix",
+    "servlet",
+    "stapler",
+    "symfony",
+    "tornado"
+  ],
+  "note": "manifest-only read; no pool labels",
+  "repositories": [
+    {
+      "frameworks": [
+        "Express:express"
+      ],
+      "in_entry_vocabulary": [],
+      "manifest": "package.json",
+      "repository": "bytebase/dbhub"
+    },
+    {
+      "frameworks": [],
+      "in_entry_vocabulary": [],
+      "manifest": "package.json",
+      "repository": "contentful/contentful-mcp-server"
+    },
+    {
+      "frameworks": [
+        "FastAPI:fastapi"
+      ],
+      "in_entry_vocabulary": [],
+      "manifest": "pyproject.toml",
+      "repository": "fastapi-users/fastapi-users"
+    },
+    {
+      "frameworks": [
+        "Express:express",
+        "Koa:koa"
+      ],
+      "in_entry_vocabulary": [],
+      "manifest": "package.json",
+      "repository": "i18next/i18next-http-middleware"
+    },
+    {
+      "frameworks": [],
+      "in_entry_vocabulary": [],
+      "manifest": "package.json",
+      "repository": "imzbf/md-editor-v3"
+    },
+    {
+      "frameworks": [],
+      "in_entry_vocabulary": [],
+      "manifest": "package.json",
+      "repository": "jupyter-lsp/jupyterlab-lsp"
+    },
+    {
+      "frameworks": [
+        "Express:express"
+      ],
+      "in_entry_vocabulary": [],
+      "manifest": "package.json",
+      "repository": "matrix-org/matrix-appservice-bridge"
+    },
+    {
+      "frameworks": [],
+      "in_entry_vocabulary": [],
+      "manifest": "setup.py",
+      "repository": "nvbn/thefuck"
+    },
+    {
+      "frameworks": [
+        "Express:express",
+        "MCP:@modelcontextprotocol/sdk"
+      ],
+      "in_entry_vocabulary": [],
+      "manifest": "package.json",
+      "repository": "ondata/ckan-mcp-server"
+    },
+    {
+      "frameworks": [],
+      "in_entry_vocabulary": [],
+      "manifest": "package.json",
+      "repository": "webpack/webpack-bundle-analyzer"
+    },
+    {
+      "frameworks": [
+        "Flask:flask"
+      ],
+      "in_entry_vocabulary": [],
+      "manifest": "pyproject.toml",
+      "repository": "zenitram/malla"
+    },
+    {
+      "frameworks": [
+        "Express:express",
+        "MCP:@modelcontextprotocol/sdk"
+      ],
+      "in_entry_vocabulary": [],
+      "manifest": "package.json",
+      "repository": "zereight/gitlab-mcp"
+    }
+  ]
+}

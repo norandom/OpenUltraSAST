@@ -11,6 +11,7 @@ import hashlib
 import json
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 
@@ -52,4 +53,23 @@ def verify_fact_pack(pack: FactPack, facts: Sequence[Mapping[str, Any]]) -> None
         raise FactPackError(f"fact content does not match the stamped digest of pack {pack.family!r}")
 
 
-__all__ = ["FactPack", "FactPackError", "admit_fact_pack", "verify_fact_pack"]
+def admit_pack_file(path: str | Path, *, review_digest: str) -> FactPack:
+    """Admit a fact-pack file only when its embedded review attestation verifies.
+
+    The pack file must carry ``review.note`` and ``review.digest`` where the digest is
+    the sha256 of the note; anything else is an unreviewed pack and is refused.
+    """
+    payload = json.loads(Path(path).read_text(encoding="utf-8"))
+    review = payload.get("review", {})
+    note = review.get("note", "")
+    if not note or review.get("digest") != hashlib.sha256(note.encode()).hexdigest():
+        raise FactPackError(f"pack {path} lacks a verifiable review attestation")
+    if review_digest != review["digest"]:
+        raise FactPackError(f"pack {path}: supplied review digest does not match the embedded attestation")
+    facts = payload.get("facts")
+    if not isinstance(facts, list) or not all(isinstance(fact, dict) for fact in facts):
+        raise FactPackError(f"pack {path}: facts must be a list of objects")
+    return admit_fact_pack(str(payload.get("family", "")), facts, review_digest=review["digest"])
+
+
+__all__ = ["FactPack", "FactPackError", "admit_fact_pack", "admit_pack_file", "verify_fact_pack"]
