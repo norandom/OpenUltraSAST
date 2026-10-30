@@ -322,7 +322,7 @@ its final resolution, dominance, fact-acquisition and measurement semantics with
   - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 6.1, 7.3, 11.8, 12.9_
   - _Boundary: Development Measurement_
   - _Depends: 12.4, 13.1, 13.2_
-- [ ] 13.4 Run admission from an externally prepared untouched manifest
+- [x] 13.4 Run admission from an externally prepared untouched manifest
   - Consume a reviewed manifest from valid-detection-benchmark after analyzer and facts are frozen.
   - Verify label isolation, paired vulnerable/fixed behavior, reviewed ordinary labels and every admission gate.
   - Done when the report returns an evidence-backed GO or NO-GO without modifying facts, strategies or thresholds.

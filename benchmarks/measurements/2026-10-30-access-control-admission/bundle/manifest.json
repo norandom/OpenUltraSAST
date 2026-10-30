@@ -1,0 +1,8 @@
+{
+  "acquisition_artifact": null,
+  "acquisition_record_digest": "none",
+  "analyzer_revision": "d063167b28ed7db2335737fdb0dae0555225ea85",
+  "configuration_digest": "095b5a4905ad",
+  "fact_artifact": "facts-admission.json",
+  "fact_set_digest": "3eb5bf699434"
+}
