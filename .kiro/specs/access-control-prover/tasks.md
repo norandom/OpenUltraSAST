@@ -263,7 +263,7 @@ its final resolution, dominance, fact-acquisition and measurement semantics with
   - Done when the immutable baseline and a fixture candidate bundle can be reconstructed exactly.
   - _Requirements: 5.1, 5.5, 12.1_
   - _Boundary: Run Manifests_
-- [ ] 12.2 Add record provenance, stage funnel and judgment transitions
+- [x] 12.2 Add record provenance, stage funnel and judgment transitions
   - Persist analyzer, fact, acquisition, configuration, population and input digests per record.
   - Summarise every analysis stage, completeness reason and transition between compared judgments.
   - Done when a fixture run accounts for every record from entry recognition through final judgment.
