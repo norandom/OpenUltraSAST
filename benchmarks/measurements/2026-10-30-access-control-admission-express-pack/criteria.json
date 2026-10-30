@@ -1,0 +1,8 @@
+{
+  "max_flagged_ordinary_per_100": 10.0,
+  "max_indeterminate_rate": 0.5,
+  "min_fix_recall": 0.5,
+  "min_pair_correctness": 0.5,
+  "min_precision": 0.25,
+  "min_verified_location_recall": 0.5
+}
