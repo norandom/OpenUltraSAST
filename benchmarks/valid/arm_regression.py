@@ -69,10 +69,9 @@ def fact_manifest_ref(repo_root: Path, ref: str, subpath: str = "") -> dict[str,
     prefix = f"{subpath}/" if subpath else ""
     manifest: dict[str, str] = {}
     for path in listing:
-        if not path.endswith(".toml"):
-            continue
-        blob = subprocess.run(["git", "-C", str(repo_root), "show", f"{ref}:{path}"], capture_output=True, check=True).stdout
-        manifest[path.removeprefix(prefix)] = _sha256_bytes(blob)
+        if path.endswith(".toml") or (path.startswith(f"{prefix}entries/") and path.endswith(".json")):
+            blob = subprocess.run(["git", "-C", str(repo_root), "show", f"{ref}:{path}"], capture_output=True, check=True).stdout
+            manifest[path.removeprefix(prefix)] = _sha256_bytes(blob)
     return manifest
 
 
