@@ -300,7 +300,7 @@ its final resolution, dominance, fact-acquisition and measurement semantics with
   - _Depends: 12.5_
 
 - [ ] 13. Cross-cutting validation and measurements
-- [ ] 13.1 Validate abstract-domain and metamorphic laws
+- [x] 13.1 Validate abstract-domain and metamorphic laws
   - Cover the full join table, conjunction, witness aggregation, monotonicity and mixed-obligation rule.
   - Prove that type renaming preserves a judgment and adding ambiguity can only preserve it or make it indeterminate.
   - Done when property and fixture tests pass deterministically across repeated runs.
