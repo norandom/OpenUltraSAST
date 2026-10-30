@@ -805,7 +805,7 @@ def _js_entry_points(target: FileTarget, text: str, pack_patterns: Sequence[re.P
                     "http_request",
                     evidence,
                     _line_conditions(stripped),
-                    defines_handler=bool(named) and named in bounds,
+                    defines_handler=bool(named) and (named in bounds or named == "arrow_handler"),
                 )
             )
         if "process.argv" in stripped:
@@ -1209,6 +1209,12 @@ def _looks_conditional(text: str) -> bool:
 
 
 _JS_FUNCTION = re.compile(r"^\s*(?:export\s+)?(?:default\s+)?(?:async\s+)?function\s+([A-Za-z_$][\w$]*)")
+_JS_METHOD = re.compile(
+    r"^\s*(?:(?:public|private|protected|static|async|readonly|override)\s+)*(?:get\s+|set\s+)?"
+    r"([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*(?::\s*[\w<>\[\]| ,]+)?\s*\{",
+)
+_JS_METHOD_KEYWORDS = {"if", "for", "while", "switch", "catch", "function", "return", "do", "else", "try"}
+_JS_BIND = re.compile(r"^(?:[\w$]+\.)*([\w$]+)\.bind\s*\(")
 _JS_EXPORTED_VERB = re.compile(r"^\s*export\s+(?:async\s+)?(?:function\s+([A-Z]+)|const\s+([A-Z]+)\s*=)")
 _JS_IDENTIFIER = re.compile(r"^[A-Za-z_$][\w$.]*$")
 _JS_AUTH_TOKENS = ("auth", "login", "session", "jwt", "token", "protect", "guard", "require")
@@ -1216,11 +1222,17 @@ _JS_ROLE_TOKENS = ("role", "permission", "admin", "owner")
 
 
 def _js_function_bounds(lines: Sequence[str]) -> dict[str, tuple[int, int]]:
-    """Declared function names to their 1-based line span, by brace balance from the declaration."""
+    """Declared function and class-method names to their 1-based line span, by brace balance."""
     bounds: dict[str, tuple[int, int]] = {}
     for index, line in enumerate(lines):
         match = _JS_FUNCTION.match(line)
         if match is None:
+            method = _JS_METHOD.match(line)
+            if method is None or method.group(1) in _JS_METHOD_KEYWORDS:
+                continue
+            match = method
+        name = match.group(1)
+        if name in bounds:
             continue
         depth = 0
         end = index
@@ -1229,7 +1241,7 @@ def _js_function_bounds(lines: Sequence[str]) -> dict[str, tuple[int, int]]:
             end = cursor
             if depth <= 0 and "{" in "".join(lines[index : cursor + 1]):
                 break
-        bounds.setdefault(match.group(1), (index + 1, end + 1))
+        bounds.setdefault(name, (index + 1, end + 1))
     return bounds
 
 
@@ -1260,14 +1272,28 @@ _MAX_STATEMENT_LINES = 12
 
 
 def _js_registration(line: str, bounds: Mapping[str, tuple[int, int]]) -> tuple[str | None, list[str]]:
-    """`router.get('/books', requireAuth, listBooks)` -> the handler identifier and the middleware identifiers before it."""
+    """`router.get('/books', requireAuth, listBooks)` -> the handler identifier and the middleware identifiers before it.
+
+    Handler arguments may be plain identifiers, member expressions (`api.getHealth.bind(api)`),
+    or inline arrows (`(req, res) => ...`).
+    """
     body = line[line.find("(") + 1 : line.rfind(")")] if "(" in line and line.rfind(")") > line.find("(") else ""
     parts = [part.strip() for part in body.split(",") if part.strip()]
-    identifiers = [part for part in parts[1:] if _JS_IDENTIFIER.match(part)]
-    if not identifiers:
+    candidates: list[str] = []
+    for part in parts[1:]:
+        if "=>" in part:
+            candidates.append("arrow_handler")
+            continue
+        bind = _JS_BIND.match(part)
+        if bind is not None:
+            candidates.append(bind.group(1))
+            continue
+        if _JS_IDENTIFIER.match(part):
+            candidates.append(part)
+    if not candidates:
         return None, [line]
-    handler = next((name for name in reversed(identifiers) if name in bounds or name.rsplit(".", 1)[-1] in bounds), identifiers[-1])
-    middleware = [name for name in identifiers if name != handler]
+    handler = next((name for name in reversed(candidates) if name in bounds or name.rsplit(".", 1)[-1] in bounds), candidates[-1])
+    middleware = [name for name in candidates if name != handler]
     return handler.rsplit(".", 1)[-1], middleware  # `ExportsController.exportProject` is registered; `exportProject` is defined
 
 

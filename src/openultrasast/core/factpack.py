@@ -53,23 +53,28 @@ def verify_fact_pack(pack: FactPack, facts: Sequence[Mapping[str, Any]]) -> None
         raise FactPackError(f"fact content does not match the stamped digest of pack {pack.family!r}")
 
 
-def admit_pack_file(path: str | Path, *, review_digest: str) -> FactPack:
-    """Admit a fact-pack file only when its embedded review attestation verifies.
+def load_pack_file(path: str | Path) -> FactPack:
+    """Load a pack file whose embedded review attestation is self-consistent.
 
-    The pack file must carry ``review.note`` and ``review.digest`` where the digest is
-    the sha256 of the note; anything else is an unreviewed pack and is refused.
+    ``review.digest`` must equal sha256 of ``review.note``; anything else is refused.
     """
     payload = json.loads(Path(path).read_text(encoding="utf-8"))
     review = payload.get("review", {})
     note = review.get("note", "")
     if not note or review.get("digest") != hashlib.sha256(note.encode()).hexdigest():
         raise FactPackError(f"pack {path} lacks a verifiable review attestation")
-    if review_digest != review["digest"]:
-        raise FactPackError(f"pack {path}: supplied review digest does not match the embedded attestation")
     facts = payload.get("facts")
     if not isinstance(facts, list) or not all(isinstance(fact, dict) for fact in facts):
         raise FactPackError(f"pack {path}: facts must be a list of objects")
     return admit_fact_pack(str(payload.get("family", "")), facts, review_digest=review["digest"])
 
 
-__all__ = ["FactPack", "FactPackError", "admit_fact_pack", "admit_pack_file", "verify_fact_pack"]
+def admit_pack_file(path: str | Path, *, review_digest: str) -> FactPack:
+    """Admit a pack file only when its embedded attestation matches the supplied review digest."""
+    pack = load_pack_file(path)
+    if review_digest != pack.review_digest:
+        raise FactPackError(f"pack {path}: supplied review digest does not match the embedded attestation")
+    return pack
+
+
+__all__ = ["FactPack", "FactPackError", "admit_fact_pack", "admit_pack_file", "load_pack_file", "verify_fact_pack"]
