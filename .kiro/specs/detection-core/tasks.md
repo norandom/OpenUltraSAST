@@ -235,7 +235,7 @@
   - Refuse zero or clean-looking results unless tracked input reads and prerequisite semantic stages passed.
   - Done when missing metrics, counts, failure fields, readiness ancestry, or holdout-report identity fields invalidate the corresponding record.
   - _Requirements: 13.2, 15.1, 15.2, 15.4, 15.5_
-- [ ] 8.3 Validate independently reviewed census and manifest payloads
+- [x] 8.3 Validate independently reviewed census and manifest payloads
   - Canonically bind every substantive census and manifest field into separate review-subject digests.
   - Require producer/reviewer separation, admitted reviewer identity, allowed identity pairing, and resolver-validated conflict disclosure.
   - Reject self-review, copied attestations, unknown reviewers, malformed review digests, and unreadable disclosures.
