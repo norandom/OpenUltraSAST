@@ -11,6 +11,27 @@ from enum import Enum
 
 from openultrasast.core import canonical
 from openultrasast.core.canonical import ContentRef, ContentResolver
+from openultrasast.core.custody import (
+    CUSTODY_LOG_SCHEMA,
+    CUSTODY_POLICY_SCHEMA,
+    CUSTODY_RECEIPT_SCHEMA,
+    CUSTODY_REQUEST_SCHEMA,
+    LineagePurpose,
+    PopulationCustodyError,
+    PopulationCustodyLog,
+    PopulationCustodyPolicy,
+    PopulationCustodyPort,
+    PopulationStatus,
+    PopulationUseReceipt,
+    PopulationUseRequest,
+    append_population_use,
+    derive_population_custody_policy_digest,
+    derive_population_use_receipt_digest,
+    derive_population_use_request_digest,
+    empty_population_custody_log,
+    record_population_use,
+    validate_population_custody_log,
+)
 
 NAMED_INPUTS_SCHEMA = "openultrasast.detection-core.named-inputs.v2"
 PROVENANCE_POLICY_SCHEMA = "openultrasast.detection-core.provenance-policy.v2"
@@ -291,6 +312,25 @@ def validate_provenance(
 
 
 __all__ = [
+    "CUSTODY_LOG_SCHEMA",
+    "CUSTODY_POLICY_SCHEMA",
+    "CUSTODY_RECEIPT_SCHEMA",
+    "CUSTODY_REQUEST_SCHEMA",
+    "LineagePurpose",
+    "PopulationCustodyError",
+    "PopulationCustodyLog",
+    "PopulationCustodyPolicy",
+    "PopulationCustodyPort",
+    "PopulationStatus",
+    "PopulationUseReceipt",
+    "PopulationUseRequest",
+    "append_population_use",
+    "derive_population_custody_policy_digest",
+    "derive_population_use_receipt_digest",
+    "derive_population_use_request_digest",
+    "empty_population_custody_log",
+    "record_population_use",
+    "validate_population_custody_log",
     "DecisionProvenance",
     "ModelCallIdentity",
     "NAMED_INPUTS_SCHEMA",

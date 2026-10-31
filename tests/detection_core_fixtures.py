@@ -4,9 +4,10 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
+from threading import Lock
 from types import MappingProxyType
 
-from openultrasast.core import canonical
+from openultrasast.core import canonical, provenance
 
 
 @dataclass(frozen=True)
@@ -59,3 +60,40 @@ def stored_artifact(
     )
     resolver = InMemoryContentResolver({artifact_id: canonical.ResolvedContent(content=content, receipt=receipt)})
     return reference, resolver
+
+
+class InMemoryPopulationCustody:
+    """Deterministic compare-and-swap fixture; production persistence stays external."""
+
+    def __init__(self, initial: provenance.PopulationCustodyLog, policy: provenance.PopulationCustodyPolicy) -> None:
+        provenance.validate_population_custody_log(initial, policy)
+        self._log = initial
+        self._policy = policy
+        self._lock = Lock()
+
+    def current_log(self, population_digest: str) -> provenance.PopulationCustodyLog:
+        if population_digest != self._log.population_digest:
+            raise provenance.PopulationCustodyError("population custody log not found")
+        return self._log
+
+    def append(self, request: provenance.PopulationUseRequest, custodian: str) -> provenance.PopulationUseReceipt:
+        with self._lock:
+            receipt = provenance.record_population_use(request, self._log, custodian, self._policy)
+            self._log = provenance.append_population_use(self._log, receipt, self._policy)
+            return receipt
+
+
+def custody_contract() -> tuple[
+    provenance.PopulationCustodyLog,
+    provenance.PopulationCustodyPolicy,
+    str,
+]:
+    """Create one reviewed custodian and an empty reproducible population log."""
+    population = canonical.content_digest("population")
+    custodian = canonical.content_digest("reviewed-custodian")
+    reviewed = (custodian,)
+    policy = provenance.PopulationCustodyPolicy(
+        reviewed_custodian_digests=reviewed,
+        policy_digest=provenance.derive_population_custody_policy_digest(reviewed),
+    )
+    return provenance.empty_population_custody_log(population, custodian), policy, custodian

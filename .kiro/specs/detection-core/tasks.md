@@ -50,7 +50,7 @@
   - _Requirements: 10.1, 10.4_
   - _Boundary: Provenance and Lineage_
   - _Depends: 1.2_
-- [ ] 2.3 Enforce append-only population custody
+- [x] 2.3 Enforce append-only population custody
   - Construct and validate contiguous reviewed-custodian receipt chains against the complete current log.
   - Require compare-and-swap requests to name the expected log head and derive the next sequence and predecessor.
   - Make spent status monotonic and reject old prefixes, omitted receipts, broken chains, and later availability claims.
