@@ -202,7 +202,7 @@
   - _Requirements: 2.2, 2.3, 7.1, 7.2, 7.3, 7.4, 14.4_
   - _Boundary: Verdict and Proof_
   - _Depends: 2.5, 3.1_
-- [ ] 7.4 Validate differential proof attachment without enabling rollout
+- [x] 7.4 Validate differential proof attachment without enabling rollout
   - Re-derive reviewed producer, sandbox, oracle, affected/safe side, control, witness, and verification identities.
   - Resolve all proof artifacts under the supplied producer, reviewer, store, and byte-limit trust policy.
   - Upgrade basis only for demonstrated affected-only behavior tied to the same family, packet, location, and change/control.
