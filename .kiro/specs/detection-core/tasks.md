@@ -57,7 +57,7 @@
   - Provide deterministic in-memory custody-port and custodian fixtures for lineage and admission tests.
   - Done when concurrent requests have one valid successor and no fixture can restore a spent population.
   - _Requirements: 12.2, 13.1, 13.4_
-- [ ] 2.4 Bind lineage purposes to exact influenced artifacts
+- [x] 2.4 Bind lineage purposes to exact influenced artifacts
   - Require each lineage use to name its purpose, influenced artifact, source population, label access, and current-chain receipt.
   - Enforce required and optional use counts for prompts, examples, thresholds, fitted models, facts, matching behavior, mappings, and promotion.
   - Distinguish fact ancestry that forbids all label access from development lineage that may use a different spent population.

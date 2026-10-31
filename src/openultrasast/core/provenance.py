@@ -32,6 +32,18 @@ from openultrasast.core.custody import (
     record_population_use,
     validate_population_custody_log,
 )
+from openultrasast.core.lineage import (
+    LINEAGE_DECISION_SCHEMA,
+    LINEAGE_MANIFEST_SCHEMA,
+    LineageDecision,
+    LineageExpectation,
+    LineageManifest,
+    LineageUse,
+    LineageValidationError,
+    derive_lineage_decision_digest,
+    derive_lineage_manifest_digest,
+    validate_lineage,
+)
 
 NAMED_INPUTS_SCHEMA = "openultrasast.detection-core.named-inputs.v2"
 PROVENANCE_POLICY_SCHEMA = "openultrasast.detection-core.provenance-policy.v2"
@@ -317,6 +329,13 @@ __all__ = [
     "CUSTODY_RECEIPT_SCHEMA",
     "CUSTODY_REQUEST_SCHEMA",
     "LineagePurpose",
+    "LINEAGE_DECISION_SCHEMA",
+    "LINEAGE_MANIFEST_SCHEMA",
+    "LineageDecision",
+    "LineageExpectation",
+    "LineageManifest",
+    "LineageUse",
+    "LineageValidationError",
     "PopulationCustodyError",
     "PopulationCustodyLog",
     "PopulationCustodyPolicy",
@@ -343,8 +362,11 @@ __all__ = [
     "ProvenanceTrustPolicy",
     "ProvenanceValidationError",
     "derive_named_inputs_digest",
+    "derive_lineage_decision_digest",
+    "derive_lineage_manifest_digest",
     "derive_trust_policy_digest",
     "stamp",
     "validate_provenance",
+    "validate_lineage",
     "verify_stamp",
 ]
