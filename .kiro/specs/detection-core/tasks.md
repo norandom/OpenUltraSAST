@@ -181,7 +181,7 @@
   - _Depends: 3.3, 5.1_
 
 - [ ] 7. Compose validated evidence into bounded decisions and consumer output
-- [ ] 7.1 Revalidate deterministic and fact-derived records through one shared context
+- [x] 7.1 Revalidate deterministic and fact-derived records through one shared context
   - Bind the exact catalog, packs, model declarations, lineage set, review policies, provenance trust, and custody policy.
   - Resolve the family contract and all seven named provenance inputs for each raw record.
   - Re-run family and fact validation and reject embedded pack, lineage, or named-input substitutes.
