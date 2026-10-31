@@ -42,7 +42,7 @@
   - _Requirements: 1.2, 4.1, 4.2, 4.3, 5.2_
   - _Boundary: Semantic Evidence_
   - _Depends: 1.2_
-- [ ] 2.2 (P) Validate complete input and decision provenance
+- [x] 2.2 (P) Validate complete input and decision provenance
   - Stamp analyzer, family contract, fact set, acquisition, configuration, population, and change-input identities.
   - Require the closed named-input role set and resolve every referenced input through the trusted artifact boundary.
   - Keep model and proof identities outside the immutable deterministic packet.
