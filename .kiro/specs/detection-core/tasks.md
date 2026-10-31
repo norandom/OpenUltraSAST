@@ -139,7 +139,7 @@
   - Prevent name-only, partial, fabricated, ambiguous, or protected-population-contaminated matches from becoming complete.
   - Done when only a fully observed structural match with valid matcher lineage is eligible for effect application.
   - _Requirements: 10.2, 11.2, 11.3, 13.4_
-- [ ] 5.3 Apply declared fact effects with reproducible provenance
+- [x] 5.3 Apply declared fact effects with reproducible provenance
   - Materialize only relation kinds, roles, source/target roles, conditions, and effects declared by the matched fact and family.
   - Attach exact pack, fact, product location, structural observation, matcher, and match-reference identities to every derived relation.
   - Preserve unmet conditions as incomplete evidence and conflicting eligible matches as unresolved ambiguity.

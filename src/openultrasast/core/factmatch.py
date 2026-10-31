@@ -160,6 +160,13 @@ def derive_fact_match_digest(match: FactMatchEvidence) -> str:
     return canonical.content_digest(_match_value(match))
 
 
+def fact_match_bytes(match: FactMatchEvidence) -> bytes:
+    """Canonical bytes that a fact-match ContentRef must resolve."""
+    if not isinstance(match, FactMatchEvidence):
+        raise TypeError("match must be FactMatchEvidence")
+    return canonical.canonical_bytes(_match_value(match))
+
+
 @dataclass(frozen=True)
 class FactMatchDecision:
     status: RelationStatus
@@ -423,6 +430,7 @@ __all__ = [
     "FactMatchValidationError",
     "StructuralObservation",
     "derive_fact_match_digest",
+    "fact_match_bytes",
     "structural_observation_bytes",
     "validate_fact_match",
 ]
