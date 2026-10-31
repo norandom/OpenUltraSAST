@@ -11,7 +11,13 @@ from types import MappingProxyType
 from openultrasast.core import _factpack_digest as digest_projection
 from openultrasast.core import canonical
 from openultrasast.core._legacy_factpack import FactPackError, admit_fact_pack, admit_pack_file, load_pack_file, verify_fact_pack
-from openultrasast.core.custody import LineagePurpose, PopulationCustodyPolicy, PopulationCustodyPort
+from openultrasast.core.custody import (
+    LineagePurpose,
+    PopulationCustodyPolicy,
+    PopulationCustodyPort,
+    PopulationUseReceipt,
+    validate_population_custody_log,
+)
 from openultrasast.core.family import FamilyContract, family_contract_digest, validate_contract
 from openultrasast.core.lineage import LineageExpectation, LineageManifest, validate_lineage
 from openultrasast.core.semantics import RelationKind
@@ -366,6 +372,49 @@ def _lineage_for(evidence: KnowledgeEvidence, lineages: Sequence[LineageManifest
     return matches[0]
 
 
+def _authoritative_semantic_fact_receipts(
+    selected_lineage: LineageManifest,
+    lineages: Sequence[LineageManifest],
+    pack: FactPack,
+    protected_population_digest: str | None,
+    custody: PopulationCustodyPort,
+    custody_policy: PopulationCustodyPolicy,
+) -> tuple[PopulationUseReceipt, ...]:
+    populations = {use.source_population_digest for lineage in lineages for use in lineage.uses}
+    if protected_population_digest is not None:
+        populations.add(protected_population_digest)
+    relevant: list[PopulationUseReceipt] = []
+    for population_digest in sorted(populations):
+        log = custody.current_log(population_digest)
+        validate_population_custody_log(log, custody_policy, current=custody)
+        relevant.extend(
+            receipt
+            for receipt in log.receipts
+            if receipt.request.purpose is LineagePurpose.SEMANTIC_FACT
+            and receipt.request.influenced_artifact_digest == pack.normalized_content_digest
+            and (receipt.request.arm_id == selected_lineage.arm_id or receipt.request.labels_accessed)
+        )
+    return tuple(relevant)
+
+
+def _refuse_omitted_semantic_fact_uses(
+    lineage: LineageManifest,
+    receipts: tuple[PopulationUseReceipt, ...],
+    protected_population_digest: str | None,
+) -> None:
+    declared = {use.population_use_receipt_digest for use in lineage.uses}
+    for receipt in receipts:
+        if receipt.receipt_digest in declared:
+            continue
+        request = receipt.request
+        if request.labels_accessed:
+            reasons = [f"label_access_forbidden:{request.population_digest}"]
+            if request.population_digest == protected_population_digest:
+                reasons.append(f"protected_population_labels:{request.population_digest}")
+            raise FactPackValidationError("semantic fact lineage is contaminated: " + ",".join(reasons))
+        raise FactPackValidationError(f"semantic fact lineage omitted current use: {receipt.receipt_digest}")
+
+
 def _validate_evidence_lineage(
     pack: FactPack,
     evidence: KnowledgeEvidence,
@@ -390,6 +439,15 @@ def _validate_evidence_lineage(
         custody,
         custody_policy,
     )
+    current_receipts = _authoritative_semantic_fact_receipts(
+        lineage,
+        lineages,
+        pack,
+        protected_population_digest,
+        custody,
+        custody_policy,
+    )
+    _refuse_omitted_semantic_fact_uses(lineage, current_receipts, protected_population_digest)
     if not decision.allowed:
         raise FactPackValidationError("fact lineage refused: " + ",".join(decision.reasons))
 

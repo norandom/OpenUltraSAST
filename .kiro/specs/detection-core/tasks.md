@@ -146,7 +146,7 @@
   - Mark label-influenced matching behavior or promotion as spent before the relation can participate in evaluation.
   - Done when valid matches yield canonical effects while partial and ambiguous cases remain non-determinate with named reasons.
   - _Requirements: 4.1, 4.2, 4.3, 10.2, 11.2, 11.3, 11.5, 13.4_
-- [ ] 5.4 Revalidate fact-derived relations and enforce the dependency boundary
+- [x] 5.4 Revalidate fact-derived relations and enforce the dependency boundary
   - Re-open referenced packs, facts, match evidence, review policy, lineage, custody, and resolved bytes for every fact-derived relation.
   - Reject undeclared roles, invalid scope, inconsistent content, and fact provenance that cannot be reproduced.
   - Require reviewed semantic facts for determinate behavior attributed to excluded dependencies.
