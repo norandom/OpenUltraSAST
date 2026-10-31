@@ -193,7 +193,7 @@
   - Refuse constructible “validated” markers or model programs outside the context.
   - Done when admission and consumer tests exercise the same validator and neither can bypass it with a raw record.
   - _Requirements: 9.2, 9.3, 9.4, 9.5, 10.3, 10.4, 12.6, 14.1_
-- [ ] 7.3 (P) Derive defect claims, bounded satisfaction, and bounded silence
+- [x] 7.3 (P) Derive defect claims, bounded satisfaction, and bounded silence
   - Require exact change-tied locations and complete evidence for defect claims.
   - Carry completed question identities and exact scope for satisfaction.
   - Preserve named coverage reasons and record identities for every undecided question.
