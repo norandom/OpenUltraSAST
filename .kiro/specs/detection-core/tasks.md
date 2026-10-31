@@ -64,7 +64,7 @@
   - Refuse protected-population influence, redirected artifact identities, wrong purposes, and incomplete receipt history.
   - Done when matching subjects cannot mask a wrong influenced artifact and contaminated populations are deterministically refused.
   - _Requirements: 13.1, 13.3, 13.4_
-- [ ] 2.5 Bind immutable evidence packets to neutral decisions
+- [x] 2.5 Bind immutable evidence packets to neutral decisions
   - Preserve family identity, security object, analyzed scope, ordered semantics, observations, family fields, completeness, and provenance.
   - Keep family decision codes separate from violation, satisfied, and indeterminate outcomes.
   - Require bounded scope for satisfaction, named reasons for indeterminate outcomes, and a valid deterministic, model-corroborated, or execution-backed basis.
