@@ -219,7 +219,7 @@
   - _Depends: 4.2, 7.2, 7.4_
 
 - [ ] 8. Implement fixed measurement and leakage-safe admission
-- [ ] 8.1 (P) Define comparable baseline identities and fixed metric algebra
+- [x] 8.1 (P) Define comparable baseline identities and fixed metric algebra
   - Bind arm, population/freeze, claimed scopes, exact contract/fact/model sets, acquisition, analyzer, configuration, denominator, threshold set, and outcome mapping.
   - Define closed numerator/denominator rules for pair correctness, recall, fixed and ordinary false alarms, precision, semantic coverage, and model success.
   - Require Wilson 95 intervals with numerator and denominator; serialize zero denominators as null and prevent them from passing.
