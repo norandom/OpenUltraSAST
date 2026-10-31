@@ -242,7 +242,7 @@
   - Preserve aggregate census cardinalities without exposing case identities or per-case labels.
   - Done when only independently attested label-blind payloads can proceed to manifest validation.
   - _Requirements: 12.1, 12.2_
-- [ ] 8.4 Validate exact admission context, readiness, scope, sets, and threshold lineage
+- [x] 8.4 Validate exact admission context, readiness, scope, sets, and threshold lineage
   - Bind the exact evidence-validation context, reviewed census, denominator, thresholds, readiness results, untouched population, and current custody head.
   - Re-derive claimed scopes and exact contract, fact, model, threshold, and outcome-mapping sets from canonical objects.
   - Require current instrument-through-development readiness with matching analysis identity and evidence-use roles.

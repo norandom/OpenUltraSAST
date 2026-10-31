@@ -6,6 +6,7 @@ from dataclasses import dataclass
 
 from openultrasast.core import canonical
 from openultrasast.core._validation_model import validate_and_replay_model_derivation
+from openultrasast.core._validation_shape import evidence_context_problem
 from openultrasast.core.custody import (
     PopulationCustodyPolicy,
     PopulationCustodyPort,
@@ -255,6 +256,9 @@ def _validate_context_members(context: EvidenceValidationContext) -> None:
 
 
 def _validate_context(context: EvidenceValidationContext) -> None:
+    problem = evidence_context_problem(context, EvidenceValidationContext)
+    if problem is not None:
+        raise EvidenceInputValidationError(f"closed evidence context violation: {problem}")
     if not isinstance(context, EvidenceValidationContext):
         raise EvidenceInputValidationError("context must be an EvidenceValidationContext")
     _validate_context_types(context)
@@ -264,6 +268,16 @@ def _validate_context(context: EvidenceValidationContext) -> None:
     validate_catalog(context.family_catalog)
     _validate_context_policies(context)
     _validate_context_members(context)
+
+
+def validate_evidence_validation_context(context: EvidenceValidationContext) -> None:
+    """Re-derive a closed evidence context without requiring a case record."""
+    try:
+        _validate_context(context)
+    except EvidenceInputValidationError:
+        raise
+    except (AttributeError, LookupError, TypeError, ValueError) as exc:
+        raise EvidenceInputValidationError(f"evidence validation context is invalid: {exc}") from exc
 
 
 def _validate_record_identity(record: EvidenceRecord) -> None:
@@ -386,5 +400,6 @@ __all__ = [
     "fact_set_bytes",
     "make_evidence_validation_context",
     "make_evidence_validation_input",
+    "validate_evidence_validation_context",
     "validate_evidence_input",
 ]

@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from enum import Enum
 
 from openultrasast.core import canonical
+from openultrasast.core._closed_graph import closed_graph_problem
 
 BASELINE_IDENTITY_SCHEMA = "openultrasast.detection-core.baseline-identity.v2"
 DENOMINATOR_POLICY_SCHEMA = "openultrasast.detection-core.denominator-policy.v2"
@@ -300,12 +301,20 @@ class DenominatorPolicy:
         _validate_policy(self)
 
 
+_POLICY_TYPES: tuple[type[object], ...] = (DenominatorPolicy, MetricRule, ScopeKey)
+_POLICY_ENUMS: tuple[type[object], ...] = (MetricId, NumeratorKind, DenominatorKind, IntervalMethod)
+
+
 def _validate_policy(value: DenominatorPolicy) -> None:
+    problem = closed_graph_problem(value, dataclass_types=_POLICY_TYPES, enum_types=_POLICY_ENUMS, path="denominator policy")
+    if problem is not None:
+        raise MeasurementContractError(f"closed denominator graph violation: {problem}")
     if not isinstance(value.rules, tuple) or not all(isinstance(item, MetricRule) for item in value.rules):
         raise MeasurementContractError("rules must be a tuple of MetricRule values")
     if tuple(rule.metric_id for rule in value.rules) != tuple(MetricId):
         raise MeasurementContractError("each standard metric must occur exactly once in canonical order")
     for rule in value.rules:
+        rule.__post_init__()
         expected_numerator, expected_denominator, _ = _ALGEBRA[rule.metric_id]
         if (rule.numerator, rule.denominator) != (expected_numerator, expected_denominator):
             raise MeasurementContractError("metric rule violates the fixed algebra")
@@ -318,6 +327,9 @@ def _validate_policy(value: DenominatorPolicy) -> None:
     _digest(value.policy_digest, "denominator policy digest")
     if value.policy_digest != expected_digest:
         raise MeasurementContractError("denominator policy digest does not match policy")
+
+
+validate_denominator_policy = _validate_policy
 
 
 def _policy_digest(rules: tuple[MetricRule, ...], method: IntervalMethod) -> str:
@@ -478,4 +490,5 @@ __all__ = [
     "metric_result_value",
     "require_comparable_baselines",
     "standard_metric_rules",
+    "validate_denominator_policy",
 ]

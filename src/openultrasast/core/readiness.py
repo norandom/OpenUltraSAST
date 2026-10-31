@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from enum import Enum
 
 from openultrasast.core import canonical
+from openultrasast.core._closed_graph import closed_graph_problem
 
 READINESS_RESULT_SCHEMA = "openultrasast.detection-core.readiness-result.v2"
 _DIGEST = re.compile(r"[0-9a-f]{64}")
@@ -197,6 +198,10 @@ class StageAuthorization:
         validate_stage_authorization(self)
 
 
+_RESULT_TYPES: tuple[type[object], ...] = (ReadinessResult, AnalysisIdentity, FixtureResult)
+_RESULT_ENUMS: tuple[type[object], ...] = (ReadinessStage, ReadinessEvidenceUse, StageResult, FixtureRole)
+
+
 def _identity_value(value: AnalysisIdentity) -> canonical.JsonValue:
     return {
         "core_schema_version": value.core_schema_version,
@@ -332,6 +337,9 @@ def derive_readiness_result_digest(
 
 
 def validate_readiness_result(value: ReadinessResult) -> None:
+    problem = closed_graph_problem(value, dataclass_types=_RESULT_TYPES, enum_types=_RESULT_ENUMS, path="readiness result")
+    if problem is not None:
+        raise ReadinessValidationError(f"closed readiness graph violation: {problem}; exact tuple fields required")
     if not isinstance(value, ReadinessResult):
         raise ReadinessValidationError("readiness result must be a ReadinessResult")
     _validate_result_fields(value)
