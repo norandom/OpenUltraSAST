@@ -80,7 +80,7 @@
   - Refuse undeclared fields, roles, decisions, reasons, or determinate outcomes without their minimum evidence.
   - Done when the family registration matrix accepts only declared combinations and reports unsupported scope without cross-family fallback.
   - _Requirements: 1.3, 2.1, 2.4, 3.1, 3.2, 3.3, 3.4, 4.4, 9.1_
-- [ ] 3.2 Build exact family catalog resolution and capability declarations
+- [x] 3.2 Build exact family catalog resolution and capability declarations
   - Re-derive every contract and catalog digest and require canonical ordering and unique family/version/schema identities.
   - Resolve a contract only when family, digest, and ecosystem identify exactly one entry.
   - Validate that each family capability names its contract, readiness fixtures, development population, and admission boundary.
