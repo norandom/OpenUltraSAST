@@ -62,3 +62,14 @@ slower failure. These conditions are pre-registered now, before the next workstr
 12. **Every correction turn names its lever and its measurement before it starts** --
     recognition / resolution / judgment / facts / judge, and the number that will show the
     lever moved. A turn that cannot name both is not started.
+
+### Strategy-review outcome (maintainer decision, 2026-10-31)
+
+Rule 10 fired for the access-control arm on 2026-10-30 (second consecutive admission
+NO-GO, `benchmarks/measurements/2026-10-30-access-control-admission-express-pack/`).
+The maintainer reviewed the two diagnoses -- NO-GO #1 recognition starvation (fixed:
+coverage 4/12 -> 8/12), NO-GO #2 operation-facts/resolution starvation (new lever) --
+and authorized **exactly one further gated round on operation facts and call resolution
+for the recognized entry shapes**. This is the final incremental round for this arm:
+a third admission NO-GO parks it permanently regardless of diagnosis, and the rule-11
+fallback (narrowed one-ecosystem advisory product plus proof-based BLOCK) applies.
