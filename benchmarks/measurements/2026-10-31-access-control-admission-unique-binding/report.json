@@ -1,0 +1,93 @@
+{
+  "coverage": 0.6666666666666666,
+  "criteria_pre_registered": {
+    "max_flagged_ordinary_per_100": 10.0,
+    "max_indeterminate_rate": 0.5,
+    "min_fix_recall": 0.5,
+    "min_pair_correctness": 0.5,
+    "min_precision": 0.25,
+    "min_verified_location_recall": 0.5
+  },
+  "decision": "NO-GO",
+  "failed_gates": [
+    "min_fix_recall: 0.0 < 0.5",
+    "min_pair_correctness: 0.0 < 0.5",
+    "min_precision: 0.0 < 0.25",
+    "min_verified_location_recall: not measured (n=0) vs 0.5"
+  ],
+  "families": [
+    "access_control"
+  ],
+  "fix_recall": {
+    "count": 0,
+    "n": 12,
+    "rate": 0.0,
+    "wilson95": [
+      0,
+      0.2425007574992425
+    ]
+  },
+  "flagged_ordinary_per_100": {
+    "count": 2,
+    "n": 240,
+    "rate": 0.8333333333333334,
+    "wilson95": [
+      0.2288235363161974,
+      2.9870346273441455
+    ]
+  },
+  "indeterminate_rate": {
+    "count": 3,
+    "n": 264,
+    "rate": 0.011363636363636364,
+    "wilson95": [
+      0.003871976570054633,
+      0.03287212890123884
+    ]
+  },
+  "instrument_failures": 0,
+  "manifest": {
+    "acquisition_record_digest": "none",
+    "analyzer_revision": "dc2832564ae623d0ab558381e7dad4cd17c951b6",
+    "configuration_digest": "06e9304ee277",
+    "fact_set_digest": "124871987a06",
+    "population_digest": "c866c0e812c0b54476c7168fdb0e4a20652de0d30485270afecbe51e5c35e424",
+    "population_role": "admission"
+  },
+  "pair_correctness": {
+    "count": 0,
+    "n": 12,
+    "rate": 0.0,
+    "wilson95": [
+      0,
+      0.2425007574992425
+    ]
+  },
+  "pairs": {
+    "correct": 0,
+    "n": 12
+  },
+  "precision": {
+    "count": 0,
+    "n": 14,
+    "rate": 0.0,
+    "wilson95": [
+      0,
+      0.21531701192718142
+    ]
+  },
+  "runtime": {
+    "max_seconds": 7.588272099965252,
+    "mean_seconds": 2.96003866649941,
+    "n": 12
+  },
+  "verified_location_recall": {
+    "count": 0,
+    "n": 0,
+    "rate": null,
+    "wilson95": [
+      null,
+      null
+    ]
+  }
+}

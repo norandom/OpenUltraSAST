@@ -147,6 +147,7 @@ _Requirement IDs use N.M where N is the requirement number in requirements.md an
   - _Requirements: 10.1, 10.2, 7.3_
   - _Boundary: fact-pack contract + benchmark_
   - _Depends: 6.1, 4.2_
+  - _Parked 2026-10-31: final gated round NO-GO #3 (rule 10 stop condition, maintainer strategy-review); done-when unreachable for this arm -- the unique-declaration member-call binding increment ships (dc28325, dev complete-share 11.9->19.2 with recall/FA unchanged) but the admission gap is entry recognition (4/12 repos unrecognised; coverage 8/12) and framework operation facts, not call resolution. See benchmarks/measurements/2026-10-31-access-control-admission-unique-binding/_
 - [ ] 8.3 Pre-push hook consumes the core consumer contract
   - pre-push-safety-net builds PushRequest and consumes PushVerdict via core/consumer.py; budget from the measured per-class derivation; one real dev-pool push E2E.
   - Done when an E2E hook run on a dev-pool repo emits a PushVerdict with witnesses/reasons and a measured-class budget.

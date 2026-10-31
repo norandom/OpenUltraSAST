@@ -1,0 +1,16 @@
+{
+  "acquisition_record_digest": "none",
+  "analyzer_revision": "dc2832564ae623d0ab558381e7dad4cd17c951b6",
+  "configuration_digest": "06e9304ee277",
+  "fact_set_digest": "124871987a06",
+  "families": [
+    "access_control"
+  ],
+  "label_isolated": true,
+  "labels": [],
+  "population_digest": "c866c0e812c0b54476c7168fdb0e4a20652de0d30485270afecbe51e5c35e424",
+  "population_role": "admission",
+  "produced_by": "valid-detection-benchmark",
+  "reviewed": true,
+  "spent": false
+}

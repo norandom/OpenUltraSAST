@@ -1,0 +1,21 @@
+{
+  "c/rules.toml": "88ed02da9fef6f170b912f601df12d3040b990d962b28ce4021f3f335442f713",
+  "entries/express.json": "e8e149309abd78f24206c58fde7f73ae2f60364d8b8fee22ecaee8342798d8ce",
+  "families.toml": "5b4c0487c755e8a280e33bbcfb1f497dc40d8703b5961c6f9322a17a3291881a",
+  "frameworks.toml": "cbb9f791e25d73cc215315b2dbfe9654d2ccd5747852e2a0d11ee45ea3012642",
+  "groovy/rules.toml": "ed0ab48e2da2ad9d084a2e5f55ac929e94ea381000d674c160843f79c352396a",
+  "java/rules.toml": "5934e10f595f907f37629d3b05cb56744f70d3c5cb534231b4b3f13a6510c234",
+  "javascript/rules.toml": "075ea7439d65082ecacdf9d9b98397ee278ed93c11ebf552687603d8fb171ce3",
+  "obligations/java.toml": "9125cb707312a72ac766cd3a10e1a09063ac4a2861487ebcb342eadb620e9108",
+  "obligations/javascript.toml": "14670c32a3622b213eb553256a7ffb38c40ffb3398012eb6f02a1e4da04d9a33",
+  "obligations/php.toml": "a7bcbd9bedace740567c5900db91acaa1d0aeb2049dea3101f518acb934827ce",
+  "obligations/python.toml": "f65cb000dbf9e777dce0f2888b0dca39b531b1624dcc3026cc2d55461647b983",
+  "obligations/typescript.toml": "5b9a9bf1bb4c1846a518f724db161b4b5aa533451bc32aaf84ecde851d824bdf",
+  "php/rules.toml": "e839846d760b57c7d65e4fcad6c206e1f1aa852d0ec4bbb9b0b459e761467115",
+  "python/rules.toml": "e323456fd46b5c3e4092a92463695458a620830b6d9b5f05a4ade1e14d78a5c9",
+  "semantic/c.toml": "2d4bbc842596fc17a70e51e528b57af5961ef05515259a57a203faa18018fa4e",
+  "semantic/java.toml": "e7f5b73ffc0fe71d7a9096bdf705ee8cc8e5659e2715cdb1705bd59f6c31dced",
+  "semantic/javascript.toml": "91c6aa895021aff755c4bf4b4ed4f4c7d8a991d260f1f9d9363be68f2134dfd5",
+  "semantic/php.toml": "8c7585c1241bd904558389f66decf88c27554107fc7c6e3fa1b0855797e8ea0c",
+  "semantic/python.toml": "97fd7cfd79ef90a3d51255d951c9f4e1ccabe09d5b6b2574f4ff788556977ab0"
+}

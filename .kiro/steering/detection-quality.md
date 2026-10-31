@@ -73,3 +73,18 @@ and authorized **exactly one further gated round on operation facts and call res
 for the recognized entry shapes**. This is the final incremental round for this arm:
 a third admission NO-GO parks it permanently regardless of diagnosis, and the rule-11
 fallback (narrowed one-ecosystem advisory product plus proof-based BLOCK) applies.
+
+### Final gated round outcome (2026-10-31): ARM PARKED
+
+The final round ran its full course (`benchmarks/measurements/2026-10-31-access-control-admission-unique-binding/`):
+the authorized resolution lever (unique-declaration member-call binding, dc28325) moved the
+dev-pool funnel (complete-calls share 11.9% -> 19.2%) with dev recall and false alarms exactly
+unchanged, but is disconnected from the admission population -- zero unique-name member calls
+exist across all 12 admission repositories. Admission run ac-admission-3 reproduced run 2
+exactly: 0/12 pairs, third NO-GO on the same pre-registered criteria. The stop condition
+fired: **the access-control arm is parked permanently**; the rule-11 fallback (narrowed
+one-ecosystem advisory product plus proof-based BLOCK) applies. The binding itself ships --
+it is a strict improvement where repository-defined names exist. Diagnosis for any future
+strategy review: the remaining admission gap is entry recognition (4/12 repositories with
+zero frameworks recognised; coverage 8/12) and operation facts for framework-defined
+operations, not call resolution.
