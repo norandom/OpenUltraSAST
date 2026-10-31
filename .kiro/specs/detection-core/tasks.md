@@ -94,7 +94,7 @@
   - _Requirements: 3.5, 8.2_
 
 - [ ] 4. Expose operational coverage, budget, and readiness gates
-- [ ] 4.1 (P) Account for instrument reads and every semantic-stage outcome
+- [x] 4.1 (P) Account for instrument reads and every semantic-stage outcome
   - Count reads, questions, sites considered and recognized, transitions, security objects, constraints, determinate outcomes, and findings.
   - Put every considered relation in exactly one complete, incomplete, or unresolved bucket.
   - Fail unopened or zero-byte tracked input and diagnose the last verified nonzero stage and first missing expected output.
