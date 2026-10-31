@@ -34,7 +34,7 @@
   - _Requirements: 1.4, 10.4_
 
 - [ ] 2. Implement canonical semantic, provenance, and evidence contracts
-- [ ] 2.1 (P) Represent family-neutral semantic relations and observations
+- [x] 2.1 (P) Represent family-neutral semantic relations and observations
   - Cover registration, invocation, call, return, value transformation, operation effect, and constraint effect.
   - Preserve role, location, conditions, provenance, and independent complete, incomplete, or unresolved status.
   - Refuse conflicting complete candidates by producing explicit ambiguity rather than selecting one.
