@@ -209,7 +209,7 @@
   - Reject opaque, self-asserted, inconclusive, same-side, or mismatched proof records.
   - Done when only the valid differential fixture yields execution-backed basis and no attachment changes rollout policy.
   - _Requirements: 2.5, 9.6, 14.2_
-- [ ] 7.5 Integrate validated records, proof, scope, and budget at the core consumer edge
+- [x] 7.5 Integrate validated records, proof, scope, and budget at the core consumer edge
   - Accept raw validation envelopes and call the shared validator before creating any output.
   - Preserve every bounded-silence reason and reject records or anchors outside the supplied change scope.
   - Apply optional proof attachments through the proof validator and include all processing in total elapsed time.
