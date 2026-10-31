@@ -228,7 +228,7 @@
   - _Requirements: 11.6, 15.1, 15.3_
   - _Boundary: Measurement_
   - _Depends: 4.1, 4.4_
-- [ ] 8.2 Build complete measurement records and typed repository-holdout reports
+- [x] 8.2 Build complete measurement records and typed repository-holdout reports
   - Record family decision vocabulary, neutral outcomes, evidence bases, fixed metrics, semantic funnel, model outcomes/failures, instrument failures, runtime, and readiness ancestry.
   - Require every later-stage record to carry current prerequisite readiness stage results and digests.
   - Define a typed repository-holdout report with an explicit evidence-use role, training and holdout manifest references, repository identities, fitting lineage, and distinct measurement/report identities.
