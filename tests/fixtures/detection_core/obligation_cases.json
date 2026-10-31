@@ -1,0 +1,130 @@
+{
+  "cases": [
+    {
+      "case_id": "obligation-positive",
+      "completeness_reasons": [],
+      "decision": "constraint_exposed",
+      "ecosystem": "reference-obligation",
+      "observations": [
+        {
+          "fields": [
+            {"kind": "text", "name": "operation", "value": "publish"},
+            {"kind": "text", "name": "boundary", "value": "durable-store"}
+          ],
+          "role": "security_object",
+          "status": "complete"
+        }
+      ],
+      "outcome": "violation",
+      "path": "reference/obligation_positive.py",
+      "relations": [
+        {
+          "conditions": ["operation_reaches_boundary"],
+          "kind": "operation_effect",
+          "reasons": [],
+          "role": "operation",
+          "source": {"id": "request", "role": "input"},
+          "status": "complete",
+          "target": {"id": "publish", "role": "operation"}
+        },
+        {
+          "conditions": ["constraint_required"],
+          "kind": "constraint_effect",
+          "reasons": [],
+          "role": "constraint",
+          "source": {"id": "publish", "role": "operation"},
+          "status": "complete",
+          "target": {"id": "unconstrained", "role": "constraint"}
+        }
+      ],
+      "security_object": [
+        {"kind": "text", "name": "operation", "value": "publish"},
+        {"kind": "text", "name": "boundary", "value": "durable-store"}
+      ]
+    },
+    {
+      "case_id": "obligation-negative",
+      "completeness_reasons": [],
+      "decision": "constraint_enforced",
+      "ecosystem": "reference-obligation",
+      "observations": [
+        {
+          "fields": [
+            {"kind": "text", "name": "operation", "value": "publish"},
+            {"kind": "text", "name": "boundary", "value": "durable-store"}
+          ],
+          "role": "security_object",
+          "status": "complete"
+        }
+      ],
+      "outcome": "satisfied",
+      "path": "reference/obligation_negative.py",
+      "relations": [
+        {
+          "conditions": ["operation_reaches_boundary"],
+          "kind": "operation_effect",
+          "reasons": [],
+          "role": "operation",
+          "source": {"id": "request", "role": "input"},
+          "status": "complete",
+          "target": {"id": "publish", "role": "operation"}
+        },
+        {
+          "conditions": ["constraint_required", "constraint_enforced"],
+          "kind": "constraint_effect",
+          "reasons": [],
+          "role": "constraint",
+          "source": {"id": "publish", "role": "operation"},
+          "status": "complete",
+          "target": {"id": "guarded", "role": "constraint"}
+        }
+      ],
+      "security_object": [
+        {"kind": "text", "name": "operation", "value": "publish"},
+        {"kind": "text", "name": "boundary", "value": "durable-store"}
+      ]
+    },
+    {
+      "case_id": "obligation-missing",
+      "completeness_reasons": ["missing_constraint_relation"],
+      "decision": "constraint_unknown",
+      "ecosystem": "reference-obligation",
+      "observations": [
+        {
+          "fields": [
+            {"kind": "text", "name": "operation", "value": "publish"},
+            {"kind": "text", "name": "boundary", "value": "durable-store"}
+          ],
+          "role": "security_object",
+          "status": "complete"
+        }
+      ],
+      "outcome": "indeterminate",
+      "path": "reference/obligation_missing.py",
+      "relations": [
+        {
+          "conditions": ["operation_reaches_boundary"],
+          "kind": "operation_effect",
+          "reasons": [],
+          "role": "operation",
+          "source": {"id": "request", "role": "input"},
+          "status": "complete",
+          "target": {"id": "publish", "role": "operation"}
+        },
+        {
+          "conditions": ["constraint_required"],
+          "kind": "constraint_effect",
+          "reasons": ["missing_constraint_relation"],
+          "role": "constraint",
+          "source": {"id": "publish", "role": "operation"},
+          "status": "incomplete",
+          "target": {"id": "unknown", "role": "constraint"}
+        }
+      ],
+      "security_object": [
+        {"kind": "text", "name": "operation", "value": "publish"},
+        {"kind": "text", "name": "boundary", "value": "durable-store"}
+      ]
+    }
+  ]
+}

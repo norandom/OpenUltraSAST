@@ -1,0 +1,68 @@
+{
+  "decisions": [
+    {
+      "allowed_statuses": ["complete"],
+      "family_code": "flow_reaches_effect",
+      "outcome": "violation",
+      "required_roles": ["source", "flow", "sink"]
+    },
+    {
+      "allowed_statuses": ["complete"],
+      "family_code": "flow_transformed",
+      "outcome": "satisfied",
+      "required_roles": ["source", "flow", "sink", "transform"]
+    },
+    {
+      "allowed_statuses": ["complete", "incomplete", "unresolved"],
+      "family_code": "flow_unknown",
+      "outcome": "indeterminate",
+      "required_roles": ["flow"]
+    }
+  ],
+  "ecosystems": ["reference-flow"],
+  "family_id": "ordered-taint-flow",
+  "family_version": "1.0.0",
+  "indeterminate_reasons": ["missing_flow_segment", "ambiguous_flow_segment"],
+  "residual_questions": [
+    {
+      "allowed_decisions": ["flow_reaches_effect", "flow_transformed", "flow_unknown"],
+      "question_id": "does_value_reach_effect",
+      "required_roles": ["source", "flow", "sink"]
+    }
+  ],
+  "roles": [
+    {
+      "allowed_relation_kinds": [],
+      "fields": [{"kind": "text", "name": "symbol", "required": true}],
+      "origin_policy": "product_or_reviewed_fact",
+      "role": "source"
+    },
+    {
+      "allowed_relation_kinds": ["value_transformation"],
+      "fields": [],
+      "origin_policy": "product_or_reviewed_fact",
+      "role": "flow"
+    },
+    {
+      "allowed_relation_kinds": [],
+      "fields": [{"kind": "text", "name": "effect", "required": true}],
+      "origin_policy": "product_or_reviewed_fact",
+      "role": "sink"
+    },
+    {
+      "allowed_relation_kinds": [],
+      "fields": [{"kind": "boolean", "name": "applied", "required": true}],
+      "origin_policy": "product_or_reviewed_fact",
+      "role": "transform"
+    }
+  ],
+  "schema_version": "openultrasast.detection-core.evidence-packet.v2",
+  "security_object": {
+    "fields": [
+      {"kind": "text", "name": "entry", "required": true},
+      {"kind": "text", "name": "effect", "required": true}
+    ],
+    "identity_fields": ["entry", "effect"],
+    "kind": "ordered_flow"
+  }
+}

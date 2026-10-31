@@ -1,0 +1,115 @@
+{
+  "cases": [
+    {
+      "case_id": "flow-positive",
+      "completeness_reasons": [],
+      "decision": "flow_reaches_effect",
+      "ecosystem": "reference-flow",
+      "observations": [
+        {"fields": [{"kind": "text", "name": "symbol", "value": "input"}], "role": "source", "status": "complete"},
+        {"fields": [{"kind": "text", "name": "effect", "value": "emit"}], "role": "sink", "status": "complete"},
+        {"fields": [{"kind": "boolean", "name": "applied", "value": false}], "role": "transform", "status": "complete"}
+      ],
+      "outcome": "violation",
+      "path": "reference/flow_positive.py",
+      "relations": [
+        {
+          "conditions": ["entry_observed"],
+          "kind": "value_transformation",
+          "reasons": [],
+          "role": "flow",
+          "source": {"id": "input", "role": "source"},
+          "status": "complete",
+          "target": {"id": "transform", "role": "value"}
+        },
+        {
+          "conditions": ["effect_observed"],
+          "kind": "value_transformation",
+          "reasons": [],
+          "role": "flow",
+          "source": {"id": "transform", "role": "value"},
+          "status": "complete",
+          "target": {"id": "effect", "role": "sink"}
+        }
+      ],
+      "security_object": [
+        {"kind": "text", "name": "entry", "value": "input"},
+        {"kind": "text", "name": "effect", "value": "emit"}
+      ]
+    },
+    {
+      "case_id": "flow-negative",
+      "completeness_reasons": [],
+      "decision": "flow_transformed",
+      "ecosystem": "reference-flow",
+      "observations": [
+        {"fields": [{"kind": "text", "name": "symbol", "value": "input"}], "role": "source", "status": "complete"},
+        {"fields": [{"kind": "text", "name": "effect", "value": "emit"}], "role": "sink", "status": "complete"},
+        {"fields": [{"kind": "boolean", "name": "applied", "value": true}], "role": "transform", "status": "complete"}
+      ],
+      "outcome": "satisfied",
+      "path": "reference/flow_negative.py",
+      "relations": [
+        {
+          "conditions": ["entry_observed"],
+          "kind": "value_transformation",
+          "reasons": [],
+          "role": "flow",
+          "source": {"id": "input", "role": "source"},
+          "status": "complete",
+          "target": {"id": "transform", "role": "value"}
+        },
+        {
+          "conditions": ["transform_applied", "effect_observed"],
+          "kind": "value_transformation",
+          "reasons": [],
+          "role": "flow",
+          "source": {"id": "transform", "role": "value"},
+          "status": "complete",
+          "target": {"id": "effect", "role": "sink"}
+        }
+      ],
+      "security_object": [
+        {"kind": "text", "name": "entry", "value": "input"},
+        {"kind": "text", "name": "effect", "value": "emit"}
+      ]
+    },
+    {
+      "case_id": "flow-missing",
+      "completeness_reasons": ["missing_flow_segment"],
+      "decision": "flow_unknown",
+      "ecosystem": "reference-flow",
+      "observations": [
+        {"fields": [{"kind": "text", "name": "symbol", "value": "input"}], "role": "source", "status": "complete"},
+        {"fields": [{"kind": "text", "name": "effect", "value": "emit"}], "role": "sink", "status": "complete"},
+        {"fields": [{"kind": "boolean", "name": "applied", "value": false}], "role": "transform", "status": "complete"}
+      ],
+      "outcome": "indeterminate",
+      "path": "reference/flow_missing.py",
+      "relations": [
+        {
+          "conditions": ["entry_observed"],
+          "kind": "value_transformation",
+          "reasons": [],
+          "role": "flow",
+          "source": {"id": "input", "role": "source"},
+          "status": "complete",
+          "target": {"id": "transform", "role": "value"}
+        },
+        {
+          "conditions": ["effect_observed"],
+          "kind": "value_transformation",
+          "reasons": ["missing_flow_segment"],
+          "role": "flow",
+          "source": {"id": "transform", "role": "value"},
+          "status": "incomplete",
+          "target": {"id": "effect", "role": "sink"}
+        }
+      ],
+      "security_object": [
+        {"kind": "text", "name": "entry", "value": "input"},
+        {"kind": "text", "name": "effect", "value": "emit"}
+      ]
+    }
+  ]
+}

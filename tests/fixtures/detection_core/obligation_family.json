@@ -1,0 +1,65 @@
+{
+  "decisions": [
+    {
+      "allowed_statuses": ["complete"],
+      "family_code": "constraint_exposed",
+      "outcome": "violation",
+      "required_roles": ["operation", "constraint", "security_object"]
+    },
+    {
+      "allowed_statuses": ["complete"],
+      "family_code": "constraint_enforced",
+      "outcome": "satisfied",
+      "required_roles": ["operation", "constraint", "security_object"]
+    },
+    {
+      "allowed_statuses": ["incomplete", "unresolved"],
+      "family_code": "constraint_unknown",
+      "outcome": "indeterminate",
+      "required_roles": ["constraint"]
+    }
+  ],
+  "ecosystems": ["reference-obligation"],
+  "family_id": "operation-constraint",
+  "family_version": "1.0.0",
+  "indeterminate_reasons": ["missing_constraint_relation", "ambiguous_constraint_relation"],
+  "residual_questions": [
+    {
+      "allowed_decisions": ["constraint_exposed", "constraint_enforced", "constraint_unknown"],
+      "question_id": "is_operation_constrained",
+      "required_roles": ["operation", "constraint"]
+    }
+  ],
+  "roles": [
+    {
+      "allowed_relation_kinds": ["operation_effect"],
+      "fields": [],
+      "origin_policy": "product_or_reviewed_fact",
+      "role": "operation"
+    },
+    {
+      "allowed_relation_kinds": ["constraint_effect"],
+      "fields": [],
+      "origin_policy": "product_or_reviewed_fact",
+      "role": "constraint"
+    },
+    {
+      "allowed_relation_kinds": [],
+      "fields": [
+        {"kind": "text", "name": "operation", "required": true},
+        {"kind": "text", "name": "boundary", "required": true}
+      ],
+      "origin_policy": "product_or_reviewed_fact",
+      "role": "security_object"
+    }
+  ],
+  "schema_version": "openultrasast.detection-core.evidence-packet.v2",
+  "security_object": {
+    "fields": [
+      {"kind": "text", "name": "operation", "required": true},
+      {"kind": "text", "name": "boundary", "required": true}
+    ],
+    "identity_fields": ["operation", "boundary"],
+    "kind": "operation_constraint"
+  }
+}

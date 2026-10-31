@@ -86,7 +86,7 @@
   - Validate that each family capability names its contract, readiness fixtures, development population, and admission boundary.
   - Done when duplicate/substituted catalog entries and each missing or corrupted capability field are refused.
   - _Requirements: 3.1, 3.3, 3.4, 14.5_
-- [ ] 3.3 Create obligation and taint-flow reference conformance fixtures
+- [x] 3.3 Create obligation and taint-flow reference conformance fixtures
   - Model an operation-plus-constraint family and an ordered source-to-sink family without target vocabulary.
   - Provide positive, negative, and ambiguity or missing-evidence cases for both semantic shapes.
   - Require each family to produce violation, bounded satisfaction, and indeterminate output through the same validators.
