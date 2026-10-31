@@ -155,7 +155,7 @@
   - _Requirements: 2.4, 4.4, 10.4, 11.4, 11.5_
 
 - [ ] 6. Add bounded model handoff and semantic shortcut probes
-- [ ] 6.1 (P) Preserve reproducible model requests, results, and responses
+- [x] 6.1 (P) Preserve reproducible model requests, results, and responses
   - Present the canonical evidence, completeness snapshot, family declaration, and declared residual question without importing a model runtime.
   - Freeze provider, model, program, prompt, examples, fitted component, configuration, adapter, decision mapping, and input-bundle identities before execution.
   - Preserve normalized responses plus one bounded redacted inline value or trusted immutable artifact, including failures.
