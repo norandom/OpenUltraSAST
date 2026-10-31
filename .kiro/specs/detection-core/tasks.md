@@ -163,7 +163,7 @@
   - _Requirements: 9.1, 9.2, 10.3_
   - _Boundary: Model Handoff_
   - _Depends: 2.4, 3.1_
-- [ ] 6.2 Apply model results without rewriting deterministic evidence
+- [x] 6.2 Apply model results without rewriting deterministic evidence
   - Validate current prompt/example/fitted-model/mapping lineage against the evaluated population and declared artifacts.
   - Reject proposer/adjudicator role collision and results for another packet, family, residual, or mapping.
   - Allow model-corroborated output only when deterministic residual prerequisites are complete.
