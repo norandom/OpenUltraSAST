@@ -15,6 +15,10 @@ digest) plus the JS handler-extraction fix (bind(this)/arrow/class methods).
 | Criteria | identical to the 2026-10-30 run (copied verbatim before the run) |
 | Records | 264 fresh proofs in ~/ousast-results/prover/ac-admission-2 (266s, 0 instrument failures) |
 
+Provenance note: the run launched from the working tree while commit 6024152 (benchmark
+plumbing only) landed in flight; 17 of 264 records carry mtimes 2-22s before that commit.
+Analyzer code is identical to the stamped revision a8a28f8.
+
 ## Result: NO-GO — recognition doubled, recall unchanged
 
 | Metric | 2026-10-30 (before) | this run |
