@@ -135,6 +135,47 @@ class TestResolveCall:
         assert len(candidates.targets) == 2
         assert candidates.completeness.reasons
 
+    def test_unique_declaration_member_call_binds_complete(self) -> None:
+        index = index_of(
+            (
+                "src/a/Store.java",
+                """public class Store {
+    public void persist(String item) { }
+}
+""",
+                "java",
+            )
+        )
+        call = _call(name="persist", line=1, receiver="store", arity=1)
+        target_set = resolve_call(call, module="src/a/Use.java", index=index)
+        assert target_set.targets == (SymbolId("src/a/Store.java", "Store", "persist", ("item",)),)
+        assert target_set.completeness.reasons == ()
+
+    def test_member_call_collision_across_modules_stays_incomplete(self) -> None:
+        index = index_of(
+            ("src/a/One.java", "public class Store { public void persist(String item) { } }", "java"),
+            ("src/b/Two.java", "public class Vault { public void persist(String item) { } }", "java"),
+        )
+        call = _call(name="persist", line=1, receiver="obj", arity=1)
+        target_set = resolve_call(call, module="src/a/One.java", index=index)
+        assert len(target_set.targets) == 2
+        assert target_set.completeness.reasons == ("resolution:receiver_type_unknown",)
+
+    def test_member_call_never_binds_module_level_function(self) -> None:
+        index = index_of(
+            (
+                "src/svc.py",
+                """def persist(item):
+    pass
+""",
+                "python",
+            )
+        )
+        call = _call(name="persist", line=3, receiver="obj", arity=1)
+        target_set = resolve_call(call, module="src/svc.py", index=index)
+        assert target_set.targets == ()
+        assert target_set.completeness.reasons
+
     def test_no_candidate_is_unresolved_with_reason(self) -> None:
         index = index_of(JAVA_ONE_CLASS)
         call = _call(name="missing", line=3, receiver="helper", arity=1)
@@ -232,6 +273,26 @@ class TestBindCalls:
         target = SymbolId("src/a/Two.java", "Gate", "check", ("item",))
         assert bindings.exact_callers(target) == ()
         assert bindings.counts["incomplete_calls"] == 1
+
+    def test_unique_declaration_member_call_counts_complete(self) -> None:
+        index = index_of(
+            (
+                "src/a/Store.java",
+                """public class Store {
+    public void persist(String item) { }
+}
+""",
+                "java",
+            )
+        )
+        bindings = bind_calls(
+            functions_by_module={"src/a/Use.java": (_ir_stub(calls=(_call(name="persist", line=2, receiver="store", arity=1),)),)},
+            index=index,
+        )
+        target = SymbolId("src/a/Store.java", "Store", "persist", ("item",))
+        assert bindings.exact_callers(target) == (CallerBinding(module="src/a/Use.java", function="caller", line=2, exact=True),)
+        assert bindings.counts["complete_calls"] == 1
+        assert bindings.counts["incomplete_calls"] == 0
 
 
 def _ir_stub(calls: tuple[CallSite, ...], name: str = "caller") -> FunctionIR:

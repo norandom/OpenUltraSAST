@@ -540,6 +540,10 @@ JAVA_AUDITOR = """class Auditor {
     public void check() {
     }
 }
+class Gate {
+    public void check() {
+    }
+}
 """
 
 

@@ -239,7 +239,15 @@ def _type_receiver_targets(same_name: tuple[SymbolId, ...], type_name: str, arit
 
 
 def _variable_receiver_targets(same_name: tuple[SymbolId, ...], arity: int | None) -> CallTargetSet:
+    # A variable receiver's type is unknown, but when exactly ONE method with the
+    # called name exists repository-wide, no second repository-defined target can
+    # exist, so the call binds complete (unique-declaration member-call binding).
+    # Two or more same-name declarations are a collision: they stay a finite
+    # candidate set, never a bare-name merge. A same-name module-level function is
+    # not a member-call target, so it neither binds nor collides here.
     methods = tuple(symbol for symbol in same_name if symbol.enclosing_type is not None)
+    if len(methods) == 1:
+        return CallTargetSet(targets=methods, completeness=Completeness(is_complete=True))
     narrowed = _arity_narrow(methods, arity)
     if not narrowed:
         return CallTargetSet(targets=(), completeness=Completeness(is_complete=False, reasons=("resolution:no_candidate",)))
