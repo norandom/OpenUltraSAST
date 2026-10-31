@@ -1,162 +1,379 @@
 # Implementation Plan
 
-_Requirement IDs use N.M where N is the requirement number in requirements.md and M is its acceptance criterion._
+## Merge record
+
+| Previous v1 item | Disposition in this plan |
+|---|---|
+| Completed groups 1–7 and 8.1 | Retained as regression substrate; their former requirement mappings do not count toward v2 coverage |
+| Previous task 8.2 | Permanently parked after admission NO-GO #3; no task below revives that arm |
+| Previous tasks 8.3–8.4 | Superseded by v2 consumer and proof conformance work; no rollout or live capability enablement is included |
 
 ## Task constraints
 
-- Complexity: McCabe at most 10 per touched function, at most 50 logical lines per function and 400 per new module.
-- The core contract package owns contracts only; no analysis logic moves into it.
-- Every migration step keeps existing behavior byte-identical; the 2026-10-30 admission suite is the regression gate.
-- Instrument rule: prove nonzero input reads before interpreting any zero.
-- Pool measures, never trains: no fitted component reads pool or admission labels.
+- New and amended code keeps McCabe complexity at most 10, functions at most 50 logical lines, and new modules at most 400 logical lines.
+- Core owns contracts and pure validation only; analyzers, model execution, proof execution, persistence, acquisition, and rollout remain with adjacent owners.
+- Every zero-result test first proves nonzero readable input; an unread input is an instrument failure.
+- Historical v1 artifacts remain byte-identical. V2 creates a new baseline and is never trended against v1.
+- The parked authorization arm remains parked. Admission orchestration uses synthetic/reference inputs only and does not consume a live population.
+- Existing target facts may be schema-migrated without expanding vocabulary or behavior.
 
-- [x] 1. Foundation: core contract package skeleton
-- [x] 1.1 (P) Canonical trace schema in the core package with deterministic serialization
-  - Define the trace record (entry, hops with call-target completeness, operation, witnesses, guards, completeness reasons, judgment, digests) as a frozen, family-agnostic contract.
-  - Done when a fixed trace serializes to byte-identical canonical output on repeat runs and a conformance test pins the schema.
-  - _Requirements: 1.1, 1.2_
-  - _Boundary: core trace contract_
-- [x] 1.2 (P) Three-way verdict vocabulary and verdict contract
-  - Define unguarded/discharged/indeterminate, the proven-claim-with-witness vs bounded-silence verdict, and the rule that indeterminate never converts to clean.
-  - Done when unit tests cover all three judgments, the conversion refusal, and zero-shot-judge-over-trace as the only model role on verdicts.
-  - _Requirements: 2.1, 2.2, 5.1, 5.2, 9.1_
-  - _Boundary: core verdict contract_
-- [x] 1.3 (P) Coverage accounting schema with instrument refusal
-  - Define entry-recognition coverage, exactly-one-bucket-per-call resolution outcomes, named unchecked reasons, and zero-byte/unreadable input as an instrument failure at core level.
-  - Done when a zero-byte read fails the run in a unit test and the bucket exclusivity is pinned.
-  - _Requirements: 3.1, 3.2_
-  - _Boundary: core coverage contract_
-- [x] 1.4 (P) Provenance digest stamping with mismatch refusal
-  - Define the analyzer/fact/acquisition/configuration/population/input digest stamping and refusal when any digest cannot be re-derived.
-  - Done when a mismatched digest is refused in a unit test.
-  - _Requirements: 6.1, 6.2_
-  - _Boundary: core provenance contract_
+- [ ] 1. Establish migration-safe foundations
+- [ ] 1.1 Freeze the v1 compatibility boundary and enumerate active readers and writers
+  - Pin representative v1 trace and report bytes as immutable regression fixtures.
+  - Record every current import and artifact-writing path that still depends on the authorization-shaped contract.
+  - Preserve existing v1 behavior as migration input without treating it as v2 conformance.
+  - Done when fixture tests detect any byte change and the import/writer census identifies every cutover target.
+  - _Requirements: 14.3, 15.3_
+- [ ] 1.2 Build the strict canonical codec and resolver-backed artifact boundary
+  - Produce deterministic UTF-8 JSON with full SHA-256 identities, stable mapping order, and retained sequence order.
+  - Refuse non-finite numbers, unsupported values, unknown schemas, duplicate logical identities, and malformed digests.
+  - Validate resolved bytes, length, storage receipt, retention identity, trusted store, and configured size limits.
+  - Provide deterministic in-memory resolver and receipt fixtures for later contract tests.
+  - Done when identical values produce byte-identical output and each content or receipt mismatch fails before parsing.
+  - _Requirements: 1.4, 10.4_
 
-- [x] 2. Measured budget replaces the static gate
-- [x] 2.1 Record per-change complexity and reply time
-  - Extend runner records with complexity features (changed regions, call count, changed bytes) alongside the already-recorded seconds.
-  - Done when dev-pool records carry all complexity fields and seconds.
-  - _Requirements: 4.1, 12.1_
-  - _Boundary: runner records_
-  - _Depends: 1.3_
-- [x] 2.2 Derive per-workload-class budgets from measurement
-  - Fit complexity to reply time on the dev (483-change) and pilot (264-change) record sets as measurement only; publish per-class budgets with n, percentile, and hardware; make the budget configurable per class, demoting the static constant to provisional default.
-  - Done when the derivation table (class, n, percentile, hardware, budget) is published under the fixed measurement schema and a new-baseline note records the change.
-  - _Requirements: 4.2, 12.1, 12.2_
-  - _Boundary: core budget contract_
-  - _Depends: 2.1_
-- [x] 2.3 Budget gate and scoping record
-  - Gate failures name the change, elapsed time, and the derivation exceeded; the analyzed scope (change regions) is recorded per run.
-  - Done when an over-budget fixture fails with all three fields and the scope is present in the record.
-  - _Requirements: 4.3, 4.4_
-  - _Boundary: core budget contract_
-  - _Depends: 2.2_
-
-- [x] 3. Prover arm adopts the core contract
-- [x] 3.1 Prover trace implements the core schema
-  - Re-export/implement the core trace contract in the access_control arm without behavior change.
-  - Done when a conformance test proves the prover's trace satisfies the core schema field-for-field.
-  - _Requirements: 1.1, 1.2, 2.1_
-  - _Boundary: prover arm_
-  - _Depends: 1.1, 1.2_
-- [x] 3.2 Prover verdict and coverage over the core contract
-  - Emit verdicts and coverage through the core contracts; existing strict-lane behavior stays byte-identical.
-  - Done when the keyword regression and prover suites pass unchanged after adoption.
-  - _Requirements: 3.1, 5.1, 5.2_
-  - _Boundary: prover arm_
-  - _Depends: 3.1, 1.3_
-
-- [x] 4. Generalized admission contract
-- [x] 4.1 (P) Consume-only manifest validation generalized into the core
-  - Move the ordered refusal chain (malformed, producer, unreviewed, label-isolated, label-exposure, acquisition-changed, spent) into the core admission contract; the benchmark validator becomes a thin wrapper.
-  - Done when all refusal branches pass unit tests through the core contract.
-  - _Requirements: 7.1, 7.2_
-  - _Boundary: core admission contract_
-  - _Depends: 1.4_
-- [x] 4.2 Paired scoring and GO/NO-GO report schema with family scope
-  - Generalize paired vulnerable/fixed scoring, ordinary false alarms, gates, and the report schema into the core; add the claimed-families field.
-  - Done when the report schema includes family scope and every rate carries n and Wilson 95.
-  - _Requirements: 7.3, 10.2, 12.1_
-  - _Boundary: core admission contract_
-  - _Depends: 1.2, 4.1_
-- [x] 4.3 Admission suite reproduces the 2026-10-30 NO-GO
-  - Re-run the pilot admission through the core contract and reproduce 0/12 pairs, 0.83 flagged/100, 0 instrument failures, NO-GO exactly.
-  - Done when the reproduced report matches the committed 2026-10-30 report field-for-field.
-  - _Requirements: 7.3, 12.1_
-  - _Boundary: admission measurement_
-  - _Depends: 4.2, 3.2_
-
-- [x] 5. Anti-shortcut probes for any fitted component
-- [x] 5.1 (P) Reversed-pair probe harness
-  - Build the fix/reversed-fix probe; the deletion-count shape feature must fail it (control test).
-  - Done when the control probe fails a shape-only component and passes a relation-based one.
-  - _Requirements: 8.1, 8.2_
-  - _Boundary: core probes_
+- [ ] 2. Implement canonical semantic, provenance, and evidence contracts
+- [ ] 2.1 (P) Represent family-neutral semantic relations and observations
+  - Cover registration, invocation, call, return, value transformation, operation effect, and constraint effect.
+  - Preserve role, location, conditions, provenance, and independent complete, incomplete, or unresolved status.
+  - Refuse conflicting complete candidates by producing explicit ambiguity rather than selecting one.
+  - Done when contract tests exercise every relation kind and all three relation statuses with canonical identities.
+  - _Requirements: 1.2, 4.1, 4.2, 4.3, 5.2_
+  - _Boundary: Semantic Evidence_
   - _Depends: 1.2_
-- [x] 5.2 Fitted-component gate
-  - Require per-repository holdout and untouched-population admission before any fitted component makes a claim; BLOCK reserved for demonstrated proofs.
-  - Done when a fitted component without admission evidence is refused by the gate in a test.
-  - _Requirements: 8.2, 9.2_
-  - _Boundary: core probes + admission_
-  - _Depends: 4.1, 5.1_
+- [ ] 2.2 (P) Validate complete input and decision provenance
+  - Stamp analyzer, family contract, fact set, acquisition, configuration, population, and change-input identities.
+  - Require the closed named-input role set and resolve every referenced input through the trusted artifact boundary.
+  - Keep model and proof identities outside the immutable deterministic packet.
+  - Done when every stamp field has a tamper test and unreadable or substituted named input is refused.
+  - _Requirements: 10.1, 10.4_
+  - _Boundary: Provenance and Lineage_
+  - _Depends: 1.2_
+- [ ] 2.3 Enforce append-only population custody
+  - Construct and validate contiguous reviewed-custodian receipt chains against the complete current log.
+  - Require compare-and-swap requests to name the expected log head and derive the next sequence and predecessor.
+  - Make spent status monotonic and reject old prefixes, omitted receipts, broken chains, and later availability claims.
+  - Provide deterministic in-memory custody-port and custodian fixtures for lineage and admission tests.
+  - Done when concurrent requests have one valid successor and no fixture can restore a spent population.
+  - _Requirements: 12.2, 13.1, 13.4_
+- [ ] 2.4 Bind lineage purposes to exact influenced artifacts
+  - Require each lineage use to name its purpose, influenced artifact, source population, label access, and current-chain receipt.
+  - Enforce required and optional use counts for prompts, examples, thresholds, fitted models, facts, matching behavior, mappings, and promotion.
+  - Distinguish fact ancestry that forbids all label access from development lineage that may use a different spent population.
+  - Refuse protected-population influence, redirected artifact identities, wrong purposes, and incomplete receipt history.
+  - Done when matching subjects cannot mask a wrong influenced artifact and contaminated populations are deterministically refused.
+  - _Requirements: 13.1, 13.3, 13.4_
+- [ ] 2.5 Bind immutable evidence packets to neutral decisions
+  - Preserve family identity, security object, analyzed scope, ordered semantics, observations, family fields, completeness, and provenance.
+  - Keep family decision codes separate from violation, satisfied, and indeterminate outcomes.
+  - Require bounded scope for satisfaction, named reasons for indeterminate outcomes, and a valid deterministic, model-corroborated, or execution-backed basis.
+  - Prevent incomplete or ambiguous required relations from producing violation or satisfaction.
+  - Done when positive, satisfied, and incomplete records round-trip canonically and every invalid packet/decision combination is refused.
+  - _Requirements: 1.1, 1.2, 1.3, 2.1, 2.2, 2.3, 2.4, 2.5, 10.1_
 
-- [x] 6. Fact packs and consumer interfaces
-- [x] 6.1 Fact-pack admission contract
-  - Ruleset loader admits family fact packs only with review evidence and provenance stamping; packs carry their family tag.
-  - Done when an unreviewed pack is refused and a reviewed pack stamps provenance in a test.
-  - _Requirements: 10.1_
-  - _Boundary: fact-pack contract_
-  - _Depends: 1.4_
-- [x] 6.2 Consumer interfaces for push and proof
-  - Define the interfaces through which the pre-push transaction consumes traces/verdicts within its deadline and the proof layer attaches demonstrated evidence to a verdict; existing arms express behavior over the core contract.
-  - Done when both interfaces are exercised by conformance tests from a mock consumer.
-  - _Requirements: 9.2, 11.1, 11.2, 11.3_
-  - _Boundary: core consumer contracts_
-  - _Depends: 1.2, 3.2_
-- [x] 6.3 Runners adopt core coverage, budget, provenance incrementally
-  - Migrate development_runner, arm_regression, prover_arm, run_manifests onto the core contracts one at a time, re-running the regression suite after each.
-  - Done when all runners consume the core contracts and the keyword regression passes at the pre-migration count plus new tests.
-  - _Requirements: 3.1, 4.1, 4.3, 6.1, 11.3, 12.1_
-  - _Boundary: benchmark runners_
-  - _Depends: 2.3, 3.2, 6.2_
+- [ ] 3. Add vulnerability-family contracts and unlike reference families
+- [ ] 3.1 Validate a closed vulnerability-family declaration
+  - Require family/schema versions, ecosystems, security-object fields, roles, decisions, outcome rules, completeness conditions, residual questions, and indeterminate reasons.
+  - Enforce typed family fields and exact ecosystem/schema scope.
+  - Declare whether each role accepts product evidence or requires reviewed excluded-dependency facts.
+  - Refuse undeclared fields, roles, decisions, reasons, or determinate outcomes without their minimum evidence.
+  - Done when the family registration matrix accepts only declared combinations and reports unsupported scope without cross-family fallback.
+  - _Requirements: 1.3, 2.1, 2.4, 3.1, 3.2, 3.3, 3.4, 4.4, 9.1_
+- [ ] 3.2 Build exact family catalog resolution and capability declarations
+  - Re-derive every contract and catalog digest and require canonical ordering and unique family/version/schema identities.
+  - Resolve a contract only when family, digest, and ecosystem identify exactly one entry.
+  - Validate that each family capability names its contract, readiness fixtures, development population, and admission boundary.
+  - Done when duplicate/substituted catalog entries and each missing or corrupted capability field are refused.
+  - _Requirements: 3.1, 3.3, 3.4, 14.5_
+- [ ] 3.3 Create obligation and taint-flow reference conformance fixtures
+  - Model an operation-plus-constraint family and an ordered source-to-sink family without target vocabulary.
+  - Provide positive, negative, and ambiguity or missing-evidence cases for both semantic shapes.
+  - Require each family to produce violation, bounded satisfaction, and indeterminate output through the same validators.
+  - Done when both fixture suites pass without adding a family-specific field to any shared core contract.
+  - _Requirements: 3.5, 8.2_
 
-- [x] 7. Validation
-- [x] 7.1 Fixed measurement schema enforced in reports
-  - Every report carries population/freeze digests, judgment vocabulary, rates with n and Wilson 95, coverage, instrument failures, runtime; vocabulary/population change starts a new baseline.
-  - Done when a schema-validation test rejects a report missing any field and accepts the 2026-10-30 report.
+- [ ] 4. Expose operational coverage, budget, and readiness gates
+- [ ] 4.1 (P) Account for instrument reads and every semantic-stage outcome
+  - Count reads, questions, sites considered and recognized, transitions, security objects, constraints, determinate outcomes, and findings.
+  - Put every considered relation in exactly one complete, incomplete, or unresolved bucket.
+  - Fail unopened or zero-byte tracked input and diagnose the last verified nonzero stage and first missing expected output.
+  - Done when stage-by-stage fixtures distinguish a valid zero from unread input and identify every injected first failure.
+  - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 15.2, 15.4_
+  - _Boundary: Coverage Funnel_
+  - _Depends: 2.1, 2.5_
+- [ ] 4.2 (P) Derive and enforce measured workload budgets and change scope
+  - Record changed regions, semantic-transition count, changed bytes, and total reply time.
+  - Derive workload-class budgets with sample count, percentile, reference workload, reference hardware, and canonical identity.
+  - Resolve the changed-byte measurement and refuse missing, zero, non-finite, or incompatible complexity data.
+  - Reject evidence and claim anchors outside the supplied affected scope and name the exceeded derivation on budget failure.
+  - Done when class derivation is deterministic and scope escape or elapsed-budget excess yields a named gate failure.
+  - _Requirements: 6.1, 6.2, 6.3, 6.4_
+  - _Boundary: Budget and Scope_
+  - _Depends: 1.2, 2.5_
+- [ ] 4.3 Record ordered readiness evidence with explicit evidence-use roles
+  - Cover instrument, recognition, transitions, constraints, pairs, development, admission, and consumer integration in fixed order.
+  - Bind each result to arm/family/ecosystem, analysis identity, population use, fixtures, predecessors, measurement, and correction lever.
+  - Keep regression, development, repository-holdout, fresh-admission, and integration evidence uses non-interchangeable.
+  - Done when each stage accepts the correct positive/negative/ambiguity triplet and rejects the wrong evidence-use role.
+  - _Requirements: 8.1, 8.2, 8.6_
+- [ ] 4.4 Stop promotion on failed, absent, or stale prerequisites
+  - Authorize a stage only when every ordered predecessor is current and passed.
+  - Derive transitive staleness from core schema, semantic vocabulary, family, facts, acquisition, configuration, model, and outcome mapping.
+  - Return the first failing layer and named correction lever without mutating historical results.
+  - Done when one changed identity makes all dependent later results stale and later population/integration gates refuse to run.
+  - _Requirements: 8.3, 8.4, 8.5, 15.5_
+
+- [ ] 5. Replace semantic extension points with reviewed fact packs
+- [ ] 5.1 Validate versioned packs and independent review evidence
+  - Bind schema, family, ecosystem, language, stable facts, declared roles, normalized content, and review evidence.
+  - Accept source, official-documentation, or independently reviewed behavioral evidence under a trusted review policy.
+  - Resolve conflict disclosures and require producer/reviewer independence where behavioral evidence is used.
+  - Reject label-derived semantic-fact ancestry, unknown scope/roles, missing review, and inconsistent digests.
+  - Done when the schema/scope/review matrix accepts only fully reviewed label-isolated packs.
+  - _Requirements: 11.1, 11.4, 13.3_
+- [ ] 5.2 Validate complete structural observations and matcher lineage
+  - Match the declared requirement set, including qualified name, shape, receiver, target, argument, and configuration evidence as applicable.
+  - Resolve every observation artifact and require its identifier set to equal the fact’s complete structural requirements.
+  - Bind matcher revision, behavior digest, and current lineage to the exact evaluated product location.
+  - Prevent name-only, partial, fabricated, ambiguous, or protected-population-contaminated matches from becoming complete.
+  - Done when only a fully observed structural match with valid matcher lineage is eligible for effect application.
+  - _Requirements: 10.2, 11.2, 11.3, 13.4_
+- [ ] 5.3 Apply declared fact effects with reproducible provenance
+  - Materialize only relation kinds, roles, source/target roles, conditions, and effects declared by the matched fact and family.
+  - Attach exact pack, fact, product location, structural observation, matcher, and match-reference identities to every derived relation.
+  - Preserve unmet conditions as incomplete evidence and conflicting eligible matches as unresolved ambiguity.
+  - Mark label-influenced matching behavior or promotion as spent before the relation can participate in evaluation.
+  - Done when valid matches yield canonical effects while partial and ambiguous cases remain non-determinate with named reasons.
+  - _Requirements: 4.1, 4.2, 4.3, 10.2, 11.2, 11.3, 11.5, 13.4_
+- [ ] 5.4 Revalidate fact-derived relations and enforce the dependency boundary
+  - Re-open referenced packs, facts, match evidence, review policy, lineage, custody, and resolved bytes for every fact-derived relation.
+  - Reject undeclared roles, invalid scope, inconsistent content, and fact provenance that cannot be reproduced.
+  - Require reviewed semantic facts for determinate behavior attributed to excluded dependencies.
+  - Preserve missing dependency knowledge as named incomplete evidence rather than product-derived safety.
+  - Done when product-only dependency behavior is refused, a missing fact stays indeterminate, and the reviewed structurally matched equivalent is accepted.
+  - _Requirements: 2.4, 4.4, 10.4, 11.4, 11.5_
+
+- [ ] 6. Add bounded model handoff and semantic shortcut probes
+- [ ] 6.1 (P) Preserve reproducible model requests, results, and responses
+  - Present the canonical evidence, completeness snapshot, family declaration, and declared residual question without importing a model runtime.
+  - Freeze provider, model, program, prompt, examples, fitted component, configuration, adapter, decision mapping, and input-bundle identities before execution.
+  - Preserve normalized responses plus one bounded redacted inline value or trusted immutable artifact, including failures.
+  - Done when matching success/failure fixtures round-trip and substituted request, packet, response, program, or mapping identities are refused.
+  - _Requirements: 9.1, 9.2, 10.3_
+  - _Boundary: Model Handoff_
+  - _Depends: 2.4, 3.1_
+- [ ] 6.2 Apply model results without rewriting deterministic evidence
+  - Validate current prompt/example/fitted-model/mapping lineage against the evaluated population and declared artifacts.
+  - Reject proposer/adjudicator role collision and results for another packet, family, residual, or mapping.
+  - Allow model-corroborated output only when deterministic residual prerequisites are complete.
+  - Prevent model output from creating semantic relations, satisfaction over missing evidence, or execution-backed basis.
+  - Done when accepted derivation leaves the evidence packet byte-identical and every incomplete or contaminated path remains indeterminate.
+  - _Requirements: 2.4, 2.5, 9.3, 9.4, 9.5, 13.1_
+- [ ] 6.3 (P) Evaluate independently reviewed equal-semantics reversed-surface probes
+  - Derive semantic projections from records and family contracts rather than trusting caller summaries.
+  - Resolve distinct surface artifacts and independently reviewed semantic-equivalence evidence.
+  - Reject unequal semantics, digest-only review, non-finite tolerances, and fabricated passed summaries.
+  - Detect a surface-shape component while accepting a relation-based component within its pre-registered tolerance.
+  - Done when probe results are reproducible solely from canonical probe inputs and review policy.
+  - _Requirements: 13.2_
+  - _Boundary: Probes_
+  - _Depends: 3.3, 5.1_
+
+- [ ] 7. Compose validated evidence into bounded decisions and consumer output
+- [ ] 7.1 Revalidate deterministic and fact-derived records through one shared context
+  - Bind the exact catalog, packs, model declarations, lineage set, review policies, provenance trust, and custody policy.
+  - Resolve the family contract and all seven named provenance inputs for each raw record.
+  - Re-run family and fact validation and reject embedded pack, lineage, or named-input substitutes.
+  - Done when raw, forged, and context-mismatched records cannot reach admission or consumer decision code.
+  - _Requirements: 4.4, 10.1, 10.2, 10.4, 12.6, 14.1_
+- [ ] 7.2 Replay model derivation at the shared validation seam
+  - Require deterministic records to omit model derivation and model-corroborated records to include both request and result.
+  - Re-run model application from the pre-model record and compare the derived record canonically.
+  - Refuse constructible “validated” markers or model programs outside the context.
+  - Done when admission and consumer tests exercise the same validator and neither can bypass it with a raw record.
+  - _Requirements: 9.2, 9.3, 9.4, 9.5, 10.3, 10.4, 12.6, 14.1_
+- [ ] 7.3 (P) Derive defect claims, bounded satisfaction, and bounded silence
+  - Require exact change-tied locations and complete evidence for defect claims.
+  - Carry completed question identities and exact scope for satisfaction.
+  - Preserve named coverage reasons and record identities for every undecided question.
+  - Keep incomplete paths silent unless a separate complete path independently supports a claim.
+  - Done when mixed complete/incomplete fixtures produce supported claims plus bounded silence without any unbounded clean result.
+  - _Requirements: 2.2, 2.3, 7.1, 7.2, 7.3, 7.4, 14.4_
+  - _Boundary: Verdict and Proof_
+  - _Depends: 2.5, 3.1_
+- [ ] 7.4 Validate differential proof attachment without enabling rollout
+  - Re-derive reviewed producer, sandbox, oracle, affected/safe side, control, witness, and verification identities.
+  - Resolve all proof artifacts under the supplied producer, reviewer, store, and byte-limit trust policy.
+  - Upgrade basis only for demonstrated affected-only behavior tied to the same family, packet, location, and change/control.
+  - Reject opaque, self-asserted, inconclusive, same-side, or mismatched proof records.
+  - Done when only the valid differential fixture yields execution-backed basis and no attachment changes rollout policy.
+  - _Requirements: 2.5, 9.6, 14.2_
+- [ ] 7.5 Integrate validated records, proof, scope, and budget at the core consumer edge
+  - Accept raw validation envelopes and call the shared validator before creating any output.
+  - Preserve every bounded-silence reason and reject records or anchors outside the supplied change scope.
+  - Apply optional proof attachments through the proof validator and include all processing in total elapsed time.
+  - Return defects, satisfactions, silence, input identities, complexity, and measured budget identity.
+  - Done when a synthetic push returns a bounded verdict and scope, trust, or deadline violations fail explicitly.
+  - _Requirements: 6.4, 14.1, 14.4_
+  - _Depends: 4.2, 7.2, 7.4_
+
+- [ ] 8. Implement fixed measurement and leakage-safe admission
+- [ ] 8.1 (P) Define comparable baseline identities and fixed metric algebra
+  - Bind arm, population/freeze, claimed scopes, exact contract/fact/model sets, acquisition, analyzer, configuration, denominator, threshold set, and outcome mapping.
+  - Define closed numerator/denominator rules for pair correctness, recall, fixed and ordinary false alarms, precision, semantic coverage, and model success.
+  - Require Wilson 95 intervals with numerator and denominator; serialize zero denominators as null and prevent them from passing.
+  - Treat any identity mutation as a new baseline and refuse cross-arm or cross-scope aggregation.
+  - Done when a baseline mutation matrix and two-arm isolation fixture distinguish every non-comparable result.
+  - _Requirements: 11.6, 15.1, 15.3_
+  - _Boundary: Measurement_
+  - _Depends: 4.1, 4.4_
+- [ ] 8.2 Build complete measurement records and typed repository-holdout reports
+  - Record family decision vocabulary, neutral outcomes, evidence bases, fixed metrics, semantic funnel, model outcomes/failures, instrument failures, runtime, and readiness ancestry.
+  - Require every later-stage record to carry current prerequisite readiness stage results and digests.
+  - Define a typed repository-holdout report with an explicit evidence-use role, training and holdout manifest references, repository identities, fitting lineage, and distinct measurement/report identities.
+  - Refuse zero or clean-looking results unless tracked input reads and prerequisite semantic stages passed.
+  - Done when missing metrics, counts, failure fields, readiness ancestry, or holdout-report identity fields invalidate the corresponding record.
+  - _Requirements: 13.2, 15.1, 15.2, 15.4, 15.5_
+- [ ] 8.3 Validate independently reviewed census and manifest payloads
+  - Canonically bind every substantive census and manifest field into separate review-subject digests.
+  - Require producer/reviewer separation, admitted reviewer identity, allowed identity pairing, and resolver-validated conflict disclosure.
+  - Reject self-review, copied attestations, unknown reviewers, malformed review digests, and unreadable disclosures.
+  - Preserve aggregate census cardinalities without exposing case identities or per-case labels.
+  - Done when only independently attested label-blind payloads can proceed to manifest validation.
   - _Requirements: 12.1, 12.2_
-  - _Boundary: measurement schema_
-  - _Depends: 4.2, 6.3_
-- [x] 7.2 End-to-end: one push through core to verdict to admission report
-  - Run one dev-pool push end-to-end: scope, recognize, resolve, trace, verdict, digests, admission report on the dev pool.
-  - Done when the E2E test produces a verdict with witness or bounded silence plus a complete report.
-  - _Requirements: 5.1, 5.2, 7.3, 11.1_
-  - _Boundary: end-to-end integration_
-  - _Depends: 6.3, 7.1_
+- [ ] 8.4 Validate exact admission context, readiness, scope, sets, and threshold lineage
+  - Bind the exact evidence-validation context, reviewed census, denominator, thresholds, readiness results, untouched population, and current custody head.
+  - Re-derive claimed scopes and exact contract, fact, model, threshold, and outcome-mapping sets from canonical objects.
+  - Require current instrument-through-development readiness with matching analysis identity and evidence-use roles.
+  - Validate prompt, example, fitted-model, fact, matcher, mapping, promotion, and threshold lineage before labels open.
+  - Reject label exposure, acquisition drift, context substitution, stale readiness, scope mismatch, or prior spend.
+  - Done when each refusal branch fails before feasibility and no digest-only set or lineage claim is accepted.
+  - _Requirements: 12.1, 12.2, 13.1_
+- [ ] 8.5 Refuse arithmetically impossible threshold configurations
+  - Enumerate reachable counts from label-blind pair, case, semantic-site, and model-call capacities.
+  - Evaluate count, rate, per-100, and Wilson-bound thresholds with the fixed comparator direction for each metric.
+  - Require every grouped threshold to have at least one jointly attainable count assignment.
+  - Done when the historical impossible-denominator case is a configuration refusal rather than a measured no-go.
+  - _Requirements: 12.3, 12.4_
+- [ ] 8.6 Validate the pre-label population-spend protocol inside core
+  - Construct a label-release request bound to the exact validated authorization and current custody-log head.
+  - Validate the returned receipt as the exact current-chain direct successor that changes the named population from available to spent.
+  - Reject missing, stale, mismatched, non-successor, or availability-restoring receipts before scoring authorization.
+  - Keep durable append, compare-and-swap execution, label release, persistence, crash handling, and concurrency outside core.
+  - Done when only the exact spent successor authorizes scoring and every other receipt shape is refused without an external side effect.
+  - _Requirements: 12.2, 13.4_
+- [ ] 8.7 Derive scoped admission metrics from canonical case evidence
+  - Re-run shared evidence validation, instrument, budget, verdict, and proof validation for every case.
+  - Match case roles and pairs back to the reviewed census and derive decision vocabulary and counts from the exact catalog.
+  - Score quality only over pre-registered family/ecosystem scopes while retaining whole-population coverage.
+  - Compute paired behavior, ordinary false alarms, semantic coverage, model outcomes, and all standard metrics without trusting runner aggregates.
+  - Done when forged decisions, substituted contracts, invalid fact review, contaminated lineage, or case-count drift fail before metric production.
+  - _Requirements: 12.5, 12.6, 15.1, 15.2_
+- [ ] 8.8 Assemble evidence-backed gates and the final admission report
+  - Emit instrument, budget, readiness, and quality gates with reasons and supporting identities.
+  - Bind the report to the validation context, authorization, pre-label spend receipt, census, and complete case-result set.
+  - Require every mandatory metric and gate, plus model success when applicable, before allowing GO.
+  - Keep model-corroborated, deterministic, and execution-backed counts separate.
+  - Done when any missing/failed mandatory gate forces NO-GO and a complete passing synthetic fixture yields a reproducible GO report.
+  - _Requirements: 12.6, 15.1, 15.2, 15.4, 15.5_
+- [ ] 8.9 Authorize fitted components only from replayed probes and disjoint evaluation
+  - Resolve the component’s unique model declaration, family contract, review policy, and custody policy from the admission-bound context.
+  - Re-evaluate every canonical probe input and require the derived result set to match the component evidence.
+  - Consume the typed repository-holdout report from task 8.2 and validate its evidence-use role, training/holdout references, report identity, and fitting lineage.
+  - Prove the report’s training and repository-held-out repository sets are disjoint.
+  - Require an admission GO that was untouched before its bound label-release spend.
+  - Done when fabricated summaries, caller-selected policy substitutes, overlapping repositories, contaminated lineage, or mismatched admission are refused.
+  - _Requirements: 13.1, 13.2, 13.4_
 
-- [ ] 8. Integration with existing specs (binding phase, roadmap 2026-10-30)
-- [x] 8.1 Prover native conformance to the core trace contract
-  - access-control-prover's Trace implements core TraceRecord natively; hunt/core_adapter.py is removed once conformance tests pass; behavior byte-identical (admission suite regression gate).
-  - Done when test_core_adapter.py equivalents pass against native types and the adapter module is deleted.
-  - _Requirements: 1.1, 1.2, 11.3_
-  - _Boundary: prover arm_
-  - _Depends: 3.1_
-- [ ] 8.2 Fact-pack workstream from the recognition-coverage table
-  - valid-detection-benchmark task 7.1's manifest-derived table becomes reviewed fact packs admitted via core/factpack.py, family-tagged and digest-stamped; measured on pool-train, admission-gated on the untouched pilot.
-  - Done when one new ecosystem pack passes admission gates and appears with its family in the report.
-  - _Requirements: 10.1, 10.2, 7.3_
-  - _Boundary: fact-pack contract + benchmark_
-  - _Depends: 6.1, 4.2_
-  - _Parked 2026-10-31: final gated round NO-GO #3 (rule 10 stop condition, maintainer strategy-review); done-when unreachable for this arm -- the unique-declaration member-call binding increment ships (dc28325, dev complete-share 11.9->19.2 with recall/FA unchanged) but the admission gap is entry recognition (4/12 repos unrecognised; coverage 8/12) and framework operation facts, not call resolution. See benchmarks/measurements/2026-10-31-access-control-admission-unique-binding/_
-- [ ] 8.3 Pre-push hook consumes the core consumer contract
-  - pre-push-safety-net builds PushRequest and consumes PushVerdict via core/consumer.py; budget from the measured per-class derivation; one real dev-pool push E2E.
-  - Done when an E2E hook run on a dev-pool repo emits a PushVerdict with witnesses/reasons and a measured-class budget.
-  - _Requirements: 4.2, 11.1, 11.3_
-  - _Boundary: pre-push transaction_
-  - _Depends: 6.2, 2.2_
-- [ ] 8.4 Proof layer attaches demonstrated evidence to verdicts
-  - search-with-proof attaches proof artifacts to PushVerdict claims; BLOCK only on proven claims; bounded-silence entries stay advisory.
-  - Done when a demonstrated-finding fixture blocks and an unproven claim stays advisory in a test.
-  - _Requirements: 9.2, 11.2_
-  - _Boundary: proof layer_
-  - _Depends: 6.2_
+- [ ] 9. Integrate adjacent producers and benchmark-owned orchestration
+- [ ] 9.1 (P) Translate the parked authorization trace conservatively into v2 evidence
+  - Move conversion out of the family trace domain and keep authorization vocabulary outside shared core modules.
+  - Map missing per-hop knowledge to incomplete relations and indeterminate outcomes without behavior lifting.
+  - Preserve existing parked-arm regression behavior and avoid any admission rerun or reactivation.
+  - Done when adapter conformance matches the frozen v1 behavior while the authorization domain no longer imports v2 core types directly.
+  - _Requirements: 3.5, 14.3_
+  - _Boundary: Authorization Adapter_
+  - _Depends: 3.3, 7.2_
+- [ ] 9.2 (P) Translate hunt-owned model execution through the bounded handoff
+  - Convert structured executor inputs and outputs to the canonical request/result contracts.
+  - Keep prompt creation, provider calls, caching, parsing, and redaction in the hunt subsystem.
+  - Reject mismatched declared results through core validation without importing DSPy into core.
+  - Done when a fake executor success/failure pair crosses the adapter and core’s import census contains no model-runtime dependency.
+  - _Requirements: 9.1, 9.2, 9.3, 9.4, 9.5, 14.3_
+  - _Boundary: Model Adapter_
+  - _Depends: 6.2, 7.2_
+- [ ] 9.3 (P) Translate demonstrated search results into trusted proof attachments
+  - Map existing typed affected/safe verification records without moving sandbox or oracle execution into core.
+  - Preserve producer, control, witness, storage, and verification identities required by proof validation.
+  - Refuse inconclusive and mismatched fixtures at the adapter/core seam.
+  - Done when a canonical demonstrated fixture attaches successfully and every negative proof shape remains at its prior evidence basis.
+  - _Requirements: 9.6, 14.2, 14.3_
+  - _Boundary: Proof Adapter_
+  - _Depends: 7.4_
+- [ ] 9.4 (P) Migrate the existing entry-pack loader to the reviewed v2 schema
+  - Translate existing metadata and fact rows without adding framework vocabulary or changing target behavior.
+  - Supply complete structural match evidence and pack/fact/matcher provenance to the shared fact validator.
+  - Keep acquisition and review ownership outside core.
+  - Done when the migrated existing pack produces byte-stable behavior through v2 and partial/name-only matches remain incomplete.
+  - _Requirements: 10.2, 11.1, 11.2, 11.3, 11.4, 11.5, 14.3_
+  - _Boundary: Fact Pack Adapter_
+  - _Depends: 5.4_
+- [ ] 9.5 (P) Produce readiness and development records through benchmark-owned adapters
+  - Construct canonical readiness results while leaving sequencing and persistence with benchmark workflows.
+  - Emit development observations with v2 identities, evidence-use roles, instrument receipts, and prerequisite ancestry.
+  - Stop a runner before population work when readiness is failed, absent, or stale.
+  - Done when development fixtures pass through v2 and an injected semantic identity change prevents the later run.
+  - _Requirements: 8.1, 8.3, 8.4, 8.5, 8.6, 14.3, 15.5_
+  - _Boundary: Benchmark Readiness Adapter_
+  - _Depends: 4.4, 8.2_
+- [ ] 9.6 Integrate benchmark-owned admission scoring and guarded custody
+  - Delegate neutral scoring to core while retaining population persistence and run orchestration in the benchmark.
+  - Make the custodian the sole append-only writer and combine durable compare-and-swap spend plus label release as one guarded operation.
+  - Supply expanded manifest, lineage, resolver, and validation-context identities without exposing labels early.
+  - Exercise durable append, release, crash-before-append, crash-after-append, and concurrent-winner behavior at this external boundary.
+  - Done when synthetic admission completes end to end and injected crash/concurrency cases prove labels reach at most the successful compare-and-swap winner.
+  - _Requirements: 12.1, 12.2, 12.3, 12.4, 12.5, 12.6, 13.4_
+  - _Depends: 8.8, 9.5_
+
+- [ ] 10. Complete the single-writer v2 migration
+- [ ] 10.1 Prepare schema-routed legacy reads and cutover tests without publishing v2
+  - Add an internal read-only decoder that validates committed v1 traces and reports without constructing v2 determinate outcomes automatically.
+  - Route v1/v2 test reads by explicit schema version and prohibit all new writes through the legacy surface.
+  - Keep the top-level public API unchanged until the import and writer census reaches zero.
+  - Done when historical artifacts validate byte-unchanged, legacy write attempts fail, and cutover tests pass without publishing top-level v2 exports.
+  - _Requirements: 14.3, 15.3_
+- [ ] 10.2 Stop v1 writers and publish the single v2 public surface
+  - Re-run repository import and artifact-writer censuses after all adjacent adapters use v2.
+  - Stop v1 writes and remove the compatibility shim, authorization-shaped public exports, and family-domain conversion only when both censuses reach zero.
+  - Publish dependency-free v2 contracts through the top-level core API after the zero-census gate.
+  - Retain the read-only legacy decoder and refuse comparison between v1 and v2 baseline identities.
+  - Done when no production writer/import targets the v1 contract, historical fixtures remain unchanged, and all public writes use v2.
+  - _Requirements: 14.3, 15.3_
+
+- [ ] 11. Validate readiness, failure visibility, and implementation boundaries
+- [ ] 11.1 Run both reference families through the complete synthetic readiness path
+  - Start from a verified nonzero input and run recognition, transitions, security object/constraints, pair, development, reviewed synthetic admission, guarded spend, and consumer verdict.
+  - Produce violation, bounded satisfaction, and bounded silence for both unlike families.
+  - Require current prerequisite readiness identities at every later stage.
+  - Done when both authored repositories complete the path without target-specific core fields or a real admission population.
+  - _Requirements: 3.5, 8.1, 8.2, 8.4, 8.6, 12.1, 14.1, 15.5_
+- [ ] 11.2 Inject one failure at every semantic and governance stage
+  - Exercise unread/zero input, missing recognition, incomplete transition, missing constraint, pair mismatch, failed development, contaminated admission, and refused integration.
+  - Verify each run stops at the first failing stage with a named correction lever and no later metric or clean result.
+  - Mutate a semantic identity and verify transitive staleness through all dependent readiness and measurement records.
+  - Done when every injected failure is diagnosed at its source and no late admission-only surprise remains.
+  - _Requirements: 5.3, 5.4, 5.5, 8.3, 8.4, 8.5, 15.4, 15.5_
+- [ ] 11.3 Verify bounded validation cost and total consumer deadline accounting
+  - Measure canonicalization and validation across increasing relation, observation, receipt, and case counts.
+  - Exercise large transition sets for linear behavior and bounded memory without weakening semantic checks.
+  - Include optional model and proof processing in the same measured consumer budget.
+  - Publish sample count, percentile, workload, hardware, and derived budget through the fixed measurement contract.
+  - Done when performance fixtures satisfy the derived workload envelope and any excess fails the named budget gate.
+  - _Requirements: 1.4, 6.1, 6.2, 6.3, 6.4_
+- [ ] 11.4 Run the full migration, security, and regression gate
+  - Verify core imports only standard-library and lower core layers and contains no target, DSPy, benchmark, proof-execution, or analyzer dependencies.
+  - Run all unit, adapter, migration, reference-family, end-to-end, admission, and historical compatibility suites.
+  - Enforce function/module complexity caps and scan for remaining v1 imports or writers.
+  - Prove each test instrument read nonzero fixture bytes before interpreting zero findings or failures.
+  - Done when the complete suite passes, boundary/import censuses are clean, historical bytes are unchanged, and all declared adapter and consumer seams pass conformance.
+  - _Requirements: 1.4, 10.4, 14.3, 15.3, 15.4_
