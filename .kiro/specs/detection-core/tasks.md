@@ -125,7 +125,7 @@
   - _Requirements: 8.3, 8.4, 8.5, 15.5_
 
 - [ ] 5. Replace semantic extension points with reviewed fact packs
-- [ ] 5.1 Validate versioned packs and independent review evidence
+- [x] 5.1 Validate versioned packs and independent review evidence
   - Bind schema, family, ecosystem, language, stable facts, declared roles, normalized content, and review evidence.
   - Accept source, official-documentation, or independently reviewed behavioral evidence under a trusted review policy.
   - Resolve conflict disclosures and require producer/reviewer independence where behavioral evidence is used.
