@@ -24,7 +24,8 @@
   - Preserve existing v1 behavior as migration input without treating it as v2 conformance.
   - Done when fixture tests detect any byte change and the import/writer census identifies every cutover target.
   - _Requirements: 14.3, 15.3_
-- [ ] 1.2 Build the strict canonical codec and resolver-backed artifact boundary
+  - _Blocked: debug attempted twice, still failing — a bounded AST census with exact provenance registries still omits active hunter and Semgrep scorer-record writer families, so “every cutover target” is not yet mechanically demonstrated._
+- [x] 1.2 Build the strict canonical codec and resolver-backed artifact boundary
   - Produce deterministic UTF-8 JSON with full SHA-256 identities, stable mapping order, and retained sequence order.
   - Refuse non-finite numbers, unsupported values, unknown schemas, duplicate logical identities, and malformed digests.
   - Validate resolved bytes, length, storage receipt, retention identity, trusted store, and configured size limits.
@@ -377,3 +378,7 @@
   - Prove each test instrument read nonzero fixture bytes before interpreting zero findings or failures.
   - Done when the complete suite passes, boundary/import censuses are clean, historical bytes are unchanged, and all declared adapter and consumer seams pass conformance.
   - _Requirements: 1.4, 10.4, 14.3, 15.3, 15.4_
+
+## Implementation Notes
+
+- Task 1.1: repository-wide traversal alone is insufficient for a complete writer census; active writers require bounded provenance across direct schema construction, local loader/producer flow, imported producers, and scorer-envelope aggregation. Two debug rounds closed loader and imported-prover gaps, but hunter/Semgrep scorer writers remain unresolved.
