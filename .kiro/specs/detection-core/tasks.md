@@ -73,7 +73,7 @@
   - _Requirements: 1.1, 1.2, 1.3, 2.1, 2.2, 2.3, 2.4, 2.5, 10.1_
 
 - [ ] 3. Add vulnerability-family contracts and unlike reference families
-- [ ] 3.1 Validate a closed vulnerability-family declaration
+- [x] 3.1 Validate a closed vulnerability-family declaration
   - Require family/schema versions, ecosystems, security-object fields, roles, decisions, outcome rules, completeness conditions, residual questions, and indeterminate reasons.
   - Enforce typed family fields and exact ecosystem/schema scope.
   - Declare whether each role accepts product evidence or requires reviewed excluded-dependency facts.
