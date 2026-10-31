@@ -95,6 +95,37 @@ def _result(
     )
 
 
+def _chain(
+    *,
+    identity: readiness.AnalysisIdentity | None = None,
+    failed_stage: readiness.ReadinessStage | None = None,
+) -> tuple[readiness.ReadinessResult, ...]:
+    current = identity or _identity()
+    results: list[readiness.ReadinessResult] = []
+    for stage in readiness.ReadinessStage:
+        result = readiness.StageResult.FAILED if stage is failed_stage else readiness.StageResult.PASSED
+        base = _result(stage, result=result)
+        predecessors = tuple(item.result_digest for item in results)
+        digest = readiness.derive_readiness_result_digest(
+            arm_id=base.arm_id,
+            family_id=base.family_id,
+            ecosystem=base.ecosystem,
+            stage=base.stage,
+            evidence_use=base.evidence_use,
+            population_digest=base.population_digest,
+            population_freeze_digest=base.population_freeze_digest,
+            population_use_receipt_digests=base.population_use_receipt_digests,
+            result=base.result,
+            identity=current,
+            predecessor_digests=predecessors,
+            fixture_results=base.fixture_results,
+            measurement_digest=base.measurement_digest,
+            correction_lever=base.correction_lever,
+        )
+        results.append(replace(base, identity=current, predecessor_digests=predecessors, result_digest=digest))
+    return tuple(results)
+
+
 def test_stage_order_and_evidence_use_policy_are_closed() -> None:
     assert tuple(readiness.ReadinessStage) == (
         readiness.ReadinessStage.INSTRUMENT,
@@ -265,3 +296,154 @@ def test_runtime_shapes_are_strict_and_immutable() -> None:
         replace(value, arm_id=1)  # type: ignore[arg-type]
     with pytest.raises(readiness.ReadinessValidationError, match="stage"):
         replace(value, stage="instrument")  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize("target", tuple(readiness.ReadinessStage))
+def test_authorize_stage_requires_every_current_passed_predecessor(target: readiness.ReadinessStage) -> None:
+    chain = _chain()
+    predecessors = chain[: tuple(readiness.ReadinessStage).index(target)]
+    authorization = readiness.authorize_stage(target, predecessors, _identity())
+    assert authorization == readiness.StageAuthorization(target, True, None, (), None)
+
+
+def test_authorize_stage_reports_first_missing_predecessor() -> None:
+    chain = _chain()
+    receipts = (chain[0], chain[2], chain[3], chain[4])
+    authorization = readiness.authorize_stage(readiness.ReadinessStage.DEVELOPMENT, receipts, _identity())
+    assert not authorization.authorized
+    assert authorization.target is readiness.ReadinessStage.DEVELOPMENT
+    assert authorization.failing_stage is readiness.ReadinessStage.RECOGNITION
+    assert authorization.correction_lever == "produce recognition readiness evidence"
+    assert authorization.reasons == ("missing recognition readiness evidence",)
+
+
+def test_authorize_stage_reports_first_failed_predecessor_and_its_lever() -> None:
+    chain = _chain(failed_stage=readiness.ReadinessStage.TRANSITIONS)
+    authorization = readiness.authorize_stage(readiness.ReadinessStage.DEVELOPMENT, chain[:5], _identity())
+    assert not authorization.authorized
+    assert authorization.target is readiness.ReadinessStage.DEVELOPMENT
+    assert authorization.failing_stage is readiness.ReadinessStage.TRANSITIONS
+    assert authorization.correction_lever == "repair ambiguity handling"
+    assert authorization.reasons == ("transitions readiness failed",)
+
+
+@pytest.mark.parametrize(
+    "field",
+    (
+        "core_schema_version",
+        "semantic_vocabulary_digest",
+        "analyzer_revision",
+        "family_contract_digest",
+        "fact_set_digest",
+        "acquisition_record_digest",
+        "configuration_digest",
+        "model_program_digest",
+        "outcome_mapping_digest",
+    ),
+)
+def test_every_analysis_identity_change_makes_the_chain_stale(field: str) -> None:
+    current = _identity()
+    changed = "changed-v3" if field in {"core_schema_version", "analyzer_revision"} else _digest(f"changed:{field}")
+    stale = replace(current, **{field: changed})
+    chain = _chain(identity=stale)
+    authorization = readiness.authorize_stage(readiness.ReadinessStage.ADMISSION, chain[:6], current)
+    assert not authorization.authorized
+    assert authorization.failing_stage is readiness.ReadinessStage.INSTRUMENT
+    assert authorization.correction_lever == "rerun instrument with current analysis identity"
+    assert authorization.reasons == ("instrument readiness is stale",)
+
+
+def test_model_identity_none_and_digest_are_not_interchangeable() -> None:
+    current = _identity()
+    stale = replace(current, model_program_digest=_digest("model"))
+    authorization = readiness.authorize_stage(
+        readiness.ReadinessStage.INTEGRATION,
+        _chain(identity=stale)[:7],
+        current,
+    )
+    assert authorization.failing_stage is readiness.ReadinessStage.INSTRUMENT
+    assert authorization.reasons == ("instrument readiness is stale",)
+
+
+def test_chain_requires_exact_cumulative_predecessor_digests() -> None:
+    chain = list(_chain())
+    recognition = chain[1]
+    replacement_digest = readiness.derive_readiness_result_digest(
+        arm_id=recognition.arm_id,
+        family_id=recognition.family_id,
+        ecosystem=recognition.ecosystem,
+        stage=recognition.stage,
+        evidence_use=recognition.evidence_use,
+        population_digest=recognition.population_digest,
+        population_freeze_digest=recognition.population_freeze_digest,
+        population_use_receipt_digests=recognition.population_use_receipt_digests,
+        result=recognition.result,
+        identity=recognition.identity,
+        predecessor_digests=(_digest("wrong predecessor"),),
+        fixture_results=recognition.fixture_results,
+        measurement_digest=recognition.measurement_digest,
+        correction_lever=recognition.correction_lever,
+    )
+    chain[1] = replace(recognition, predecessor_digests=(_digest("wrong predecessor"),), result_digest=replacement_digest)
+    authorization = readiness.authorize_stage(readiness.ReadinessStage.DEVELOPMENT, tuple(chain[:5]), _identity())
+    assert authorization.failing_stage is readiness.ReadinessStage.RECOGNITION
+    assert authorization.correction_lever == "rebuild readiness chain from recognition"
+
+
+def test_duplicate_wrong_context_and_target_or_later_receipts_are_refused() -> None:
+    chain = _chain()
+    with pytest.raises(readiness.ReadinessValidationError, match="duplicate readiness stage"):
+        readiness.authorize_stage(readiness.ReadinessStage.DEVELOPMENT, (*chain[:2], chain[1]), _identity())
+    with pytest.raises(readiness.ReadinessValidationError, match="fixed stage order"):
+        readiness.authorize_stage(readiness.ReadinessStage.DEVELOPMENT, (chain[1], chain[0]), _identity())
+    recognition = chain[1]
+    other_arm_digest = readiness.derive_readiness_result_digest(
+        arm_id="other-arm",
+        family_id=recognition.family_id,
+        ecosystem=recognition.ecosystem,
+        stage=recognition.stage,
+        evidence_use=recognition.evidence_use,
+        population_digest=recognition.population_digest,
+        population_freeze_digest=recognition.population_freeze_digest,
+        population_use_receipt_digests=recognition.population_use_receipt_digests,
+        result=recognition.result,
+        identity=recognition.identity,
+        predecessor_digests=recognition.predecessor_digests,
+        fixture_results=recognition.fixture_results,
+        measurement_digest=recognition.measurement_digest,
+        correction_lever=recognition.correction_lever,
+    )
+    other_arm = replace(recognition, arm_id="other-arm", result_digest=other_arm_digest)
+    with pytest.raises(readiness.ReadinessValidationError, match="same arm, family, and ecosystem"):
+        readiness.authorize_stage(
+            readiness.ReadinessStage.DEVELOPMENT,
+            (chain[0], other_arm),
+            _identity(),
+        )
+    with pytest.raises(readiness.ReadinessValidationError, match="before the target"):
+        readiness.authorize_stage(readiness.ReadinessStage.DEVELOPMENT, chain[:6], _identity())
+    object.__setattr__(chain[0], "evidence_use", readiness.ReadinessEvidenceUse.DEVELOPMENT_POPULATION)
+    with pytest.raises(readiness.ReadinessValidationError, match="evidence use"):
+        readiness.authorize_stage(readiness.ReadinessStage.RECOGNITION, chain[:1], _identity())
+
+
+def test_authorization_does_not_mutate_historical_receipts() -> None:
+    chain = _chain()
+    before = tuple(item.result_digest for item in chain)
+    readiness.authorize_stage(readiness.ReadinessStage.INTEGRATION, chain[:7], _identity())
+    assert tuple(item.result_digest for item in chain) == before
+
+
+def test_stage_authorization_runtime_contract_is_strict() -> None:
+    with pytest.raises(readiness.ReadinessValidationError, match="authorized authorization"):
+        readiness.StageAuthorization(readiness.ReadinessStage.INSTRUMENT, True, None, ("unexpected",), None)
+    with pytest.raises(readiness.ReadinessValidationError, match="refused authorization"):
+        readiness.StageAuthorization(readiness.ReadinessStage.RECOGNITION, False, None, (), None)
+    with pytest.raises(readiness.ReadinessValidationError, match="must precede"):
+        readiness.StageAuthorization(
+            readiness.ReadinessStage.RECOGNITION,
+            False,
+            readiness.ReadinessStage.RECOGNITION,
+            ("failed",),
+            "repair recognition",
+        )

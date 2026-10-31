@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import Enum
 
@@ -184,6 +185,18 @@ class ReadinessResult:
         validate_readiness_result(self)
 
 
+@dataclass(frozen=True)
+class StageAuthorization:
+    target: ReadinessStage
+    authorized: bool
+    failing_stage: ReadinessStage | None
+    reasons: tuple[str, ...]
+    correction_lever: str | None
+
+    def __post_init__(self) -> None:
+        validate_stage_authorization(self)
+
+
 def _identity_value(value: AnalysisIdentity) -> canonical.JsonValue:
     return {
         "core_schema_version": value.core_schema_version,
@@ -327,6 +340,103 @@ def validate_readiness_result(value: ReadinessResult) -> None:
         raise ReadinessValidationError("result digest does not match readiness content")
 
 
+def validate_stage_authorization(value: StageAuthorization) -> None:
+    if not isinstance(value, StageAuthorization):
+        raise ReadinessValidationError("authorization must be a StageAuthorization")
+    if not isinstance(value.target, ReadinessStage):
+        raise ReadinessValidationError("authorization target must be a ReadinessStage")
+    if not isinstance(value.authorized, bool):
+        raise ReadinessValidationError("authorization result must be boolean")
+    _text_tuple(value.reasons, "authorization reasons")
+    if value.authorized:
+        if value.failing_stage is not None or value.reasons or value.correction_lever is not None:
+            raise ReadinessValidationError("authorized authorization must not carry failure details")
+        return
+    if not isinstance(value.failing_stage, ReadinessStage) or not value.reasons:
+        raise ReadinessValidationError("refused authorization must identify a failing stage and reasons")
+    if tuple(ReadinessStage).index(value.failing_stage) >= tuple(ReadinessStage).index(value.target):
+        raise ReadinessValidationError("failing stage must precede the authorization target")
+    _text(value.correction_lever, "authorization correction lever")
+
+
+def _refused(
+    target: ReadinessStage,
+    stage: ReadinessStage,
+    reason: str,
+    correction: str,
+) -> StageAuthorization:
+    return StageAuthorization(target, False, stage, (reason,), correction)
+
+
+def _validate_receipts(
+    target: ReadinessStage,
+    receipts: Sequence[ReadinessResult],
+) -> tuple[ReadinessResult, ...]:
+    if not isinstance(receipts, Sequence) or isinstance(receipts, (str, bytes)):
+        raise ReadinessValidationError("readiness receipts must be a sequence")
+    values = tuple(receipts)
+    for value in values:
+        validate_readiness_result(value)
+    stages = tuple(value.stage for value in values)
+    if len(set(stages)) != len(stages):
+        raise ReadinessValidationError("duplicate readiness stage")
+    target_index = tuple(ReadinessStage).index(target)
+    if any(tuple(ReadinessStage).index(stage) >= target_index for stage in stages):
+        raise ReadinessValidationError("readiness receipts must be before the target stage")
+    if stages != tuple(sorted(stages, key=tuple(ReadinessStage).index)):
+        raise ReadinessValidationError("readiness receipts must follow fixed stage order")
+    contexts = {(value.arm_id, value.family_id, value.ecosystem) for value in values}
+    if len(contexts) > 1:
+        raise ReadinessValidationError("readiness receipts must use the same arm, family, and ecosystem")
+    return values
+
+
+def authorize_stage(
+    target: ReadinessStage,
+    receipts: Sequence[ReadinessResult],
+    current_identity: AnalysisIdentity,
+) -> StageAuthorization:
+    if not isinstance(target, ReadinessStage):
+        raise ReadinessValidationError("target must be a ReadinessStage")
+    validate_analysis_identity(current_identity)
+    values = _validate_receipts(target, receipts)
+    by_stage = {value.stage: value for value in values}
+    prior: list[ReadinessResult] = []
+    for stage in tuple(ReadinessStage)[: tuple(ReadinessStage).index(target)]:
+        value = by_stage.get(stage)
+        if value is None:
+            return _refused(
+                target,
+                stage,
+                f"missing {stage.value} readiness evidence",
+                f"produce {stage.value} readiness evidence",
+            )
+        expected = tuple(item.result_digest for item in prior)
+        if value.predecessor_digests != expected:
+            return _refused(
+                target,
+                stage,
+                f"{stage.value} predecessor chain does not match",
+                f"rebuild readiness chain from {stage.value}",
+            )
+        if value.identity != current_identity:
+            return _refused(
+                target,
+                stage,
+                f"{stage.value} readiness is stale",
+                f"rerun {stage.value} with current analysis identity",
+            )
+        if value.result is StageResult.FAILED:
+            return _refused(
+                target,
+                stage,
+                f"{stage.value} readiness failed",
+                value.correction_lever or "repair readiness failure",
+            )
+        prior.append(value)
+    return StageAuthorization(target, True, None, (), None)
+
+
 __all__ = [
     "READINESS_RESULT_SCHEMA",
     "AnalysisIdentity",
@@ -337,9 +447,12 @@ __all__ = [
     "ReadinessStage",
     "ReadinessValidationError",
     "StageResult",
+    "StageAuthorization",
+    "authorize_stage",
     "derive_readiness_result_digest",
     "required_evidence_use",
     "validate_analysis_identity",
     "validate_fixture_result",
     "validate_readiness_result",
+    "validate_stage_authorization",
 ]

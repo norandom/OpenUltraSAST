@@ -117,7 +117,7 @@
   - Keep regression, development, repository-holdout, fresh-admission, and integration evidence uses non-interchangeable.
   - Done when each stage accepts the correct positive/negative/ambiguity triplet and rejects the wrong evidence-use role.
   - _Requirements: 8.1, 8.2, 8.6_
-- [ ] 4.4 Stop promotion on failed, absent, or stale prerequisites
+- [x] 4.4 Stop promotion on failed, absent, or stale prerequisites
   - Authorize a stage only when every ordered predecessor is current and passed.
   - Derive transitive staleness from core schema, semantic vocabulary, family, facts, acquisition, configuration, model, and outcome mapping.
   - Return the first failing layer and named correction lever without mutating historical results.
