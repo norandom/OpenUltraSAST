@@ -187,7 +187,7 @@
   - Re-run family and fact validation and reject embedded pack, lineage, or named-input substitutes.
   - Done when raw, forged, and context-mismatched records cannot reach admission or consumer decision code.
   - _Requirements: 4.4, 10.1, 10.2, 10.4, 12.6, 14.1_
-- [ ] 7.2 Replay model derivation at the shared validation seam
+- [x] 7.2 Replay model derivation at the shared validation seam
   - Require deterministic records to omit model derivation and model-corroborated records to include both request and result.
   - Re-run model application from the pre-model record and compare the derived record canonically.
   - Refuse constructible “validated” markers or model programs outside the context.

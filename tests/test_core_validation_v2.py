@@ -13,9 +13,12 @@ from test_core_factapply import _manifest as fact_manifest
 from test_core_factapply import _record as fact_record
 from test_core_family import _contract as family_contract
 from test_core_family import _record as family_record
+from test_core_model import _application_case as model_application_case
 from test_core_model import _case as model_case
+from test_core_model import _contract as model_contract
+from test_core_model import _record as model_record
 
-from openultrasast.core import canonical, evidence, family, provenance, validation
+from openultrasast.core import canonical, evidence, family, model_apply, provenance, validation
 from openultrasast.core.factpack import (
     FactPack,
     ReviewIndependencePolicy,
@@ -129,6 +132,45 @@ def _deterministic_case() -> tuple[
         InMemoryPopulationCustody(initial, custody_policy),
         resolver,
     )
+
+
+def _model_validation_case() -> tuple[
+    validation.EvidenceValidationInput,
+    validation.EvidenceValidationContext,
+    InMemoryPopulationCustody,
+    InMemoryContentResolver,
+    evidence.EvidenceRecord,
+]:
+    contract = model_contract()
+    deterministic = _with_fact_set(model_record(contract), ())
+    handoff = model_application_case(contract=contract, record=deterministic)
+    named, named_resolver = _named_inputs(deterministic, contract, ())
+    resolver = InMemoryContentResolver({**handoff.resolver.artifacts, **named_resolver.artifacts})
+    context = validation.make_evidence_validation_context(
+        family_catalog=_catalog(contract),
+        fact_packs=(),
+        model_programs=(handoff.request.program,),
+        lineages=(handoff.request.lineage,),
+        fact_review_policy=_review_policy(),
+        provenance_trust_policy=_trust_policy(),
+        custody_policy=handoff.custody_policy,
+    )
+    derived = model_apply.apply_model_result(
+        deterministic,
+        contract,
+        handoff.request,
+        handoff.result,
+        resolver,
+        handoff.custody,
+        handoff.custody_policy,
+    )
+    value = validation.make_evidence_validation_input(
+        record=derived,
+        named_inputs=named,
+        model_request=handoff.request,
+        model_result=handoff.result,
+    )
+    return value, context, handoff.custody, resolver, deterministic
 
 
 def test_shared_context_revalidates_record_and_all_seven_named_inputs() -> None:
@@ -297,3 +339,73 @@ def test_context_digest_binds_pack_review_evidence_to_its_exact_lineage() -> Non
     assert validation.derive_evidence_validation_context_digest(substituted) != context.context_digest
     with pytest.raises(validation.EvidenceInputValidationError, match="context digest"):
         validation.validate_evidence_input(value, substituted, case.custody, resolver)
+
+
+def test_shared_validator_replays_model_derivation_from_the_deterministic_record() -> None:
+    value, context, custody, resolver, deterministic = _model_validation_case()
+
+    accepted = validation.validate_evidence_input(value, context, custody, resolver)
+
+    assert value.model_request is not None
+    assert accepted is value.record
+    assert accepted.packet is value.model_request.record.packet
+    assert value.model_request.record is deterministic
+    assert accepted.decision.basis is evidence.EvidenceBasis.MODEL_CORROBORATED
+
+
+def test_deterministic_and_model_records_require_their_exact_handoff_shape() -> None:
+    value, context, custody, resolver, _ = _model_validation_case()
+    for request, result in ((value.model_request, None), (None, value.model_result)):
+        incomplete_handoff = validation.make_evidence_validation_input(
+            record=value.record,
+            named_inputs=value.named_inputs,
+            model_request=request,
+            model_result=result,
+        )
+        with pytest.raises(validation.EvidenceInputValidationError, match="request and result|both"):
+            validation.validate_evidence_input(incomplete_handoff, context, custody, resolver)
+
+    deterministic, det_context, det_custody, det_resolver = _deterministic_case()
+    attached = validation.make_evidence_validation_input(
+        record=deterministic.record,
+        named_inputs=deterministic.named_inputs,
+        model_request=value.model_request,
+        model_result=value.model_result,
+    )
+    with pytest.raises(validation.EvidenceInputValidationError, match="deterministic.*omit|forbids model"):
+        validation.validate_evidence_input(attached, det_context, det_custody, det_resolver)
+
+
+def test_model_replay_refuses_programs_outside_the_closed_context() -> None:
+    value, context, custody, resolver, _ = _model_validation_case()
+    without_program = validation.make_evidence_validation_context(
+        family_catalog=context.family_catalog,
+        fact_packs=context.fact_packs,
+        model_programs=(),
+        lineages=(),
+        fact_review_policy=context.fact_review_policy,
+        provenance_trust_policy=context.provenance_trust_policy,
+        custody_policy=context.custody_policy,
+    )
+
+    with pytest.raises(validation.EvidenceInputValidationError, match="model declaration|program.*context"):
+        validation.validate_evidence_input(value, without_program, custody, resolver)
+
+
+def test_model_replay_compares_the_canonical_derived_record() -> None:
+    value, context, custody, resolver, _ = _model_validation_case()
+    changed_decision = replace(
+        value.record.decision,
+        family_code="safe",
+        outcome=evidence.NeutralOutcome.SATISFIED,
+    )
+    substituted = evidence.EvidenceRecord(value.record.packet, changed_decision, "")
+    forged = validation.make_evidence_validation_input(
+        record=substituted,
+        named_inputs=value.named_inputs,
+        model_request=value.model_request,
+        model_result=value.model_result,
+    )
+
+    with pytest.raises(validation.EvidenceInputValidationError, match="derived record|replay"):
+        validation.validate_evidence_input(forged, context, custody, resolver)

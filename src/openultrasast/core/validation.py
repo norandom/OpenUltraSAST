@@ -2,16 +2,17 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, fields
+from dataclasses import dataclass
 
 from openultrasast.core import canonical
+from openultrasast.core._validation_model import validate_and_replay_model_derivation
 from openultrasast.core.custody import (
     PopulationCustodyPolicy,
     PopulationCustodyPort,
     derive_population_custody_policy_digest,
     validate_population_custody_log,
 )
-from openultrasast.core.evidence import EvidenceBasis, EvidenceRecord, derive_record_id
+from openultrasast.core.evidence import EvidenceRecord, derive_record_id
 from openultrasast.core.factpack import (
     FactPack,
     ReviewIndependencePolicy,
@@ -276,17 +277,6 @@ def _validate_record_identity(record: EvidenceRecord) -> None:
     record.__post_init__()
 
 
-def _validate_raw_deterministic_input(value: EvidenceValidationInput) -> None:
-    if value.model_request is not None or value.model_result is not None:
-        raise EvidenceInputValidationError("model handoff replay belongs to task 7.2")
-    decision = value.record.decision
-    if decision.basis is not EvidenceBasis.DETERMINISTIC:
-        raise EvidenceInputValidationError("raw validation accepts deterministic records only before model or proof replay")
-    provenance_values = tuple(getattr(decision.provenance, item.name) for item in fields(decision.provenance))
-    if any(item is not None for item in provenance_values):
-        raise EvidenceInputValidationError("deterministic record contains model, proof, or lineage provenance")
-
-
 def _validate_input_types(value: EvidenceValidationInput) -> None:
     if not isinstance(value.record, EvidenceRecord):
         raise EvidenceInputValidationError("record must be an EvidenceRecord")
@@ -337,13 +327,23 @@ def validate_evidence_input(
         if value.input_digest != derive_evidence_validation_input_digest(value):
             raise EvidenceInputValidationError("input digest cannot be re-derived")
         _validate_record_identity(value.record)
-        _validate_raw_deterministic_input(value)
         record = value.record
         contract = resolve_contract(
             context.family_catalog,
             record.packet.family_id,
             record.packet.family_contract_digest,
             record.packet.ecosystem,
+        )
+        record = validate_and_replay_model_derivation(
+            record,
+            value.model_request,
+            value.model_result,
+            contract,
+            context.model_programs,
+            context.lineages,
+            resolver,
+            custody,
+            context.custody_policy,
         )
         validate_record(contract, record)
         validate_provenance(record.packet.provenance, value.named_inputs, resolver, context.provenance_trust_policy)
