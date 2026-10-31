@@ -111,7 +111,7 @@
   - _Requirements: 6.1, 6.2, 6.3, 6.4_
   - _Boundary: Budget and Scope_
   - _Depends: 1.2, 2.5_
-- [ ] 4.3 Record ordered readiness evidence with explicit evidence-use roles
+- [x] 4.3 Record ordered readiness evidence with explicit evidence-use roles
   - Cover instrument, recognition, transitions, constraints, pairs, development, admission, and consumer integration in fixed order.
   - Bind each result to arm/family/ecosystem, analysis identity, population use, fixtures, predecessors, measurement, and correction lever.
   - Keep regression, development, repository-holdout, fresh-admission, and integration evidence uses non-interchangeable.
