@@ -132,7 +132,7 @@
   - Reject label-derived semantic-fact ancestry, unknown scope/roles, missing review, and inconsistent digests.
   - Done when the schema/scope/review matrix accepts only fully reviewed label-isolated packs.
   - _Requirements: 11.1, 11.4, 13.3_
-- [ ] 5.2 Validate complete structural observations and matcher lineage
+- [x] 5.2 Validate complete structural observations and matcher lineage
   - Match the declared requirement set, including qualified name, shape, receiver, target, argument, and configuration evidence as applicable.
   - Resolve every observation artifact and require its identifier set to equal the fact’s complete structural requirements.
   - Bind matcher revision, behavior digest, and current lineage to the exact evaluated product location.
