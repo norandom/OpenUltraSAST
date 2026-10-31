@@ -170,7 +170,7 @@
   - Prevent model output from creating semantic relations, satisfaction over missing evidence, or execution-backed basis.
   - Done when accepted derivation leaves the evidence packet byte-identical and every incomplete or contaminated path remains indeterminate.
   - _Requirements: 2.4, 2.5, 9.3, 9.4, 9.5, 13.1_
-- [ ] 6.3 (P) Evaluate independently reviewed equal-semantics reversed-surface probes
+- [x] 6.3 (P) Evaluate independently reviewed equal-semantics reversed-surface probes
   - Derive semantic projections from records and family contracts rather than trusting caller summaries.
   - Resolve distinct surface artifacts and independently reviewed semantic-equivalence evidence.
   - Reject unequal semantics, digest-only review, non-finite tolerances, and fabricated passed summaries.

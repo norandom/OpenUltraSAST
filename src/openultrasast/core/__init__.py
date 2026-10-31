@@ -18,11 +18,13 @@ from openultrasast.core.coverage import Coverage, InstrumentFailure, ResolutionO
 from openultrasast.core.factpack import FactPackError, admit_fact_pack, verify_fact_pack
 from openultrasast.core.probes import (
     FittedComponentBlocked,
-    ProbeResult,
     ShortcutDetected,
     assert_no_shortcut,
     require_admission_evidence,
     reversed_pair_probe,
+)
+from openultrasast.core.probes import (
+    LegacyProbeResult as ProbeResult,
 )
 from openultrasast.core.provenance import ProvenanceMismatch, stamp, verify_stamp
 from openultrasast.core.trace import Guard, Hop, TraceRecord, Witness
