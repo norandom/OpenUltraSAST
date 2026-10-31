@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import Enum
 
@@ -10,6 +11,7 @@ from openultrasast.core import canonical
 from openultrasast.core.provenance import DecisionProvenance, ModelCallIdentity, ProvenanceStamp
 from openultrasast.core.semantics import (
     EvidenceProvenance,
+    FieldKind,
     FieldValue,
     Observation,
     RelationStatus,
@@ -25,6 +27,10 @@ _DIGEST = re.compile(r"[0-9a-f]{64}")
 
 class EvidenceValidationError(ValueError):
     """An evidence packet or decision violates the neutral core contract."""
+
+
+class ScopeValidationError(EvidenceValidationError):
+    """Evidence or one of its semantic anchors escapes the affected change."""
 
 
 class NeutralOutcome(Enum):
@@ -340,7 +346,76 @@ def _scope_within(bounded: AnalyzedScope, analyzed: AnalyzedScope) -> bool:
         analyzed.change_digest,
     ):
         return False
-    return all(region in analyzed.regions for region in bounded.regions)
+    return all(any(_region_contains(allowed, region) for allowed in analyzed.regions) for region in bounded.regions)
+
+
+def _region_contains(allowed: SourceRegion, candidate: SourceRegion) -> bool:
+    return candidate.path == allowed.path and candidate.start_line >= allowed.start_line and candidate.end_line <= allowed.end_line
+
+
+def _scope_location(scope: AnalyzedScope, location: SourceLocation) -> bool:
+    return any(location.path == region.path and region.start_line <= location.line <= region.end_line for region in scope.regions)
+
+
+def _field_anchor(field: FieldValue) -> SourceLocation | None:
+    field.__post_init__()
+    if field.kind is not FieldKind.SOURCE_LOCATION:
+        return None
+    value = field.value
+    if not isinstance(value, Mapping) or set(value) != {"path", "line", "column", "symbol"}:
+        raise ScopeValidationError("source-location field must be a canonical mapping")
+    path, line, column, symbol = value["path"], value["line"], value["column"], value["symbol"]
+    if not isinstance(path, str) or not isinstance(line, int) or isinstance(line, bool):
+        raise ScopeValidationError("source-location field path or line has an invalid type")
+    if (column is not None and (not isinstance(column, int) or isinstance(column, bool))) or (
+        symbol is not None and not isinstance(symbol, str)
+    ):
+        raise ScopeValidationError("source-location field column or symbol has an invalid type")
+    return SourceLocation(path, line, column, symbol)
+
+
+def _revalidate_scope(scope: AnalyzedScope, field: str) -> None:
+    if not isinstance(scope, AnalyzedScope):
+        raise ScopeValidationError(f"{field} must be an AnalyzedScope")
+    try:
+        for region in scope.regions:
+            if not isinstance(region, SourceRegion):
+                raise EvidenceValidationError("every region must be a SourceRegion")
+            region.__post_init__()
+        scope.__post_init__()
+    except (TypeError, ValueError) as exc:
+        raise ScopeValidationError(f"invalid {field}: {exc}") from exc
+
+
+def validate_scope(packet: EvidencePacket, allowed: AnalyzedScope) -> None:
+    """Require packet regions and every semantic anchor to stay in the affected change."""
+    if not isinstance(packet, EvidencePacket):
+        raise ScopeValidationError("packet must be an EvidencePacket")
+    _revalidate_scope(allowed, "allowed scope")
+    _revalidate_scope(packet.scope, "packet scope")
+    try:
+        _validate_packet(packet)
+        for relation in packet.transitions:
+            relation.__post_init__()
+        for observation in packet.observations:
+            observation.__post_init__()
+        fields = tuple(field for observation in packet.observations for field in observation.fields) + packet.family_fields
+        field_anchors = tuple(anchor for field in fields if (anchor := _field_anchor(field)) is not None)
+    except (TypeError, ValueError) as exc:
+        raise ScopeValidationError(f"invalid packet: {exc}") from exc
+    if not _scope_within(packet.scope, allowed):
+        raise ScopeValidationError("packet scope is outside affected change scope")
+    anchors = (
+        tuple(
+            location
+            for relation in packet.transitions
+            for location in (relation.source.location, relation.target.location, relation.location)
+        )
+        + tuple(observation.location for observation in packet.observations)
+        + field_anchors
+    )
+    if any(not _scope_location(packet.scope, location) for location in anchors):
+        raise ScopeValidationError("semantic anchor is outside packet scope")
 
 
 @dataclass(frozen=True)
@@ -407,8 +482,10 @@ __all__ = [
     "EvidenceRecord",
     "EvidenceValidationError",
     "NeutralOutcome",
+    "ScopeValidationError",
     "SourceRegion",
     "derive_packet_digest",
     "derive_record_id",
     "evidence_record_bytes",
+    "validate_scope",
 ]

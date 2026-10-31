@@ -102,7 +102,7 @@
   - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 15.2, 15.4_
   - _Boundary: Coverage Funnel_
   - _Depends: 2.1, 2.5_
-- [ ] 4.2 (P) Derive and enforce measured workload budgets and change scope
+- [x] 4.2 (P) Derive and enforce measured workload budgets and change scope
   - Record changed regions, semantic-transition count, changed bytes, and total reply time.
   - Derive workload-class budgets with sample count, percentile, reference workload, reference hardware, and canonical identity.
   - Resolve the changed-byte measurement and refuse missing, zero, non-finite, or incompatible complexity data.
