@@ -256,7 +256,7 @@
   - Require every grouped threshold to have at least one jointly attainable count assignment.
   - Done when the historical impossible-denominator case is a configuration refusal rather than a measured no-go.
   - _Requirements: 12.3, 12.4_
-- [ ] 8.6 Validate the pre-label population-spend protocol inside core
+- [x] 8.6 Validate the pre-label population-spend protocol inside core
   - Construct a label-release request bound to the exact validated authorization and current custody-log head.
   - Validate the returned receipt as the exact current-chain direct successor that changes the named population from available to spent.
   - Reject missing, stale, mismatched, non-successor, or availability-restoring receipts before scoring authorization.
