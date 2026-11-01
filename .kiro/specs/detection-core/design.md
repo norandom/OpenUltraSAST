@@ -70,6 +70,8 @@ remain readable but are never rewritten or used as a v2 trend baseline.
   orchestration.
 - Proof search, sandbox execution, oracle semantics, and demonstration qualification.
 - Push scoping policy, alert rendering, capability rollout, and BLOCK enablement.
+- Production vulnerability-family contracts, target-specific authority bundles, structural
+  matchers, and match-artifact persistence. Those belong to the downstream family spec.
 
 ### Allowed Dependencies
 
@@ -85,6 +87,9 @@ remain readable but are never rewritten or used as a v2 trend baseline.
 - Authorization, DSPy, search-proof, benchmark, and push adapters may import the public core
   contract.
 - Development and admission populations are read-only identities at the core boundary.
+- Downstream family adapters may inject typed contracts, packs, matches, policies, lineages,
+  custody ports, content resolvers, and persisted content references. Core validates and
+  applies those objects but never imports the target adapter or creates its authority.
 - No core module imports `openultrasast.semantic`, `openultrasast.hunt`,
   `openultrasast.search`, `openultrasast.tools`, `benchmarks`, or `dspy`.
 
@@ -293,10 +298,6 @@ not execute proof or family analysis.
   for core types; remains the authorization-family trace domain.
 - `src/openultrasast/hunt/prover.py` — sends authorization results through
   `semantic/obligations/core_adapter.py`; it does not define neutral core types.
-- `src/openultrasast/mapping/entry_packs.py` — consumes versioned typed packs and supplies
-  structural match evidence.
-- `src/openultrasast/ruleset/entries/express.json` — migrates metadata and fact rows to the
-  v2 pack schema without changing target behavior.
 - Existing `tests/test_core_*.py` files — authorization assumptions move to adapter or
   legacy tests; neutral tests use the two reference contracts.
 - `tests/test_core_contract.py` — replaces the assertion that no model path exists with the
@@ -1068,6 +1069,17 @@ digest, and validate every receipt against the current custody chain while prote
 record's evaluation population. Matching behavior influenced by the admission
 population's labels therefore spends that population and cannot complete a relation in the
 same admission run.
+
+#### Downstream Fact-Adapter Seam
+
+A downstream vulnerability-family adapter owns its production `FamilyContract`, reviewed
+packs, structural matcher, and persistence of canonical `StructuralObservation` and
+`FactMatchEvidence` bytes. It supplies those typed objects, their content references,
+lineages, policies, custody port, and resolver to the core. Core only revalidates the pack,
+match, provenance, and relation application; it neither imports target modules nor mints
+missing trust or evidence. A legacy recognition projection may coexist during downstream
+migration, but it is non-authoritative and cannot construct v2 evidence, readiness, or
+admission by itself.
 
 #### Evidence Validation Composition
 
@@ -2545,6 +2557,10 @@ spec and consumes only status, counts, and digests.
   pack plus valid structural match. Direct `apply_fact` use with an unreviewed pack, wrong
   review policy, or protected-population matcher contamination is refused (`4.4`, `10.4`,
   `11.1–11.5`, `13.3–13.4`).
+- Downstream conformance fixture: inject a complete family-owned contract, reviewed pack,
+  persisted structural match, lineages, policies, custody and resolver; prove generic core
+  validation succeeds while name-only, partial, substituted, self-authored, contaminated,
+  or legacy-projection-only inputs are refused (`10.2`, `11.1–11.5`, `14.3`).
 - `test_core_admission.py`: consume-only refusal order, readiness prerequisites, threshold
   feasibility over label-blind census capacities and Wilson bounds, the historical
   impossible-denominator regression, scoring derived from full case evidence, fixed

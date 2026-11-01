@@ -277,3 +277,34 @@ facts are frozen, so that a better development score is not mistaken for general
    and shall not enable the arm in pre-push admission.
 9. The workflow shall retain the current 23-repository population as development regression evidence and shall
    require a separate untouched population for admission claims.
+
+### Requirement 13: Reviewed detection-core fact authority and migration
+**Objective:** As a maintainer, I want access-control target knowledge translated into independently reviewed,
+persisted detection-core evidence, so that entry recognition can support later vulnerability-class specs without
+making the neutral core target-aware or allowing a pattern match to authorize itself.
+
+#### Acceptance Criteria
+1. The access-control adapter shall define a versioned production family contract whose security object, roles,
+   decisions, residual questions and incompleteness reasons exactly represent access-control operation,
+   constraint and entry-registration semantics.
+2. For each promoted target-knowledge set, the adapter shall provide reviewed language-scoped fact packs and an
+   independently authenticated authority bundle naming the contract, pack references, review and custody
+   policies, semantic-fact and matcher lineages, matcher identity and every immutable evidence reference.
+3. The host bootstrap policy shall be external to the bundle it authenticates, shall constrain admitted reviewer
+   and store identities, shall enforce producer-reviewer separation and forbidden identity pairs, and shall
+   refuse unresolved conflict disclosures or a non-canonical bundle digest.
+4. When legacy recognition knowledge is migrated, the adapter shall preserve its recognition behavior as a
+   canonical compatibility projection while mapping each promoted row to explicit contract roles, typed
+   structural requirements and declared relation effects. The projection alone shall remain non-authoritative.
+5. For every structural match, the adapter shall persist canonical bytes for each `StructuralObservation` and
+   the resulting `FactMatchEvidence` before invoking detection-core, then supply the immutable content references
+   through a read-only resolver. Detection-core shall not write or synthesize those artifacts.
+6. The adapter shall bind fact and matcher lineage, custody and evaluation-population identity so that label
+   access for the same admission population makes the match incomplete or refused; result labels shall not
+   influence recognition or matching for that admission run.
+7. The adapter shall pass the detection-core downstream conformance gate for complete evidence and shall remain
+   incomplete or refused for name-only, partial, substituted, self-authored, legacy-only or contaminated inputs,
+   without detection-core importing access-control or target modules.
+8. Before the compatibility path is removed, the production entry-mapping caller shall load the externally
+   bootstrapped authority-bearing adapter, and a repository census shall report zero callers that use the legacy
+   projection as v2 evidence or bypass the reviewed authority context.

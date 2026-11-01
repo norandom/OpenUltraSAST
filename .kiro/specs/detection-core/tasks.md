@@ -326,15 +326,15 @@
   - _Requirements: 9.6, 14.2, 14.3_
   - _Boundary: Proof Adapter_
   - _Depends: 7.4_
-- [ ] 9.4 (P) Migrate the existing entry-pack loader to the reviewed v2 schema
-  - Translate existing metadata and fact rows without adding framework vocabulary or changing target behavior.
-  - Supply complete structural match evidence and pack/fact/matcher provenance to the shared fact validator.
-  - Keep acquisition and review ownership outside core.
-  - Done when the migrated existing pack produces byte-stable behavior through v2 and partial/name-only matches remain incomplete.
-  - _Requirements: 10.2, 11.1, 11.2, 11.3, 11.4, 11.5, 14.3_
-  - _Boundary: Fact Pack Adapter_
+- [ ] 9.4 Accept downstream reviewed fact-adapter conformance evidence
+  - Consume the immutable conformance fixture and manifest produced by the downstream family adapter without constructing its contract, packs, matches, authority, or target data in core.
+  - Re-run only the family-neutral fact-pack, fact-match, relation-application, full-evidence, canonical-reference, and import-boundary checks named by that handoff.
+  - Verify the manifest accounts for complete, name-only, partial, substituted, self-authored, protected-population-contaminated, and legacy-projection-only cases.
+  - Done when the downstream handoff is accepted by generic validators and core remains free of target imports; adapter implementation and target-specific fixtures remain downstream-owned.
+  - _Requirements: 10.2, 10.4, 11.1, 11.2, 11.3, 11.4, 11.5, 13.4, 14.3_
+  - _Boundary: Fact Pack Adapter Conformance_
   - _Depends: 5.4_
-  - _Blocked: task decomposition is missing an externally owned production family contract, reviewed authority bundle, lineage/custody wiring, matcher identity, and approved legacy-to-v2 semantic mapping; self-authorizing defaults are prohibited_
+  - _Blocked: consume the handoff only after access-control-prover tasks 14.1–14.6 produce the downstream artifacts and immutable conformance manifest_
 - [ ] 9.5 (P) Produce readiness and development records through benchmark-owned adapters
   - Construct canonical readiness results while leaving sequencing and persistence with benchmark workflows.
   - Emit development observations with v2 identities, evidence-use roles, instrument receipts, and prerequisite ancestry.
@@ -367,6 +367,8 @@
   - Retain the read-only legacy decoder and refuse comparison between v1 and v2 baseline identities.
   - Done when no production writer/import targets the v1 contract, historical fixtures remain unchanged, and all public writes use v2.
   - _Requirements: 14.3, 15.3_
+  - _Depends: 9.4_
+  - _Blocked: access-control-prover task 14.7 must migrate the production caller and prove a zero-bypass census after task 9.4 accepts the handoff_
 
 - [ ] 11. Validate readiness, failure visibility, and implementation boundaries
 - [ ] 11.1 Run both reference families through the complete synthetic readiness path
@@ -395,6 +397,7 @@
   - Prove each test instrument read nonzero fixture bytes before interpreting zero findings or failures.
   - Done when the complete suite passes, boundary/import censuses are clean, historical bytes are unchanged, and all declared adapter and consumer seams pass conformance.
   - _Requirements: 1.4, 10.4, 14.3, 15.3, 15.4_
+  - _Depends: 9.4_
 
 ## Implementation Notes
 

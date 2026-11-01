@@ -598,3 +598,31 @@ requirements approval.
   refused before report production, and out-of-scope-only calls do not alter the arm's gate.
 - **Boundary:** replay production remains part of task 8.9. Task 8.10 consumes and validates
   the replay before fitted-component checks and refuses raw reports.
+
+---
+
+## Downstream fact-authority boundary correction (2026-11-01)
+
+### Scope and finding
+
+- **Trigger:** task 9.4 could not migrate the legacy Express pattern pack without either
+  inventing reviewer/custodian authority inside mapping or removing current recognition.
+- **Instrument evidence:** the installed `express.json` was read at 963 bytes; the legacy
+  and v2 fact suites passed 80 tests, confirming this was not an unread-input or broken-core
+  diagnosis.
+- **Finding:** the attempted core task decomposition put a production access-control
+  contract, target authority, matcher, and artifact writer into the neutral core. That
+  violated the engine/target split even though the generic validators were already sound.
+
+### Decision: downstream ownership plus core conformance
+
+- `access-control-prover` owns its production family contract, reviewed target packs,
+  externally authenticated authority bundle, matcher, and canonical observation/match
+  artifact writer. Its bootstrap trust remains external to the authenticated bundle.
+- Detection-core owns only family-neutral validation and relation application. Its task 9.4
+  becomes a conformance gate over downstream-produced objects and cannot import target code.
+- The legacy recognition projection remains downstream-owned, byte-stable, and explicitly
+  non-authoritative until cutover. Name-only recognition cannot produce complete v2 evidence.
+- The downstream spec must first deliver authority, reviewed packs, persistence, and the
+  structural adapter. Core conformance then proves those objects satisfy the generic
+  contract before readiness, admission, or single-writer cutover can depend on them.

@@ -284,3 +284,51 @@ next lever is entry-recognition and call-resolution breadth for the valid pool's
 ecosystems, gated by the same admission workflow. The pilot pool remains unspent: no
 acquisition observed its labels; only admission scoring read them. Standing rules:
 `steering/detection-quality.md`.
+
+---
+
+## Detection-core fact-authority ownership amendment (2026-11-01)
+
+### Context
+
+Detection-core task 9.4 reached a real boundary gap while migrating the installed entry
+pack. The generic core already validates fact packs, structural matches, lineages, custody,
+and relation application, but no owner supplied the production access-control contract,
+reviewed target authority, structural matcher, or persisted match artifacts. Putting those
+objects into core would make a vulnerability-neutral package own access-control and target
+vocabulary.
+
+The instrument was verified before diagnosis: the installed entry file was readable at 963
+bytes, and the focused legacy/v2 fact suites passed. The blocker was therefore ownership and
+missing authority, not an unread input or broken validator.
+
+### Synthesis and decision
+
+1. **Dependency direction:** `access-control-prover` imports detection-core contracts and
+   supplies family-owned objects. Detection-core never imports access-control or target code.
+2. **Authority:** a checked-in immutable bundle references the production family contract,
+   one reviewed fact pack per language, recognition projection, policies, lineages, matcher
+   identity, and canonical evidence. A separately configured bootstrap policy authenticates
+   the bundle's reviewer and store; the bundle cannot trust itself.
+3. **Evidence custody:** the downstream adapter persists canonical structural observations
+   and match bytes before calling core. Core receives only typed objects, immutable content
+   references, and read-only custody/resolver ports.
+4. **Compatibility:** existing regex rows remain a byte-stable recognition projection during
+   migration. They are explicitly non-authoritative; exact typed observations are required
+   for complete fact evidence.
+5. **Task routing:** access-control-prover tasks 14.1–14.6 define the family contract,
+   authenticate authority, migrate reviewed data, persist evidence, match structure, and
+   publish the conformance handoff. Detection-core task 9.4 then runs the target-neutral
+   handoff-acceptance gate. Access-control-prover task 14.7 subsequently migrates the
+   production caller and proves zero bypasses before detection-core task 10.2 cuts over.
+
+### Risks and mitigations
+
+- **Self-authorized trust:** keep bootstrap policy outside the bundle, re-derive every digest,
+  require producer-reviewer separation, and enforce forbidden identity pairs.
+- **Pattern authority inflation:** preserve recognition behavior separately and require the
+  complete typed predicate set before core application.
+- **Circular match references:** persist the completed canonical match first, then pass its
+  reference to core; the reference is never part of match-digest construction.
+- **Admission contamination:** bind fact and matcher lineages to current custody and the
+  evaluation population so label access refuses the same run.

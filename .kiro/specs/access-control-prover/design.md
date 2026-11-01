@@ -31,6 +31,8 @@ initialization job produces that knowledge, and evaluation freezes its digest be
 - Resource- and authority-sensitive operation/witness matching.
 - Prover-mode control-flow dominance without textual-order fallback.
 - Acquired entry, operation, discharger and authority knowledge needed by this family.
+- The production access-control detection-core family contract, independently reviewed
+  target-knowledge authority, structural matcher, and canonical observation/match writer.
 - Deterministic traces, failure-visible coverage, development arms and the admission-run contract.
 
 ### Out of Boundary
@@ -39,17 +41,23 @@ initialization job produces that knowledge, and evaluation freezes its digest be
 - Runtime demonstrations, owned by `search-with-proof`.
 - Hook admission and rollout, owned by `pre-push-safety-net`.
 - Continuous fact evolution after the one-time initialization pass.
+- Family-neutral fact, match, evidence, readiness and admission validation, owned by
+  `detection-core`.
 
 ### Allowed Dependencies
 - `openultrasast.source`, `openultrasast.mapping`, the existing semantic IR and CFG, and the existing obligation
   facts/checker contracts.
 - The hunter `Context` caches, valid-benchmark metrics, replay record envelopes and reserved-population guard.
+- Public detection-core v2 contracts and validators through an adapter dependency from this
+  spec to core; detection-core never imports access-control or target-aware modules.
 - No new third-party dependency.
 
 ### Revalidation Triggers
 - A change to `EntryPointRecord`, `Operation`, `Discharge`, `Trace`, hunt-defect or replay-record contracts.
 - A change to call-site receiver/signature capture, target-knowledge schemas or authority implication semantics.
 - A change to path aggregation, judgment ordering, admission population isolation or the 120-second budget.
+- A change to detection-core family, fact-pack, fact-match, provenance, custody or canonical
+  serialization contracts; the adapter must re-run downstream conformance before use.
 
 ## Architecture
 
@@ -65,6 +73,9 @@ values before that boolean boundary and adding an opt-in three-way judgment path
 flowchart LR
   TK[Target knowledge] --> MR[Mapping registry]
   TK --> FI[Fact interpreter]
+  TK --> FA[Reviewed fact authority]
+  FA --> FM[Structural matcher and artifact writer]
+  FM --> DC[Detection core validation]
   MR --> CTX[Per change context]
   FI --> OP[Operations and witnesses]
   CTX --> SI[Symbol index]
@@ -97,6 +108,7 @@ adapters may import engine contracts.
 |---|---|---|
 | Analysis | Python 3.11, existing semantic IR and structural CFG | symbols, calls, summaries, dominance |
 | Knowledge | Existing TOML fact files and mapping strategies | target-specific vocabulary |
+| Core contract | detection-core v2 typed records and validators | family-neutral conformance |
 | Scoring | Existing valid-benchmark metrics and replay records | development and admission results |
 
 ## File Structure Plan
@@ -105,6 +117,10 @@ src/openultrasast/
 ├── mapping/
 │   ├── registry.py                      # strategy registration and dispatch
 │   ├── registration_sites.py            # generic call-site registration adapter
+│   ├── fact_authority.py                 # authenticate installed reviewed authority
+│   ├── entry_packs.py                    # compatibility projection and v2 structural adapter
+│   ├── fact_match_store.py               # persist canonical observations and match artifacts
+│   ├── legacy.py                          # production caller migrates to authority-bearing adapter
 │   └── <target>.py                       # one target-aware strategy per migrated concern
 ├── semantic/
 │   ├── ir.py                             # CallSite receiver and signature evidence
@@ -126,6 +142,12 @@ src/openultrasast/
 └── tools/
     └── fact_init.py                      # label-blind extract/propose/verify/promote workflow
 ruleset/obligations/*.toml                # promoted operation, witness and authority knowledge
+src/openultrasast/ruleset/entries/
+├── bootstrap.json                      # host trust policy, external to authenticated bundle
+├── authority.json                      # reviewed bundle payload and immutable references
+├── express.javascript.v2.json          # reviewed JavaScript FactPack
+├── express.typescript.v2.json          # reviewed TypeScript FactPack
+└── express.json                        # authenticated non-authoritative compatibility projection
 benchmarks/valid/
 ├── prover_arm.py                         # records, stage funnel, gates and four-arm comparison
 └── prover_admission.py                   # frozen-manifest admission orchestration
@@ -145,6 +167,8 @@ tests/
 - Existing facts, IR, checker, dominance, trace, prover and arm modules receive additive or opt-in contracts.
 - Existing callers retain legacy defaults; only the prover selects three-way judgment and strict CFG semantics.
 - Existing completed benchmark records remain immutable development baselines.
+- `mapping/entry_packs.py` keeps legacy pattern output byte-stable while adding an explicit
+  authority-bearing v2 path; no-context legacy loading cannot emit detection-core evidence.
 
 ## System Flows
 
@@ -180,6 +204,24 @@ flowchart LR
   GATE -->|fail| NOGO[No go]
 ~~~
 
+### Reviewed fact adaptation
+~~~mermaid
+flowchart LR
+  BP[Host bootstrap policy] --> AUTH[Authenticate authority bundle]
+  DATA[Reviewed contract packs and projection] --> AUTH
+  AUTH --> MATCH[Match typed repository structure]
+  MATCH --> OBS[Persist canonical observations]
+  OBS --> EVID[Build and persist FactMatchEvidence]
+  EVID --> CORE[Detection core validate and apply]
+  LEGACY[Legacy pattern projection] --> RECOG[Compatibility recognition only]
+  LEGACY -. forbidden .-> CORE
+~~~
+
+The access-control adapter writes each observation before constructing the match, writes the
+canonical match bytes next, and only then calls core with the immutable references. The
+resolver exposed to core is read-only. A regex or name hit can preserve recognition during
+migration but cannot substitute for typed structural observations.
+
 ## Requirements Traceability
 | Requirement | Components |
 |---|---|
@@ -195,6 +237,7 @@ flowchart LR
 | 10.1, 10.2, 10.3, 10.4, 10.5, 10.6, 10.7 | strict CFG dominance and legacy order compatibility |
 | 11.1, 11.2, 11.3, 11.4, 11.5, 11.6, 11.7, 11.8 | abstract domain, path and operation aggregation, transition report |
 | 12.1, 12.2, 12.3, 12.4, 12.5, 12.6, 12.7, 12.8, 12.9 | acquisition record, freeze manifest, admission runner |
+| 13.1, 13.2, 13.3, 13.4, 13.5, 13.6, 13.7, 13.8 | access-control family contract, reviewed fact authority, structural matcher, artifact writer, detection-core conformance, caller cutover |
 
 ## Components and Interfaces
 
@@ -340,6 +383,115 @@ The mapping registry and fact interpreter are target-aware adapters. The initial
 Admission mode prevents the acquisition process from receiving benchmark labels or fix locations. A changed output
 digest after labels are opened spends the population.
 
+### Reviewed detection-core fact adapter
+
+The production contract is family-specific but target-neutral. Its initial reviewed
+identity is `family_id=access_control`, `family_version=2.0.0`,
+`schema_version=openultrasast.detection-core.evidence-packet.v2`, and
+`ecosystems=(express,)`; later ecosystems require a reviewed contract-version change. It
+uses the security object `entry_operation_authorization` with required text identity fields
+`operation` and `boundary`. Its closed vocabulary is:
+
+| Role | Contract |
+|---|---|
+| `operation` | no fields; `OPERATION_EFFECT`; `product_or_reviewed_fact` |
+| `constraint` | no fields; `CONSTRAINT_EFFECT`; `product_or_reviewed_fact` |
+| `security_object` | required text fields `operation` and `boundary`; no relation kinds; `product_or_reviewed_fact` |
+| `framework_factory` | no fields; `REGISTRATION`; `product_or_reviewed_fact` |
+| `framework_instance` | no fields; `REGISTRATION`; `product_or_reviewed_fact` |
+| `entry_handler` | no fields; `INVOCATION`; `product_or_reviewed_fact` |
+| `entry_registration` | no fields; `REGISTRATION`; `product_or_reviewed_fact` |
+
+The decision rules are exactly `unguarded -> violation`, `discharged -> satisfied`, and
+`indeterminate -> indeterminate`. The two determinate decisions require `operation`,
+`constraint`, and `security_object` with allowed statuses `(COMPLETE,)`; the indeterminate
+decision requires `constraint` with allowed statuses `(INCOMPLETE, UNRESOLVED)`. Residual question
+`is_path_authorized` requires `operation`, `constraint`, and `security_object` and permits
+all three decisions. The initial indeterminate-reason set includes
+`missing_constraint_relation` and `ambiguous_constraint_relation`; additions require a
+contract-version change and downstream revalidation.
+
+```python
+@dataclass(frozen=True)
+class EntryFactAuthorityBundle:
+    contract: FamilyContract
+    packs: tuple[FactPack, ...]
+    recognition_projection: ContentRef
+    lineages: tuple[LineageManifest, ...]
+    custody_policy: PopulationCustodyPolicy
+    review_policy: ReviewIndependencePolicy
+    matcher_revision: str
+    matcher_behavior_digest: str
+    matcher_lineage_manifest_digest: str
+    authority_review: IndependenceAttestation
+    bundle_digest: str
+
+@dataclass(frozen=True)
+class EntryAuthorityBootstrapPolicy:
+    reviewed_bundle_reviewer_digests: tuple[str, ...]
+    forbidden_identity_pairs: tuple[tuple[str, str], ...]
+    trusted_store_identities: tuple[str, ...]
+    maximum_bundle_bytes: int
+    policy_digest: str
+
+@dataclass(frozen=True)
+class EntryFactAuthorityContext:
+    bundle: EntryFactAuthorityBundle
+    custody: PopulationCustodyPort
+    resolver: ContentResolver
+
+class FactMatchArtifactWriter(Protocol):
+    def persist_observation(self, value: StructuralObservation) -> ContentRef: ...
+    def persist_match(self, value: FactMatchEvidence) -> ContentRef: ...
+```
+
+The authority review subject is the canonical bundle payload digest with
+`authority_review` omitted. The host supplies the bootstrap policy separately; neither the
+bundle nor mapping code may choose its own trusted reviewers or stores. Validation
+re-derives policy, attestation, disclosure, pack, projection, lineage, and bundle digests;
+requires producer-reviewer separation; applies forbidden identity pairs; resolves every
+referenced byte from an admitted store; and refuses missing, duplicate, or substituted
+language packs. Because `FactPack.language` is singular, a multi-language target has one
+reviewed pack per language with shared semantic intent but distinct canonical identities.
+The shipped host trust policy is loaded from `bootstrap.json`, never referenced as authority
+by the bundle it authenticates, and is replaceable by host configuration. The artifact
+writer receives an explicit store root, store identity, and retention-policy digest; it
+writes content-addressed canonical bytes and returns a read-only resolver plus re-derivable
+storage receipts admitted by that bootstrap policy.
+
+The structural adapter consumes promoted recognition output and repository structure. For
+each fact it emits the complete typed requirement set (qualified target, AST shape,
+receiver, call target, argument shape, or configuration as declared), persists every
+canonical `StructuralObservation`, builds `FactMatchEvidence`, persists
+`fact_match_bytes(match)`, and then calls detection-core with the match plus its content
+reference. Match construction never accepts a future self-reference: the reference is an
+input only to core application after persistence.
+
+#### Initial compatibility migration evidence
+
+The first reviewed migration preserves the existing Express recognition rows as data, not
+engine vocabulary. `express.javascript.v2.json` and `express.typescript.v2.json` carry the
+same semantic expansion under distinct language-scoped pack identities. The authenticated
+projection uses schema `openultrasast.entry-recognition-projection.v1` and closed row fields
+`legacy_fact_id`, `languages`, `defines_handler`, `handler_kind`, and `pattern`; its content
+reference is covered by the authority bundle digest. The projection keeps legacy regular
+expressions and IDs byte-stable while the v2 packs use these exact facts:
+
+| Legacy data row | Reviewed v2 fact | Required observations | Effect |
+|---|---|---|---|
+| `entry:express:app-route` | for each `method` in `get`, `post`, `put`, `delete`, `patch`, `all`, `use`: ID `entry:express:app-route:<method>`, fact role `entry_registration` | `qualified_target`: `QUALIFIED_NAME`, field `qualified_target`, expected `app.<method>`; `call_shape`: `AST_SHAPE`, field `call_shape`, expected `member_call`; `receiver`: `RECEIVER_TYPE`, field `receiver`, expected `express_application`; `arguments`: `ARGUMENT_SHAPE`, field `arguments`, expected `route_path_and_handler` | kind `REGISTRATION`, role `entry_registration`, source `framework_instance`, target `entry_handler`, conditions `()` |
+| `entry:express:router-route` | for the same methods: ID `entry:express:router-route:<method>`, fact role `entry_registration` | `qualified_target`: `QUALIFIED_NAME`, field `qualified_target`, expected `router.<method>`; `call_shape`: `AST_SHAPE`, field `call_shape`, expected `member_call`; `receiver`: `RECEIVER_TYPE`, field `receiver`, expected `express_router`; `arguments`: `ARGUMENT_SHAPE`, field `arguments`, expected `route_path_and_handler` | kind `REGISTRATION`, role `entry_registration`, source `framework_instance`, target `entry_handler`, conditions `()` |
+| `entry:express:express-app` | ID `entry:express:express-app`, fact role `framework_instance` | `qualified_target`: `QUALIFIED_NAME`, field `qualified_target`, expected `express`; `call_shape`: `AST_SHAPE`, field `call_shape`, expected `factory_call`; `binding`: `ARGUMENT_SHAPE`, field `binding`, expected `application_instance_binding` | kind `REGISTRATION`, role `framework_instance`, source `framework_factory`, target `framework_instance`, conditions `()` |
+
+The promoted route-method values are read from reviewed projection data rather than copied
+into engine branches. A pattern hit alone is `INCOMPLETE`; it cannot produce
+`FactMatchEvidence`, enter readiness, or support admission. The no-context legacy loader is
+removed only after `mapping/legacy.py` uses the authority-bearing path, a repository census
+finds no caller that treats the projection as v2 evidence or bypasses authority, and the
+core conformance handoff passes. `analyze_entry_points` remains the stable public entry;
+bootstrap and adapter construction occur at its target-aware mapping boundary rather than
+being pushed into neutral engine callers.
+
 ### Prover integration
 `prove_change` orchestrates cached reads, recognition, resolution, summaries, paths, strict dominance and
 judgment. It emits findings only for `unguarded` pairs and preserves all three judgments as traces. Coverage
@@ -408,11 +560,22 @@ digest; a manifest cannot redefine or synthesize the baseline.
 - Runner: baseline/candidate bundle materialisation, four-arm attribution, paired vulnerable/fixed scoring,
   reviewed-manifest validation, freeze-digest guard, zero-byte and stale-anchor refusal, indeterminate rate, and
   hard 120-second gate.
+- Fact authority: bootstrap-policy independence, canonical bundle identity, reviewer/store
+  admission, forbidden identity pairs, disclosure resolution, one pack per language, and
+  refusal of substituted or self-authored artifacts.
+- Fact matching: canonical observation and match persistence, complete structural matches,
+  name-only/partial ambiguity, lineage/custody contamination, and read-only core resolution.
+- Compatibility: byte-stable legacy recognition projection and proof that it cannot construct
+  v2 evidence, readiness, or admission; core imports remain target-neutral.
 
 ## Migration Strategy
 1. Add abstract types and adapters without changing legacy checker defaults.
 2. Add strict resolution, summaries and judgment behind the prover's opt-in path.
 3. Migrate traces and coverage, then enable the amended development arms.
 4. Freeze facts and analyzer before running a separate admission population.
+5. Authenticate the existing entry projection, publish reviewed language-scoped v2 packs,
+   and run the authority-bearing structural adapter beside the legacy loader.
+6. Pass detection-core downstream conformance, migrate production callers, then remove the
+   no-context compatibility path at the single-writer cutover.
 
 Rollback is the previous prover arm and fact-set digest; baseline records remain immutable and comparable.
