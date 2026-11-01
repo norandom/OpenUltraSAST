@@ -326,7 +326,7 @@
   - _Requirements: 9.6, 14.2, 14.3_
   - _Boundary: Proof Adapter_
   - _Depends: 7.4_
-- [ ] 9.4 Accept downstream reviewed fact-adapter conformance evidence
+- [x] 9.4 Accept downstream reviewed fact-adapter conformance evidence
   - Consume the immutable conformance fixture and manifest produced by the downstream family adapter without constructing its contract, packs, matches, authority, or target data in core.
   - Re-run only the family-neutral fact-pack, fact-match, relation-application, full-evidence, canonical-reference, and import-boundary checks named by that handoff.
   - Verify the manifest accounts for complete, name-only, partial, substituted, self-authored, protected-population-contaminated, and legacy-projection-only cases.
