@@ -367,7 +367,7 @@ its final resolution, dominance, fact-acquisition and measurement semantics with
   - _Requirements: 1.1, 1.5, 1.7, 2.9, 2.10, 13.2, 13.4_
   - _Boundary: Entry Knowledge Migration_
   - _Depends: 14.1, 14.2, 14.3, 14.4_
-- [ ] 14.6 Add canonical structural-observation and fact-match persistence
+- [x] 14.6 Add canonical structural-observation and fact-match persistence
   - Provide the downstream write boundary that persists canonical `StructuralObservation` bytes and returns immutable references through a read-only resolver.
   - Persist completed `fact_match_bytes` only after its observation references exist, then return the match reference without inserting a circular self-reference into the match digest.
   - Done when stored observation and match bytes resolve canonically and byte or reference substitution is refused deterministically.
