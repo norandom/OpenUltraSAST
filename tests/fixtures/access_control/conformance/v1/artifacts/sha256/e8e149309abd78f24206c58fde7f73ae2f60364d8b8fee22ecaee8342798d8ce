@@ -1,0 +1,33 @@
+{
+  "facts": [
+    {
+      "defines_handler": true,
+      "handler_kind": "route",
+      "id": "entry:express:app-route",
+      "pattern": "app.(get|post|put|delete|patch|all|use)\\s*\\("
+    },
+    {
+      "defines_handler": true,
+      "handler_kind": "route",
+      "id": "entry:express:router-route",
+      "pattern": "router.(get|post|put|delete|patch|all|use)\\s*\\("
+    },
+    {
+      "defines_handler": false,
+      "handler_kind": "app",
+      "id": "entry:express:express-app",
+      "pattern": "express\\s*\\(\\s*\\)"
+    }
+  ],
+  "family": "access_control",
+  "framework": "express",
+  "kind": "entry_facts",
+  "languages": [
+    "javascript",
+    "typescript"
+  ],
+  "review": {
+    "digest": "47866e5c15b286d7107b101bd396f78bbbda23788085676c590c3af937085e00",
+    "note": "Reviewed against Express 4/5 routing docs and the pilot pool's manifest-level framework usage (2026-10-30 recognition table). Entry patterns only; no sinks, no labels."
+  }
+}

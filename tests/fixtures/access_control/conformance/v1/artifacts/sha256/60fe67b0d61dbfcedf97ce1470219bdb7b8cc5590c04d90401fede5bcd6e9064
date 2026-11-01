@@ -1,0 +1,1 @@
+{"location":{"column":0,"line":1,"path":"sources/name-only.js","symbol":"app.get->adminHandler@sources/name-only.js:2:9"},"observed":"member_call","requirement_id":"call_shape","schema_version":"openultrasast.detection-core.structural-observation.v2"}

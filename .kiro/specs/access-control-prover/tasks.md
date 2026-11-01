@@ -381,7 +381,7 @@ its final resolution, dominance, fact-acquisition and measurement semantics with
   - _Requirements: 1.1, 1.2, 1.3, 1.5, 7.2, 9.4, 13.5, 13.6_
   - _Boundary: Structural Matcher_
   - _Depends: 14.2, 14.5, 14.6_
-- [ ] 14.8 Produce the downstream conformance handoff
+- [x] 14.8 Produce the downstream conformance handoff
   - Run detection-core fact-pack, fact-match, application and full-evidence validators over target-owned fixtures after proving nonzero fixture reads.
   - Publish an immutable manifest naming every fixture, artifact digest, validator result and negative-case reason for detection-core task 9.4 to accept; do not add target fixtures to core.
   - Exercise authority substitution, producer/reviewer conflict, resolver byte substitution, lineage omission, custody contamination and deterministic replay.

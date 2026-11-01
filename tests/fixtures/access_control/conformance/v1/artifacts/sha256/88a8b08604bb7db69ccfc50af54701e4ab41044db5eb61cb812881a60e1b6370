@@ -1,0 +1,1 @@
+{"location":{"column":0,"line":3,"path":"sources/complete.js","symbol":"app.get->adminHandler@sources/complete.js:4:9"},"observed":"route_path_and_handler","requirement_id":"arguments","schema_version":"openultrasast.detection-core.structural-observation.v2"}

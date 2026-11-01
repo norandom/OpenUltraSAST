@@ -1,0 +1,1 @@
+!"location":{"column":0,"line":3,"path":"sources/complete.js","symbol":"app.get->adminHandler@sources/complete.js:4:9"},"observed":"app.get","requirement_id":"qualified_target","schema_version":"openultrasast.detection-core.structural-observation.v2"}
