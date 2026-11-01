@@ -389,7 +389,7 @@ its final resolution, dominance, fact-acquisition and measurement semantics with
   - _Requirements: 7.2, 7.4, 12.2, 12.3, 13.7_
   - _Boundary: Downstream Adapter Conformance Handoff_
   - _Depends: 14.7_
-- [ ] 14.9 Migrate the production entry caller and prove zero bypasses
+- [x] 14.9 Migrate the production entry caller and prove zero bypasses
   - Wire the externally bootstrapped authority-bearing adapter into the target-aware `mapping/legacy.py` entry path while keeping `analyze_entry_points` stable for its callers.
   - Retain the legacy projection only for compatibility recognition; prohibit it from supplying v2 evidence, readiness or admission.
   - Run import/caller and artifact-writer censuses proving no production path bypasses authority or treats legacy projection output as v2 evidence.

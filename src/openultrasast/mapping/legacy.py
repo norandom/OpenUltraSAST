@@ -6,11 +6,16 @@ import re
 from collections.abc import Mapping, Sequence
 from dataclasses import asdict, dataclass, replace
 from pathlib import Path
-from typing import Any, Literal, cast
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 from ..preprocess import FileTarget
 from .entry_packs import load_entry_pack_patterns
 from .registry import registry_entries
+
+if TYPE_CHECKING:
+    from .entry_fact_matcher import EntryFactMatchResult
+    from .fact_authority import EntryFactAuthorityContext
+    from .fact_match_store import FactMatchArtifactWriter
 
 MappingKind = Literal["semgrep", "codeql", "differential", "sharp_edge"]
 AccessLevel = Literal[
@@ -76,6 +81,14 @@ class EntryPointRecord:
     registered_by: str = ""
 
 
+@dataclass(frozen=True)
+class EntryPointFactAnalysis:
+    """Byte-stable compatibility records plus explicit reviewed v2 matches."""
+
+    entry_points: tuple[EntryPointRecord, ...]
+    fact_matches: tuple[EntryFactMatchResult, ...]
+
+
 def ingest_sarif(path: Path) -> list[StaticHint]:
     payload = json.loads(path.read_text())
     hints: list[StaticHint] = []
@@ -119,6 +132,31 @@ def analyze_entry_points(
     if include_manifests:
         records.extend(_route_manifest_entry_points(root, targets))
     return sorted(records, key=lambda item: (item.path, item.line is None, item.line or 0, item.name))
+
+
+def analyze_entry_points_with_facts(
+    root: Path,
+    targets: list[FileTarget],
+    *,
+    authority: EntryFactAuthorityContext,
+    writer: FactMatchArtifactWriter,
+    evaluation_population_digest: str,
+    texts: Mapping[str, str] | None = None,
+    include_manifests: bool = True,
+) -> EntryPointFactAnalysis:
+    """Run reviewed v2 matching beside unchanged compatibility recognition."""
+    from .entry_fact_integration import match_reviewed_entry_targets
+
+    entries = analyze_entry_points(root, targets, texts=texts, include_manifests=include_manifests)
+    matches = match_reviewed_entry_targets(
+        root,
+        targets,
+        authority,
+        writer,
+        evaluation_population_digest,
+        source_texts=texts,
+    )
+    return EntryPointFactAnalysis(tuple(entries), matches)
 
 
 def php_hook_callbacks(root: Path, targets: list[FileTarget], register_calls: Sequence[str] | None = None) -> dict[str, tuple[str, ...]]:
