@@ -373,7 +373,7 @@ its final resolution, dominance, fact-acquisition and measurement semantics with
   - Done when stored observation and match bytes resolve canonically and byte or reference substitution is refused deterministically.
   - _Requirements: 13.5_
   - _Boundary: Fact-Match Artifact Writer_
-- [ ] 14.7 Implement the authority-bearing structural matcher
+- [x] 14.7 Implement the authority-bearing structural matcher
   - Build typed observations from repository structure for the requirements declared by the selected reviewed fact; do not infer missing structure from a regex or name hit.
   - Use task 14.6 to persist every observation and completed `FactMatchEvidence`, then pass the immutable match reference with family contract, policies, lineages, custody and read-only resolver to detection-core.
   - Bind matcher behavior and fact lineage to current custody and the evaluation population so same-population label influence is incomplete or refused.
