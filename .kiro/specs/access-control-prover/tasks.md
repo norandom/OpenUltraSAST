@@ -353,6 +353,7 @@ its final resolution, dominance, fact-acquisition and measurement semantics with
   - _Requirements: 1.1, 1.5, 1.7, 2.9, 2.10, 13.2, 13.4_
   - _Boundary: Entry Knowledge Migration_
   - _Depends: 14.1, 14.2_
+  - _Blocked: the approved plan does not define installed v2 JSON decoders, bundle-reference and content-store/receipt layouts, or independently supplied production producer, reviewer, custodian and trusted-store identities; generating all of them inside this task would self-authorize the authority_
 - [ ] 14.4 Add canonical structural-observation and fact-match persistence
   - Provide the downstream write boundary that persists canonical `StructuralObservation` bytes and returns immutable references through a read-only resolver.
   - Persist completed `fact_match_bytes` only after its observation references exist, then return the match reference without inserting a circular self-reference into the match digest.
@@ -392,6 +393,10 @@ its final resolution, dominance, fact-acquisition and measurement semantics with
 - Target knowledge: names enter only through promoted facts or registered target-aware strategies.
 - Compatibility: legacy checker defaults and completed baseline records remain unchanged.
 - Instrument rule: validation must prove nonzero input reads before interpreting any clean or zero result.
+
+## Implementation Notes
+
+- Task 14.3: the 963-byte legacy entry file is readable, but typed authority validation is not an installed-artifact format. Migration requires a separately approved wire/storage contract and real independently supplied trust identities before checked-in artifacts can be called reviewed.
 
 ## Baseline implementation record
 
