@@ -290,7 +290,7 @@
   - Done when any missing/failed mandatory gate forces NO-GO, coordinated report/readiness/threshold/case substitutions are refused, and a complete passing synthetic fixture yields a reproducible replayed GO report.
   - _Requirements: 12.6, 15.1, 15.2, 15.4, 15.5_
   - _Depends: 8.8_
-- [ ] 8.10 Authorize fitted components only from replayed probes and disjoint evaluation
+- [x] 8.10 Authorize fitted components only from replayed probes and disjoint evaluation
   - Accept only the typed admission replay bundle from task 8.9, validate it first against current authoritative context/custody/content, and refuse raw admission reports or coordinated replay substitutions.
   - Resolve the component’s unique model declaration, family contract, review policy, and custody policy from the admission-bound context.
   - Re-evaluate every canonical probe input and require the derived result set to match the component evidence.
