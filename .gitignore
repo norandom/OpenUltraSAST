@@ -22,6 +22,9 @@ build/
 .cache/openultrasast/
 **/.cache/openultrasast/
 artifacts/
+!src/openultrasast/ruleset/entries/artifacts/
+!src/openultrasast/ruleset/entries/artifacts/sha256/
+!src/openultrasast/ruleset/entries/artifacts/sha256/*
 reports/
 vector-store/
 *.sarif

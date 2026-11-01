@@ -359,7 +359,7 @@ its final resolution, dominance, fact-acquisition and measurement semantics with
   - _Requirements: 13.2, 13.3_
   - _Boundary: Installed Authority Review Ceremony_
   - _Depends: 14.3_
-- [ ] 14.5 Migrate the installed entry knowledge into reviewed v2 packs
+- [x] 14.5 Migrate the installed entry knowledge into reviewed v2 packs
   - Produce one language-scoped v2 pack per promoted language and a separately authenticated canonical compatibility projection from the existing reviewed entry data.
   - Map every migrated row to declared roles, typed structural requirements and relation effects without adding target vocabulary to engine modules.
   - Preserve legacy pattern recognition byte-for-byte while preventing the projection from constructing detection-core evidence or readiness.
