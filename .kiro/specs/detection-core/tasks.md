@@ -302,7 +302,7 @@
   - _Depends: 8.2, 8.9_
 
 - [ ] 9. Integrate adjacent producers and benchmark-owned orchestration
-- [ ] 9.1 (P) Translate the parked authorization trace conservatively into v2 evidence
+- [x] 9.1 (P) Translate the parked authorization trace conservatively into v2 evidence
   - Move conversion out of the family trace domain and keep authorization vocabulary outside shared core modules.
   - Map missing per-hop knowledge to incomplete relations and indeterminate outcomes without behavior lifting.
   - Preserve existing parked-arm regression behavior and avoid any admission rerun or reactivation.

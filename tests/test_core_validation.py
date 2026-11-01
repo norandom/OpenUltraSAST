@@ -18,6 +18,7 @@ from openultrasast.semantic.obligations.abstract_domain import (  # noqa: E402
     ResourceRef,
     WitnessMatch,
 )
+from openultrasast.semantic.obligations.core_adapter import to_legacy_trace_record  # noqa: E402
 from openultrasast.semantic.obligations.trace import AbstractTraceState, Trace  # noqa: E402
 
 REPO = Path(__file__).resolve().parents[1]
@@ -67,7 +68,7 @@ def test_end_to_end_push_through_core_contracts() -> None:
         missing="identity_constraint",
         abstract_state=state,
     )
-    record = trace.to_core_record(entry="src/app.py::handler", digests={"input": "abc123"})
+    record = to_legacy_trace_record(trace, entry="src/app.py::handler", digests={"input": "abc123"})
     claim = ProvenClaim(trace_id="t1", witness="fact:f", path="src/app.py", line=30, family="access_control")
     verdict = consume_verdict(PushRequest(base="b", head="h", budget_class="dev-pool"), record, (claim,), ())
     assert verdict.claims[0].witness == "fact:f"

@@ -17,6 +17,7 @@ from openultrasast.semantic.obligations.abstract_domain import (  # noqa: E402
     ResourceRef,
     WitnessMatch,
 )
+from openultrasast.semantic.obligations.core_adapter import to_legacy_trace_record  # noqa: E402
 from openultrasast.semantic.obligations.trace import AbstractTraceState, Guard, Hop, Trace  # noqa: E402
 
 
@@ -55,14 +56,14 @@ def _trace() -> Trace:
 
 
 def test_trace_natively_conforms_to_core_schema() -> None:
-    record = _trace().to_core_record(entry="src/app.py::handler", digests={"input": "abc123"})
+    record = to_legacy_trace_record(_trace(), entry="src/app.py::handler", digests={"input": "abc123"})
     assert isinstance(record, TraceRecord)
     assert record.entry == "src/app.py::handler"
     assert record.judgment is Judgment.UNGUARDED
     assert record.resource == "credentials"
     assert [g.kind for g in record.guards] == ["permission_check", "inner", "after"]
     assert record.hops[0].complete is False  # conservative default
-    assert record.canonical() == _trace().to_core_record(entry="src/app.py::handler", digests={"input": "abc123"}).canonical()
+    assert record.canonical() == to_legacy_trace_record(_trace(), entry="src/app.py::handler", digests={"input": "abc123"}).canonical()
 
 
 def test_legacy_trace_without_abstract_state_is_indeterminate() -> None:
@@ -82,7 +83,7 @@ def test_legacy_trace_without_abstract_state_is_indeterminate() -> None:
         dominating=trace.dominating,
         missing=trace.missing,
     )
-    record = legacy.to_core_record(entry="e", digests={})
+    record = to_legacy_trace_record(legacy, entry="e", digests={})
     assert record.judgment is Judgment.INDETERMINATE
     assert record.completeness_reasons
 
