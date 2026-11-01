@@ -318,7 +318,7 @@
   - _Requirements: 9.1, 9.2, 9.3, 9.4, 9.5, 14.3_
   - _Boundary: Model Adapter_
   - _Depends: 6.2, 7.2_
-- [ ] 9.3 (P) Translate demonstrated search results into trusted proof attachments
+- [x] 9.3 (P) Translate demonstrated search results into trusted proof attachments
   - Map existing typed affected/safe verification records without moving sandbox or oracle execution into core.
   - Preserve producer, control, witness, storage, and verification identities required by proof validation.
   - Refuse inconclusive and mismatched fixtures at the adapter/core seam.
