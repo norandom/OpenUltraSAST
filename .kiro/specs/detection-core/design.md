@@ -229,7 +229,9 @@ src/openultrasast/core/
 ├── verdict.py               # Claims, satisfaction, silence, proof attachment and aggregation
 ├── probes.py                # Reviewed semantic-equivalence probes and fitted-component evidence gates
 ├── measurement.py           # Complete baseline identity, rates, funnel and report schema v2
-├── admission.py             # Census, feasibility, evidence-derived scoring and fitted-component gate
+├── admission_case.py        # Case results and authenticated post-spend release bindings
+├── admission_metrics.py     # Evidence-derived scoped and whole-population metric algebra
+├── admission.py             # Census, feasibility, report assembly and fitted-component gate
 ├── consumer.py              # Scoped push request and verdict consumption
 └── legacy.py                # Read-only v1 trace and report decoder and validator
 
@@ -374,16 +376,21 @@ sequenceDiagram
     Custodian-->>Benchmark: Durable spend receipt then release labels
     Benchmark->>Arm: Run frozen analyzer facts and model
     Arm-->>Benchmark: Immutable case results
-    Benchmark->>Core: Preparation receipt case results and instrument receipts
-    Core->>Core: Revalidate canonical inputs and score scopes separately
-    Core-->>Benchmark: Report bound to authorization and spend receipt
+    Benchmark->>Custodian: Submit immutable case-result identities
+    Custodian-->>Benchmark: Attested case release bound to spend receipt
+    Benchmark->>Core: Preparation receipt case release results and instrument receipts
+    Core->>Core: Revalidate release bindings canonical inputs and scoped scores
+    Core-->>Benchmark: Report bound to authorization spend receipt and case release
 ```
 
 Core never creates, edits, labels, or persists the admission population. The benchmark
 custodian performs durable append and label release as one guarded operation: a crash before
 the append releases no labels, while a crash after it leaves the population spent. Concurrent
 attempts race on the same custody head, and only the compare-and-swap winner receives label
-bytes.
+bytes. The case release is constructed only after that spend. It discloses the per-case
+role and pair mapping that the aggregate census deliberately withholds, and it binds those
+labels to the exact immutable case-result and evidence/input identities submitted for
+scoring.
 
 ## Requirements Traceability
 
@@ -400,7 +407,7 @@ bytes.
 | 9.1, 9.2, 9.3, 9.4, 9.5, 9.6 | Bounded model and proof roles | Model Handoff, Family Contract, Verdict, Proof Attachment | Model residual and proof flow |
 | 10.1, 10.2, 10.3, 10.4 | Complete reproducibility identities | Provenance and Lineage, Fact Pack, Model Handoff | All record flows |
 | 11.1, 11.2, 11.3, 11.4, 11.5, 11.6 | Reviewed semantic packs and supported scope | Fact Pack, Semantic Evidence, Measurement | Pack ingestion and reports |
-| 12.1, 12.2, 12.3, 12.4, 12.5, 12.6 | Admission prerequisites and scoped scoring | Admission, Readiness, Measurement | Admission sequence |
+| 12.1, 12.2, 12.3, 12.4, 12.5, 12.6 | Admission prerequisites, authenticated case release and scoped scoring | Admission, Readiness, Measurement | Admission sequence |
 | 13.1, 13.2, 13.3, 13.4 | Development and evaluation separation | Provenance and Lineage, Probes, Admission | Freeze and admission validation |
 | 14.1, 14.2, 14.3, 14.4, 14.5 | Shared consumer and family-spec contract | Consumer, Verdict, Family Capability Declaration, Legacy Adapter | Push and migration flows |
 | 15.1, 15.2, 15.3, 15.4, 15.5 | Fixed versioned measurement and baseline rules | Measurement, Coverage, Readiness | Development and admission reporting |
@@ -423,7 +430,7 @@ bytes.
 | Verdict and Proof | Decision | Produce bounded outputs and attach proof | 7.1–7.4, 9.4, 9.6, 14.2, 14.4 | Evidence, Model | Service, State |
 | Probes | Governance | Test semantic shortcut resistance | 13.2 | Evidence, Family, Fact Pack review policy | Service |
 | Measurement | Evaluation | Create baseline identity and fixed report schema | 11.6, 15.1–15.5 | Coverage, Readiness | Service, State |
-| Admission | Evaluation | Validate manifests, feasibility and scoped scores | 12.1–12.6, 13.4 | Readiness, Measurement, Evidence Validation, Verdict, Probes, Budget, Provenance | Service, Batch |
+| Admission | Evaluation | Validate manifests, feasibility, post-spend case release and scoped scores | 12.1–12.6, 13.4 | Readiness, Measurement, Evidence Validation, Verdict, Probes, Budget, Provenance | Service, Batch |
 | Consumer | Edge | Validate push requests and return bounded verdicts | 6.4, 14.1–14.5 | Budget, Evidence Validation, Verdict, Provenance, Canonical resolver | Service |
 | Legacy Decoder | Migration | Read and validate historical v1 only | 14.3, 15.3 | Canonical Codec, Evidence | Service |
 | External Adapters | Integration | Translate authorization, DSPy and proof records | 3.5, 9.1–9.6, 14.2–14.3 | Public core | Service |
@@ -1721,6 +1728,11 @@ authorization; the derived result digests must exactly equal the fitted-componen
   separately.
 - The census exposes only reviewed aggregate cardinalities, never case identities or
   per-case labels. It is bound to the same population digest as the manifest.
+- After the population is durably spent, the custodian produces an independently attested
+  `AdmissionCaseRelease`. The release is bound to the population, manifest, authorization,
+  preparation, exact spend receipt, and custodian identity. Its bindings associate each
+  case identity with one scope, role, scoped pair identity where applicable, result digest,
+  evidence-input digests, change-input digests, and input-manifest digest.
 - Before labels open, feasibility enumerates the arithmetically possible counts using pair,
   case, semantic-site, and model-call capacities and applies count, rate, per-100, or
   Wilson-bound statistics. Every threshold group must have an attainable joint count. An
@@ -1731,6 +1743,10 @@ authorization; the derived result digests must exactly equal the fitted-componen
   trusted. The scorer re-runs record/fact/verdict validation and refuses supplied
   claims/satisfaction/silence that differ from the derived result. Core never persists or
   relabels cases.
+- Scoring treats the post-spend case release as the sole authority for case roles and pair
+  membership. It re-derives each case result and its operational projection, requires an
+  exact one-to-one binding, and refuses missing, extra, duplicate, substituted, swapped, or
+  cross-scope cases before producing any metric.
 - Admission authorization produces a custody-head-bound label-release request. The
   benchmark custodian must durably spend the population before releasing label bytes;
   scoring revalidates that exact current-chain receipt and never emits a post-scoring spend
@@ -1899,6 +1915,32 @@ class AdmissionCaseResult:
     result_digest: str
 
 @dataclass(frozen=True)
+class ReleasedCaseBinding:
+    case_id_digest: str
+    scope: ScopeKey
+    role: AdmissionCaseRole
+    pair_id_digest: str | None
+    case_result_digest: str
+    evidence_input_digests: tuple[str, ...]
+    change_input_digests: tuple[str, ...]
+    input_manifest_digest: str
+    binding_digest: str
+
+@dataclass(frozen=True)
+class AdmissionCaseRelease:
+    schema_version: str
+    population_digest: str
+    manifest_digest: str
+    authorization_digest: str
+    preparation_digest: str
+    label_release_receipt_digest: str
+    custodian_identity: str
+    bindings: tuple[ReleasedCaseBinding, ...]
+    release_payload_digest: str
+    review: IndependenceAttestation
+    release_digest: str
+
+@dataclass(frozen=True)
 class MetricResult:
     metric_id: MetricId
     numerator: int
@@ -1977,6 +2019,7 @@ class AdmissionReportV2:
     validation_context_digest: str
     authorization_digest: str
     label_release_receipt_digest: str
+    case_release_digest: str
     case_result_digests: tuple[str, ...]
     in_scope_case_count: int
     whole_population_case_count: int
@@ -2015,6 +2058,7 @@ def score_admission(
     manifest: AdmissionManifestV2,
     preparation: AdmissionPreparation,
     label_release_receipt: PopulationUseReceipt,
+    case_release: AdmissionCaseRelease,
     cases: Sequence[AdmissionCaseResult],
     context: AdmissionValidationContext,
     custody: PopulationCustodyPort,
@@ -2041,6 +2085,15 @@ context's admission-review policy and forbidden-pair rules; the reviewer must be
 and the conflict disclosure must resolve under the policy's store and byte limits. A
 self-review, unknown reviewer, fabricated digest, or review copied from another payload is
 refused before feasibility.
+
+`AdmissionCaseRelease` is a post-spend contract, not part of the label-blind census or
+manifest. Its payload digest includes every substantive field except the review attestation;
+the release digest includes both. The review producer must equal both the declared custodian
+and the validated spend receipt's custodian, while the reviewer must be distinct and admitted
+by the context's admission-review policy. The attestation subject must equal the release
+payload digest, and its conflict disclosure is resolved under the same store and byte limits.
+The release population, manifest, authorization, preparation, and receipt digests must match
+the exact values being scored.
 
 The manifest identity, census population, claimed scopes,
 contract-set, facts, acquisition, analyzer, configuration, model-program set, denominator,
@@ -2074,7 +2127,16 @@ append leaves the population spent, and concurrent losers receive no label bytes
 
 `score_admission` requires that spend receipt to be the current-chain direct successor of
 the authorization head and to match the preparation byte for byte. It refuses a different
-manifest, context, readiness set, census, case population, or receipt. For every case it
+manifest, context, readiness set, census, case population, receipt, or case release. It
+validates the case release only after the spend receipt has been revalidated. Release
+bindings are canonically ordered by case identity and unique; vulnerable and fixed cases
+require one pair identity qualified by their `ScopeKey`, ordinary cases prohibit one, and
+every scoped pair contains exactly one vulnerable and one fixed binding. For each supplied
+case, scoring re-derives `result_digest`, the sorted evidence-input digests, the distinct
+change-input digests from validated packet provenance, and the input-manifest digest and
+requires exact equality with its release binding. The supplied scope, role, and pair must
+also equal the binding. Missing, extra, duplicate, substituted, role-swapped, payload-swapped,
+or cross-scope bindings fail before metrics. For every case it
 calls `validate_evidence_input` for every `evidence_inputs` member, then performs instrument
 and budget validation, and verdict/proof validation using the context-bound policies.
 Proof attachments are applied only to those validated base records and the resulting claims
@@ -2086,7 +2148,8 @@ Claims, satisfaction, silence, decision vocabulary, metrics, and gates are then 
 from those revalidated objects. A forged family decision, substituted contract, invalid
 fact review or match, contaminated lineage, or untrusted proof fails before any metric or
 gate is produced. The final report binds the validation context, authorization, and
-pre-label spend receipt; there is no post-scoring population-use request.
+pre-label spend receipt, and authenticated post-spend case release; there is no
+post-scoring population-use request.
 
 The report validates case counts back to the census, reports paired vulnerable/fixed
 behavior and ordinary false alarms through registered metrics, imports semantic-stage and
@@ -2340,7 +2403,8 @@ dependencies into core.
 | `PopulationCensus` | Population, scope cardinalities, payload and independent review attestation | Aggregate and label-blind; no case IDs; same population as manifest; no self-review |
 | `BaselineIdentity` | Arm, population/freeze, claimed scopes, contract set, fact schema/set, acquisition, analyzer, configuration, model set, denominator, threshold set and outcome mapping | Any changed field creates a new baseline |
 | `AdmissionPreparation` | Manifest/context authorization and expected custody head | Feasible pre-registration; label-release request spends before bytes open |
-| `AdmissionReportV2` | Baseline, validation context, authorization, spend receipt and case/result digests | Canonical input revalidation; in-scope scoring; all gates reported |
+| `AdmissionCaseRelease` | Population, manifest, authorization, preparation, spend receipt, custodian and attested case bindings | Post-spend only; exact one-to-one case/result/evidence/change/input binding; scoped roles and pairs |
+| `AdmissionReportV2` | Baseline, validation context, authorization, spend receipt, case release and case/result digests | Canonical input revalidation; in-scope scoring; all gates reported |
 | `RepositoryHoldoutReport` | Component, disjoint repository manifests and measurement | Explicit holdout role; matches fitting lineage and component identity |
 | `DifferentialProofRecord` | Reviewed producer, control-bound sides and resolved witness/verification receipt | Affected change identity, reviewed safe control, trusted producer/store policy |
 | `PushVerdict` | Request and record digests | No unbounded clean result; proof basis does not imply rollout permission |
@@ -2381,6 +2445,7 @@ that can be mistaken for a clean scan.
 | Provenance mismatch | Any digest cannot be re-derived | Refuse affected result and dependent later receipts |
 | Review mismatch | Self-review, unknown reviewer, copied attestation, or unreadable disclosure | Refuse before feasibility or semantic use |
 | Custody mismatch | Old/incomplete log, broken chain, or prior spend | Refuse use/admission; preserve monotonic spent status |
+| Case release mismatch | Pre-spend release, wrong custodian/receipt, missing/extra case, role/pair swap, or operational payload substitution | Refuse before metric production |
 
 ### Monitoring
 
@@ -2443,7 +2508,10 @@ spec and consumes only status, counts, and digests.
   covers spend-before-label crash/concurrency order and refuses a forged family decision,
   substituted contract, invalid fact review, or contaminated model/threshold/matcher
   lineage before metrics or gates. Manifest and census self-review, unknown reviewers,
-  copied attestations, and unresolved conflict disclosures fail before feasibility
+  copied attestations, and unresolved conflict disclosures fail before feasibility. A
+  post-spend release matrix rejects a wrong custodian or receipt, missing/extra/duplicate
+  bindings, cross-scope pairs, role swaps, result swaps, and rehashed evidence/change/input
+  substitutions before metric production
   (`12.1–12.6`, `13.1`, `13.4`).
 - `test_core_measurement.py`: required schema, basis stratification, Wilson counts, baseline
   mutation matrix, zero receipts, and prerequisite stage result/digest references. A

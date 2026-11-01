@@ -263,21 +263,31 @@
   - Keep durable append, compare-and-swap execution, label release, persistence, crash handling, and concurrency outside core.
   - Done when only the exact spent successor authorizes scoring and every other receipt shape is refused without an external side effect.
   - _Requirements: 12.2, 13.4_
-- [ ] 8.7 Derive scoped admission metrics from canonical case evidence
+- [ ] 8.7 Validate the authenticated post-spend case release
+  - Define canonical released-case bindings over case identity, scope, role, scoped pair identity, exact result digest, evidence-input digests, change-input digests, and input-manifest digest.
+  - Bind the release to the population, manifest, authorization, preparation, exact current-chain spend receipt, custodian identity, and an independent review attestation.
+  - Validate the release only after the exact spend successor and require one canonical binding for every supplied case and no others.
+  - Reject missing, extra, duplicate, cross-scope, role-swapped, pair-swapped, result-swapped, or rehashed operational-payload substitutions before metric production.
+  - Keep case identities and labels out of the pre-label census and make the external custodian, not the runner, authoritative for their post-spend association.
+  - Done when the reproduced vulnerable/fixed payload swap and every release-field mutation fail before any admission metric is returned.
+  - _Requirements: 12.2, 12.5, 12.6, 13.4, 15.1_
+  - _Boundary: Admission Case Release_
+- [ ] 8.8 Derive scoped admission metrics from canonical case evidence
   - Re-run shared evidence validation, instrument, budget, verdict, and proof validation for every case.
-  - Match case roles and pairs back to the reviewed census and derive decision vocabulary and counts from the exact catalog.
+  - Consume only cases that exactly match the authenticated post-spend release; use its roles and scoped pairs while reconciling aggregate counts to the reviewed census.
   - Score quality only over pre-registered family/ecosystem scopes while retaining whole-population coverage.
   - Compute paired behavior, ordinary false alarms, semantic coverage, model outcomes, and all standard metrics without trusting runner aggregates.
   - Done when forged decisions, substituted contracts, invalid fact review, contaminated lineage, or case-count drift fail before metric production.
   - _Requirements: 12.5, 12.6, 15.1, 15.2_
-- [ ] 8.8 Assemble evidence-backed gates and the final admission report
+  - _Depends: 8.7_
+- [ ] 8.9 Assemble evidence-backed gates and the final admission report
   - Emit instrument, budget, readiness, and quality gates with reasons and supporting identities.
-  - Bind the report to the validation context, authorization, pre-label spend receipt, census, and complete case-result set.
+  - Bind the report to the validation context, authorization, pre-label spend receipt, authenticated case release, census, and complete case-result set.
   - Require every mandatory metric and gate, plus model success when applicable, before allowing GO.
   - Keep model-corroborated, deterministic, and execution-backed counts separate.
   - Done when any missing/failed mandatory gate forces NO-GO and a complete passing synthetic fixture yields a reproducible GO report.
   - _Requirements: 12.6, 15.1, 15.2, 15.4, 15.5_
-- [ ] 8.9 Authorize fitted components only from replayed probes and disjoint evaluation
+- [ ] 8.10 Authorize fitted components only from replayed probes and disjoint evaluation
   - Resolve the component’s unique model declaration, family contract, review policy, and custody policy from the admission-bound context.
   - Re-evaluate every canonical probe input and require the derived result set to match the component evidence.
   - Consume the typed repository-holdout report from task 8.2 and validate its evidence-use role, training/holdout references, report identity, and fitting lineage.
@@ -330,11 +340,12 @@
 - [ ] 9.6 Integrate benchmark-owned admission scoring and guarded custody
   - Delegate neutral scoring to core while retaining population persistence and run orchestration in the benchmark.
   - Make the custodian the sole append-only writer and combine durable compare-and-swap spend plus label release as one guarded operation.
+  - After the winning spend, produce and independently attest the canonical case release over the exact immutable result, evidence, change, and input identities supplied to scoring.
   - Supply expanded manifest, lineage, resolver, and validation-context identities without exposing labels early.
-  - Exercise durable append, release, crash-before-append, crash-after-append, and concurrent-winner behavior at this external boundary.
-  - Done when synthetic admission completes end to end and injected crash/concurrency cases prove labels reach at most the successful compare-and-swap winner.
+  - Exercise durable append, label release, case-release production, crash-before-append, crash-after-append, and concurrent-winner behavior at this external boundary.
+  - Done when synthetic admission completes end to end, injected crash/concurrency cases prove labels reach at most the successful compare-and-swap winner, and swapped operational payloads are refused by core.
   - _Requirements: 12.1, 12.2, 12.3, 12.4, 12.5, 12.6, 13.4_
-  - _Depends: 8.8, 9.5_
+  - _Depends: 8.9, 9.5_
 
 - [ ] 10. Complete the single-writer v2 migration
 - [ ] 10.1 Prepare schema-routed legacy reads and cutover tests without publishing v2

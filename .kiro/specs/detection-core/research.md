@@ -523,3 +523,44 @@ requirements approval.
   expectations. Fact content forbids all labelled ancestry; model, threshold, matcher, and
   fitted-component validation protects the current evaluation population while allowing
   separately spent development populations.
+
+---
+
+## Post-spend case-release trust closure (2026-11-01)
+
+### Scope of this pass
+
+- **Context:** task 8.7 demonstrated that aggregate census cardinalities and a valid spend
+  receipt do not authenticate which immutable operational result belongs to which released
+  case role and pair. A caller could swap vulnerable/fixed payloads, recompute result
+  digests, and change admission metrics while preserving every approved pre-label object.
+- **Sources consulted:** requirements 12.1–12.6 and 15.1–15.5, the admission design and
+  custody contracts, the task-8.7 implementation diff and adversarial review reproducer,
+  and project steering on label isolation and fixed measurement.
+- **Finding:** this is a design-contract gap, not a metric-algebra bug. The pre-label census
+  correctly withholds per-case identities and labels; therefore it cannot also authenticate
+  the post-opening mapping used for scoring.
+
+### Decision: add an authenticated post-spend case release
+
+- **Alternatives considered:** put per-case commitments in the pre-label census; trust
+  caller-supplied case roles after a valid spend; or add a separate post-spend release.
+- **Selected approach:** the custodian produces an independently attested
+  `AdmissionCaseRelease` only after the exact label-opening spend. Each binding joins a case
+  identity and released scope/role/pair to the exact result, evidence-input, change-input,
+  and input-manifest identities that core re-derives during scoring.
+- **Rationale:** the release preserves aggregate-only pre-registration while giving the
+  scorer an authority for the association that determines every numerator and denominator.
+- **Trade-offs:** admission orchestration gains one immutable artifact and review step. In
+  exchange, case substitution, role swaps, cross-scope pair collisions, and rehashed payload
+  swaps fail before any measurement is emitted.
+- **Boundary:** core defines and validates the release; the benchmark custodian remains the
+  sole producer, durable writer, and label releaser. No cryptographic signing system or
+  population persistence moves into core.
+
+### Revalidation impact
+
+- Admission scoring and report assembly must consume and bind the release digest.
+- Benchmark-owned guarded custody must produce the release after the winning spend and
+  prove crash/concurrency behavior at that external boundary.
+- The pre-label census and feasibility contracts remain unchanged and label-blind.
