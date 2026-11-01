@@ -118,6 +118,7 @@ src/openultrasast/
 │   ├── registry.py                      # strategy registration and dispatch
 │   ├── registration_sites.py            # generic call-site registration adapter
 │   ├── fact_authority.py                 # authenticate installed reviewed authority
+│   ├── installed_fact_authority.py       # closed JSON decoders and checked-in artifact resolver
 │   ├── entry_packs.py                    # compatibility projection and v2 structural adapter
 │   ├── fact_match_store.py               # persist canonical observations and match artifacts
 │   ├── legacy.py                          # production caller migrates to authority-bearing adapter
@@ -148,7 +149,12 @@ src/openultrasast/ruleset/entries/
 ├── authority.json                      # reviewed bundle payload and immutable references
 ├── express.javascript.v2.json          # reviewed JavaScript FactPack
 ├── express.typescript.v2.json          # reviewed TypeScript FactPack
-└── express.json                        # authenticated non-authoritative compatibility projection
+├── express.json                        # authenticated non-authoritative compatibility projection
+├── identities/
+│   ├── generator.json                    # producer identity manifest
+│   ├── maintainer-reviewer.json          # maintainer approval identity manifest
+│   └── custodian.json                    # installed-artifact custody identity manifest
+└── artifacts/sha256/<content-digest>   # canonical review/disclosure/evidence bytes
 benchmarks/valid/
 ├── prover_arm.py                         # records, stage funnel, gates and four-arm comparison
 └── prover_admission.py                   # frozen-manifest admission orchestration
@@ -460,6 +466,62 @@ by the bundle it authenticates, and is replaceable by host configuration. The ar
 writer receives an explicit store root, store identity, and retention-policy digest; it
 writes content-addressed canonical bytes and returns a read-only resolver plus re-derivable
 storage receipts admitted by that bootstrap policy.
+
+#### Installed authority wire and review ceremony
+
+The checked-in authority uses closed canonical JSON records; decoders reject unknown or
+missing fields before constructing typed objects. `bootstrap.json` has schema
+`openultrasast.access-control.entry-authority-bootstrap.v2` and exactly the five
+`EntryAuthorityBootstrapPolicy` fields. `authority.json` has schema
+`openultrasast.access-control.installed-entry-authority.v1` and exactly:
+
+- `pack_files`: the ordered pair `express.javascript.v2.json`,
+  `express.typescript.v2.json`;
+- `recognition_projection`, lineages, custody policy, review policy, matcher revision,
+  matcher behavior digest, matcher lineage digest, authority review, and bundle digest;
+- no trust-root, reviewer-admission, or store-admission fields.
+
+Each v2 pack file is canonical JSON over every public `FactPack` field and the complete
+nested `SemanticFact`, structural-requirement, relation-effect, knowledge-evidence,
+attestation, and `ContentRef` values. Enum values use their public string values. The
+installed decoder accepts only `FACT_PACK_SCHEMA`, re-encodes the typed value, and requires
+byte equality so alternate/unknown encodings cannot share authority. `authority.json`
+embeds policies and lineages because those values participate directly in the typed bundle;
+review evidence and disclosures remain immutable `ContentRef` values.
+
+All referenced bytes live under `artifacts/sha256/<content_digest>`. The installed resolver
+validates the lowercase SHA-256 digest first and derives the filesystem basename solely from
+`ContentRef.content_digest`; `artifact_id` is diagnostic metadata and is never interpreted as
+a path. The resolver verifies byte length and digest, and derives
+the `StorageReceipt` from the bootstrap-admitted store identity
+`openultrasast-installed-entry-artifacts-v1`, the reference retention-policy digest, content
+digest, and length. Receipts are derived, not separately mutable files. Pack filenames are
+fixed by the closed authority schema; their typed normalized identities are covered by the
+bundle digest, so substituting either pack changes authority even though the filenames are
+not trust roots.
+
+The approved repo-local ceremony records three distinct canonical identity manifests under
+schema `openultrasast.access-control.authority-identity.v1`. Every manifest has exactly
+`schema_version`, `role`, `name`, and `approval_basis`; its identity is the digest of its
+canonical bytes, and the loader rejects unknown fields or noncanonical bytes. The fixed rows
+are:
+
+| File | `role` | `name` | `approval_basis` |
+|---|---|---|---|
+| `generator.json` | `producer` | `openultrasast-entry-pack-generator-v1` | `generated-from-reviewed-entry-data` |
+| `maintainer-reviewer.json` | `reviewer` | `openultrasast-maintainer` | `maintainer-session-approval:2026-11-01` |
+| `custodian.json` | `custodian` | `openultrasast-installed-entry-custodian-v1` | `checked-in-artifact-custody` |
+
+The ceremony loader requires bootstrap reviewer admission to equal the reviewer-manifest
+digest, custody-policy admission to equal the custodian-manifest digest, authority review
+producer/reviewer identities to equal the generator/reviewer digests, and pack evidence to
+use the same producer/reviewer identities. The maintainer explicitly approved this ceremony
+on 2026-11-01; that approval authorizes recording the reviewer identity but does not let the
+generator choose a different reviewer. Bootstrap admits only that reviewer digest and the
+installed store identity. Producer and reviewer must differ, the pair remains subject to the
+forbidden-pair policy, conflict disclosures must be canonical and resolved, and any identity
+field or approval-basis change creates a new digest and invalidates these bindings until a
+new human review.
 
 The structural adapter consumes promoted recognition output and repository structure. For
 each fact it emits the complete typed requirement set (qualified target, AST shape,

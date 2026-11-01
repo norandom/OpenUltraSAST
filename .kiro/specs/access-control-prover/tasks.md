@@ -345,46 +345,59 @@ its final resolution, dominance, fact-acquisition and measurement semantics with
   - _Requirements: 13.2, 13.3_
   - _Boundary: Fact Authority_
   - _Depends: 14.1_
-- [ ] 14.3 Migrate the installed entry knowledge into reviewed v2 packs
+- [ ] 14.3 Implement installed authority codecs and resolver
+  - Implement closed canonical JSON decoders for the bootstrap policy, installed authority, v2 fact packs, nested policies/lineages/evidence and immutable content references.
+  - Implement the checked-in digest-addressed resolver using only validated `content_digest` for filesystem addressing and re-derivable storage receipts under an injected bootstrap-admitted store identity.
+  - Done when canonical synthetic installed fixtures round-trip to Task 14.2 typed values and unknown/missing fields, noncanonical bytes, traversal-like artifact IDs, digest paths or byte substitutions fail before authentication.
+  - _Requirements: 13.2, 13.3_
+  - _Boundary: Installed Fact Authority Wire_
+  - _Depends: 14.2_
+- [ ] 14.4 Record the approved repo-local review ceremony
+  - Write the three closed canonical identity manifests with the exact schema, role, name and approval-basis values declared by the design.
+  - Bind bootstrap reviewer admission, custody policy, authority review and pack evidence identities to those manifest digests while keeping all trust/store admission outside `authority.json`.
+  - Done when the approved manifests and bootstrap load through Task 14.3, all identity bindings validate, and changing any field or approval basis invalidates authentication.
+  - _Requirements: 13.2, 13.3_
+  - _Boundary: Installed Authority Review Ceremony_
+  - _Depends: 14.3_
+- [ ] 14.5 Migrate the installed entry knowledge into reviewed v2 packs
   - Produce one language-scoped v2 pack per promoted language and a separately authenticated canonical compatibility projection from the existing reviewed entry data.
   - Map every migrated row to declared roles, typed structural requirements and relation effects without adding target vocabulary to engine modules.
   - Preserve legacy pattern recognition byte-for-byte while preventing the projection from constructing detection-core evidence or readiness.
   - Done when legacy recognition fixtures are unchanged, both reviewed language packs validate under task 14.2 authority, and projection-only input remains non-authoritative.
   - _Requirements: 1.1, 1.5, 1.7, 2.9, 2.10, 13.2, 13.4_
   - _Boundary: Entry Knowledge Migration_
-  - _Depends: 14.1, 14.2_
-  - _Blocked: the approved plan does not define installed v2 JSON decoders, bundle-reference and content-store/receipt layouts, or independently supplied production producer, reviewer, custodian and trusted-store identities; generating all of them inside this task would self-authorize the authority_
-- [ ] 14.4 Add canonical structural-observation and fact-match persistence
+  - _Depends: 14.1, 14.2, 14.3, 14.4_
+- [ ] 14.6 Add canonical structural-observation and fact-match persistence
   - Provide the downstream write boundary that persists canonical `StructuralObservation` bytes and returns immutable references through a read-only resolver.
   - Persist completed `fact_match_bytes` only after its observation references exist, then return the match reference without inserting a circular self-reference into the match digest.
   - Done when stored observation and match bytes resolve canonically and byte or reference substitution is refused deterministically.
   - _Requirements: 13.5_
   - _Boundary: Fact-Match Artifact Writer_
-- [ ] 14.5 Implement the authority-bearing structural matcher
+- [ ] 14.7 Implement the authority-bearing structural matcher
   - Build typed observations from repository structure for the requirements declared by the selected reviewed fact; do not infer missing structure from a regex or name hit.
-  - Use task 14.4 to persist every observation and completed `FactMatchEvidence`, then pass the immutable match reference with family contract, policies, lineages, custody and read-only resolver to detection-core.
+  - Use task 14.6 to persist every observation and completed `FactMatchEvidence`, then pass the immutable match reference with family contract, policies, lineages, custody and read-only resolver to detection-core.
   - Bind matcher behavior and fact lineage to current custody and the evaluation population so same-population label influence is incomplete or refused.
   - Done when complete fixtures apply the declared relations, while name-only, partial, ambiguous, substituted and contaminated fixtures cannot produce complete evidence.
   - _Requirements: 1.1, 1.2, 1.3, 1.5, 7.2, 9.4, 13.5, 13.6_
   - _Boundary: Structural Matcher_
-  - _Depends: 14.2, 14.3, 14.4_
-- [ ] 14.6 Produce the downstream conformance handoff
+  - _Depends: 14.2, 14.5, 14.6_
+- [ ] 14.8 Produce the downstream conformance handoff
   - Run detection-core fact-pack, fact-match, application and full-evidence validators over target-owned fixtures after proving nonzero fixture reads.
   - Publish an immutable manifest naming every fixture, artifact digest, validator result and negative-case reason for detection-core task 9.4 to accept; do not add target fixtures to core.
   - Exercise authority substitution, producer/reviewer conflict, resolver byte substitution, lineage omission, custody contamination and deterministic replay.
   - Done when the complete target-owned fixture passes, every incomplete/self-authored/substituted/contaminated/legacy-only variant is refused with a stable reason, and the immutable handoff manifest is reproducible.
   - _Requirements: 7.2, 7.4, 12.2, 12.3, 13.7_
   - _Boundary: Downstream Adapter Conformance Handoff_
-  - _Depends: 14.5_
-- [ ] 14.7 Migrate the production entry caller and prove zero bypasses
+  - _Depends: 14.7_
+- [ ] 14.9 Migrate the production entry caller and prove zero bypasses
   - Wire the externally bootstrapped authority-bearing adapter into the target-aware `mapping/legacy.py` entry path while keeping `analyze_entry_points` stable for its callers.
   - Retain the legacy projection only for compatibility recognition; prohibit it from supplying v2 evidence, readiness or admission.
   - Run import/caller and artifact-writer censuses proving no production path bypasses authority or treats legacy projection output as v2 evidence.
   - Done when existing entry recognition remains byte-stable, explicit v2 matching uses the reviewed persisted path, and both production bypass censuses are zero.
   - _Requirements: 1.1, 1.5, 1.7, 13.4, 13.7, 13.8_
   - _Boundary: Production Mapping Integration_
-  - _Depends: 14.6_
-  - _Blocked: detection-core task 9.4 must accept the immutable handoff from task 14.6 before production caller migration_
+  - _Depends: 14.8_
+  - _Blocked: detection-core task 9.4 must accept the immutable handoff from task 14.8 before production caller migration_
 
 ## Task constraints
 
@@ -396,7 +409,7 @@ its final resolution, dominance, fact-acquisition and measurement semantics with
 
 ## Implementation Notes
 
-- Task 14.3: the 963-byte legacy entry file is readable, but typed authority validation is not an installed-artifact format. Migration requires a separately approved wire/storage contract and real independently supplied trust identities before checked-in artifacts can be called reviewed.
+- Task 14.3 planning: the 963-byte legacy entry file was readable, but typed authority validation was not an installed-artifact format. The maintainer approved the repo-local review ceremony; Tasks 14.3–14.4 now separate wire/resolver implementation from the identity/bootstrap records before Task 14.5 migrates data.
 
 ## Baseline implementation record
 

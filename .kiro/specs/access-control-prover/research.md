@@ -316,10 +316,10 @@ missing authority, not an unread input or broken validator.
 4. **Compatibility:** existing regex rows remain a byte-stable recognition projection during
    migration. They are explicitly non-authoritative; exact typed observations are required
    for complete fact evidence.
-5. **Task routing:** access-control-prover tasks 14.1–14.6 define the family contract,
-   authenticate authority, migrate reviewed data, persist evidence, match structure, and
-   publish the conformance handoff. Detection-core task 9.4 then runs the target-neutral
-   handoff-acceptance gate. Access-control-prover task 14.7 subsequently migrates the
+5. **Task routing:** access-control-prover tasks 14.1–14.8 define the family contract,
+   authenticate authority, implement installed codecs/resolution, record the approved review
+   ceremony, migrate reviewed data, persist evidence, match structure, and publish the
+   conformance handoff. Detection-core task 9.4 then runs the target-neutral handoff-acceptance gate. Access-control-prover task 14.9 subsequently migrates the
    production caller and proves zero bypasses before detection-core task 10.2 cuts over.
 
 ### Risks and mitigations
@@ -332,3 +332,19 @@ missing authority, not an unread input or broken validator.
   reference to core; the reference is never part of match-digest construction.
 - **Admission contamination:** bind fact and matcher lineages to current custody and the
   evaluation population so label access refuses the same run.
+
+### Approved repo-local review ceremony (2026-11-01)
+
+- The maintainer approved a repo-local ceremony after Task 14.3 correctly refused to invent
+  its own independent reviewer. Generator, maintainer reviewer, and custodian are separate
+  canonical identity manifests; the maintainer-reviewer manifest records the explicit
+  session approval as its basis.
+- The bootstrap file admits the maintainer reviewer and installed content-addressed store;
+  the authenticated authority file cannot modify either admission list.
+- Closed canonical decoders, fixed pack filenames, embedded policies/lineages, and a
+  digest-addressed artifact directory make installed bytes reproducible. Storage receipts
+  are derived from verified bytes and bootstrap-admitted store identity rather than stored
+  as independently mutable claims.
+- This resolves the external identity decision but adds two prerequisite implementation
+  units: wire decoders/resolver first, then the closed identity/bootstrap manifests, before
+  the Express data migration.

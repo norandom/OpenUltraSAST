@@ -334,7 +334,7 @@
   - _Requirements: 10.2, 10.4, 11.1, 11.2, 11.3, 11.4, 11.5, 13.4, 14.3_
   - _Boundary: Fact Pack Adapter Conformance_
   - _Depends: 5.4_
-  - _Blocked: consume the handoff only after access-control-prover tasks 14.1–14.6 produce the downstream artifacts and immutable conformance manifest_
+  - _Blocked: consume the handoff only after access-control-prover tasks 14.1–14.8 produce the downstream artifacts and immutable conformance manifest_
 - [ ] 9.5 (P) Produce readiness and development records through benchmark-owned adapters
   - Construct canonical readiness results while leaving sequencing and persistence with benchmark workflows.
   - Emit development observations with v2 identities, evidence-use roles, instrument receipts, and prerequisite ancestry.
@@ -368,7 +368,7 @@
   - Done when no production writer/import targets the v1 contract, historical fixtures remain unchanged, and all public writes use v2.
   - _Requirements: 14.3, 15.3_
   - _Depends: 9.4_
-  - _Blocked: access-control-prover task 14.7 must migrate the production caller and prove a zero-bypass census after task 9.4 accepts the handoff_
+  - _Blocked: access-control-prover task 14.9 must migrate the production caller and prove a zero-bypass census after task 9.4 accepts the handoff_
 
 - [ ] 11. Validate readiness, failure visibility, and implementation boundaries
 - [ ] 11.1 Run both reference families through the complete synthetic readiness path
