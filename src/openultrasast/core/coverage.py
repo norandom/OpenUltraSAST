@@ -217,8 +217,6 @@ def _validate_relation_status_count(value: RelationStatusCount) -> None:
 def _validate_reason_count(value: ReasonCount) -> None:
     _require_text(value.reason, "reason")
     _require_count(value.count, "reason count")
-    if value.count == 0:
-        raise ValueError("reason count must be positive")
 
 
 def _validate_stage_expectation(value: StageExpectation) -> None:
@@ -268,6 +266,8 @@ def _validate_reason_counts(funnel: CoverageFunnel) -> None:
         raise ValueError("unresolved_by_reason must contain ReasonCount values")
     for item in funnel.unresolved_by_reason:
         _validate_reason_count(item)
+        if item.count == 0:
+            raise ValueError("unresolved reason count must be positive")
     reasons = tuple(item.reason for item in funnel.unresolved_by_reason)
     if len(reasons) != len(set(reasons)):
         raise ValueError("duplicate unresolved reason")

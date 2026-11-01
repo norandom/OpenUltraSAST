@@ -88,7 +88,7 @@ def _validate_row(row: object) -> ScopeCensus:
     return row
 
 
-def _capacities(census: PopulationCensus) -> tuple[tuple[ScopeKey, ...], _Capacities]:
+def _capacities(census: PopulationCensus, selected_scopes: tuple[ScopeKey, ...]) -> _Capacities:
     if type(census) is not PopulationCensus or not census.rows:
         raise AdmissionFeasibilityError("census must be a nonempty PopulationCensus")
     if census.case_labels_exposed:
@@ -99,13 +99,16 @@ def _capacities(census: PopulationCensus) -> tuple[tuple[ScopeKey, ...], _Capaci
     scopes = tuple(row.scope for row in rows)
     if scopes != tuple(sorted(scopes)) or len(scopes) != len(set(scopes)):
         raise AdmissionFeasibilityError("census scopes must be unique and canonically ordered")
-    return scopes, _Capacities(
-        sum(row.pair_count for row in rows),
-        sum(row.vulnerable_side_count for row in rows),
-        sum(row.fixed_side_count for row in rows),
-        sum(row.ordinary_case_count for row in rows),
-        sum(row.semantic_site_capacity for row in rows),
-        sum(row.model_call_capacity for row in rows),
+    if any(scope not in scopes for scope in selected_scopes):
+        raise AdmissionFeasibilityError("every claimed scope must have one reviewed census row")
+    selected = tuple(row for row in rows if row.scope in selected_scopes)
+    return _Capacities(
+        sum(row.pair_count for row in selected),
+        sum(row.vulnerable_side_count for row in selected),
+        sum(row.fixed_side_count for row in selected),
+        sum(row.ordinary_case_count for row in selected),
+        sum(row.semantic_site_capacity for row in selected),
+        sum(row.model_call_capacity for row in selected),
     )
 
 
@@ -122,9 +125,10 @@ def _validated_inputs(
         raise AdmissionFeasibilityError(str(exc)) from exc
     if policy.policy_digest != manifest.denominator_policy_digest:
         raise AdmissionFeasibilityError("denominator policy does not match the reviewed manifest")
-    scopes, capacities = _capacities(manifest.census)
-    if any(rule.scopes != scopes for rule in policy.rules):
-        raise AdmissionFeasibilityError("denominator policy scope does not match the census")
+    claimed_scopes = manifest.identity.claimed_scopes
+    if any(rule.scopes != claimed_scopes for rule in policy.rules):
+        raise AdmissionFeasibilityError("denominator policy scope does not match the manifest claimed scopes")
+    capacities = _capacities(manifest.census, claimed_scopes)
     return capacities, manifest.threshold_set_digest
 
 

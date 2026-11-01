@@ -74,6 +74,16 @@ def test_input_manifest_and_receipts_validate_exactly() -> None:
     validate_instrument(_manifest(), _receipts())
 
 
+def test_zero_named_counts_are_allowed_for_measurements_but_not_unresolved_coverage() -> None:
+    with pytest.raises(ValueError, match="unresolved reason count must be positive"):
+        _funnel(
+            unresolved_by_reason=(
+                ReasonCount("missing_constraint", 2),
+                ReasonCount("unused_measurement_bucket", 0),
+            )
+        )
+
+
 @pytest.mark.parametrize(
     ("opened", "byte_count", "digest", "match"),
     [

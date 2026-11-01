@@ -80,7 +80,7 @@ def _record(**overrides: object) -> MeasurementRecordV2:
             OutcomeCount(NeutralOutcome.INDETERMINATE, 0),
         ),
         "evidence_basis_counts": (
-            BasisCount(EvidenceBasis.DETERMINISTIC, 2),
+            BasisCount(EvidenceBasis.DETERMINISTIC, 1),
             BasisCount(EvidenceBasis.MODEL_CORROBORATED, 0),
             BasisCount(EvidenceBasis.EXECUTION_BACKED, 0),
         ),
@@ -182,6 +182,7 @@ def test_clean_or_zero_looking_results_require_read_inputs_and_passed_stages() -
             OutcomeCount(NeutralOutcome.SATISFIED, 2),
             OutcomeCount(NeutralOutcome.INDETERMINATE, 0),
         ),
+        evidence_basis_counts=tuple(BasisCount(basis, 0) for basis in EvidenceBasis),
         metrics=_metrics(model_numerator=2, model_denominator=2),
         stage_funnel=_funnel(findings=0),
         model_outcome_counts=(ReasonCount("success", 2),),
@@ -357,6 +358,19 @@ def test_family_decision_counts_follow_declared_not_lexical_order() -> None:
     )
     validate_measurement_record(record)
     assert tuple(item.reason for item in record.family_decision_counts) == record.family_decision_vocabulary
+
+
+def test_family_decision_counts_retain_zero_entries_for_exact_vocabulary() -> None:
+    record = _record(
+        family_decision_vocabulary=("allow", "deny", "unknown"),
+        family_decision_counts=(ReasonCount("allow", 1), ReasonCount("deny", 1), ReasonCount("unknown", 0)),
+    )
+
+    assert tuple((item.reason, item.count) for item in record.family_decision_counts) == (
+        ("allow", 1),
+        ("deny", 1),
+        ("unknown", 0),
+    )
 
 
 def test_holdout_report_refuses_wrong_role_overlap_or_empty_manifests() -> None:

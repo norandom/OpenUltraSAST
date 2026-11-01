@@ -193,9 +193,9 @@ def _validate_scopes_and_sets(manifest: AdmissionManifestV2, denominator: Denomi
     if baseline.family_contract_digests != tuple(sorted(entries)) or baseline.family_contract_set_digest != catalog.catalog_digest:
         raise AdmissionContextError("baseline family catalog set does not match canonical catalog objects")
     census_scopes = tuple(row.scope for row in manifest.census.rows)
-    if baseline.claimed_scopes != census_scopes:
-        raise AdmissionContextError("claimed scopes do not match the reviewed census")
-    for scope in baseline.claimed_scopes:
+    if any(scope not in census_scopes for scope in baseline.claimed_scopes):
+        raise AdmissionContextError("every claimed scope must have one reviewed census row")
+    for scope in census_scopes:
         _contract_for_scope(catalog, scope)
     expected_fact_set = derive_fact_set_digest(evidence.fact_packs)
     if baseline.fact_schema_digest != derive_fact_schema_digest() or baseline.fact_set_digest != expected_fact_set:

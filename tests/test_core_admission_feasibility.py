@@ -10,6 +10,7 @@ from detection_core_fixtures import InMemoryContentResolver, stored_artifact
 from openultrasast.core import canonical
 from openultrasast.core.admission_feasibility import (
     AdmissionFeasibilityError,
+    FeasibleCountAssignment,
     ThresholdFeasibility,
     evaluate_threshold_feasibility,
 )
@@ -78,6 +79,17 @@ def _census(
 def _policy(scope: ScopeKey | None = None) -> DenominatorPolicy:
     rules = standard_metric_rules((scope or _scope(),))
     return DenominatorPolicy(rules, IntervalMethod.WILSON_95, "")
+
+
+def _with_extra_census_row(census: PopulationCensus) -> PopulationCensus:
+    extra = ScopeCensus(ScopeKey("out-of-scope", "javascript"), 300, 100, 100, 100, 100, 500, 200)
+    rows = tuple(sorted((*census.rows, extra), key=lambda item: item.scope))
+    draft = replace(census, rows=rows, census_payload_digest="0" * 64, census_digest="0" * 64)
+    payload = derive_census_payload_digest(draft)
+    old = census.review
+    review = _attestation(payload, old.producer_identity, old.reviewer_identity, old.conflict_disclosure)
+    reviewed = replace(draft, census_payload_digest=payload, review=review)
+    return replace(reviewed, census_digest=derive_census_digest(reviewed))
 
 
 def _thresholds(*values: AdmissionThreshold) -> tuple[AdmissionThreshold, ...]:
@@ -217,6 +229,14 @@ def test_enumerates_capacity_witnesses_for_every_metric_family() -> None:
     assert result.denominator_policy_digest == _policy().policy_digest
     assert len(result.threshold_set_digest) == 64
     assert len(result.feasibility_digest) == 64
+
+
+def test_extra_census_scope_does_not_change_claimed_scope_feasibility() -> None:
+    threshold = _threshold(MetricId.PAIRED_CORRECTNESS, Statistic.COUNT, Comparator.AT_LEAST, 12.0)
+
+    result = _evaluate(_with_extra_census_row(_census()), _policy(), (threshold,))
+
+    assert result.witnesses == (FeasibleCountAssignment(MetricId.PAIRED_CORRECTNESS, 12, 12),)
 
 
 def test_one_assignment_must_jointly_satisfy_grouped_statistics() -> None:

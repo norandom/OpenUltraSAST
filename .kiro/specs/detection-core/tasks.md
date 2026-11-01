@@ -272,7 +272,7 @@
   - Done when the reproduced vulnerable/fixed payload swap and every release-field mutation fail before any admission metric is returned.
   - _Requirements: 12.2, 12.5, 12.6, 13.4, 15.1_
   - _Boundary: Admission Case Release_
-- [ ] 8.8 Derive scoped admission metrics from canonical case evidence
+- [x] 8.8 Derive scoped admission metrics from canonical case evidence
   - Re-run shared evidence validation, instrument, budget, verdict, and proof validation for every case.
   - Consume only cases that exactly match the authenticated post-spend release; use its roles and scoped pairs while reconciling aggregate counts to the reviewed census.
   - Score quality only over pre-registered family/ecosystem scopes while retaining whole-population coverage.

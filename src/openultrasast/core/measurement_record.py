@@ -267,8 +267,8 @@ def _validate_record_totals(value: MeasurementRecordV2, decisions: tuple[ReasonC
         raise MeasurementRecordError("family decision counts must equal the question count")
     if sum(item.count for item in value.neutral_outcome_counts) != question_count:
         raise MeasurementRecordError("neutral outcome counts must equal the question count")
-    if sum(item.count for item in value.evidence_basis_counts) != question_count:
-        raise MeasurementRecordError("evidence basis counts must equal the question count")
+    if sum(item.count for item in value.evidence_basis_counts) != value.stage_funnel.findings_emitted:
+        raise MeasurementRecordError("evidence basis counts must equal emitted findings")
     determinate = sum(item.count for item in value.neutral_outcome_counts if item.outcome is not NeutralOutcome.INDETERMINATE)
     if determinate != value.stage_funnel.determinate_outcomes:
         raise MeasurementRecordError("determinate outcome counts must equal the funnel determinate count")
