@@ -334,6 +334,7 @@
   - _Requirements: 10.2, 11.1, 11.2, 11.3, 11.4, 11.5, 14.3_
   - _Boundary: Fact Pack Adapter_
   - _Depends: 5.4_
+  - _Blocked: task decomposition is missing an externally owned production family contract, reviewed authority bundle, lineage/custody wiring, matcher identity, and approved legacy-to-v2 semantic mapping; self-authorizing defaults are prohibited_
 - [ ] 9.5 (P) Produce readiness and development records through benchmark-owned adapters
   - Construct canonical readiness results while leaving sequencing and persistence with benchmark workflows.
   - Emit development observations with v2 identities, evidence-use roles, instrument receipts, and prerequisite ancestry.
