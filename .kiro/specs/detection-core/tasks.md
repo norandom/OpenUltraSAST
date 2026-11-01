@@ -250,7 +250,7 @@
   - Reject label exposure, acquisition drift, context substitution, stale readiness, scope mismatch, or prior spend.
   - Done when each refusal branch fails before feasibility and no digest-only set or lineage claim is accepted.
   - _Requirements: 12.1, 12.2, 13.1_
-- [ ] 8.5 Refuse arithmetically impossible threshold configurations
+- [x] 8.5 Refuse arithmetically impossible threshold configurations
   - Enumerate reachable counts from label-blind pair, case, semantic-site, and model-call capacities.
   - Evaluate count, rate, per-100, and Wilson-bound thresholds with the fixed comparator direction for each metric.
   - Require every grouped threshold to have at least one jointly attainable count assignment.
