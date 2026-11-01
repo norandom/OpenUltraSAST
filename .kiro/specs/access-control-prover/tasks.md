@@ -338,7 +338,7 @@ its final resolution, dominance, fact-acquisition and measurement semantics with
   - _Requirements: 13.1_
   - _Boundary: Access-Control Family Contract_
   - _Depends: 11.5_
-- [ ] 14.2 Implement externally bootstrapped fact authority
+- [x] 14.2 Implement externally bootstrapped fact authority
   - Define the immutable authority bundle and separate host bootstrap policy over reviewed pack/projection references, policies, lineages, matcher identity, reviewer/store admission, forbidden identity pairs and conflict disclosure.
   - Re-derive canonical policy, attestation, disclosure and bundle identities before any target data is consumed; never let the bundle choose its own trust roots.
   - Done when a complete independently reviewed authority fixture authenticates and every missing, duplicate, substituted, self-authored or non-canonical variant fails before pack loading.
