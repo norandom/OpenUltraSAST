@@ -127,6 +127,7 @@ src/openultrasast/
 │   ├── cst.py                            # receiver, arity and signature capture
 │   └── obligations/
 │       ├── abstract_domain.py            # relations, completeness, resources, authorities, judgments
+│       ├── core_contract.py              # production access-control FamilyContract
 │       ├── resolution.py                 # SymbolId, symbol index and CallTargetSet
 │       ├── summaries.py                  # monotone FunctionSummary computation over call components
 │       ├── paths.py                      # concrete evidence paths and cutoff records
@@ -153,6 +154,7 @@ benchmarks/valid/
 └── prover_admission.py                   # frozen-manifest admission orchestration
 tests/
 ├── test_obligation_abstract_domain.py
+├── test_obligation_core_contract.py
 ├── test_obligation_resolution.py
 ├── test_obligation_summaries.py
 ├── test_obligation_judgment.py

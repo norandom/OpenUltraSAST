@@ -333,7 +333,7 @@ its final resolution, dominance, fact-acquisition and measurement semantics with
 - [ ] 14. Reviewed detection-core fact adapter
 - [ ] 14.1 Define the production access-control family contract
   - Encode the versioned access-control security object, roles, three decision rules, residual question and closed incompleteness reasons through public detection-core types.
-  - Keep target names outside the contract while pinning every digest-affecting field, status, origin policy and ecosystem declared by the design.
+  - Keep target names confined to the reviewed ecosystem declaration while pinning every digest-affecting field, status, origin policy and decision semantic declared by the design.
   - Done when the canonical production contract validates, round-trips deterministically, and rejects every altered or undeclared role, decision, field and reason fixture.
   - _Requirements: 13.1_
   - _Boundary: Access-Control Family Contract_
