@@ -310,7 +310,7 @@
   - _Requirements: 3.5, 14.3_
   - _Boundary: Authorization Adapter_
   - _Depends: 3.3, 7.2_
-- [ ] 9.2 (P) Translate hunt-owned model execution through the bounded handoff
+- [x] 9.2 (P) Translate hunt-owned model execution through the bounded handoff
   - Convert structured executor inputs and outputs to the canonical request/result contracts.
   - Keep prompt creation, provider calls, caching, parsing, and redaction in the hunt subsystem.
   - Reject mismatched declared results through core validation without importing DSPy into core.
