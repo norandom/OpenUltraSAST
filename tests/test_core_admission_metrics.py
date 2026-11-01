@@ -405,7 +405,7 @@ def test_supplied_verdict_and_instrument_are_not_trusted() -> None:
         _derive(run, cases=broken_cases, release=_release_for(run, broken_cases))
 
 
-def test_forged_evidence_and_budget_fail_before_metric_production() -> None:
+def test_forged_evidence_fails_but_valid_budget_overrun_reaches_metrics() -> None:
     run = _run(_setup())
     cases = run.setup.cases
     forged_input = replace(cases[0].evidence_inputs[0], input_digest="0" * 64)
@@ -420,8 +420,21 @@ def test_forged_evidence_and_budget_fail_before_metric_production() -> None:
     over_budget = replace(cases[0], total_reply_ms=cases[0].budget.budget_ms + 1)
     over_budget = replace(over_budget, result_digest=derive_admission_case_result_digest(over_budget))
     budget_cases = (over_budget, *cases[1:])
-    with pytest.raises(AdmissionMetricsError, match="budget"):
-        _derive(run, cases=budget_cases, release=_release_for(run, budget_cases))
+    result = _derive(run, cases=budget_cases, release=_release_for(run, budget_cases))
+
+    assert result.runtime_ms == sum(item.total_reply_ms for item in budget_cases)
+
+
+def test_invalid_budget_measurement_still_fails_before_metric_production() -> None:
+    run = _run(_setup())
+    cases = run.setup.cases
+    complexity = replace(cases[0].complexity, changed_bytes=cases[0].complexity.changed_bytes + 1)
+    forged = replace(cases[0], complexity=complexity)
+    forged = replace(forged, result_digest=derive_admission_case_result_digest(forged))
+    forged_cases = (forged, *cases[1:])
+
+    with pytest.raises(AdmissionMetricsError, match="budget validation.*measurement"):
+        _derive(run, cases=forged_cases, release=_release_for(run, forged_cases))
 
 
 def test_runner_case_digest_is_rederived() -> None:

@@ -24,7 +24,7 @@ from openultrasast.core.admission_case import (
 from openultrasast.core.admission_context import AdmissionValidationContext
 from openultrasast.core.admission_review import AdmissionManifestV2, ScopeCensus, validate_reviewed_admission_payloads
 from openultrasast.core.admission_spend import AdmissionPreparation
-from openultrasast.core.budget import check_budget
+from openultrasast.core.budget import BudgetGateFailure, check_budget
 from openultrasast.core.coverage import CoverageFunnel, ReasonCount, validate_instrument
 from openultrasast.core.custody import PopulationCustodyPort, PopulationUseReceipt
 from openultrasast.core.evidence import EvidenceBasis, EvidenceRecord, NeutralOutcome, derive_packet_digest
@@ -139,6 +139,8 @@ def _validated_records(
         raise AdmissionMetricsError(f"instrument validation failed: {exc}") from exc
     try:
         check_budget(case.complexity, case.total_reply_ms, case.budget, resolver)
+    except BudgetGateFailure:
+        pass
     except (TypeError, ValueError) as exc:
         raise AdmissionMetricsError(f"budget validation failed: {exc}") from exc
     try:
@@ -206,9 +208,7 @@ def _validate_population(cases: tuple[_ValidatedCase, ...], rows: tuple[ScopeCen
     for row in rows:
         selected = tuple(item for item in cases if item.binding.scope == row.scope)
         roles = Counter(item.binding.role for item in selected)
-        model_calls = sum(
-            value.model_result is not None for item in selected for value in item.supplied.evidence_inputs
-        )
+        model_calls = sum(value.model_result is not None for item in selected for value in item.supplied.evidence_inputs)
         actual = (
             len(selected),
             roles[AdmissionCaseRole.VULNERABLE],

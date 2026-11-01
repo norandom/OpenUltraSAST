@@ -54,7 +54,7 @@ def _funnel(*, inputs_read: int = 1, findings: int = 1) -> CoverageFunnel:
 
 def _readiness(*, result: StageResult = StageResult.PASSED) -> tuple[ReadinessReference, ...]:
     return tuple(
-        ReadinessReference(stage, result, _digest(f"readiness:{stage.value}:{result.value}")) for stage in tuple(ReadinessStage)[:5]
+        ReadinessReference(stage, result, _digest(f"readiness:{stage.value}:{result.value}")) for stage in tuple(ReadinessStage)[:6]
     )
 
 
@@ -163,7 +163,7 @@ def test_decision_vocabulary_counts_and_funnel_totals_must_agree() -> None:
 
 def test_later_measurement_carries_canonical_prerequisite_results_and_digests() -> None:
     record = _record()
-    assert tuple(item.stage for item in record.prerequisite_readiness) == tuple(ReadinessStage)[:5]
+    assert tuple(item.stage for item in record.prerequisite_readiness) == tuple(ReadinessStage)[:6]
     with pytest.raises(MeasurementRecordError, match="prerequisite readiness"):
         replace(record, prerequisite_readiness=record.prerequisite_readiness[:-1], record_digest="")
     with pytest.raises(MeasurementRecordError, match="readiness digest"):

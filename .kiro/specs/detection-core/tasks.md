@@ -280,7 +280,7 @@
   - Done when forged decisions, substituted contracts, invalid fact review, contaminated lineage, or case-count drift fail before metric production.
   - _Requirements: 12.5, 12.6, 15.1, 15.2_
   - _Depends: 8.7_
-- [ ] 8.9 Assemble evidence-backed gates and the final admission report
+- [x] 8.9 Assemble evidence-backed gates and the final admission report
   - Emit instrument, budget, readiness, and quality gates with reasons and supporting identities.
   - Bind the report to the validation context, authorization, pre-label spend receipt, authenticated case release, census, and complete case-result set.
   - Require every mandatory metric and gate before allowing GO; make model success mandatory when a model is baseline-configured or validated claimed-scope calls occur. Refuse undeclared claimed-scope calls before report production; make configured zero-call, missing-threshold, and failed declared-call cases NO-GO while ignoring out-of-scope-only calls.

@@ -20,7 +20,7 @@ from openultrasast.core.readiness import ReadinessEvidenceUse, ReadinessStage, S
 MEASUREMENT_RECORD_SCHEMA = "openultrasast.detection-core.measurement-record.v2"
 REPOSITORY_HOLDOUT_REPORT_SCHEMA = "openultrasast.detection-core.repository-holdout-report.v2"
 _DIGEST = re.compile(r"[0-9a-f]{64}")
-_PREREQUISITE_STAGES = tuple(ReadinessStage)[:5]
+_PREREQUISITE_STAGES = tuple(ReadinessStage)[:6]
 
 
 class MeasurementRecordError(ValueError):
