@@ -352,7 +352,7 @@ its final resolution, dominance, fact-acquisition and measurement semantics with
   - _Requirements: 13.2, 13.3_
   - _Boundary: Installed Fact Authority Wire_
   - _Depends: 14.2_
-- [ ] 14.4 Record the approved repo-local review ceremony
+- [x] 14.4 Record the approved repo-local review ceremony
   - Write the three closed canonical identity manifests with the exact schema, role, name and approval-basis values declared by the design.
   - Bind bootstrap reviewer admission, custody policy, authority review and pack evidence identities to those manifest digests while keeping all trust/store admission outside `authority.json`.
   - Done when the approved manifests and bootstrap load through Task 14.3, all identity bindings validate, and changing any field or approval basis invalidates authentication.
