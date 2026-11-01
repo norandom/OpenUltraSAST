@@ -283,11 +283,15 @@
 - [ ] 8.9 Assemble evidence-backed gates and the final admission report
   - Emit instrument, budget, readiness, and quality gates with reasons and supporting identities.
   - Bind the report to the validation context, authorization, pre-label spend receipt, authenticated case release, census, and complete case-result set.
-  - Require every mandatory metric and gate, plus model success when applicable, before allowing GO.
+  - Require every mandatory metric and gate before allowing GO; make model success mandatory when a model is baseline-configured or validated claimed-scope calls occur. Refuse undeclared claimed-scope calls before report production; make configured zero-call, missing-threshold, and failed declared-call cases NO-GO while ignoring out-of-scope-only calls.
+  - Return an immutable admission replay bundle carrying the exact manifest, denominator, readiness, preparation, spend receipt, case release, cases, and derived report; give the bundle a canonical transport digest without treating it as a validation token.
+  - Revalidate the replay against independently supplied current context, custody, and content resolution by re-running the complete derivation and requiring exact report and replay equality.
   - Keep model-corroborated, deterministic, and execution-backed counts separate.
-  - Done when any missing/failed mandatory gate forces NO-GO and a complete passing synthetic fixture yields a reproducible GO report.
+  - Done when any missing/failed mandatory gate forces NO-GO, coordinated report/readiness/threshold/case substitutions are refused, and a complete passing synthetic fixture yields a reproducible replayed GO report.
   - _Requirements: 12.6, 15.1, 15.2, 15.4, 15.5_
+  - _Depends: 8.8_
 - [ ] 8.10 Authorize fitted components only from replayed probes and disjoint evaluation
+  - Accept only the typed admission replay bundle from task 8.9, validate it first against current authoritative context/custody/content, and refuse raw admission reports or coordinated replay substitutions.
   - Resolve the component’s unique model declaration, family contract, review policy, and custody policy from the admission-bound context.
   - Re-evaluate every canonical probe input and require the derived result set to match the component evidence.
   - Consume the typed repository-holdout report from task 8.2 and validate its evidence-use role, training/holdout references, report identity, and fitting lineage.
@@ -295,6 +299,7 @@
   - Require an admission GO that was untouched before its bound label-release spend.
   - Done when fabricated summaries, caller-selected policy substitutes, overlapping repositories, contaminated lineage, or mismatched admission are refused.
   - _Requirements: 13.1, 13.2, 13.4_
+  - _Depends: 8.2, 8.9_
 
 - [ ] 9. Integrate adjacent producers and benchmark-owned orchestration
 - [ ] 9.1 (P) Translate the parked authorization trace conservatively into v2 evidence

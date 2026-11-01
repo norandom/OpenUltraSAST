@@ -231,7 +231,8 @@ src/openultrasast/core/
 ├── measurement.py           # Complete baseline identity, rates, funnel and report schema v2
 ├── admission_case.py        # Case results and authenticated post-spend release bindings
 ├── admission_metrics.py     # Evidence-derived scoped and whole-population metric algebra
-├── admission.py             # Census, feasibility, report assembly and fitted-component gate
+├── admission.py             # Census, feasibility and fitted-component gate
+├── admission_report.py      # Evidence-backed gates, report assembly and replay validation
 ├── consumer.py              # Scoped push request and verdict consumption
 └── legacy.py                # Read-only v1 trace and report decoder and validator
 
@@ -1747,6 +1748,9 @@ authorization; the derived result digests must exactly equal the fitted-componen
   membership. It re-derives each case result and its operational projection, requires an
   exact one-to-one binding, and refuses missing, extra, duplicate, substituted, swapped, or
   cross-scope cases before producing any metric.
+- Scoring returns an immutable `AdmissionReplay`, not a bare report. The replay carries the
+  exact authoritative objects needed to reproduce the report. A raw `AdmissionReportV2` is
+  serializable result data, never an authorization token.
 - Admission authorization produces a custody-head-bound label-release request. The
   benchmark custodian must durably spend the population before releasing label bytes;
   scoring revalidates that exact current-chain receipt and never emits a post-scoring spend
@@ -1757,8 +1761,9 @@ authorization; the derived result digests must exactly equal the fitted-componen
 `measurement.py` owns `ScopeKey`, baseline identity, the closed metric algebra, interval and
 gate results, readiness references, `MeasurementRecordV2`, and
 `RepositoryHoldoutReport`. `admission.py` imports those types and owns census, metric rules,
-thresholds, manifests, case inputs, authorization, scoring, admission reports, and fitted
-component authorization. Measurement never imports admission.
+thresholds, manifests, case inputs, authorization, and fitted-component authorization.
+`admission_report.py` owns gate derivation, report assembly, the authoritative replay bundle,
+and replay validation. Measurement never imports admission modules.
 
 ```python
 @dataclass(frozen=True)
@@ -2032,6 +2037,18 @@ class AdmissionReportV2:
     report_digest: str
 
 @dataclass(frozen=True)
+class AdmissionReplay:
+    manifest: AdmissionManifestV2
+    denominator: DenominatorPolicy
+    readiness: tuple[ReadinessResult, ...]
+    preparation: AdmissionPreparation
+    label_release_receipt: PopulationUseReceipt
+    case_release: AdmissionCaseRelease
+    cases: tuple[AdmissionCaseResult, ...]
+    report: AdmissionReportV2
+    replay_digest: str
+
+@dataclass(frozen=True)
 class AdmissionAuthorization:
     manifest_digest: str
     validation_context_digest: str
@@ -2056,10 +2073,19 @@ def authorize_admission(
 
 def score_admission(
     manifest: AdmissionManifestV2,
+    denominator: DenominatorPolicy,
+    readiness: Sequence[ReadinessResult],
     preparation: AdmissionPreparation,
     label_release_receipt: PopulationUseReceipt,
     case_release: AdmissionCaseRelease,
     cases: Sequence[AdmissionCaseResult],
+    context: AdmissionValidationContext,
+    custody: PopulationCustodyPort,
+    resolver: ContentResolver,
+) -> AdmissionReplay: ...
+
+def validate_admission_replay(
+    replay: AdmissionReplay,
     context: AdmissionValidationContext,
     custody: PopulationCustodyPort,
     resolver: ContentResolver,
@@ -2071,7 +2097,7 @@ def authorize_fitted_component(
     context: AdmissionValidationContext,
     fitting_lineage: LineageManifest,
     repository_holdout: RepositoryHoldoutReport,
-    admission: AdmissionReportV2,
+    admission: AdmissionReplay,
     custody: PopulationCustodyPort,
     resolver: ContentResolver,
 ) -> None: ...
@@ -2151,6 +2177,15 @@ gate is produced. The final report binds the validation context, authorization, 
 pre-label spend receipt, and authenticated post-spend case release; there is no
 post-scoring population-use request.
 
+`score_admission` freezes the denominator, readiness, and cases exactly once, derives the
+report, and returns them with every other authoritative scoring input in an
+`AdmissionReplay`. Its `replay_digest` protects transport integrity of the bundle but is not
+a validation token. `validate_admission_replay` revalidates every carried object against an
+independently supplied current context, custody port, and content resolver, re-runs report
+derivation, and requires exact report and replay equality. A caller cannot authorize from a
+raw report or from a coordinated set of rehashed report, threshold, readiness, or case
+objects.
+
 The report validates case counts back to the census, reports paired vulnerable/fixed
 behavior and ordinary false alarms through registered metrics, imports semantic-stage and
 model-call outcomes, and stratifies findings by evidence basis so model-corroborated and
@@ -2171,7 +2206,9 @@ disjoint, matches component/training/lineage/report digests, validates current c
 the fitting lineage with subject `component_digest` and a required `FITTED_MODEL`
 expectation for that digest, and requires
 the admission report to be a `GO` produced from a population that was untouched before its
-bound label-release spend. It re-derives `context.context_digest`, requires it to equal the
+bound label-release spend. It first calls `validate_admission_replay`; a bare
+`AdmissionReportV2` or a replay whose carried inputs no longer validate cannot authorize a
+component. It re-derives `context.context_digest`, requires it to equal the validated
 report's validation-context digest, and requires exactly one baseline-listed declaration in
 `context.evidence.model_programs` whose `fitted_component_digest` equals
 `evidence.component_digest`. The selected declaration supplies the family-contract digest;
@@ -2188,9 +2225,15 @@ authorize the component.
 Every admission report must contain `PAIRED_CORRECTNESS`, `VULNERABLE_RECALL`,
 `FIXED_FALSE_ALARM_RATE`, `ORDINARY_FALSE_ALARMS_PER_100`, `PRECISION`, and
 `SEMANTIC_STAGE_COVERAGE` with nonzero pre-registered denominators, plus model success when
-applicable. It must also contain evidence-backed instrument, budget, readiness, and quality
-gate results. `GO` is invalid if any mandatory metric or gate is absent, any instrument
-receipt failed, or any required gate did not pass.
+applicable. Model success is applicable when the frozen baseline configures at least one
+model program **or** validated claimed-scope cases contain declared model calls. An
+applicable model with zero attempted calls, no model-success threshold, or any failed model
+outcome forces `NO_GO`; calls wholly outside the claimed scopes do not make the model
+applicable. Claimed-scope model calls without a baseline-listed declaration are invalid
+evidence and are refused before report production. The report must also contain
+evidence-backed instrument, budget, readiness, and quality gate results. `GO` is invalid if
+any mandatory metric or gate is absent, any instrument receipt failed, or any required gate
+did not pass.
 
 ### Decision and Consumer Edge
 
@@ -2404,7 +2447,8 @@ dependencies into core.
 | `BaselineIdentity` | Arm, population/freeze, claimed scopes, contract set, fact schema/set, acquisition, analyzer, configuration, model set, denominator, threshold set and outcome mapping | Any changed field creates a new baseline |
 | `AdmissionPreparation` | Manifest/context authorization and expected custody head | Feasible pre-registration; label-release request spends before bytes open |
 | `AdmissionCaseRelease` | Population, manifest, authorization, preparation, spend receipt, custodian and attested case bindings | Post-spend only; exact one-to-one case/result/evidence/change/input binding; scoped roles and pairs |
-| `AdmissionReportV2` | Baseline, validation context, authorization, spend receipt, case release and case/result digests | Canonical input revalidation; in-scope scoring; all gates reported |
+| `AdmissionReportV2` | Baseline, validation context, authorization, spend receipt, case release and case/result digests | Canonical result data; in-scope scoring; all gates reported; never an authorization token by itself |
+| `AdmissionReplay` | Canonical digest of the exact authoritative scoring inputs and derived report | Immutable transport bundle; independently replayed against current context, custody and content before trust |
 | `RepositoryHoldoutReport` | Component, disjoint repository manifests and measurement | Explicit holdout role; matches fitting lineage and component identity |
 | `DifferentialProofRecord` | Reviewed producer, control-bound sides and resolved witness/verification receipt | Affected change identity, reviewed safe control, trusted producer/store policy |
 | `PushVerdict` | Request and record digests | No unbounded clean result; proof basis does not imply rollout permission |
@@ -2513,6 +2557,11 @@ spec and consumes only status, counts, and digests.
   bindings, cross-scope pairs, role swaps, result swaps, and rehashed evidence/change/input
   substitutions before metric production
   (`12.1–12.6`, `13.1`, `13.4`).
+- `test_core_admission_report.py`: evidence-backed gate derivation, exact report identity,
+  `AdmissionReplay` construction and authoritative revalidation, configured-model zero-call
+  refusal, claimed-scope undeclared-model refusal, out-of-scope-only model-call isolation,
+  and coordinated report/readiness/threshold/case substitution refusal. Raw reports cannot
+  authorize later consumers (`12.6`, `13.1–13.2`, `15.1–15.5`).
 - `test_core_measurement.py`: required schema, basis stratification, Wilson counts, baseline
   mutation matrix, zero receipts, and prerequisite stage result/digest references. A
   two-arm case over one population keeps family/ecosystem scope, census rows, denominator

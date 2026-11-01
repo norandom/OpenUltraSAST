@@ -564,3 +564,37 @@ requirements approval.
 - Benchmark-owned guarded custody must produce the release after the winning spend and
   prove crash/concurrency behavior at that external boundary.
 - The pre-label census and feasibility contracts remain unchanged and label-blind.
+
+---
+
+## Authoritative admission replay closure (2026-11-01)
+
+### Scope of this pass
+
+- **Context:** task 8.9 showed that a structurally valid, self-consistent report cannot be
+  authenticated later without the authoritative manifest, denominator, readiness,
+  preparation, spend receipt, case release, and case results from which it was derived.
+- **Finding:** contextual report validation inside the scoring call fixed local gate forgery
+  but did not give task 8.10 a safe consumer contract. Accepting a bare report would either
+  trust its digest as a capability or require every consumer to recover unbound inputs.
+- **Classification:** specification conflict at the 8.9/8.10 boundary, not an isolated code
+  defect. The report is result data; later authorization needs replayable evidence.
+
+### Decision: carry and independently replay authoritative inputs
+
+- **Alternatives considered:** treat `report_digest` as an authorization token; add more
+  nested evidence to the report; make every fitted-component caller pass the original inputs
+  separately; or return one immutable replay bundle from scoring.
+- **Selected approach:** `score_admission` returns `AdmissionReplay`, containing the exact
+  frozen authoritative inputs and the derived report. `validate_admission_replay` accepts
+  only that bundle plus independently supplied current context, custody, and content
+  resolution, re-runs the full derivation, and compares exact output.
+- **Rationale:** the bundle prevents accidental input loss without promoting a digest or
+  caller-provided aggregate into a capability. Current external trust state remains an
+  explicit validator input.
+- **Model applicability closure:** model success is mandatory when a model is frozen in the
+  baseline or validated claimed-scope calls occurred. Configured zero-call, missing model
+  threshold, or failed declared calls force `NO_GO`; undeclared claimed-scope calls are
+  refused before report production, and out-of-scope-only calls do not alter the arm's gate.
+- **Boundary:** replay production remains part of task 8.9. Task 8.10 consumes and validates
+  the replay before fitted-component checks and refuses raw reports.
