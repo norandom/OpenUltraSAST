@@ -345,7 +345,7 @@ its final resolution, dominance, fact-acquisition and measurement semantics with
   - _Requirements: 13.2, 13.3_
   - _Boundary: Fact Authority_
   - _Depends: 14.1_
-- [ ] 14.3 Implement installed authority codecs and resolver
+- [x] 14.3 Implement installed authority codecs and resolver
   - Implement closed canonical JSON decoders for the bootstrap policy, installed authority, v2 fact packs, nested policies/lineages/evidence and immutable content references.
   - Implement the checked-in digest-addressed resolver using only validated `content_digest` for filesystem addressing and re-derivable storage receipts under an injected bootstrap-admitted store identity.
   - Done when canonical synthetic installed fixtures round-trip to Task 14.2 typed values and unknown/missing fields, noncanonical bytes, traversal-like artifact IDs, digest paths or byte substitutions fail before authentication.
