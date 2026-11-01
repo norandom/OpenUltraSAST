@@ -263,7 +263,7 @@
   - Keep durable append, compare-and-swap execution, label release, persistence, crash handling, and concurrency outside core.
   - Done when only the exact spent successor authorizes scoring and every other receipt shape is refused without an external side effect.
   - _Requirements: 12.2, 13.4_
-- [ ] 8.7 Validate the authenticated post-spend case release
+- [x] 8.7 Validate the authenticated post-spend case release
   - Define canonical released-case bindings over case identity, scope, role, scoped pair identity, exact result digest, evidence-input digests, change-input digests, and input-manifest digest.
   - Bind the release to the population, manifest, authorization, preparation, exact current-chain spend receipt, custodian identity, and an independent review attestation.
   - Validate the release only after the exact spend successor and require one canonical binding for every supplied case and no others.
