@@ -81,7 +81,9 @@ def test_frozen_inventory_resolves_nonzero_sources_and_targets() -> None:
     inventory = load_migration_inventory(INVENTORY)
 
     assert inventory.entries
-    assert all(entry.disposition is MigrationDisposition.OPEN for entry in inventory.entries)
+    assert sum(entry.disposition is MigrationDisposition.OPEN for entry in inventory.entries) == 180
+    assert sum(entry.disposition is MigrationDisposition.V2_MIGRATED for entry in inventory.entries) == 6
+    assert sum(entry.disposition is MigrationDisposition.RETIRED for entry in inventory.entries) == 12
     assert all(entry.entry_id == entry_identity(entry) for entry in inventory.entries)
     validate_inventory_sources(inventory, root=REPO)
 
@@ -198,7 +200,7 @@ def test_independent_reader_audit_matches_split_inventory_capabilities() -> None
 
 def test_inventory_targets_require_exact_capability_anchors(tmp_path: Path) -> None:
     frozen = load_migration_inventory(INVENTORY)
-    entry = frozen.entries[0]
+    entry = next(item for item in frozen.entries if item.disposition is MigrationDisposition.OPEN and item.symbol == "<module>")
     assert entry.capability_anchors
     substituted = tmp_path / entry.path
     substituted.parent.mkdir(parents=True)
@@ -220,8 +222,9 @@ def test_historical_artifact_manifest_pins_exact_nonzero_bytes() -> None:
 @pytest.mark.parametrize("terminal", (MigrationDisposition.V2_MIGRATED, MigrationDisposition.RETIRED))
 def test_inventory_entries_close_monotonically_without_identity_changes(terminal: MigrationDisposition) -> None:
     frozen = load_migration_inventory(INVENTORY)
-    changed_entry = replace(frozen.entries[0], disposition=terminal)
-    candidate = replace(frozen, entries=(changed_entry, *frozen.entries[1:]))
+    index = next(index for index, entry in enumerate(frozen.entries) if entry.disposition is MigrationDisposition.OPEN)
+    changed_entry = replace(frozen.entries[index], disposition=terminal)
+    candidate = replace(frozen, entries=(*frozen.entries[:index], changed_entry, *frozen.entries[index + 1 :]))
 
     validate_inventory_transition(frozen, candidate)
 
@@ -279,7 +282,7 @@ def test_inventory_refuses_schema_and_status_mutations(tmp_path: Path, field: st
 
 def test_inventory_refuses_unreadable_zero_and_unknown_targets(tmp_path: Path) -> None:
     frozen = load_migration_inventory(INVENTORY)
-    original = frozen.entries[0]
+    original = next(entry for entry in frozen.entries if entry.disposition is MigrationDisposition.OPEN)
 
     missing = replace(original, path="missing.py", symbol="<module>")
     missing = replace(missing, entry_id=entry_identity(missing))

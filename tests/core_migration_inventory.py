@@ -47,6 +47,17 @@ class DependencyKind(Enum):
     WRITER = "writer"
 
 
+_APPROVED_TERMINAL_SOURCE_CLOSURES = {
+    "1c8eeb5e2b6949fb391f16030e1f9aafd676fc854761a7cd1fbf574341c90ef8": MigrationDisposition.V2_MIGRATED,
+    "85631fe892d3ae9307ea2f93de6c0e280d2d8e0054fefffaa9b6edca330247a2": MigrationDisposition.V2_MIGRATED,
+    "86a1113a0052c928c53719ff8ee4b110aa4bdd1a8d20ff9ab7492227e346e872": MigrationDisposition.V2_MIGRATED,
+    "91f404b327f8ed526ebbd1370e6f8b065af6238e3815ece46ac1de3c35845113": MigrationDisposition.V2_MIGRATED,
+    "9f2097b8a673c3079a8a61cc28e9099c671e48e6c29a3e95a9e3aac3d53ccb00": MigrationDisposition.RETIRED,
+    "eb963401f43fca11e38c50e5e064f58b33233b9564a3a85e5b629a6fb2820d7d": MigrationDisposition.V2_MIGRATED,
+    "f8a5c42661f6a79b0abbe668e8993fd0ec26d1c9dad5df4e141472e6de62f586": MigrationDisposition.V2_MIGRATED,
+}
+
+
 @dataclass(frozen=True)
 class HistoricalArtifactRecord:
     path: str
@@ -437,8 +448,12 @@ def _moved_mixed_v1_owner(entry: LegacyInventoryEntry, *, root: Path) -> bool:
     return set(destination_symbols) <= owned
 
 
+def _approved_terminal_source_closure(entry: LegacyInventoryEntry) -> bool:
+    return _APPROVED_TERMINAL_SOURCE_CLOSURES.get(entry.entry_id) is entry.disposition and entry.entry_id == entry_identity(entry)
+
+
 def validate_inventory_sources(inventory: LegacyMigrationInventory, *, root: Path) -> None:
-    """Prove every registered migration target is readable, nonzero, and present."""
+    """Prove sources are readable and every open migration target remains present."""
     for entry in inventory.entries:
         path = root / entry.path
         try:
@@ -453,10 +468,11 @@ def validate_inventory_sources(inventory: LegacyMigrationInventory, *, root: Pat
             raise LegacyInventoryError(f"inventory source is not parseable: {entry.path}") from exc
         is_shim = _explicit_legacy_shim(tree, entry.symbol)
         moved_owner = _moved_mixed_v1_owner(entry, root=root)
-        if entry.symbol not in _defined_symbols(tree) and not is_shim and not moved_owner:
+        terminal_closure = _approved_terminal_source_closure(entry)
+        if entry.symbol not in _defined_symbols(tree) and not is_shim and not moved_owner and not terminal_closure:
             raise LegacyInventoryError(f"inventory target is absent: {entry.path}:{entry.symbol}")
         missing = _missing_anchors(entry, tree)
-        if missing and not is_shim and not moved_owner:
+        if missing and not is_shim and not moved_owner and not terminal_closure:
             raise LegacyInventoryError(f"inventory capability is absent: {entry.path}:{missing}")
 
 

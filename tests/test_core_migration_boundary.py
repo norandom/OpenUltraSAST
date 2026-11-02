@@ -36,7 +36,10 @@ def _write(root: Path, relative: str, source: str) -> Path:
 
 def _closed_inventory() -> LegacyMigrationInventory:
     frozen = load_migration_inventory(INVENTORY)
-    entries = tuple(replace(entry, disposition=MigrationDisposition.V2_MIGRATED) for entry in frozen.entries)
+    entries = tuple(
+        replace(entry, disposition=MigrationDisposition.V2_MIGRATED) if entry.disposition is MigrationDisposition.OPEN else entry
+        for entry in frozen.entries
+    )
     return replace(frozen, entries=entries)
 
 

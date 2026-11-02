@@ -6,13 +6,52 @@ import inspect
 from dataclasses import replace
 
 from test_core_evidence import _scope, _stamp
-from test_core_native import _trace
 from test_core_reference_families import _contract, _load
 
 from openultrasast.core import evidence, family, semantics
 from openultrasast.semantic.obligations import trace as trace_module
-from openultrasast.semantic.obligations.abstract_domain import PairJudgment, ResourceRef
+from openultrasast.semantic.obligations.abstract_domain import (
+    AuthorityRef,
+    Completeness,
+    EvidenceRelation,
+    PairJudgment,
+    PathJudgment,
+    ResourceRef,
+    WitnessMatch,
+)
 from openultrasast.semantic.obligations.core_adapter import to_evidence_record
+
+
+def _trace() -> trace_module.Trace:
+    state = trace_module.AbstractTraceState(
+        path_judgment=PathJudgment(
+            judgment=PairJudgment.UNGUARDED,
+            missing=("identity_constraint",),
+            completeness=Completeness(is_complete=True, reasons=()),
+            matches=(WitnessMatch(EvidenceRelation.MUST, EvidenceRelation.MUST, EvidenceRelation.NO, ("fact:f",)),),
+        ),
+        resource=ResourceRef(kind="exact", values=("credentials",)),
+        authority=AuthorityRef(values=("admin",), is_unknown=False),
+        resource_relation=EvidenceRelation.MUST,
+        authority_relation=EvidenceRelation.MUST,
+    )
+    guard = trace_module.Guard("permission_check", "path", 2, "fact:f", "f1", "all_paths", "branches")
+    return trace_module.Trace(
+        entry_kind="route",
+        boundary="request",
+        access="public",
+        parameters=("request",),
+        hops=(trace_module.Hop("handler", 2, (guard,), ()),),
+        operation_kind="protected_read",
+        fact_id="obligation:protected_read:src/app.py:3",
+        operation_line=3,
+        arguments=(),
+        guards_after=(),
+        requires=("identity_constraint",),
+        dominating=(),
+        missing="identity_constraint",
+        abstract_state=state,
+    )
 
 
 def _adapt(trace: trace_module.Trace) -> evidence.EvidenceRecord:

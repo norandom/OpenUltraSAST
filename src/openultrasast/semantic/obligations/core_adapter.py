@@ -2,15 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
-
 from openultrasast.core import evidence, family, semantics
 from openultrasast.core import provenance as core_provenance
-from openultrasast.core.trace import Guard as LegacyGuard
-from openultrasast.core.trace import Hop as LegacyHop
-from openultrasast.core.trace import TraceRecord
-from openultrasast.core.trace import Witness as LegacyWitness
-from openultrasast.core.verdict import Judgment
 
 from .abstract_domain import EvidenceRelation, PairJudgment
 from .trace import Trace
@@ -169,46 +162,4 @@ def _deterministic_provenance() -> core_provenance.DecisionProvenance:
     return core_provenance.DecisionProvenance(None, None, None, None, None, None)
 
 
-def to_legacy_trace_record(
-    trace: Trace,
-    *,
-    entry: str,
-    digests: Mapping[str, str],
-    complete: bool = False,
-) -> TraceRecord:
-    """Preserve the frozen v1 conversion while its writers remain parked."""
-    state = trace.abstract_state
-    if state is None:
-        judgment = Judgment.INDETERMINATE
-        reasons: tuple[str, ...] = ("abstract_state_unset",)
-        witnesses: tuple[LegacyWitness, ...] = ()
-        resource = authority = "unknown"
-    else:
-        judgment = Judgment(state.path_judgment.judgment.value)
-        completeness = state.path_judgment.completeness
-        reasons = tuple(completeness.reasons) or (("incomplete",) if not completeness.is_complete else ())
-        witnesses = tuple(
-            LegacyWitness(kind="witness", provenance=item, relation=match.relation.value)
-            for match in state.path_judgment.matches
-            for item in match.evidence
-        )
-        resource = ",".join(state.resource.values) or "unknown"
-        authority = ",".join(state.authority.values) or "unknown"
-    hops = tuple(LegacyHop(function=item.function, call_line=item.call_line, complete=complete) for item in trace.hops)
-    hop_guards = tuple(guard for hop in trace.hops for guard in hop.guards_before_call)
-    guards = tuple(LegacyGuard(kind=item.kind, effect=item.effect) for item in (*hop_guards, *trace.guards_after))
-    return TraceRecord(
-        entry=entry,
-        hops=hops,
-        operation_kind=trace.operation_kind,
-        resource=resource,
-        authority=authority,
-        witnesses=witnesses,
-        guards=guards,
-        completeness_reasons=reasons,
-        judgment=judgment,
-        digests=dict(digests),
-    )
-
-
-__all__ = ["to_evidence_record", "to_legacy_trace_record"]
+__all__ = ["to_evidence_record"]

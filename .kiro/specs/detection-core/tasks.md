@@ -374,7 +374,7 @@
   - During migration, distinguish the designated compatibility implementation from the production-consumer scope; reserve repository-wide zero for post-deletion validation.
   - Done when an adversarial syntax matrix reports the exact forbidden sites and `try`/`finally`, comprehension, assignment, and generic-call alias shapes cannot turn an explicit forbidden reference into a false zero.
   - _Requirements: 14.3, 15.3_
-- [ ] 10.4 Migrate or retire remaining registered production source-tree consumers
+- [x] 10.4 Migrate or retire remaining registered production source-tree consumers
   - Move each registered non-benchmark production reader and writer to the canonical v2 contract or retire it within its owning boundary.
   - Update the matching stable inventory entry to `v2_migrated` or `retired` in the same change without removing or rekeying it.
   - Keep authorization analysis, model execution, proof execution, and other adjacent behavior in their existing owner boundaries while changing only their contract seam.
