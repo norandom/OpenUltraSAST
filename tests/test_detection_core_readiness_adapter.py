@@ -199,7 +199,7 @@ def test_development_observation_refuses_zero_byte_input() -> None:
     prior = _prior(identity)
     manifest, receipts = _instrument()
     zero = (replace(receipts[0], byte_count=0),)
-    with pytest.raises(coverage.InstrumentFailure, match="zero-byte"):
+    with pytest.raises(ValueError, match="zero-byte"):
         readiness_contract.build_development_observation(
             arm_id="reference-arm",
             family_id="reference-family",
