@@ -18,7 +18,7 @@
 - Existing target facts may be schema-migrated without expanding vocabulary or behavior.
 
 - [ ] 1. Establish migration-safe foundations
-- [ ] 1.1 Freeze historical v1 artifacts and the reviewed migration inventory
+- [x] 1.1 Freeze historical v1 artifacts and the reviewed migration inventory
   - Pin representative v1 trace and report bytes and hashes as immutable regression fixtures.
   - Provide an independent schema-routed read-only decoder that validates committed v1 artifacts without importing the compatibility namespace, constructing v2 determinate outcomes, or exposing a writer or converter.
   - Freeze the reviewed initial set of v1 readers and writers with stable entry identities, paths, symbols or capabilities, owner boundaries, and open migration status.
