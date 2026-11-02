@@ -335,7 +335,7 @@
   - _Requirements: 10.2, 10.4, 11.1, 11.2, 11.3, 11.4, 11.5, 13.4, 14.3_
   - _Boundary: Fact Pack Adapter Conformance_
   - _Depends: 5.4_
-- [ ] 9.5 (P) Produce readiness and development records through benchmark-owned adapters
+- [x] 9.5 (P) Produce readiness and development records through benchmark-owned adapters
   - Construct canonical readiness results while leaving sequencing and persistence with benchmark workflows.
   - Emit development observations with v2 identities, evidence-use roles, instrument receipts, and prerequisite ancestry.
   - Stop a runner before population work when readiness is failed, absent, or stale.

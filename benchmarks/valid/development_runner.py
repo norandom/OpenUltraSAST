@@ -14,18 +14,22 @@ from __future__ import annotations
 import hashlib
 import json
 import time
+from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeVar
 
 if TYPE_CHECKING:
     from openultrasast.hunt.prover import ProverResult
 
+from benchmarks.valid.readiness_contract import require_stage_authorized
 from benchmarks.valid.run_manifests import AnalyzerBundle
+from openultrasast.core.readiness import AnalysisIdentity, ReadinessResult, ReadinessStage
 from openultrasast.hunt.producers import Context
 from openultrasast.hunt.prover import prove_change
 
 _STAGE_KEYS = ("entry_recognition", "resolution", "judgment")
+_T = TypeVar("_T")
 
 
 @dataclass(frozen=True)
@@ -116,6 +120,16 @@ def run_development(
             encoding="utf-8",
         )
     return tuple(records)
+
+
+def run_development_when_ready(
+    readiness_receipts: tuple[ReadinessResult, ...],
+    current_identity: AnalysisIdentity,
+    population_work: Callable[[], _T],
+) -> _T:
+    """Run caller-owned development work only after all prior stages pass."""
+    require_stage_authorized(ReadinessStage.DEVELOPMENT, readiness_receipts, current_identity)
+    return population_work()
 
 
 class GateFailure(RuntimeError):
@@ -247,6 +261,7 @@ __all__ = [
     "four_arm_report",
     "judgment_transition",
     "run_development",
+    "run_development_when_ready",
     "stage_funnel",
     "summarize_development",
 ]
