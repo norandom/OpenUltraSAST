@@ -18,13 +18,19 @@ from __future__ import annotations
 import hashlib
 import json
 import tomllib
+from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 from benchmarks.unseen.replay import canonical
-from benchmarks.valid.admission_scoring import AdmissionCase, OrdinaryChange, admission_report
+from benchmarks.valid.admission_scoring import AdmissionCase, OrdinaryChange, admission_report, score_v2_admission
 from benchmarks.valid.arm_regression import BundleDigests, _input_digest, _prove_one
+from benchmarks.valid.population_custody import AdmissionSpendAuthority, GuardedPopulationCustodian, ReleaseReview
 from benchmarks.valid.prover_admission import AdmissionManifest, validate_admission_manifest
+from openultrasast.core.admission_case import AdmissionCaseResult
+from openultrasast.core.admission_report import AdmissionReplay
+from openultrasast.core.admission_spend import authorize_admission
 from openultrasast.preprocess import detect_language
 from openultrasast.source import canonical_language, ranges
 
@@ -37,10 +43,55 @@ __all__ = [
     "load_admission_population",
     "locate_function",
     "run_admission",
+    "run_v2_admission",
+    "V2AdmissionRunInput",
     "site_judgment",
 ]
 
 ARM_NAME = "access-control-admission"
+
+
+@dataclass(frozen=True)
+class V2AdmissionRunInput:
+    authority: AdmissionSpendAuthority
+    custodian: GuardedPopulationCustodian
+    load_labels: Callable[[], bytes]
+    analyze_labels: Callable[[bytes], Sequence[AdmissionCaseResult]]
+    review_release: ReleaseReview
+
+
+def run_v2_admission(value: V2AdmissionRunInput) -> AdmissionReplay:
+    """Run one synthetic v2 admission through guarded custody and core scoring."""
+    authority = value.authority
+    preparation = authorize_admission(
+        authority.manifest,
+        authority.denominator,
+        authority.readiness,
+        authority.context,
+        value.custodian,
+        authority.resolver,
+    )
+    guarded = value.custodian.spend_and_release_labels(authority, preparation, value.load_labels)
+    cases = tuple(value.analyze_labels(guarded.labels))
+    release = value.custodian.release_cases(
+        authority,
+        preparation,
+        guarded.receipt,
+        cases,
+        value.review_release,
+    )
+    return score_v2_admission(
+        authority.manifest,
+        authority.denominator,
+        authority.readiness,
+        preparation,
+        guarded.receipt,
+        release,
+        cases,
+        authority.context,
+        value.custodian,
+        authority.resolver,
+    )
 
 
 def _site_traces(record: dict[str, Any], path: str, start: int, end: int) -> list[dict[str, Any]]:

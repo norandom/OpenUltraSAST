@@ -10,13 +10,23 @@ indeterminate and never converted to clean results; ordinary changes whose
 review found a real missing-authorization defect are refused before scoring.
 """
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 
 from benchmarks.unseen import score
 from benchmarks.valid.prover_admission import AdmissionManifest
+from openultrasast.core import canonical
+from openultrasast.core.admission_case import AdmissionCaseRelease, AdmissionCaseResult
+from openultrasast.core.admission_context import AdmissionValidationContext
+from openultrasast.core.admission_report import AdmissionReplay, score_admission, validate_admission_replay
+from openultrasast.core.admission_review import AdmissionManifestV2
+from openultrasast.core.admission_spend import AdmissionPreparation
+from openultrasast.core.custody import PopulationCustodyPort, PopulationUseReceipt
+from openultrasast.core.measurement import DenominatorPolicy
+from openultrasast.core.readiness import ReadinessResult
 
-__all__ = ["AdmissionCase", "AdmissionScoringError", "OrdinaryChange", "admission_report"]
+__all__ = ["AdmissionCase", "AdmissionScoringError", "OrdinaryChange", "admission_report", "score_v2_admission"]
 
 _JUDGMENTS = ("unguarded", "discharged", "indeterminate")
 
@@ -43,6 +53,35 @@ class OrdinaryChange:
     change_id: str
     judgment: str
     mislabeled_defect: bool
+
+
+def score_v2_admission(
+    manifest: AdmissionManifestV2,
+    denominator: DenominatorPolicy,
+    readiness: Sequence[ReadinessResult],
+    preparation: AdmissionPreparation,
+    receipt: PopulationUseReceipt,
+    release: AdmissionCaseRelease,
+    cases: Sequence[AdmissionCaseResult],
+    context: AdmissionValidationContext,
+    custody: PopulationCustodyPort,
+    resolver: canonical.ContentResolver,
+) -> AdmissionReplay:
+    """Delegate v2 scoring and authoritative replay to detection core."""
+    replay = score_admission(
+        manifest,
+        denominator,
+        tuple(readiness),
+        preparation,
+        receipt,
+        release,
+        tuple(cases),
+        context,
+        custody,
+        resolver,
+    )
+    validate_admission_replay(replay, context, custody, resolver)
+    return replay
 
 
 def _refuse_inputs(

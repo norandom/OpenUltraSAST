@@ -343,7 +343,7 @@
   - _Requirements: 8.1, 8.3, 8.4, 8.5, 8.6, 14.3, 15.5_
   - _Boundary: Benchmark Readiness Adapter_
   - _Depends: 4.4, 8.2_
-- [ ] 9.6 Integrate benchmark-owned admission scoring and guarded custody
+- [x] 9.6 Integrate benchmark-owned admission scoring and guarded custody
   - Delegate neutral scoring to core while retaining population persistence and run orchestration in the benchmark.
   - Make the custodian the sole append-only writer and combine durable compare-and-swap spend plus label release as one guarded operation.
   - After the winning spend, produce and independently attest the canonical case release over the exact immutable result, evidence, change, and input identities supplied to scoring.
