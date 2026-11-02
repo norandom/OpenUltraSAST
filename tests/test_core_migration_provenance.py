@@ -21,6 +21,15 @@ from core_migration_inventory import (
 )
 
 INVENTORY = REPO / "tests/fixtures/detection_core/v1/migration_inventory.json"
+MIXED_V2_MODULES = frozenset(
+    {
+        "src/openultrasast/core/budget.py",
+        "src/openultrasast/core/coverage.py",
+        "src/openultrasast/core/factpack.py",
+        "src/openultrasast/core/probes.py",
+        "src/openultrasast/core/provenance.py",
+    }
+)
 
 
 @pytest.mark.parametrize(
@@ -51,22 +60,18 @@ def test_reader_audit_covers_direct_legacy_submodule_bindings(
 
 def test_reader_audit_covers_real_direct_legacy_submodule_reads() -> None:
     expected = {
-        ("tests/test_core_budget_v2.py", "module_attr:openultrasast.core.budget:Budget"),
-        ("tests/test_core_budget_v2.py", "module_attr:openultrasast.core.budget:Complexity"),
-        ("tests/test_core_probes.py", "module_attr:openultrasast.core.probes:FittedComponentBlocked"),
-        ("tests/test_core_probes.py", "module_attr:openultrasast.core.probes:LegacyProbeResult"),
-        ("tests/test_core_probes.py", "module_attr:openultrasast.core.probes:ShortcutDetected"),
-        ("tests/test_core_probes.py", "module_attr:openultrasast.core.probes:assert_no_shortcut"),
-        ("tests/test_core_probes.py", "module_attr:openultrasast.core.probes:require_admission_evidence"),
-        ("tests/test_core_probes.py", "module_attr:openultrasast.core.probes:reversed_pair_probe"),
         ("tests/test_core_contract.py", "module_attr:openultrasast.core.verdict:__all__"),
     }
-    paths = tuple(REPO / path for path in sorted({path for path, _ in expected}))
+    paths = tuple(REPO / path for path in ("tests/test_core_budget_v2.py", "tests/test_core_contract.py", "tests/test_core_probes.py"))
 
     report = audit_legacy_readers(paths)
 
     assert report.files_read == 3 and report.bytes_read > 0
     assert expected <= set(report.capabilities)
+    assert not any(
+        capability.startswith(("module_attr:openultrasast.core.budget:", "module_attr:openultrasast.core.probes:"))
+        for _path, capability in report.capabilities
+    )
 
 
 def test_frozen_inventory_resolves_nonzero_sources_and_targets() -> None:
@@ -185,6 +190,9 @@ def test_independent_reader_audit_matches_split_inventory_capabilities() -> None
     for path, _anchor in open_registered - current:
         source = (REPO / path).read_bytes()
         assert source, f"migration shim instrument must read nonzero bytes from {path}"
+        if path in MIXED_V2_MODULES:
+            assert b"openultrasast.core.legacy_v1" not in source
+            continue
         assert b"openultrasast.core.legacy_v1" in source, f"open reader disappeared without an explicit compatibility shim: {path}"
 
 
@@ -291,6 +299,55 @@ def test_inventory_refuses_unreadable_zero_and_unknown_targets(tmp_path: Path) -
     unknown = replace(unknown, entry_id=entry_identity(unknown))
     with pytest.raises(LegacyInventoryError, match="target"):
         validate_inventory_sources(replace(frozen, entries=(unknown,)), root=tmp_path)
+
+
+@pytest.mark.parametrize("mutation", ("symbol", "anchor"))
+def test_mixed_owner_transfer_refuses_rekeyed_inventory_entries(mutation: str) -> None:
+    frozen = load_migration_inventory(INVENTORY)
+    original = next(
+        entry for entry in frozen.entries if entry.entry_id == "9eb4cba855044fe025daa7a523458c4fba0b12758ca604c894849f824f55ccb4"
+    )
+    if mutation == "symbol":
+        changed = replace(original, symbol="InstrumentFailure", capability_anchors=("definition:InstrumentFailure",))
+    else:
+        changed = replace(
+            original,
+            capability_anchors=("import_from:openultrasast.core._legacy_factpack:InstrumentFailure",),
+        )
+    changed = replace(changed, entry_id=entry_identity(changed))
+
+    with pytest.raises(LegacyInventoryError, match="target|capability"):
+        validate_inventory_sources(replace(frozen, entries=(changed,)), root=REPO)
+
+
+@pytest.mark.parametrize(
+    ("facade_source", "owner_source"),
+    (
+        (
+            "from openultrasast.core.legacy_v1.writer import FactPackError\n",
+            "class FactPackError(ValueError):\n    pass\n",
+        ),
+        (
+            "from openultrasast.core.legacy_v1.contracts import FactPackError\n",
+            "class AnotherContract:\n    pass\n",
+        ),
+    ),
+)
+def test_mixed_owner_transfer_refuses_wrong_or_missing_destination(tmp_path: Path, facade_source: str, owner_source: str) -> None:
+    frozen = load_migration_inventory(INVENTORY)
+    original = next(
+        entry for entry in frozen.entries if entry.entry_id == "9eb4cba855044fe025daa7a523458c4fba0b12758ca604c894849f824f55ccb4"
+    )
+    mixed = tmp_path / original.path
+    mixed.parent.mkdir(parents=True)
+    mixed.write_text("pass\n", encoding="utf-8")
+    namespace = tmp_path / "src/openultrasast/core/legacy_v1"
+    namespace.mkdir(parents=True)
+    (namespace / "__init__.py").write_text(facade_source, encoding="utf-8")
+    (namespace / "contracts.py").write_text(owner_source, encoding="utf-8")
+
+    with pytest.raises(LegacyInventoryError, match="capability"):
+        validate_inventory_sources(replace(frozen, entries=(original,)), root=tmp_path)
 
 
 def test_inventory_refuses_changed_artifact_bytes(tmp_path: Path) -> None:

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import enum
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -15,6 +15,32 @@ class AdmissionManifestError(ValueError):
 
 class FactPackError(ValueError):
     """A legacy fact pack is unreviewed or inconsistent."""
+
+
+class InstrumentFailure(ValueError):
+    """A legacy run did not read every tracked input."""
+
+
+class BudgetGateFailure(ValueError):
+    """A legacy change exceeded its measured budget."""
+
+
+class ProvenanceMismatch(ValueError):
+    """A legacy recorded digest differs from its re-derived identity."""
+
+
+class ShortcutDetected(ValueError):
+    """A legacy component separates reversed surface shapes."""
+
+
+class FittedComponentBlocked(ValueError):
+    """A legacy fitted component lacks release evidence."""
+
+
+class ResolutionOutcome(enum.Enum):
+    COMPLETE = "complete"
+    INCOMPLETE = "incomplete"
+    UNRESOLVED = "unresolved"
 
 
 class Judgment(enum.Enum):
@@ -119,6 +145,52 @@ class LegacyFactPack:
     facts: tuple[dict[str, Any], ...]
     review_digest: str
     fact_set_digest: str
+
+
+@dataclass(frozen=True)
+class Coverage:
+    entry_points: int
+    frameworks_recognised: dict[str, int] = field(default_factory=dict)
+    calls: int = 0
+    complete: int = 0
+    incomplete: int = 0
+    unresolved: int = 0
+    unchecked_reasons: dict[str, int] = field(default_factory=dict)
+
+    def validate(self) -> None:
+        buckets = (self.complete, self.incomplete, self.unresolved)
+        if min(buckets) < 0:
+            raise ValueError(f"negative resolution bucket in {buckets}")
+        if sum(buckets) != self.calls:
+            raise ValueError(
+                f"resolution buckets ({self.complete}+{self.incomplete}+{self.unresolved}) must equal the call count ({self.calls})"
+            )
+
+
+@dataclass(frozen=True)
+class Complexity:
+    regions: int
+    calls: int
+    changed_bytes: int
+
+
+@dataclass(frozen=True)
+class Budget:
+    workload_class: str
+    seconds: float
+    n: int
+    percentile: float
+    hardware: str
+
+    def describe(self) -> str:
+        return f"class={self.workload_class} n={self.n} p{int(self.percentile * 100)} hardware={self.hardware} budget={self.seconds:g}s"
+
+
+@dataclass(frozen=True)
+class LegacyProbeResult:
+    separated: bool
+    fix_score: float
+    reversed_score: float
 
 
 REPORT_SCHEMA_KEYS = frozenset(
@@ -279,27 +351,89 @@ def admit_pack_file(path: str | Path, *, review_digest: str) -> LegacyFactPack:
     return pack
 
 
-__all__ = [
-    "REPORT_SCHEMA_KEYS",
-    "AdmissionManifest",
-    "AdmissionManifestError",
-    "BoundedSilence",
-    "FactPackError",
-    "Guard",
-    "Hop",
-    "Judgment",
-    "LegacyFactPack",
-    "ProvenClaim",
-    "PushRequest",
-    "PushVerdict",
-    "TraceRecord",
-    "Witness",
-    "admit_fact_pack",
-    "admit_pack_file",
-    "as_clean",
-    "consume_verdict",
-    "load_pack_file",
-    "validate_admission_manifest",
-    "validate_report_schema",
-    "verify_fact_pack",
-]
+_STAMP_FIELDS = (
+    "analyzer_revision",
+    "fact_set_digest",
+    "acquisition_record_digest",
+    "configuration_digest",
+    "population_digest",
+    "input_digest",
+)
+
+
+def check_reads(reads: Mapping[str, int]) -> None:
+    zero = sorted(path for path, size in reads.items() if size <= 0)
+    if zero:
+        raise InstrumentFailure(f"zero-byte read of tracked input: {', '.join(zero)}")
+
+
+def _quantile(values: list[float], percentile: float) -> float:
+    position = (len(values) - 1) * percentile
+    lower = int(position)
+    upper = min(lower + 1, len(values) - 1)
+    weight = position - lower
+    return values[lower] * (1 - weight) + values[upper] * weight
+
+
+def derive_budget(samples: Sequence[tuple[Complexity, float]], *, workload_class: str, percentile: float, hardware: str) -> Budget:
+    if not samples:
+        raise ValueError("budget derivation needs at least one measured sample")
+    if not 0.0 < percentile < 1.0:
+        raise ValueError(f"percentile {percentile} outside (0, 1)")
+    seconds = sorted(float(item[1]) for item in samples)
+    return Budget(workload_class, _quantile(seconds, percentile), len(samples), percentile, hardware)
+
+
+def check_budget(change_id: str, seconds: float, budget: Budget) -> None:
+    if seconds > budget.seconds:
+        raise BudgetGateFailure(f"budget:{change_id}:{seconds:g}s>{budget.seconds:g}s ({budget.describe()})")
+
+
+def stamp(
+    *,
+    analyzer_revision: str,
+    fact_set_digest: str,
+    acquisition_record_digest: str,
+    configuration_digest: str,
+    population_digest: str,
+    change_id: str,
+) -> dict[str, str]:
+    from openultrasast.core.legacy_v1 import writer
+
+    return {
+        "analyzer_revision": analyzer_revision,
+        "fact_set_digest": fact_set_digest,
+        "acquisition_record_digest": acquisition_record_digest,
+        "configuration_digest": configuration_digest,
+        "population_digest": population_digest,
+        "input_digest": writer.input_digest(change_id, population_digest),
+    }
+
+
+def verify_stamp(recorded: Mapping[str, object], rederived: Mapping[str, object]) -> None:
+    for field_name in _STAMP_FIELDS:
+        if recorded.get(field_name) != rederived.get(field_name):
+            raise ProvenanceMismatch(f"{field_name}: recorded {recorded.get(field_name)!r} != rederived {rederived.get(field_name)!r}")
+
+
+def reversed_pair_probe(
+    score_fn: Callable[[Mapping[str, Any]], float], fix_change: Mapping[str, Any], reversed_change: Mapping[str, Any]
+) -> LegacyProbeResult:
+    fix_score = float(score_fn(fix_change))
+    reversed_score = float(score_fn(reversed_change))
+    return LegacyProbeResult(fix_score != reversed_score, fix_score, reversed_score)
+
+
+def assert_no_shortcut(
+    score_fn: Callable[[Mapping[str, Any]], float], fix_change: Mapping[str, Any], reversed_change: Mapping[str, Any]
+) -> None:
+    result = reversed_pair_probe(score_fn, fix_change, reversed_change)
+    if result.separated:
+        raise ShortcutDetected(f"shape shortcut: fix={result.fix_score} vs reversed={result.reversed_score}")
+
+
+def require_admission_evidence(*, holdout_passed: bool, admission_decision: str) -> None:
+    if not holdout_passed:
+        raise FittedComponentBlocked("fitted component lacks per-repository holdout evidence")
+    if admission_decision != "GO":
+        raise FittedComponentBlocked(f"fitted component admission decision is {admission_decision!r}, not GO")

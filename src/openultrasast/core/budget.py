@@ -7,7 +7,6 @@ import math
 import re
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import overload
 
 from openultrasast.core import canonical
 
@@ -46,29 +45,6 @@ def _finite_number(value: object, field: str, *, positive: bool = False) -> floa
     if positive and number <= 0:
         raise ValueError(f"{field} must be positive")
     return number
-
-
-@dataclass(frozen=True)
-class Complexity:
-    """Legacy measured change complexity."""
-
-    regions: int
-    calls: int
-    changed_bytes: int
-
-
-@dataclass(frozen=True)
-class Budget:
-    """Legacy derived per-class budget."""
-
-    workload_class: str
-    seconds: float
-    n: int
-    percentile: float
-    hardware: str
-
-    def describe(self) -> str:
-        return f"class={self.workload_class} n={self.n} p{int(self.percentile * 100)} hardware={self.hardware} budget={self.seconds:g}s"
 
 
 @dataclass(frozen=True)
@@ -302,69 +278,8 @@ def _compatible(value: ChangeComplexity, reference: ReferenceWorkload) -> bool:
     )
 
 
-@overload
-def derive_budget(samples: Sequence[tuple[Complexity, float]], *, workload_class: str, percentile: float, hardware: str) -> Budget: ...
-
-
-@overload
 def derive_budget(
     samples: Sequence[MeasuredSample],
-    workload_class: str,
-    percentile: float,
-    reference_workload: ReferenceWorkload,
-    reference_hardware: ReferenceHardware,
-) -> BudgetDerivation: ...
-
-
-def derive_budget(
-    samples: Sequence[tuple[Complexity, float]] | Sequence[MeasuredSample],
-    workload_class: str | None = None,
-    percentile: float | None = None,
-    *v2_context: object,
-    hardware: str | None = None,
-    reference_workload: ReferenceWorkload | None = None,
-    reference_hardware: ReferenceHardware | None = None,
-) -> Budget | BudgetDerivation:
-    if v2_context:
-        if len(v2_context) != 2 or reference_workload is not None or reference_hardware is not None:
-            raise TypeError("v2 positional context must be reference workload and hardware")
-        positional_workload, positional_hardware = v2_context
-        if not isinstance(positional_workload, ReferenceWorkload) or not isinstance(positional_hardware, ReferenceHardware):
-            raise TypeError("v2 positional context must be reference workload and hardware")
-        reference_workload, reference_hardware = positional_workload, positional_hardware
-    if workload_class is None or percentile is None:
-        raise TypeError("workload_class and percentile are required")
-    if reference_workload is not None or reference_hardware is not None:
-        if (
-            not isinstance(reference_workload, ReferenceWorkload)
-            or not isinstance(reference_hardware, ReferenceHardware)
-            or hardware is not None
-        ):
-            raise ValueError("v2 derivation requires reference workload and hardware only")
-        return _derive_v2(samples, workload_class, percentile, reference_workload, reference_hardware)
-    if hardware is None:
-        raise ValueError("legacy derivation requires hardware")
-    return _derive_legacy(samples, workload_class, percentile, hardware)
-
-
-def _derive_legacy(
-    samples: Sequence[tuple[Complexity, float]] | Sequence[MeasuredSample],
-    workload_class: str,
-    percentile: float,
-    hardware: str,
-) -> Budget:
-    if not samples:
-        raise ValueError("budget derivation needs at least one measured sample")
-    if not 0.0 < percentile < 1.0:
-        raise ValueError(f"percentile {percentile} outside (0, 1)")
-    seconds = sorted(float(item[1]) for item in samples if isinstance(item, tuple))
-    if len(seconds) != len(samples):
-        raise TypeError("legacy samples must be (Complexity, seconds) tuples")
-    return Budget(workload_class, _quantile(seconds, percentile), len(samples), percentile, hardware)
-
-
-def _derive_v2(
-    samples: Sequence[tuple[Complexity, float]] | Sequence[MeasuredSample],
     workload_class: str,
     percentile: float,
     reference_workload: ReferenceWorkload,
@@ -415,63 +330,32 @@ def _validate_measurement(change: ChangeComplexity, resolver: canonical.ContentR
         raise ValueError("changed-byte measurement does not match complexity")
 
 
-@overload
-def check_budget(change_id: str, seconds: float, budget: Budget) -> None: ...
-
-
-@overload
 def check_budget(
     change: ChangeComplexity,
     total_reply_ms: int,
     budget: BudgetDerivation,
     resolver: canonical.ContentResolver,
-    /,
-) -> None: ...
-
-
-def check_budget(
-    change_id: str | ChangeComplexity | None = None,
-    seconds: float | int | None = None,
-    budget: Budget | BudgetDerivation | None = None,
-    resolver: canonical.ContentResolver | None = None,
-    **v2_names: object,
 ) -> None:
-    if v2_names:
-        if set(v2_names) != {"change", "total_reply_ms"} or change_id is not None or seconds is not None:
-            raise TypeError("use either legacy or v2 budget parameter names")
-        candidate_change = v2_names["change"]
-        candidate_elapsed = v2_names["total_reply_ms"]
-        if not isinstance(candidate_change, ChangeComplexity) or not isinstance(candidate_elapsed, int):
-            raise TypeError("v2 budget parameter values have invalid types")
-        change_id, seconds = candidate_change, candidate_elapsed
-    if change_id is None or seconds is None or budget is None:
-        raise TypeError("change, elapsed time, and budget are required")
-    if isinstance(change_id, str) and isinstance(budget, Budget):
-        if seconds > budget.seconds:
-            raise BudgetGateFailure(f"budget:{change_id}:{seconds:g}s>{budget.seconds:g}s ({budget.describe()})")
-        return
-    if not isinstance(change_id, ChangeComplexity) or not isinstance(budget, BudgetDerivation) or resolver is None:
+    if not isinstance(change, ChangeComplexity) or not isinstance(budget, BudgetDerivation):
         raise TypeError("v2 budget check requires complexity, derivation, and resolver")
-    _validate_complexity(change_id)
+    _validate_complexity(change)
     _validate_derivation(budget)
-    _positive_int(seconds, "total_reply_ms")
-    if change_id.workload_class != budget.workload_class or not _compatible(change_id, budget.reference_workload):
+    _positive_int(total_reply_ms, "total_reply_ms")
+    if change.workload_class != budget.workload_class or not _compatible(change, budget.reference_workload):
         raise ValueError("change complexity is incompatible with budget derivation")
-    _validate_measurement(change_id, resolver)
-    if seconds > budget.budget_ms:
+    _validate_measurement(change, resolver)
+    if total_reply_ms > budget.budget_ms:
         raise BudgetGateFailure(
-            f"budget:{change_id.change_id}:{seconds}ms>{budget.budget_ms}ms "
+            f"budget:{change.change_id}:{total_reply_ms}ms>{budget.budget_ms}ms "
             f"class={budget.workload_class} derivation={budget.derivation_digest}"
         )
 
 
 __all__ = [
-    "Budget",
     "BudgetDerivation",
     "BudgetGateFailure",
     "CHANGED_BYTES_MEASUREMENT_SCHEMA",
     "ChangeComplexity",
-    "Complexity",
     "MeasuredSample",
     "ReferenceHardware",
     "ReferenceWorkload",

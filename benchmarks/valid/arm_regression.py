@@ -26,8 +26,8 @@ from benchmarks.unseen.replay import canonical
 from benchmarks.valid.catalog import local_git
 from benchmarks.valid.development_runner import AnalyzerBundle, stage_funnel
 from benchmarks.valid.prover_arm import _write_json
-from openultrasast.core.coverage import InstrumentFailure as CoreInstrumentFailure
-from openultrasast.core.coverage import check_reads
+from openultrasast.core.legacy_v1 import InstrumentFailure as CoreInstrumentFailure
+from openultrasast.core.legacy_v1 import check_reads
 from openultrasast.hunt.producers import Context, _Absent, _safe_path
 from openultrasast.hunt.prover import prove_change
 

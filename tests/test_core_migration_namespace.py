@@ -14,6 +14,20 @@ PURE_COMPATIBILITY_MODULES = (
     "verdict.py",
     "_legacy_factpack.py",
 )
+MIXED_LEGACY_NAMES = {
+    "budget": {"Budget", "Complexity"},
+    "coverage": {"Coverage", "ResolutionOutcome", "check_reads"},
+    "factpack": {"FactPackError", "admit_fact_pack", "admit_pack_file", "load_pack_file", "verify_fact_pack"},
+    "probes": {
+        "FittedComponentBlocked",
+        "LegacyProbeResult",
+        "ShortcutDetected",
+        "assert_no_shortcut",
+        "require_admission_evidence",
+        "reversed_pair_probe",
+    },
+    "provenance": {"ProvenanceMismatch", "stamp", "verify_stamp"},
+}
 
 
 def _trace() -> object:
@@ -40,14 +54,24 @@ def test_legacy_contract_values_have_one_compatibility_owner() -> None:
         "AdmissionManifest",
         "AdmissionManifestError",
         "BoundedSilence",
+        "Budget",
+        "BudgetGateFailure",
+        "Complexity",
+        "Coverage",
         "FactPackError",
+        "FittedComponentBlocked",
         "Guard",
         "Hop",
+        "InstrumentFailure",
         "Judgment",
         "LegacyFactPack",
+        "LegacyProbeResult",
         "ProvenClaim",
+        "ProvenanceMismatch",
         "PushRequest",
         "PushVerdict",
+        "ResolutionOutcome",
+        "ShortcutDetected",
         "TraceRecord",
         "Witness",
     }
@@ -61,6 +85,7 @@ def test_pure_compatibility_modules_define_no_contract_or_serializer() -> None:
         assert content, f"ownership instrument must read nonzero bytes from {name}"
         tree = ast.parse(content, filename=path.as_posix())
         assert not [node.name for node in tree.body if isinstance(node, ast.ClassDef)]
+        assert not [node.name for node in tree.body if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))]
         assert not any(isinstance(node, (ast.Import, ast.ImportFrom)) and "json" in ast.unparse(node) for node in tree.body)
         assert any(isinstance(node, ast.ImportFrom) and node.module == "openultrasast.core.legacy_v1.contracts" for node in tree.body)
 
@@ -69,6 +94,7 @@ def test_writer_is_the_only_compatibility_json_serializer() -> None:
     namespace = REPO / "src/openultrasast/core/legacy_v1"
     paths = sorted(namespace.glob("*.py"))
     assert paths and all(path.read_bytes() for path in paths)
+    assert {path.name for path in paths} == {"__init__.py", "contracts.py", "writer.py"}
     json_importers = []
     for path in paths:
         tree = ast.parse(path.read_bytes(), filename=path.as_posix())
@@ -109,3 +135,44 @@ def test_historical_decoder_stays_independent_from_compatibility_namespace() -> 
     tree = ast.parse(content, filename=path.as_posix())
     imports = {node.module for node in ast.walk(tree) if isinstance(node, ast.ImportFrom)}
     assert "openultrasast.core.legacy_v1" not in imports
+
+
+def test_top_level_v1_api_imports_only_from_closed_namespace() -> None:
+    import openultrasast.core as public_core
+    from openultrasast.core import legacy_v1
+
+    path = REPO / "src/openultrasast/core/__init__.py"
+    content = path.read_bytes()
+    assert content
+    tree = ast.parse(content, filename=path.as_posix())
+    legacy_imports = {
+        node.module
+        for node in tree.body
+        if isinstance(node, ast.ImportFrom) and any((alias.asname or alias.name) in public_core.__all__ for alias in node.names)
+    }
+    assert legacy_imports == {"openultrasast.core.legacy_v1"}
+    assert all(getattr(public_core, name) is getattr(legacy_v1, name) for name in public_core.__all__)
+
+
+def test_mixed_v2_modules_expose_no_legacy_compatibility_names() -> None:
+    import importlib
+
+    for module_name, legacy_names in MIXED_LEGACY_NAMES.items():
+        module = importlib.import_module(f"openultrasast.core.{module_name}")
+        assert legacy_names.isdisjoint(vars(module)), f"{module_name} still exposes {legacy_names & vars(module).keys()}"
+
+
+def test_closed_namespace_is_the_only_owner_of_moved_mixed_names() -> None:
+    from openultrasast.core import legacy_v1
+
+    expected = set().union(*MIXED_LEGACY_NAMES.values())
+    assert all(hasattr(legacy_v1, name) for name in expected)
+    operation_names = {
+        "assert_no_shortcut",
+        "check_reads",
+        "require_admission_evidence",
+        "reversed_pair_probe",
+        "stamp",
+        "verify_stamp",
+    }
+    assert {getattr(legacy_v1, name).__module__ for name in operation_names} == {"openultrasast.core.legacy_v1.contracts"}

@@ -9,8 +9,8 @@ from __future__ import annotations
 
 import enum
 import re
-from collections.abc import Mapping, Sequence
-from dataclasses import dataclass, field
+from collections.abc import Sequence
+from dataclasses import dataclass
 
 from openultrasast.core.canonical import JsonValue, content_digest, require_unique_identities
 from openultrasast.core.semantics import RelationStatus
@@ -20,45 +20,7 @@ _DIGEST = re.compile(r"[0-9a-f]{64}")
 
 
 class InstrumentFailure(ValueError):
-    """The run's input was not read; any result from it is invalid."""
-
-
-class ResolutionOutcome(enum.Enum):
-    """Exactly one bucket per call (Req 3.1)."""
-
-    COMPLETE = "complete"
-    INCOMPLETE = "incomplete"
-    UNRESOLVED = "unresolved"
-
-
-@dataclass(frozen=True)
-class Coverage:
-    """Coverage of one analyzed change."""
-
-    entry_points: int
-    frameworks_recognised: dict[str, int] = field(default_factory=dict)
-    calls: int = 0
-    complete: int = 0
-    incomplete: int = 0
-    unresolved: int = 0
-    unchecked_reasons: dict[str, int] = field(default_factory=dict)
-
-    def validate(self) -> None:
-        """Refuse coverage where calls lack exactly one resolution bucket."""
-        buckets = (self.complete, self.incomplete, self.unresolved)
-        if min(buckets) < 0:
-            raise ValueError(f"negative resolution bucket in {buckets}")
-        if sum(buckets) != self.calls:
-            raise ValueError(
-                f"resolution buckets ({self.complete}+{self.incomplete}+{self.unresolved}) must equal the call count ({self.calls})"
-            )
-
-
-def check_reads(reads: Mapping[str, int]) -> None:
-    """Fail the run when any tracked input was read as zero bytes (Req 3.2)."""
-    zero = sorted(path for path, size in reads.items() if size <= 0)
-    if zero:
-        raise InstrumentFailure(f"zero-byte read of tracked input: {', '.join(zero)}")
+    """The v2 run did not read every tracked input."""
 
 
 def _require_text(value: object, field_name: str) -> None:
@@ -378,7 +340,6 @@ def diagnose_first_zero(funnel: CoverageFunnel, expected: Sequence[StageExpectat
 
 
 __all__ = [
-    "Coverage",
     "CoverageFunnel",
     "CoverageStage",
     "InputManifest",
@@ -386,10 +347,8 @@ __all__ = [
     "InstrumentFailure",
     "ReasonCount",
     "RelationStatusCount",
-    "ResolutionOutcome",
     "StageDiagnosis",
     "StageExpectation",
-    "check_reads",
     "derive_input_manifest_digest",
     "diagnose_first_zero",
     "validate_instrument",

@@ -4,9 +4,7 @@ from __future__ import annotations
 
 import math
 import re
-from collections.abc import Callable, Mapping
 from dataclasses import dataclass, replace
-from typing import Any
 
 from openultrasast.core import canonical
 from openultrasast.core.evidence import EvidenceRecord
@@ -19,23 +17,6 @@ _DIGEST = re.compile(r"[0-9a-f]{64}")
 
 class ProbeValidationError(ValueError):
     """A probe input or claimed result cannot be reproduced."""
-
-
-class ShortcutDetected(ValueError):
-    """A legacy component separates a fix from its reversed surface."""
-
-
-class FittedComponentBlocked(ValueError):
-    """A legacy fitted component lacks its required release evidence."""
-
-
-@dataclass(frozen=True)
-class LegacyProbeResult:
-    """Frozen v1 shortcut result retained until the migration cutover."""
-
-    separated: bool
-    fix_score: float
-    reversed_score: float
 
 
 def _digest(value: object, field: str) -> None:
@@ -379,39 +360,7 @@ def validate_probe_result(
         raise ProbeValidationError("claimed probe result does not match canonical evaluation")
 
 
-def reversed_pair_probe(
-    score_fn: Callable[[Mapping[str, Any]], float],
-    fix_change: Mapping[str, Any],
-    reversed_change: Mapping[str, Any],
-) -> LegacyProbeResult:
-    """Run the frozen v1 shape probe without granting it v2 authority."""
-    fix_score = float(score_fn(fix_change))
-    reversed_score = float(score_fn(reversed_change))
-    return LegacyProbeResult(fix_score != reversed_score, fix_score, reversed_score)
-
-
-def assert_no_shortcut(
-    score_fn: Callable[[Mapping[str, Any]], float],
-    fix_change: Mapping[str, Any],
-    reversed_change: Mapping[str, Any],
-) -> None:
-    """Preserve the v1 exception behavior during migration."""
-    result = reversed_pair_probe(score_fn, fix_change, reversed_change)
-    if result.separated:
-        raise ShortcutDetected(f"shape shortcut: fix={result.fix_score} vs reversed={result.reversed_score}")
-
-
-def require_admission_evidence(*, holdout_passed: bool, admission_decision: str) -> None:
-    """Preserve the v1 fitted-component release guard during migration."""
-    if not holdout_passed:
-        raise FittedComponentBlocked("fitted component lacks per-repository holdout evidence")
-    if admission_decision != "GO":
-        raise FittedComponentBlocked(f"fitted component admission decision is {admission_decision!r}, not GO")
-
-
 __all__ = [
-    "FittedComponentBlocked",
-    "LegacyProbeResult",
     "ProbeEvaluationInput",
     "ProbeObservation",
     "ProbeResult",
@@ -420,12 +369,8 @@ __all__ = [
     "RoleProjection",
     "SemanticEquivalenceReview",
     "SemanticProjection",
-    "ShortcutDetected",
-    "assert_no_shortcut",
     "derive_equivalence_subject_digest",
     "evaluate_probe",
     "project_semantics",
-    "require_admission_evidence",
-    "reversed_pair_probe",
     "validate_probe_result",
 ]

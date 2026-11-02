@@ -5,10 +5,22 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from openultrasast.core.coverage import Coverage, InstrumentFailure, check_reads  # noqa: E402
-from openultrasast.core.provenance import ProvenanceMismatch, stamp, verify_stamp  # noqa: E402
-from openultrasast.core.trace import Guard, Hop, TraceRecord, Witness  # noqa: E402
-from openultrasast.core.verdict import BoundedSilence, Judgment, ProvenClaim, as_clean  # noqa: E402
+from openultrasast.core.legacy_v1 import (  # noqa: E402
+    BoundedSilence,
+    Coverage,
+    Guard,
+    Hop,
+    InstrumentFailure,
+    Judgment,
+    ProvenanceMismatch,
+    ProvenClaim,
+    TraceRecord,
+    Witness,
+    as_clean,
+    check_reads,
+    stamp,
+    verify_stamp,
+)
 
 
 def _trace() -> TraceRecord:

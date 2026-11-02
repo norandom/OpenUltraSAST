@@ -6,7 +6,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from openultrasast.core.consumer import PushRequest, consume_verdict  # noqa: E402
-from openultrasast.core.factpack import FactPackError, admit_fact_pack, verify_fact_pack  # noqa: E402
+from openultrasast.core.legacy_v1 import FactPackError, admit_fact_pack, verify_fact_pack  # noqa: E402
 from openultrasast.core.trace import TraceRecord  # noqa: E402
 from openultrasast.core.verdict import BoundedSilence, Judgment, ProvenClaim  # noqa: E402
 

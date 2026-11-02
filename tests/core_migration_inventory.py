@@ -74,6 +74,85 @@ class LegacyMigrationInventory:
     entries: tuple[LegacyInventoryEntry, ...]
 
 
+_APPROVED_MIXED_TRANSFERS: dict[
+    str,
+    tuple[tuple[str, str, str, str, tuple[str, ...], str], str, tuple[str, ...]],
+] = {
+    "9eb4cba855044fe025daa7a523458c4fba0b12758ca604c894849f824f55ccb4": (
+        (
+            "src/openultrasast/core/factpack.py",
+            "<module>",
+            "reader",
+            "v1-contract",
+            ("import_from:openultrasast.core._legacy_factpack:FactPackError",),
+            "core",
+        ),
+        "openultrasast.core.legacy_v1.contracts",
+        ("FactPackError",),
+    ),
+    "1b90ea5474dff89121dc1317a86892bb0d68f2c64117923c5979cf4bb0cd8b76": (
+        (
+            "src/openultrasast/core/factpack.py",
+            "<module>",
+            "reader",
+            "v1-contract",
+            ("import_from:openultrasast.core._legacy_factpack:admit_fact_pack",),
+            "core",
+        ),
+        "openultrasast.core.legacy_v1.contracts",
+        ("admit_fact_pack",),
+    ),
+    "005f1fee3a1a659a65a45d8134bc71f061e314bdc28ba95516e870997c2648cd": (
+        (
+            "src/openultrasast/core/factpack.py",
+            "<module>",
+            "reader",
+            "v1-contract",
+            ("import_from:openultrasast.core._legacy_factpack:admit_pack_file",),
+            "core",
+        ),
+        "openultrasast.core.legacy_v1.contracts",
+        ("admit_pack_file",),
+    ),
+    "4c846ba1d97e5a5b4bbf8f1e99e10c40da10906ca93d68596cb987738438582a": (
+        (
+            "src/openultrasast/core/factpack.py",
+            "<module>",
+            "reader",
+            "v1-contract",
+            ("import_from:openultrasast.core._legacy_factpack:load_pack_file",),
+            "core",
+        ),
+        "openultrasast.core.legacy_v1.contracts",
+        ("load_pack_file",),
+    ),
+    "23e6ccf25c185ca231d73ab02570b14a9cddae27f7506e95d517e241bb693ae4": (
+        (
+            "src/openultrasast/core/factpack.py",
+            "<module>",
+            "reader",
+            "v1-contract",
+            ("import_from:openultrasast.core._legacy_factpack:verify_fact_pack",),
+            "core",
+        ),
+        "openultrasast.core.legacy_v1.contracts",
+        ("verify_fact_pack",),
+    ),
+    "c8aaf430009a592a8ed4361f38023d5faa12a6da6186fc0dcea9c7c522da85ad": (
+        (
+            "src/openultrasast/core/probes.py",
+            "reversed_pair_probe",
+            "writer",
+            "v1-probe",
+            ("definition:reversed_pair_probe", "name:LegacyProbeResult"),
+            "core",
+        ),
+        "openultrasast.core.legacy_v1.contracts",
+        ("reversed_pair_probe", "LegacyProbeResult"),
+    ),
+}
+
+
 def _object(value: object, fields: frozenset[str], name: str) -> dict[str, object]:
     if not isinstance(value, dict) or not all(isinstance(key, str) for key in value):
         raise LegacyInventoryError(f"{name} must be an object")
@@ -311,6 +390,53 @@ def _explicit_legacy_shim(tree: ast.Module, symbol: str) -> bool:
     )
 
 
+def _stable_entry_fields(entry: LegacyInventoryEntry) -> tuple[str, str, str, str, tuple[str, ...], str]:
+    return (
+        entry.path,
+        entry.symbol,
+        entry.dependency_kind.value,
+        entry.artifact_family,
+        entry.capability_anchors,
+        entry.owner_boundary,
+    )
+
+
+def _read_owner_module(path: Path, description: str) -> ast.Module:
+    try:
+        content = path.read_bytes()
+    except OSError as exc:
+        raise LegacyInventoryError(f"{description} is not readable") from exc
+    if not content:
+        raise LegacyInventoryError(f"{description} must contain nonzero bytes")
+    try:
+        return ast.parse(content, filename=path.as_posix())
+    except (SyntaxError, UnicodeDecodeError) as exc:
+        raise LegacyInventoryError(f"{description} is not parseable") from exc
+
+
+def _moved_mixed_v1_owner(entry: LegacyInventoryEntry, *, root: Path) -> bool:
+    transfer = _APPROVED_MIXED_TRANSFERS.get(entry.entry_id)
+    if transfer is None or entry.entry_id != entry_identity(entry):
+        return False
+    expected_fields, destination_module, destination_symbols = transfer
+    if _stable_entry_fields(entry) != expected_fields:
+        return False
+    facade_path = root / "src/openultrasast/core/legacy_v1/__init__.py"
+    facade = _read_owner_module(facade_path, "compatibility facade")
+    facade_imports = {
+        (node.module, alias.name, alias.asname or alias.name)
+        for node in facade.body
+        if isinstance(node, ast.ImportFrom)
+        for alias in node.names
+    }
+    if not all((destination_module, symbol, symbol) in facade_imports for symbol in destination_symbols):
+        return False
+    destination_path = root / "src" / Path(*destination_module.split("."))
+    destination = _read_owner_module(destination_path.with_suffix(".py"), "compatibility destination")
+    owned = {node.name for node in destination.body if isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef))}
+    return set(destination_symbols) <= owned
+
+
 def validate_inventory_sources(inventory: LegacyMigrationInventory, *, root: Path) -> None:
     """Prove every registered migration target is readable, nonzero, and present."""
     for entry in inventory.entries:
@@ -326,10 +452,11 @@ def validate_inventory_sources(inventory: LegacyMigrationInventory, *, root: Pat
         except (SyntaxError, UnicodeDecodeError) as exc:
             raise LegacyInventoryError(f"inventory source is not parseable: {entry.path}") from exc
         is_shim = _explicit_legacy_shim(tree, entry.symbol)
-        if entry.symbol not in _defined_symbols(tree) and not is_shim:
+        moved_owner = _moved_mixed_v1_owner(entry, root=root)
+        if entry.symbol not in _defined_symbols(tree) and not is_shim and not moved_owner:
             raise LegacyInventoryError(f"inventory target is absent: {entry.path}:{entry.symbol}")
         missing = _missing_anchors(entry, tree)
-        if missing and not is_shim:
+        if missing and not is_shim and not moved_owner:
             raise LegacyInventoryError(f"inventory capability is absent: {entry.path}:{missing}")
 
 

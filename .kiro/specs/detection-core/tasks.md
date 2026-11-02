@@ -361,7 +361,7 @@
   - Done when old writes remain byte-identical, the compatibility namespace is the only live v1 contract and write owner, and ownership/import tests refuse any duplicate implementation.
   - _Requirements: 14.3, 15.3_
   - _Depends: 1.1_
-- [ ] 10.2 Convert the temporary public and module compatibility surfaces into explicit shims
+- [x] 10.2 Convert the temporary public and module compatibility surfaces into explicit shims
   - Keep the old named top-level API and designated compatibility modules as explicit imports from the isolated namespace during migration.
   - Remove legacy definitions and re-exports from mixed v2 modules so each compatibility name has exactly one owner.
   - Keep the canonical v2 paths private until the final atomic cutover.

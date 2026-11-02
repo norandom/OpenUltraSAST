@@ -31,6 +31,11 @@ def text_digest(value: str) -> str:
     return hashlib.sha256(value.encode()).hexdigest()
 
 
+def input_digest(change_id: str, population_digest: str) -> str:
+    payload = json.dumps([population_digest, change_id], sort_keys=True, separators=(",", ":")).encode()
+    return hashlib.sha256(payload).hexdigest()[:12]
+
+
 def read_json(path: Path) -> dict[str, Any]:
     value = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(value, dict):
@@ -38,4 +43,4 @@ def read_json(path: Path) -> dict[str, Any]:
     return value
 
 
-__all__ = ["fact_pack_digest", "read_json", "text_digest", "trace_bytes", "trace_record"]
+__all__ = ["fact_pack_digest", "input_digest", "read_json", "text_digest", "trace_bytes", "trace_record"]

@@ -10,7 +10,6 @@ from types import MappingProxyType
 
 from openultrasast.core import _factpack_digest as digest_projection
 from openultrasast.core import canonical
-from openultrasast.core._legacy_factpack import FactPackError, admit_fact_pack, admit_pack_file, load_pack_file, verify_fact_pack
 from openultrasast.core.custody import (
     LineagePurpose,
     PopulationCustodyPolicy,
@@ -497,7 +496,6 @@ def validate_fact_pack(
 __all__ = [
     "FACT_PACK_SCHEMA",
     "FactPack",
-    "FactPackError",
     "FactPackValidationError",
     "IndependenceAttestation",
     "KnowledgeEvidence",
@@ -507,13 +505,9 @@ __all__ = [
     "SemanticFact",
     "StructuralRequirement",
     "StructuralRequirementKind",
-    "admit_fact_pack",
-    "admit_pack_file",
     "derive_fact_pack_content_digest",
     "derive_independence_attestation_digest",
     "derive_review_evidence_digest",
     "derive_review_independence_policy_digest",
-    "load_pack_file",
     "validate_fact_pack",
-    "verify_fact_pack",
 ]

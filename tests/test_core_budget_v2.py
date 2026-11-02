@@ -12,6 +12,10 @@ from detection_core_fixtures import InMemoryContentResolver, stored_artifact
 
 from openultrasast.core import budget as budget_v2
 from openultrasast.core import canonical, evidence, provenance, semantics
+from openultrasast.core.legacy_v1 import Budget as LegacyBudget
+from openultrasast.core.legacy_v1 import Complexity as LegacyComplexity
+from openultrasast.core.legacy_v1 import check_budget as legacy_check_budget
+from openultrasast.core.legacy_v1 import derive_budget as legacy_derive_budget
 
 
 def _digest(value: str) -> str:
@@ -342,7 +346,7 @@ def test_scope_revalidates_post_construction_tampering() -> None:
 
 
 def test_legacy_budget_api_remains_available() -> None:
-    samples = ((budget_v2.Complexity(1, 1, 10), 1.0), (budget_v2.Complexity(2, 2, 20), 2.0))
-    legacy = budget_v2.derive_budget(samples, workload_class="legacy", percentile=0.5, hardware="runner")
-    assert isinstance(legacy, budget_v2.Budget)
-    budget_v2.check_budget(change_id="change", seconds=1.0, budget=legacy)
+    samples = ((LegacyComplexity(1, 1, 10), 1.0), (LegacyComplexity(2, 2, 20), 2.0))
+    legacy = legacy_derive_budget(samples, workload_class="legacy", percentile=0.5, hardware="runner")
+    assert isinstance(legacy, LegacyBudget)
+    legacy_check_budget(change_id="change", seconds=1.0, budget=legacy)

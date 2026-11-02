@@ -9,7 +9,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from openultrasast.core.factpack import FactPackError, admit_pack_file, verify_fact_pack  # noqa: E402
+from openultrasast.core.legacy_v1 import FactPackError, admit_pack_file, verify_fact_pack  # noqa: E402
 from openultrasast.mapping.installed_fact_authority import (  # noqa: E402
     InstalledAuthorityWireError,
     decode_fact_pack_bytes,

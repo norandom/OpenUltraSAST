@@ -28,6 +28,14 @@ from openultrasast.core.family import (
     derive_security_object_id,
     family_contract_digest,
 )
+from openultrasast.core.legacy_v1 import (
+    FittedComponentBlocked,
+    LegacyProbeResult,
+    ShortcutDetected,
+    assert_no_shortcut,
+    require_admission_evidence,
+    reversed_pair_probe,
+)
 
 
 @dataclass(frozen=True)
@@ -393,15 +401,15 @@ def test_legacy_reversed_pair_probe_remains_compatible() -> None:
     def shape_score(change: Mapping[str, Any]) -> float:
         return float(change["lines"])
 
-    result = probes.reversed_pair_probe(shape_score, forward, reversed_change)
+    result = reversed_pair_probe(shape_score, forward, reversed_change)
     assert result.separated is True
-    with pytest.raises(probes.ShortcutDetected):
-        probes.assert_no_shortcut(shape_score, forward, reversed_change)
+    with pytest.raises(ShortcutDetected):
+        assert_no_shortcut(shape_score, forward, reversed_change)
 
-    assert public_core.ProbeResult is probes.LegacyProbeResult
+    assert public_core.ProbeResult is LegacyProbeResult
 
 
 def test_legacy_admission_guard_remains_compatible() -> None:
-    probes.require_admission_evidence(holdout_passed=True, admission_decision="GO")
-    with pytest.raises(probes.FittedComponentBlocked):
-        probes.require_admission_evidence(holdout_passed=False, admission_decision="GO")
+    require_admission_evidence(holdout_passed=True, admission_decision="GO")
+    with pytest.raises(FittedComponentBlocked):
+        require_admission_evidence(holdout_passed=False, admission_decision="GO")

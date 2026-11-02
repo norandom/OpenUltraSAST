@@ -9,7 +9,7 @@ from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
-from openultrasast.core.coverage import Coverage as CoreCoverage
+from openultrasast.core.legacy_v1 import Coverage as CoreCoverage
 
 from .. import mapping, source
 from ..preprocess import FileTarget, count_loc, detect_language, detect_tags
