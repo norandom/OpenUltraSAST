@@ -367,7 +367,7 @@
   - Keep the canonical v2 paths private until the final atomic cutover.
   - Done when the old named API remains compatible before cutover, direct imports of moved legacy symbols from mixed modules fail, and no shim owns an independent implementation.
   - _Requirements: 14.3, 15.3_
-- [ ] 10.3 Build the syntax-only migration-boundary instrument
+- [x] 10.3 Build the syntax-only migration-boundary instrument
   - Prove every scoped source file is readable and nonzero before interpreting a zero result.
   - Report explicit compatibility-namespace imports, designated shim imports, named top-level v1 symbols, writer-facade references, and module-valued or dynamic core access without evaluating alias or data flow.
   - Validate immutable inventory identities and their monotone open, `v2_migrated`, or `retired` status transitions.
