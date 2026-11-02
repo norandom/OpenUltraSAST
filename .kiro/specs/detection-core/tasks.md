@@ -18,13 +18,14 @@
 - Existing target facts may be schema-migrated without expanding vocabulary or behavior.
 
 - [ ] 1. Establish migration-safe foundations
-- [ ] 1.1 Freeze the v1 compatibility boundary and enumerate active readers and writers
-  - Pin representative v1 trace and report bytes as immutable regression fixtures.
-  - Record every current import and artifact-writing path that still depends on the authorization-shaped contract.
-  - Preserve existing v1 behavior as migration input without treating it as v2 conformance.
-  - Done when fixture tests detect any byte change and the import/writer census identifies every cutover target.
+- [ ] 1.1 Freeze historical v1 artifacts and the reviewed migration inventory
+  - Pin representative v1 trace and report bytes and hashes as immutable regression fixtures.
+  - Provide an independent schema-routed read-only decoder that validates committed v1 artifacts without importing the compatibility namespace, constructing v2 determinate outcomes, or exposing a writer or converter.
+  - Freeze the reviewed initial set of v1 readers and writers with stable entry identities, paths, symbols or capabilities, owner boundaries, and open migration status.
+  - Preserve every inventory identity permanently and allow only monotone transitions from open to `v2_migrated` or `retired`; fail unreadable or zero-byte sources, additions, deletions, and rekeying.
+  - Preserve v1 as migration input only and never treat it as v2 conformance or a comparable trend baseline.
+  - Done when fixture tests detect any byte or hash change, the decoder validates both historical schemas read-only, every inventory entry resolves to a nonzero source and valid target, and schema, status, or addition mutations fail.
   - _Requirements: 14.3, 15.3_
-  - _Blocked: debug attempted twice, still failing — a bounded AST census with exact provenance registries still omits active hunter and Semgrep scorer-record writer families, so “every cutover target” is not yet mechanically demonstrated._
 - [x] 1.2 Build the strict canonical codec and resolver-backed artifact boundary
   - Produce deterministic UTF-8 JSON with full SHA-256 identities, stable mapping order, and retained sequence order.
   - Refuse non-finite numbers, unsupported values, unknown schemas, duplicate logical identities, and malformed digests.
@@ -334,7 +335,6 @@
   - _Requirements: 10.2, 10.4, 11.1, 11.2, 11.3, 11.4, 11.5, 13.4, 14.3_
   - _Boundary: Fact Pack Adapter Conformance_
   - _Depends: 5.4_
-  - _Blocked: consume the handoff only after access-control-prover tasks 14.1–14.8 produce the downstream artifacts and immutable conformance manifest_
 - [ ] 9.5 (P) Produce readiness and development records through benchmark-owned adapters
   - Construct canonical readiness results while leaving sequencing and persistence with benchmark workflows.
   - Emit development observations with v2 identities, evidence-use roles, instrument receipts, and prerequisite ancestry.
@@ -354,21 +354,60 @@
   - _Depends: 8.9, 9.5_
 
 - [ ] 10. Complete the single-writer v2 migration
-- [ ] 10.1 Prepare schema-routed legacy reads and cutover tests without publishing v2
-  - Add an internal read-only decoder that validates committed v1 traces and reports without constructing v2 determinate outcomes automatically.
-  - Route v1/v2 test reads by explicit schema version and prohibit all new writes through the legacy surface.
-  - Keep the top-level public API unchanged until the import and writer census reaches zero.
-  - Done when historical artifacts validate byte-unchanged, legacy write attempts fail, and cutover tests pass without publishing top-level v2 exports.
+- [ ] 10.1 Isolate every live v1 contract and writer behind the closed compatibility namespace
+  - Move all authorization-shaped v1 values into one compatibility contract owner and all live v1 serialization into its sole writer facade.
+  - Limit the compatibility namespace to the canonical primitive needed for byte stability and prevent every v2 module from importing it.
+  - Preserve the frozen v1 wire representation while eliminating independent contract or serializer implementations elsewhere.
+  - Done when old writes remain byte-identical, the compatibility namespace is the only live v1 contract and write owner, and ownership/import tests refuse any duplicate implementation.
   - _Requirements: 14.3, 15.3_
-- [ ] 10.2 Stop v1 writers and publish the single v2 public surface
-  - Re-run repository import and artifact-writer censuses after all adjacent adapters use v2.
-  - Stop v1 writes and remove the compatibility shim, authorization-shaped public exports, and family-domain conversion only when both censuses reach zero.
-  - Publish dependency-free v2 contracts through the top-level core API after the zero-census gate.
-  - Retain the read-only legacy decoder and refuse comparison between v1 and v2 baseline identities.
-  - Done when no production writer/import targets the v1 contract, historical fixtures remain unchanged, and all public writes use v2.
+  - _Depends: 1.1_
+- [ ] 10.2 Convert the temporary public and module compatibility surfaces into explicit shims
+  - Keep the old named top-level API and designated compatibility modules as explicit imports from the isolated namespace during migration.
+  - Remove legacy definitions and re-exports from mixed v2 modules so each compatibility name has exactly one owner.
+  - Keep the canonical v2 paths private until the final atomic cutover.
+  - Done when the old named API remains compatible before cutover, direct imports of moved legacy symbols from mixed modules fail, and no shim owns an independent implementation.
   - _Requirements: 14.3, 15.3_
-  - _Depends: 9.4_
-  - _Blocked: access-control-prover task 14.9 must migrate the production caller and prove a zero-bypass census after task 9.4 accepts the handoff_
+- [ ] 10.3 Build the syntax-only migration-boundary instrument
+  - Prove every scoped source file is readable and nonzero before interpreting a zero result.
+  - Report explicit compatibility-namespace imports, designated shim imports, named top-level v1 symbols, writer-facade references, and module-valued or dynamic core access without evaluating alias or data flow.
+  - Validate immutable inventory identities and their monotone open, `v2_migrated`, or `retired` status transitions.
+  - During migration, distinguish the designated compatibility implementation from the production-consumer scope; reserve repository-wide zero for post-deletion validation.
+  - Done when an adversarial syntax matrix reports the exact forbidden sites and `try`/`finally`, comprehension, assignment, and generic-call alias shapes cannot turn an explicit forbidden reference into a false zero.
+  - _Requirements: 14.3, 15.3_
+- [ ] 10.4 Migrate or retire remaining registered production source-tree consumers
+  - Move each registered non-benchmark production reader and writer to the canonical v2 contract or retire it within its owning boundary.
+  - Update the matching stable inventory entry to `v2_migrated` or `retired` in the same change without removing or rekeying it.
+  - Keep authorization analysis, model execution, proof execution, and other adjacent behavior in their existing owner boundaries while changing only their contract seam.
+  - Done when every source-tree entry owned by core or an adjacent adapter is terminal and the verified nonzero production-consumer scope outside the designated compatibility implementation has zero forbidden references.
+  - _Requirements: 14.1, 14.3, 15.3_
+  - _Boundary: Core and Adjacent Adapter Migration_
+  - _Depends: 10.3_
+- [ ] 10.5 Migrate benchmark readiness and admission consumers
+  - Move every registered benchmark reader and writer to v2 while retaining readiness sequencing, persistence, population custody, and admission orchestration in the benchmark boundary.
+  - Update each matching stable inventory entry to `v2_migrated` or `retired` without changing its identity.
+  - Preserve guarded spend, authenticated case release, fixed measurement, and bounded model behavior through the migration.
+  - Done when benchmark production scope has zero forbidden consumer references outside the designated compatibility implementation, every benchmark entry is terminal, and synthetic v2 readiness and admission complete end to end.
+  - _Requirements: 8.1, 12.6, 14.3, 15.3_
+  - _Boundary: Benchmark Readiness and Admission Adapters_
+  - _Depends: 9.5, 9.6, 10.3_
+- [ ] 10.6 Migrate or retire registered test and operational-tool consumers
+  - Move authorization assumptions into legacy or adapter tests, keep family-neutral contract tests on v2, and retain frozen v1 bytes only for decoder regression.
+  - Move or retire registered operational-tool consumers without adding a second compatibility or write path.
+  - Mark the corresponding stable inventory entries `v2_migrated` or `retired` and require every original entry to reach a terminal status.
+  - Done when the complete original inventory is terminal and the boundary instrument proves a nonzero repository scope with no forbidden consumer reference outside the designated compatibility implementation.
+  - _Requirements: 14.3, 15.3_
+  - _Boundary: Migration Tests and Operational Tooling_
+  - _Depends: 10.4, 10.5_
+- [ ] 10.7 Delete v1 write capability and publish the single v2 surface atomically
+  - Require every inventory entry to be terminal and the migration-time production-consumer boundary to be zero before deletion begins.
+  - Delete the compatibility namespace, v1 writer facade, and temporary shims while publishing the canonical v2 modules and top-level exports in the same integration change.
+  - Prove old top-level and submodule imports and writes fail and that no v1 serializer or converter remains.
+  - Retain the independent read-only decoder for frozen historical bytes and refuse comparison between v1 and v2 baseline identities.
+  - After deletion, require repository-wide zero with no compatibility exclusion.
+  - Done when isolated-tree and repository tests show old imports and writes fail, v2 imports and writes succeed, historical bytes still validate, and the final nonzero boundary scan remains zero.
+  - _Requirements: 14.3, 15.3_
+  - _Boundary: Single-Writer Cutover Integration_
+  - _Depends: 10.6_
 
 - [ ] 11. Validate readiness, failure visibility, and implementation boundaries
 - [ ] 11.1 Run both reference families through the complete synthetic readiness path
@@ -397,8 +436,9 @@
   - Prove each test instrument read nonzero fixture bytes before interpreting zero findings or failures.
   - Done when the complete suite passes, boundary/import censuses are clean, historical bytes are unchanged, and all declared adapter and consumer seams pass conformance.
   - _Requirements: 1.4, 10.4, 14.3, 15.3, 15.4_
-  - _Depends: 9.4_
+  - _Depends: 10.7_
 
 ## Implementation Notes
 
-- Task 1.1: repository-wide traversal alone is insufficient for a complete writer census; active writers require bounded provenance across direct schema construction, local loader/producer flow, imported producers, and scorer-envelope aggregation. Two debug rounds closed loader and imported-prover gaps, but hunter/Semgrep scorer writers remain unresolved.
+- The frozen migration inventory is a reviewed worklist with stable identities, not a semantic-use census. It may only close entries as `v2_migrated` or `retired`; it never grows, deletes entries, or proves absence by interpreting Python flow.
+- Cutover is proved by explicit syntax checks plus deletion of the compatibility and v1 write capability. No task extends the discarded alias/data-flow interpreter.

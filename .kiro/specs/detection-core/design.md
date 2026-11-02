@@ -15,7 +15,9 @@ and bounded silence.
 **Impact:** the current authorization-shaped core becomes a temporary v1 compatibility
 surface. A neutral v2 write contract replaces it through a finite adapter migration.
 Authorization remains parked and supplies regression evidence only. Historical v1 artifacts
-remain readable but are never rewritten or used as a v2 trend baseline.
+remain readable but are never rewritten or used as a v2 trend baseline. Live v1 contracts
+and serialization first move behind one explicit, deletable `legacy_v1` namespace; cutover
+is then proved by syntax and capability removal rather than runtime alias inference.
 
 ### Goals
 
@@ -30,6 +32,8 @@ remain readable but are never rewritten or used as a v2 trend baseline.
   policy into the core.
 - End migration with one live write contract and two unlike reference-family conformance
   suites.
+- Make the v1 removal gate structural: every live v1 import and writer crosses an explicit
+  compatibility namespace that is deleted at cutover.
 
 ### Non-Goals
 
@@ -59,6 +63,8 @@ remain readable but are never rewritten or used as a v2 trend baseline.
   receive existing subsystem records and perform no analysis, model, proof, or persistence
   orchestration.
 - A finite v1 migration and read-only historical decoder.
+- The temporary `legacy_v1` compatibility namespace, frozen migration inventory, and
+  syntax-only cutover boundary that make v1 write capability removable.
 
 ### Out of Boundary
 
@@ -92,6 +98,12 @@ remain readable but are never rewritten or used as a v2 trend baseline.
   applies those objects but never imports the target adapter or creates its authority.
 - No core module imports `openultrasast.semantic`, `openultrasast.hunt`,
   `openultrasast.search`, `openultrasast.tools`, `benchmarks`, or `dspy`.
+- V2 modules never import `openultrasast.core.legacy_v1` or the retained read-only
+  `openultrasast.core.legacy` decoder. During migration, only compatibility shims and
+  registered adjacent v1 consumers may import `legacy_v1`.
+- Production imports name a core submodule or symbol explicitly. Module-valued or dynamic
+  access to `openultrasast.core` is outside the migration contract because it would hide
+  legacy use from a deletion-backed gate.
 
 ### Revalidation Triggers
 
@@ -107,6 +119,8 @@ remain readable but are never rewritten or used as a v2 trend baseline.
   proof-consuming verdict path.
 - Adding a non-Python writer or cryptographic wire signature requires a canonicalization
   design review.
+- Adding a v1 compatibility export, migration-inventory entry, direct v1 serializer, or
+  dynamic core import reopens the namespace-isolation design and blocks cutover.
 
 ## Architecture
 
@@ -127,9 +141,10 @@ replacing the public domain model.
 
 ### Architecture Pattern and Boundary Map
 
-The selected pattern is a **versioned ports-and-adapters contract with a finite compatibility
-migration**. Core contracts and pure validators form the domain. External systems implement
-adapters and retain execution ownership.
+The selected pattern is a **versioned ports-and-adapters contract with an explicit,
+deletable compatibility namespace**. Core contracts and pure validators form the domain.
+External systems implement adapters and retain execution ownership. The migration boundary
+is a module boundary, not a semantic-use analysis over Python execution.
 
 ```mermaid
 flowchart LR
@@ -149,6 +164,10 @@ flowchart LR
         ProofAdapter[Proof adapter]
         LegacyAdapter[Legacy adapter]
     end
+    subgraph Compatibility[Temporary compatibility]
+        LegacyV1[Explicit legacy v1 namespace]
+        LegacyRead[Read only decoder]
+    end
     subgraph Consumers[Consumers]
         Benchmark[Benchmark workflow]
         Push[Pre push consumer]
@@ -165,6 +184,8 @@ flowchart LR
     ModelAdapter --> Decision
     ProofAdapter --> Decision
     LegacyAdapter --> Semantics
+    LegacyV1 --> LegacyAdapter
+    LegacyRead --> Benchmark
     Admission --> Benchmark
     Decision --> Push
 ```
@@ -185,9 +206,10 @@ canonical
   → consumer
 ```
 
-Each core layer imports only layers to its left. `legacy.py` may import public v2 types to
-decode historical input but no v2 module imports `legacy.py`. External adapters import the
-public core package and their respective execution subsystem.
+Each core layer imports only layers to its left. `legacy_v1` imports only the canonical
+primitive needed for byte stability and is never imported by a v2 module. `legacy.py`
+validates historical bytes without importing `legacy_v1` or constructing v2 types. External
+adapters import the public core package and their respective execution subsystem.
 
 **Architecture integration:**
 
@@ -200,6 +222,10 @@ public core package and their respective execution subsystem.
 - The model and proof paths derive decisions tied to an unchanged deterministic packet
   digest; neither can rewrite analyzer evidence.
 - Historical v1 readers remain validation-only after migration; all new writes use v2.
+- Before consumer migration, every v1 type and write path is re-parented to `legacy_v1`.
+  The old top-level names remain temporary explicit shims, while mixed v2 modules cease to
+  define legacy symbols. This makes later zero checks syntactic and makes final deletion a
+  proof of capability removal.
 
 ### Technology Stack
 
@@ -220,6 +246,10 @@ No new runtime dependency is introduced.
 ```text
 src/openultrasast/core/
 ├── __init__.py              # Public v2 exports only after migration
+├── legacy_v1/               # Temporary closed compatibility namespace; deleted at cutover
+│   ├── __init__.py          # Explicit v1 contract exports; no dynamic discovery
+│   ├── contracts.py         # Authorization-shaped v1 values moved out of mixed v2 modules
+│   └── writer.py            # Only live v1 serialization capability during migration
 ├── canonical.py             # Canonical bytes, identities, content references and read-only resolver port
 ├── semantics.py             # Locations, nodes, transitions, observations, completeness
 ├── evidence.py              # Scope, packet, decision, evidence record, neutral enums
@@ -262,7 +292,11 @@ tests/fixtures/detection_core/
 ├── obligation_family.json   # Test-only control and constraint family contract
 ├── taint_family.json        # Test-only flow and sanitization family contract
 ├── obligation_cases.json    # Positive, negative and missing-evidence triplet
-└── taint_cases.json         # Positive, negative and missing-evidence triplet
+├── taint_cases.json         # Positive, negative and missing-evidence triplet
+└── v1/
+    ├── trace.json           # Byte-frozen historical trace
+    ├── report.json          # Byte-frozen historical report
+    └── migration_inventory.json # Frozen registered v1 readers and writers
 
 tests/
 ├── test_core_canonical.py
@@ -280,7 +314,8 @@ tests/
 ├── test_core_measurement.py
 ├── test_core_admission.py
 ├── test_core_consumer.py
-└── test_core_migration.py
+├── test_core_migration.py
+└── core_migration_boundary.py # Syntax-only import/writer and inventory-closure checks
 ```
 
 Files below `hunt/`, `search/`, `semantic/`, and `benchmarks/` are adjacent-owner
@@ -292,8 +327,18 @@ not execute proof or family analysis.
 
 ### Modified and Removed Files
 
-- `src/openultrasast/core/trace.py` — temporary v1 import shim during migration; removed
-  after repository import census reaches zero. Historical decoding moves to `legacy.py`.
+- `src/openultrasast/core/trace.py` and `_legacy_factpack.py` — temporary v1 import shims
+  during migration; removed after the syntactic legacy boundary reaches zero. They
+  re-export from `legacy_v1` and own no contract or serializer. Historical decoding remains
+  in `legacy.py`.
+- `src/openultrasast/core/verdict.py`, `consumer.py`, and `admission.py` — temporary
+  explicit shims over `legacy_v1`; at cutover their v1 contents disappear and the public v2
+  modules/facades take these canonical paths atomically.
+- `src/openultrasast/core/coverage.py`, `budget.py`, `provenance.py`, `probes.py`, and
+  `factpack.py` — retain only v2/shared definitions after legacy definitions move to
+  `legacy_v1`; they do not re-export v1 names.
+- `src/openultrasast/core/__init__.py` — preserves the old named API by importing from
+  `legacy_v1` during migration, then atomically replaces it with the public v2 surface.
 - `src/openultrasast/semantic/obligations/trace.py` — removes imports and conversion logic
   for core types; remains the authorization-family trace domain.
 - `src/openultrasast/hunt/prover.py` — sends authorization results through
@@ -302,6 +347,12 @@ not execute proof or family analysis.
   legacy tests; neutral tests use the two reference contracts.
 - `tests/test_core_contract.py` — replaces the assertion that no model path exists with the
   assertion that core has no DSPy import and only exposes dependency-free model contracts.
+- `tests/core_migration_boundary.py` — parses import and call syntax without evaluating
+  aliases; it rejects `legacy_v1`, temporary shim, named top-level v1, dynamic core access,
+  and v1-writer references according to the migration phase.
+- `tests/fixtures/detection_core/v1/migration_inventory.json` — immutable inventory derived
+  from the reviewed Task 1.1 census. Every entry must become migrated or retired; the
+  inventory cannot grow to make a test pass.
 
 Every new module remains within the project cap of 400 logical lines; functions remain at
 or below 50 logical lines and cyclomatic complexity 10.
@@ -411,7 +462,7 @@ scoring.
 | 11.1, 11.2, 11.3, 11.4, 11.5, 11.6 | Reviewed semantic packs and supported scope | Fact Pack, Semantic Evidence, Measurement | Pack ingestion and reports |
 | 12.1, 12.2, 12.3, 12.4, 12.5, 12.6 | Admission prerequisites, authenticated case release and scoped scoring | Admission, Readiness, Measurement | Admission sequence |
 | 13.1, 13.2, 13.3, 13.4 | Development and evaluation separation | Provenance and Lineage, Probes, Admission | Freeze and admission validation |
-| 14.1, 14.2, 14.3, 14.4, 14.5 | Shared consumer and family-spec contract | Consumer, Verdict, Family Capability Declaration, Legacy Adapter | Push and migration flows |
+| 14.1, 14.2, 14.3, 14.4, 14.5 | Shared consumer and family-spec contract | Consumer, Verdict, Family Capability Declaration, Legacy Compatibility Namespace, Legacy Decoder | Push and migration flows |
 | 15.1, 15.2, 15.3, 15.4, 15.5 | Fixed versioned measurement and baseline rules | Measurement, Coverage, Readiness | Development and admission reporting |
 
 ## Components and Interfaces
@@ -434,7 +485,8 @@ scoring.
 | Measurement | Evaluation | Create baseline identity and fixed report schema | 11.6, 15.1–15.5 | Coverage, Readiness | Service, State |
 | Admission | Evaluation | Validate manifests, feasibility, post-spend case release and scoped scores | 12.1–12.6, 13.4 | Readiness, Measurement, Evidence Validation, Verdict, Probes, Budget, Provenance | Service, Batch |
 | Consumer | Edge | Validate push requests and return bounded verdicts | 6.4, 14.1–14.5 | Budget, Evidence Validation, Verdict, Provenance, Canonical resolver | Service |
-| Legacy Decoder | Migration | Read and validate historical v1 only | 14.3, 15.3 | Canonical Codec, Evidence | Service |
+| Legacy Compatibility Namespace | Migration | Isolate every live v1 contract and writer behind a deletable boundary | 14.3, 15.3 | Canonical Codec, frozen migration inventory | State, Service |
+| Legacy Decoder | Migration | Read and validate historical v1 bytes only | 14.3, 15.3 | Canonical Codec | Service |
 | External Adapters | Integration | Translate authorization, DSPy and proof records | 3.5, 9.1–9.6, 14.2–14.3 | Public core | Service |
 
 ### Evidence Domain
@@ -2430,8 +2482,74 @@ fast run.
 
 ### Migration Components
 
-`legacy.py` decodes and validates historical v1 traces and reports. It never constructs v2
-determinate outcomes without a family adapter and never emits a new v1 artifact.
+#### Legacy Compatibility Namespace and Cutover Boundary
+
+| Field | Detail |
+|---|---|
+| Intent | Turn v1 dependency and write capability into explicit modules that can be counted and deleted without interpreting Python execution |
+| Requirements | 14.3, 15.3 |
+
+**Responsibilities and constraints**
+
+- `legacy_v1/contracts.py` temporarily owns every authorization-shaped v1 value moved out
+  of mixed v2 modules. `legacy_v1/writer.py` owns the only live v1 serialization capability.
+- Existing top-level v1 names remain compatible during migration only through explicit
+  imports from `legacy_v1`. Compatibility modules contain no independent implementation.
+- The frozen migration inventory names every reviewed reader and writer by path, symbol,
+  artifact family, and disposition. An entry closes only as `v2_migrated` or `retired`;
+  adding a new entry is a design regression, not remediation.
+- The boundary checker reads every scoped source file and proves it is nonzero before
+  parsing. It classifies import statements and direct writer-facade references only. It
+  never follows assignment, default-argument, exception, comprehension, dynamic-call, or
+  runtime attribute flow.
+- Production module-valued imports of `openultrasast.core`, dynamic imports of the package,
+  and dynamic attribute access to its compatibility names are prohibited. Explicit
+  submodule or symbol imports are required and mechanically checkable.
+- Single-writer cutover requires four simultaneous facts: every inventory entry is closed;
+  syntactic legacy imports and writer references are zero; the compatibility namespace and
+  shim modules are absent; and the old top-level attributes are not importable. A plausible
+  zero from an unread or unparsable file is an instrument failure.
+
+**Contracts:** Service, State.
+
+```python
+class MigrationDisposition(Enum):
+    OPEN = "open"
+    V2_MIGRATED = "v2_migrated"
+    RETIRED = "retired"
+
+@dataclass(frozen=True)
+class LegacyInventoryEntry:
+    path: str
+    symbol: str
+    dependency_kind: str
+    artifact_family: str
+    disposition: MigrationDisposition
+
+@dataclass(frozen=True)
+class LegacyBoundaryReport:
+    files_read: int
+    bytes_read: int
+    open_inventory_entries: tuple[LegacyInventoryEntry, ...]
+    legacy_import_sites: tuple[str, ...]
+    legacy_writer_sites: tuple[str, ...]
+    forbidden_dynamic_sites: tuple[str, ...]
+
+def inspect_legacy_boundary(paths: Sequence[Path]) -> LegacyBoundaryReport: ...
+def require_cutover_ready(report: LegacyBoundaryReport) -> None: ...
+```
+
+`inspect_legacy_boundary` is a migration test instrument, not a runtime core service. Its
+schema is intentionally syntactic. Runtime use-flow analysis is neither required nor
+accepted as evidence for cutover.
+
+#### Historical Decoder and External Adapters
+
+`legacy.py` decodes and validates historical v1 traces and reports from exact built-in
+`bytes`. It never imports `legacy_v1`, constructs v2 determinate outcomes, or emits a new v1
+artifact. The compatibility namespace is therefore deletable while historical artifacts
+remain readable.
+
 Authorization conversion moves to `semantic/obligations/core_adapter.py`, where old fields
 map to the authorization family contract. Missing per-hop completeness remains incomplete.
 The DSPy and search adapters similarly map external typed records without leaking their
@@ -2502,6 +2620,7 @@ that can be mistaken for a clean scan.
 | Review mismatch | Self-review, unknown reviewer, copied attestation, or unreadable disclosure | Refuse before feasibility or semantic use |
 | Custody mismatch | Old/incomplete log, broken chain, or prior spend | Refuse use/admission; preserve monotonic spent status |
 | Case release mismatch | Pre-spend release, wrong custodian/receipt, missing/extra case, role/pair swap, or operational payload substitution | Refuse before metric production |
+| Migration-boundary failure | Unreadable source, open inventory entry, legacy/shim import, dynamic core access, or v1 writer reference | Refuse cutover; report exact path, symbol and dependency kind |
 
 ### Monitoring
 
@@ -2624,6 +2743,17 @@ data only and do not establish product capability or admission.
   (`12.2`, `13.4`).
 - Legacy and v2 validators coexist by explicit schema version; committed historical reports
   remain byte-unchanged and cannot be written through the v2 API (`14.3`, `15.3`).
+- Namespace-isolation tests move every legacy definition out of mixed v2 modules while the
+  temporary top-level named API remains byte-compatible. Direct imports of moved symbols
+  from mixed modules fail, proving there is one compatibility owner (`14.3`).
+- The migration-boundary test proves every scoped input is readable and nonzero, requires
+  the frozen inventory to shrink without additions, and reports explicit legacy namespace,
+  shim, top-level symbol, writer-facade, module-valued core, and dynamic core access sites.
+  Adversarial assignment, `try`/`finally`, comprehension, and generic-call aliases do not
+  affect the result because the gate never interprets use flow (`14.3`, `15.3`).
+- Cutover tests delete the compatibility package and shims in an isolated tree, verify old
+  top-level and submodule imports fail, verify v2 imports and writes still succeed, and
+  validate the frozen v1 bytes through `legacy.py` (`14.3`, `15.3`).
 
 ### End-to-End Readiness Test
 
@@ -2679,6 +2809,10 @@ act. Synthetic admission manifests test orchestration without spending a real po
 - Proof attachment verifies resolved identity, producer receipt, reviewed control binding,
   and differential outcome; trusted search infrastructure retains sandbox and oracle
   execution responsibility.
+- Migration never treats a successful alias analysis as proof that v1 is absent. Legacy
+  write capability is isolated, inventory-closed, and deleted; module-valued/dynamic access
+  to the compatibility surface is prohibited so a hidden dependency fails the boundary
+  check or import after cutover.
 
 ## Performance and Scalability
 
@@ -2697,34 +2831,40 @@ act. Synthetic admission manifests test orchestration without spending a real po
 
 ```mermaid
 flowchart LR
-    V1[Legacy v1 writes] --> V2[Add v2 contracts]
+    V1[Mixed legacy surface] --> Isolate[Isolate legacy namespace]
+    Isolate --> Inventory[Freeze migration inventory]
+    Inventory --> V2[Add v2 contracts]
     V2 --> References[Reference conformance]
-    References --> AuthAdapter[Authorization adapter]
-    AuthAdapter --> Benchmarks[Readiness and measurement v2]
-    Benchmarks --> Consumers[Model proof and push conformance]
-    Consumers --> StopV1[Stop v1 writes]
-    StopV1 --> RemoveV1[Remove v1 exports]
-    RemoveV1 --> LegacyRead[Read only legacy decoder]
+    References --> Adapters[Adjacent adapters migrate]
+    Adapters --> Zero[Syntax and inventory zero]
+    Zero --> RemoveV1[Delete v1 writer and shims]
+    RemoveV1 --> PublishV2[Publish v2 top level]
+    PublishV2 --> LegacyRead[Retain read only decoder]
 ```
 
 1. **Foundation:** add canonical, semantics, evidence, family, and reference-family
-   contracts without changing v1 consumers.
-2. **Adapter migration:** move authorization conversion out of engine trace code and emit v2
+   contracts without changing v1 behavior.
+2. **Namespace isolation:** move all v1 contracts and serialization behind `legacy_v1`,
+   convert the old named API to explicit shims, remove legacy definitions from mixed v2
+   modules, and freeze the reviewed migration inventory.
+3. **Adapter migration:** move authorization conversion out of engine trace code and emit v2
    in development. Preserve conservative incomplete hops and existing family behavior.
-3. **Governance migration:** add readiness, measurement, admission, lineage, and model v2;
+4. **Governance migration:** add readiness, measurement, admission, lineage, and model v2;
    historical v1 validation remains separate. This creates a new baseline.
-4. **Consumer conformance:** add DSPy and proof adapters and validate push consumption with
+5. **Consumer conformance:** add DSPy and proof adapters and validate push consumption with
    synthetic/reference records. Downstream rollout remains disabled.
-5. **Single-writer cutover:** stop v1 writes after repository import and artifact-writer
-   censuses reach zero. Remove authorization-shaped top-level exports and the `trace.py`
-   shim.
-6. **Historical retention:** retain `legacy.py` read-only validation for committed v1
-   artifacts. It exposes no analyzer or writer API.
+6. **Structural zero gate:** close every frozen inventory entry and require zero explicit
+   compatibility imports, top-level legacy symbols, shim imports, dynamic core access, and
+   v1 writer-facade references. The checker uses syntax only and fails on unreadable input.
+7. **Single-writer cutover:** delete `legacy_v1`, the writer facade, and compatibility shims;
+   prove old imports fail; then publish the dependency-free v2 top-level surface.
+8. **Historical retention:** retain `legacy.py` read-only validation for committed v1
+   artifacts. It exposes no analyzer, contract constructor, converter, or writer API.
 
-Rollback is allowed before the single-writer cutover by keeping existing consumers on v1.
-After cutover, rollback means reverting the complete migration change; it must not restore
-parallel v1 writes. No migration phase re-runs authorization admission or changes its parked
-status.
+Rollback is allowed before the single-writer cutover by retaining the isolated compatibility
+namespace and shims. After cutover, rollback means reverting the complete migration change;
+it must not restore parallel v1 writes. No migration phase re-runs authorization admission
+or changes its parked status.
 
 ## Supporting References
 

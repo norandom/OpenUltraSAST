@@ -626,3 +626,88 @@ requirements approval.
 - The downstream spec must first deliver authority, reviewed packs, persistence, and the
   structural adapter. Core conformance then proves those objects satisfy the generic
   contract before readiness, admission, or single-writer cutover can depend on them.
+
+---
+
+## Legacy namespace isolation and cutover-gate correction (2026-11-02)
+
+### Scope and instrument evidence
+
+- **Trigger:** task 10.1 could validate frozen v1 bytes and enumerate known writers, but
+  repeated adversarial review showed that an exact semantic-use census over arbitrary
+  Python aliases is equivalent to a partial Python interpreter. The bounded analyzer
+  produced false zeroes for partial `try`/`finally` paths, generic alias escape, and
+  module-valued `ImportFrom` bindings.
+- **Instrument proof:** the final review opened 803 nonzero Python inputs totaling
+  8,193,901 bytes with a 29-byte minimum; the focused migration suite passed 85 tests and
+  the core suite passed 916. The failure is therefore in the census model, not unread
+  input, stale fixtures, or a broken decoder.
+- **Existing assets retained:** the exact-byte v1 trace/report decoder, hostile-byte and
+  report-invariant tests, the frozen historical fixtures, the reviewed initial
+  import/writer inventory, and the v2 contracts remain valid inputs.
+
+### Architecture pattern evaluation
+
+| Option | Description | Strengths | Risks and limitations | Decision |
+|---|---|---|---|---|
+| Continue alias interpretation | Extend the custom AST flow model until it recognizes more Python execution forms | Preserves mixed modules | Unbounded semantics; another construct can create a plausible zero | Rejected |
+| Count every mixed-module import | Treat imports of shared modules such as `provenance` as v1 dependencies | Simple and conservative | V2-only users can never reach zero; gate measures import style rather than v1 dependency | Rejected |
+| Explicit legacy namespace | Move v1 contracts and temporary write capability behind `openultrasast.core.legacy_v1`; keep only explicit compatibility shims until cutover | Syntactic, deletion-backed gate; no use-flow inference; preserves historical bytes | Requires one bounded namespace-isolation migration before consumer cutover | Selected |
+
+### Decision: make legacy capability explicit and deletable
+
+- `openultrasast.core.legacy_v1` temporarily owns all live v1 contract values and the only
+  v1 serialization capability. Mixed v2 modules stop defining or re-exporting legacy
+  symbols.
+- The existing top-level v1 API remains byte- and name-compatible during migration, but its
+  implementation is an explicit shim importing from `legacy_v1`. Production code may not
+  use module-valued `openultrasast.core` imports or dynamic import/getattr to reach that
+  shim; imports must name a submodule or symbol.
+- The previously reviewed census becomes a frozen migration inventory. Every registered
+  reader/writer is migrated to v2 or retired; new inventory entries are not a path to
+  completion.
+- The cutover checker parses import and call syntax only. It reports imports of the legacy
+  namespace, temporary shim modules, top-level legacy symbols, and the explicit v1 writer
+  facade. It does not infer runtime alias values.
+- The zero gate additionally proves that the v1 writer facade and compatibility shim
+  modules are deleted and no legacy symbol is importable from the top-level package. A
+  surviving dependency therefore fails import instead of disappearing from a semantic-use
+  census.
+- `openultrasast.core.legacy` remains a separate read-only historical byte decoder. It has
+  no contract constructors, serializer, converter, or v2 outcome mapping and survives the
+  cutover.
+
+### Boundary and task impact
+
+- Detection-core owns namespace isolation, the frozen migration inventory, the syntactic
+  boundary checker, top-level shim removal, and the retained decoder.
+- Adjacent owners migrate their registered imports and writers; they do not extend the
+  compatibility namespace.
+- Task 10.1 must be re-planned as namespace isolation plus schema-routed historical reads.
+  Task 10.2 may publish the v2 top-level only after inventory closure, syntactic zero,
+  deletion of the v1 write/shim capability, and unchanged historical fixture hashes.
+
+### Synthesis
+
+- **Generalization:** absence is proved by removing a capability boundary, not by predicting
+  every way Python can transport an alias. The same rule covers readers, writers, top-level
+  compatibility names, and future adjacent consumers.
+- **Build versus adopt:** Python's standard `ast` is sufficient for the intentionally
+  syntactic boundary check. A new import-lint or abstract-interpretation dependency would
+  either duplicate the project rule or reintroduce semantic-use analysis and is not
+  adopted.
+- **Simplification:** discard the custom lexical/control-flow census and its migration-only
+  flow engine. Retain the reviewed inventory as evidence, then rely on explicit modules,
+  forbidden dynamic access, import-failure tests, and deletion of the writer capability.
+
+### Risks and mitigations
+
+- **Hidden dynamic access:** production dynamic import/getattr of `openultrasast.core` is
+  prohibited and checked syntactically; no runtime dataflow inference is attempted.
+- **New unregistered v1 writer:** the compatibility namespace is closed, and only its
+  explicit writer facade can serialize a v1 contract. Review and tests reject new direct
+  compatibility exports or inventory growth.
+- **Top-level compatibility masks incomplete migration:** the gate counts named top-level
+  legacy imports and then proves those attributes are absent after cutover.
+- **Historical artifacts become unreadable:** frozen trace/report bytes and hashes continue
+  through the independent read-only decoder before and after namespace deletion.
