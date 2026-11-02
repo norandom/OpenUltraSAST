@@ -354,7 +354,7 @@
   - _Depends: 8.9, 9.5_
 
 - [ ] 10. Complete the single-writer v2 migration
-- [ ] 10.1 Isolate every live v1 contract and writer behind the closed compatibility namespace
+- [x] 10.1 Isolate every live v1 contract and writer behind the closed compatibility namespace
   - Move all authorization-shaped v1 values into one compatibility contract owner and all live v1 serialization into its sole writer facade.
   - Limit the compatibility namespace to the canonical primitive needed for byte stability and prevent every v2 module from importing it.
   - Preserve the frozen v1 wire representation while eliminating independent contract or serializer implementations elsewhere.

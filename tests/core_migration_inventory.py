@@ -197,6 +197,11 @@ def load_migration_inventory(path: str | Path) -> LegacyMigrationInventory:
 
 def _defined_symbols(tree: ast.Module) -> set[str]:
     symbols = {"<module>"}
+    for node in tree.body:
+        if isinstance(node, ast.ImportFrom):
+            symbols.update(alias.asname or alias.name for alias in node.names)
+        elif isinstance(node, ast.Import):
+            symbols.update(alias.asname or alias.name.split(".", 1)[0] for alias in node.names)
 
     def visit(nodes: list[ast.stmt], parents: tuple[str, ...] = ()) -> None:
         for node in nodes:
@@ -271,6 +276,9 @@ def _capability_index(tree: ast.Module) -> dict[str, set[str]]:
     constants = {node.value for node in ast.walk(tree) if isinstance(node, ast.Constant) and isinstance(node.value, str)}
     names = {node.id for node in ast.walk(tree) if isinstance(node, ast.Name)}
     names.update(node.attr for node in ast.walk(tree) if isinstance(node, ast.Attribute))
+    names.update(
+        alias.asname or alias.name for node in ast.walk(tree) if isinstance(node, (ast.Import, ast.ImportFrom)) for alias in node.names
+    )
     return {
         "call": {_call_leaf(node) for node in ast.walk(tree) if isinstance(node, ast.Call)},
         "constant": constants,
@@ -293,6 +301,16 @@ def _missing_anchors(entry: LegacyInventoryEntry, tree: ast.Module) -> tuple[str
     return tuple(missing)
 
 
+def _explicit_legacy_shim(tree: ast.Module, symbol: str) -> bool:
+    root_symbol = symbol.split(".", 1)[0]
+    return any(
+        isinstance(node, ast.ImportFrom)
+        and (node.module or "").startswith("openultrasast.core.legacy_v1")
+        and (symbol == "<module>" or any((alias.asname or alias.name) == root_symbol for alias in node.names))
+        for node in tree.body
+    )
+
+
 def validate_inventory_sources(inventory: LegacyMigrationInventory, *, root: Path) -> None:
     """Prove every registered migration target is readable, nonzero, and present."""
     for entry in inventory.entries:
@@ -307,10 +325,11 @@ def validate_inventory_sources(inventory: LegacyMigrationInventory, *, root: Pat
             tree = ast.parse(content, filename=entry.path)
         except (SyntaxError, UnicodeDecodeError) as exc:
             raise LegacyInventoryError(f"inventory source is not parseable: {entry.path}") from exc
-        if entry.symbol not in _defined_symbols(tree):
+        is_shim = _explicit_legacy_shim(tree, entry.symbol)
+        if entry.symbol not in _defined_symbols(tree) and not is_shim:
             raise LegacyInventoryError(f"inventory target is absent: {entry.path}:{entry.symbol}")
         missing = _missing_anchors(entry, tree)
-        if missing:
+        if missing and not is_shim:
             raise LegacyInventoryError(f"inventory capability is absent: {entry.path}:{missing}")
 
 

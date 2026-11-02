@@ -170,11 +170,22 @@ def test_independent_reader_audit_matches_split_inventory_capabilities() -> None
     inventory = load_migration_inventory(INVENTORY)
     reader_entries = tuple(entry for entry in inventory.entries if entry.dependency_kind.value == "reader")
     registered = {(entry.path, anchor) for entry in reader_entries for anchor in entry.capability_anchors}
+    current = set(report.capabilities)
+    open_registered = {
+        (entry.path, anchor)
+        for entry in reader_entries
+        if entry.disposition is MigrationDisposition.OPEN
+        for anchor in entry.capability_anchors
+    }
 
     assert report.files_read > 0 and report.bytes_read > 0
     assert ("tests/test_core_probes.py", "top_level:ProbeResult") in report.capabilities
     assert all(len(entry.capability_anchors) == 1 for entry in reader_entries)
-    assert registered == set(report.capabilities)
+    assert current <= registered, "the frozen inventory may never grow to admit a new reader"
+    for path, _anchor in open_registered - current:
+        source = (REPO / path).read_bytes()
+        assert source, f"migration shim instrument must read nonzero bytes from {path}"
+        assert b"openultrasast.core.legacy_v1" in source, f"open reader disappeared without an explicit compatibility shim: {path}"
 
 
 def test_inventory_targets_require_exact_capability_anchors(tmp_path: Path) -> None:
