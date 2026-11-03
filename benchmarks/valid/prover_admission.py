@@ -1,23 +1,7 @@
-"""Admission manifest consumption for the access-control prover arm.
+"""Retired benchmark v1 admission seam.
 
-Task 12.5 of the access-control-prover specification (Reqs 12.1, 12.2, 12.3,
-12.6, 12.8). The admission runner only CONSUMES manifests that valid-detection-benchmark
-produces and reviews; it never produces, mutates or re-labels one.
-
-Since detection-core task 4.1 this module is a thin compatibility wrapper: the
-generalized, family-agnostic contract lives in ``openultrasast.core.admission``.
+Live admission is exclusively ``admission_run.run_v2_admission``. Historical
+v1 bytes remain readable only through ``openultrasast.core.legacy``.
 """
 
-from openultrasast.core.admission import (
-    REPORT_SCHEMA_KEYS,
-    AdmissionManifest,
-    AdmissionManifestError,
-    validate_admission_manifest,
-)
-
-__all__ = [
-    "REPORT_SCHEMA_KEYS",
-    "AdmissionManifest",
-    "AdmissionManifestError",
-    "validate_admission_manifest",
-]
+__all__: list[str] = []

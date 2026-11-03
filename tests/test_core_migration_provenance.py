@@ -81,9 +81,9 @@ def test_frozen_inventory_resolves_nonzero_sources_and_targets() -> None:
     inventory = load_migration_inventory(INVENTORY)
 
     assert inventory.entries
-    assert sum(entry.disposition is MigrationDisposition.OPEN for entry in inventory.entries) == 180
-    assert sum(entry.disposition is MigrationDisposition.V2_MIGRATED for entry in inventory.entries) == 6
-    assert sum(entry.disposition is MigrationDisposition.RETIRED for entry in inventory.entries) == 12
+    assert sum(entry.disposition is MigrationDisposition.OPEN for entry in inventory.entries) == 155
+    assert sum(entry.disposition is MigrationDisposition.V2_MIGRATED for entry in inventory.entries) == 25
+    assert sum(entry.disposition is MigrationDisposition.RETIRED for entry in inventory.entries) == 18
     assert all(entry.entry_id == entry_identity(entry) for entry in inventory.entries)
     validate_inventory_sources(inventory, root=REPO)
 

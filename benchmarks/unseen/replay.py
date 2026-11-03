@@ -14,6 +14,7 @@ from pathlib import Path
 
 from benchmarks.ax.batch import AXLane, DockerLane, Item, Workload, dispatch, write_json
 from benchmarks.unseen.score import coverage
+from benchmarks.valid.artifact_contract import read_benchmark_artifact, write_benchmark_sequence
 
 
 def make_item(change, arm, image, *, deadline_scale=1.0, lane="ax", deadline=None):
@@ -180,7 +181,7 @@ def main():
     changes = load_slice(args.manifest, args.slice, args.private_manifest)
     factor = args.deadline_scale
     if args.calibration:
-        calibration = json.loads(args.calibration.read_text())
+        calibration = read_benchmark_artifact(args.calibration, "deadline-calibration")
         if calibration.get("status") != "ok" or calibration.get("image") != args.image:
             parser.error("calibration must be successful and match the replay image")
         factor = calibration["quick_total"]["factor"]
@@ -213,9 +214,11 @@ def run_replays(changes, args, out, lane, *, deadline_scale=1.0, deadline=None):
     if out.resolve().is_relative_to(Path(__file__).resolve().parents[2]):
         raise ValueError("raw replay output must be outside the repository")
     items = [make_item(c, args.arm, args.image, deadline_scale=deadline_scale, lane=lane, deadline=deadline) for c in changes]
-    write_json(
+    write_benchmark_sequence(
         out / "inputs.json",
+        "benchmark-arm-inputs",
         [{"item_id": item.id, "change": change, "input_digest": item.input_digest} for item, change in zip(items, changes, strict=True)],
+        replace=True,
     )
     maximum = max(
         max(json.loads(i.inputs["SPEC_URL"])["deadline_seconds"], json.loads(i.inputs["SPEC_URL"])["base_deadline_seconds"]) for i in items
@@ -240,7 +243,7 @@ def run_replays(changes, args, out, lane, *, deadline_scale=1.0, deadline=None):
             return record
 
         executors[name] = execute
-    return dispatch(items, workload, out, executors, lanes=lanes)
+    return dispatch(items, workload, out, executors, lanes=lanes, record_kind="benchmark-arm-record")
 
 
 if __name__ == "__main__":

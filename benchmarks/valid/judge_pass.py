@@ -19,6 +19,14 @@ import json
 import time
 from pathlib import Path
 
+from benchmarks.valid.artifact_contract import (
+    append_benchmark_jsonl,
+    encode_benchmark_artifact,
+    read_benchmark_artifact,
+    read_benchmark_jsonl,
+    write_benchmark_artifact,
+)
+
 JUDGE_QUESTION = (
     "A static analyzer flagged this code path as a possible access-control "
     "vulnerability: an attacker-reachable entry point reaches a protected "
@@ -51,13 +59,13 @@ def _judge_input(repo: str, finding: dict) -> str:
         "operation": finding.get("operation", {}),
         "missing": finding.get("missing"),
     }
-    return JUDGE_QUESTION + "\n\n" + json.dumps(payload, indent=2, default=str)
+    return JUDGE_QUESTION + "\n\n" + encode_benchmark_artifact("judge-pass-input", payload)
 
 
 def _iter_findings(prover_out: Path):
     """Every finding of every completed prover record, with its push context."""
     for path in sorted(prover_out.glob("[0-9a-f]*.json")):
-        record = json.loads(path.read_text())
+        record = read_benchmark_artifact(path, "benchmark-arm-record")
         if not record.get("done"):
             continue
         for finding in record.get("findings") or []:
@@ -68,20 +76,19 @@ def _load_done(out: Path) -> dict:
     done = {}
     judged = out / "judgments.jsonl"
     if judged.is_file():
-        for line in judged.read_text().splitlines():
-            if line.strip():
-                row = json.loads(line)
-                done[row["key"]] = row
+        for row in read_benchmark_jsonl(judged, "judge-pass"):
+            key = row["key"]
+            if key in done:
+                raise ValueError(f"duplicate judge key: {key}")
+            done[key] = row
     return done
 
 
-def run(args) -> int:
+def _judge_program(out: Path):
     import dspy
 
     from openultrasast.hunt.program import build_lm
 
-    out = Path(args.out)
-    out.mkdir(parents=True, exist_ok=True)
     lm = build_lm(cache_dir=out / "dspy-cache")
     dspy.configure(lm=lm, adapter=dspy.ChatAdapter())
 
@@ -91,52 +98,59 @@ def run(args) -> int:
         case: str = dspy.InputField()
         answer: str = dspy.OutputField()
 
-    judge = dspy.Predict(Judge)
-    done = _load_done(out)
-    judgments_path = out / "judgments.jsonl"
+    return dspy, lm, dspy.Predict(Judge)
 
-    todo = 0
-    failures = []
-    started = time.monotonic()
-    for record, finding in _iter_findings(Path(args.prover_out)):
-        key = _finding_key(record["id"], finding.get("id") or "")
-        if key in done:
+
+def _judgment_payload(record, finding, model):
+    return {
+        "key": _finding_key(record["id"], finding.get("id") or ""),
+        "record_id": record["id"],
+        "repo": record["repo"],
+        "kind": record.get("kind"),
+        "finding_id": finding.get("id"),
+        "path": finding.get("path"),
+        "line": finding.get("line"),
+        "model": model,
+    }
+
+
+def _apply_judgment(payload, judge, record, finding):
+    result = judge(case=_judge_input(record["repo"], finding))
+    text = (result.answer or "").strip()
+    body = text.strip("`")
+    if body.lower().startswith("json"):
+        body = body[4:]
+    parsed = json.loads(body[body.index("{") : body.rindex("}") + 1])
+    if not isinstance(parsed.get("public"), bool):
+        raise ValueError("public is not a boolean")
+    payload.update(public=parsed["public"], confidence=parsed.get("confidence"), reason=parsed.get("reason"), status="ok")
+
+
+def _judge_findings(prover_out, out, lm, judge, done):
+    todo, failures = 0, []
+    for record, finding in _iter_findings(prover_out):
+        payload = _judgment_payload(record, finding, lm.model)
+        if payload["key"] in done:
             continue
         todo += 1
-        payload = {
-            "key": key,
-            "record_id": record["id"],
-            "repo": record["repo"],
-            "kind": record.get("kind"),
-            "finding_id": finding.get("id"),
-            "path": finding.get("path"),
-            "line": finding.get("line"),
-            "model": lm.model,
-        }
         try:
-            result = judge(case=_judge_input(record["repo"], finding))
-            text = (result.answer or "").strip()
-            # Tolerate a fenced JSON block, then parse strictly.
-            body = text.strip("`")
-            if body.lower().startswith("json"):
-                body = body[4:]
-            parsed = json.loads(body[body.index("{") : body.rindex("}") + 1])
-            if not isinstance(parsed.get("public"), bool):
-                raise ValueError("public is not a boolean")
-            payload["public"] = parsed["public"]
-            payload["confidence"] = parsed.get("confidence")
-            payload["reason"] = parsed.get("reason")
-            payload["status"] = "ok"
-        except Exception as error:  # noqa: BLE001  (recorded, never swallowed silently)
-            payload["status"] = "judge_error"
-            payload["error_type"] = type(error).__name__
-            payload["error"] = str(error)[:500]
+            _apply_judgment(payload, judge, record, finding)
+        except Exception as error:  # noqa: BLE001
+            payload.update(status="judge_error", error_type=type(error).__name__, error=str(error)[:500])
             failures.append(payload)
-        with judgments_path.open("a") as handle:
-            handle.write(json.dumps(payload, default=str) + "\n")
+        append_benchmark_jsonl(out / "judgments.jsonl", "judge-pass", payload)
         if not todo % 25:
             print(f"{todo} judged, {len(failures)} failures", flush=True)
+    return todo, failures
 
+
+def run(args) -> int:
+    out = Path(args.out)
+    out.mkdir(parents=True, exist_ok=True)
+    dspy, lm, judge = _judge_program(out)
+    done = _load_done(out)
+    started = time.monotonic()
+    todo, failures = _judge_findings(Path(args.prover_out), out, lm, judge, done)
     seconds = time.monotonic() - started
     meta = {
         "model": lm.model,
@@ -147,7 +161,7 @@ def run(args) -> int:
         "seconds": round(seconds, 1),
         "note": "zero-shot: no examples, no thresholds; question fixed before any answer was seen",
     }
-    (out / "run.json").write_text(json.dumps(meta, indent=2, default=str) + "\n")
+    write_benchmark_artifact(out / "run.json", "judge-pass-run", meta, replace=True)
     print(json.dumps(meta))
     return 2 if failures and todo else 0
 
@@ -203,10 +217,10 @@ def summarize(args) -> int:
         "headline": (
             f"Judge over prover findings: keeps {tp_kept}/{len(vuln)} true flags, "
             f"drops {fa_dropped}/{fa_total} false flags "
-            f"(recall {rate(tp_kept, 23)*100:.1f}%, FA {(fa_total - fa_dropped) / 460 * 100:.1f}/100)"
+            f"(recall {rate(tp_kept, 23) * 100:.1f}%, FA {(fa_total - fa_dropped) / 460 * 100:.1f}/100)"
         ),
     }
-    (out / "summary.json").write_text(json.dumps(summary, indent=2, default=str) + "\n")
+    write_benchmark_artifact(out / "summary.json", "judge-pass-summary", summary, replace=True)
     print(json.dumps(summary, indent=2, default=str))
     return 0
 

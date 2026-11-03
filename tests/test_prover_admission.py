@@ -14,7 +14,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from benchmarks.valid import prover_admission  # noqa: E402
+from openultrasast.core import legacy_v1 as prover_admission  # noqa: E402
 
 
 def _manifest() -> dict[str, object]:

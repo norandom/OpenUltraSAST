@@ -82,7 +82,7 @@
         "call:write_text"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "v2_migrated",
       "entry_id": "40465a45eb2ef682fecad973566a0bd94956bfb804d1fc6ea1d43075533232b1",
       "owner_boundary": "benchmark",
       "path": "benchmarks/learn/engine_task_entry.py",
@@ -101,7 +101,7 @@
         "call:write_text"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "v2_migrated",
       "entry_id": "f0fd6f3806e7f50b826c6b3fad99d50c4ac02aeedb5cc3afca6c140f3bebbcf7",
       "owner_boundary": "benchmark",
       "path": "benchmarks/measurements/2026-10-14-access-control-hunt/analyse.py",
@@ -115,7 +115,7 @@
         "call:write_text"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "v2_migrated",
       "entry_id": "fd21a8b7f0759a69e9f51ad3d2bae51e435ebb88cabea3bc44b8fec534fae32f",
       "owner_boundary": "benchmark",
       "path": "benchmarks/measurements/2026-10-14-access-control-hunt/analyse.py",
@@ -130,7 +130,7 @@
         "call:canonical"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "v2_migrated",
       "entry_id": "61d6e4cf01bb735ec13ea6dcd9aeb3e804abaccd26e0c7ad18819f2b28a7db0c",
       "owner_boundary": "benchmark",
       "path": "benchmarks/unseen/calibrate.py",
@@ -145,7 +145,7 @@
         "constant:item_id"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "v2_migrated",
       "entry_id": "c01d686518e8c0d17fa60092007604923b133200328a975bbf39e4727d75d900",
       "owner_boundary": "benchmark",
       "path": "benchmarks/unseen/replay.py",
@@ -159,7 +159,7 @@
         "call:write_text"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "v2_migrated",
       "entry_id": "039988ff20d8f58a169cc7cd183e25a88b2bb2638fa969becb3553d8d7bc927b",
       "owner_boundary": "benchmark",
       "path": "benchmarks/unseen/score.py",
@@ -174,7 +174,7 @@
         "call:_write_json"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "fe616a80de18d275283ad26ccd9027c4fbf151c017d02c14205e9cfc374a8b53",
       "owner_boundary": "benchmark",
       "path": "benchmarks/valid/admission_run.py",
@@ -189,7 +189,7 @@
         "name:admission_report"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "41eade0e409ea4726173e851fcad5c9c81076bd7e094fc4c2ad830ac40f958b4",
       "owner_boundary": "benchmark",
       "path": "benchmarks/valid/admission_run.py",
@@ -201,7 +201,7 @@
         "import_from:openultrasast.core.coverage:InstrumentFailure"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "v2_migrated",
       "entry_id": "ae8dd5862ff8cb6fb4cdfb83f99eb0ac881fed4dd6d0e01d19f7e4bad25f1a36",
       "owner_boundary": "benchmark",
       "path": "benchmarks/valid/arm_regression.py",
@@ -213,7 +213,7 @@
         "import_from:openultrasast.core.coverage:check_reads"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "v2_migrated",
       "entry_id": "f3ba25f48c0da317242323061f27a45213a459b93a12aeeb16389bd0f3e5525f",
       "owner_boundary": "benchmark",
       "path": "benchmarks/valid/arm_regression.py",
@@ -228,7 +228,7 @@
         "call:_write_json"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "v2_migrated",
       "entry_id": "b2bee4333d7374d21d2f4d0a8cdf49bb7c2f398daba5f63d7c3c2f7349f9be72",
       "owner_boundary": "benchmark",
       "path": "benchmarks/valid/arm_regression.py",
@@ -244,7 +244,7 @@
         "name:DevelopmentRecord"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "v2_migrated",
       "entry_id": "2acb6086c4eba2ee4a6bd6f6bacc86219207dd71548586c7966bb38153de9150",
       "owner_boundary": "benchmark",
       "path": "benchmarks/valid/development_runner.py",
@@ -260,7 +260,7 @@
         "call:_write_json"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "v2_migrated",
       "entry_id": "c4fe7770e44fb6c37a97cc2b5c686927d116522cdd62229fe7203aa58405477b",
       "owner_boundary": "benchmark",
       "path": "benchmarks/valid/hunter_arm.py",
@@ -280,7 +280,7 @@
         "call:canonical"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "v2_migrated",
       "entry_id": "880bbb68575bcb453127df5930a3d73d5dc67b478096bc504fafa878d91e534c",
       "owner_boundary": "benchmark",
       "path": "benchmarks/valid/hunter_arm.py",
@@ -296,7 +296,7 @@
         "call:dumps"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "v2_migrated",
       "entry_id": "6a96286909032b9997570a1f42afd97ffb92258a7d6ad0ebd077f4cdcb65adef",
       "owner_boundary": "benchmark",
       "path": "benchmarks/valid/judge_pass.py",
@@ -313,7 +313,7 @@
         "call:write_text"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "v2_migrated",
       "entry_id": "dea8fd3d112e1cbb4abb54b5d0e77e83c0a6e1e75e5ba2171dbd6f7ba436b75b",
       "owner_boundary": "benchmark",
       "path": "benchmarks/valid/judge_pass.py",
@@ -328,7 +328,7 @@
         "call:write_text"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "v2_migrated",
       "entry_id": "8bf0cd9c6a28264ad9ff1492f203d384b33432ddf0d9027381497cc8352de48c",
       "owner_boundary": "benchmark",
       "path": "benchmarks/valid/judge_pass.py",
@@ -342,7 +342,7 @@
         "call:write_text"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "v2_migrated",
       "entry_id": "c9906d437a27969e465c4d3139b1e865de0ac82761d0a980cf41efce20a0c178",
       "owner_boundary": "benchmark",
       "path": "benchmarks/valid/metrics.py",
@@ -354,7 +354,7 @@
         "import_from:openultrasast.core.admission:AdmissionManifest"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "ce683bd3299f95f9972af9e760939fc0c465a4ce0f682a0eb6e1de3e29538522",
       "owner_boundary": "benchmark",
       "path": "benchmarks/valid/prover_admission.py",
@@ -366,7 +366,7 @@
         "import_from:openultrasast.core.admission:AdmissionManifestError"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "f206dbf8024c582e401dc14fe1dd336f0d7abfac016f6ab0c3e3980236eb6b2c",
       "owner_boundary": "benchmark",
       "path": "benchmarks/valid/prover_admission.py",
@@ -378,7 +378,7 @@
         "import_from:openultrasast.core.admission:REPORT_SCHEMA_KEYS"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "b7de07df33d29a2cba9543b53505f9789d7b51b4890797964b571c20f69fa26d",
       "owner_boundary": "benchmark",
       "path": "benchmarks/valid/prover_admission.py",
@@ -390,7 +390,7 @@
         "import_from:openultrasast.core.admission:validate_admission_manifest"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "cb86f9a346e08246f627daa0ad1ba71b4e203d467dd08c983772b73d0926a429",
       "owner_boundary": "benchmark",
       "path": "benchmarks/valid/prover_admission.py",
@@ -410,7 +410,7 @@
         "call:canonical"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "v2_migrated",
       "entry_id": "bfeaa25d41ff876c1211b69f0bc497e246cabb4bcdd0569f27ae2ae15e84d3f5",
       "owner_boundary": "benchmark",
       "path": "benchmarks/valid/prover_arm.py",
@@ -427,7 +427,7 @@
         "call:_write_json"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "v2_migrated",
       "entry_id": "c3e95086ce661de7f589d787c324b4dd08977481fb427452837e8482d24210bf",
       "owner_boundary": "benchmark",
       "path": "benchmarks/valid/prover_arm.py",
@@ -447,7 +447,7 @@
         "call:canonical"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "v2_migrated",
       "entry_id": "8db722b97cb4411fd2a12391f23d5b79b46832fcd7d62d08905aa667871c6c6a",
       "owner_boundary": "benchmark",
       "path": "benchmarks/valid/semgrep_arm.py",

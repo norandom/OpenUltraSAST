@@ -9,7 +9,13 @@ import math
 import random
 from collections import Counter, defaultdict
 from pathlib import Path
+from typing import Any, cast
 
+from benchmarks.valid.artifact_contract import (
+    read_benchmark_artifact,
+    read_benchmark_sequence,
+    write_benchmark_artifact,
+)
 from openultrasast.model.taxonomy import load_families
 from openultrasast.push.report import CAPABILITY_VETOES
 
@@ -324,13 +330,17 @@ def gate(a, b, *, slice_id=None, informed=False, binary=True, threshold=None, th
     }
 
 
-def load_records(path):
+def load_records(path: Path) -> list[dict[str, Any]]:
+    """Load only canonical benchmark v2 records; producer handoffs are explicit adapters."""
+    path = Path(path)
     if path.is_file():
-        return json.loads(path.read_text())
-    rows = []
-    for entry in json.loads((path / "inputs.json").read_text()):
+        return [cast(dict[str, Any], row) for row in read_benchmark_sequence(path, "benchmark-arm-records")]
+    rows: list[dict[str, Any]] = []
+    entries = read_benchmark_sequence(path / "inputs.json", "benchmark-arm-inputs")
+    for raw_entry in entries:
+        entry = cast(dict[str, Any], raw_entry)
         result = path / (hashlib.sha256(entry["item_id"].encode()).hexdigest() + ".json")
-        record = json.loads(result.read_text()) if result.exists() else {}
+        record: dict[str, Any] = cast(dict[str, Any], read_benchmark_artifact(result, "benchmark-arm-record")) if result.exists() else {}
         if record.get("input_digest") != entry["input_digest"]:
             record = {}
         rows.append({**entry["change"], **record, "id": entry["change"]["id"]})
@@ -356,7 +366,7 @@ def main():
     result["unseen"] = gate(load_records(args.against) if args.against else [], current, slice_id=args.slice_id, informed=args.informed)
     if native and result["flagged"]:
         result["unseen"] = {"gate": "not_run", "reason": "native_agreement"}
-    args.out.write_text(json.dumps(result, sort_keys=True, indent=2) + "\n")
+    write_benchmark_artifact(args.out, "unseen-score", result, replace=True)
 
 
 if __name__ == "__main__":

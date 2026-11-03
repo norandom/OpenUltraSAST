@@ -66,7 +66,11 @@ def test_registered_production_entries_close_without_rekeying_other_consumers() 
     assert set(production) == _PRODUCTION_ENTRY_IDS
     assert all(production[entry_id].disposition is MigrationDisposition.V2_MIGRATED for entry_id in _V2_MIGRATED)
     assert all(production[entry_id].disposition is MigrationDisposition.RETIRED for entry_id in _RETIRED)
-    assert all(entry.disposition is MigrationDisposition.OPEN for entry in candidate.entries if entry.entry_id not in production)
+    assert all(
+        entry.disposition is MigrationDisposition.OPEN
+        for entry in candidate.entries
+        if entry.entry_id not in production and not entry.path.startswith("benchmarks/")
+    )
 
     frozen = replace(
         candidate,

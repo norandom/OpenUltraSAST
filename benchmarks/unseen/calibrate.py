@@ -12,9 +12,9 @@ import statistics
 from datetime import date
 from pathlib import Path
 
-from benchmarks.ax.batch import write_json
 from benchmarks.unseen.replay import canonical, load_slice, run_replays, sample_changes
 from benchmarks.unseen.score import coverage, load_records
+from benchmarks.valid.artifact_contract import write_benchmark_artifact
 
 
 def stage_times(record):
@@ -120,7 +120,7 @@ def main():
     result.update(
         image=args.image, deadline_seconds=args.deadline, sample_digest=hashlib.sha256(canonical([c["id"] for c in changes])).hexdigest()
     )
-    write_json(args.record, result)
+    write_benchmark_artifact(args.record, "deadline-calibration", result, replace=True)
     return 0 if result["status"] == "ok" else 2
 
 

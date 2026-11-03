@@ -48,6 +48,7 @@ def test_frozen_toml_slice_and_scoring_join(tmp_path):
     import hashlib
 
     from benchmarks.unseen.score import load_records
+    from benchmarks.valid.artifact_contract import write_benchmark_artifact, write_benchmark_sequence
 
     pool = tmp_path / "pool-p1.toml"
     pool.write_text("""pool="p1"
@@ -68,11 +69,15 @@ changes=[{kind="ordinary",base="ccc",head="ddd",files=[]}]
     (tmp_path / "freeze-p1.json").write_text(json.dumps({"freeze_digest": freeze}))
     changes = r.load_slice(pool, 2)
     assert len(changes) == 1 and changes[0]["repo"] == "opaque-b"
-    (tmp_path / "inputs.json").write_text(json.dumps([{"item_id": "replay-opaque", "change": changes[0], "input_digest": "digest"}]))
+    write_benchmark_sequence(
+        tmp_path / "inputs.json",
+        "benchmark-arm-inputs",
+        [{"item_id": "replay-opaque", "change": changes[0], "input_digest": "digest"}],
+    )
     assert load_records(tmp_path)[0]["kind"] == "ordinary"
     assert "instrument" not in load_records(tmp_path)[0]  # Missing result remains a measured failure.
     result = tmp_path / (hashlib.sha256(b"replay-opaque").hexdigest() + ".json")
-    result.write_text(json.dumps({"input_digest": "digest", "instrument": {"head_verified": True}}))
+    write_benchmark_artifact(result, "benchmark-arm-record", {"input_digest": "digest", "instrument": {"head_verified": True}})
     assert load_records(tmp_path)[0]["instrument"]["head_verified"]
     pool.write_text(pool.read_text() + "changed=true\n")
     with pytest.raises(ValueError, match="digest"):

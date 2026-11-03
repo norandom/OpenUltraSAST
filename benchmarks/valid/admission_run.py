@@ -15,34 +15,22 @@ mutates or re-labels the manifest it consumes.
 
 from __future__ import annotations
 
-import hashlib
-import json
-import tomllib
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any
 
-from benchmarks.unseen.replay import canonical
-from benchmarks.valid.admission_scoring import AdmissionCase, OrdinaryChange, admission_report, score_v2_admission
-from benchmarks.valid.arm_regression import BundleDigests, _input_digest, _prove_one
+from benchmarks.valid.admission_scoring import AdmissionCase, OrdinaryChange, score_v2_admission
 from benchmarks.valid.population_custody import AdmissionSpendAuthority, GuardedPopulationCustodian, ReleaseReview
-from benchmarks.valid.prover_admission import AdmissionManifest, validate_admission_manifest
 from openultrasast.core.admission_case import AdmissionCaseResult
 from openultrasast.core.admission_report import AdmissionReplay
 from openultrasast.core.admission_spend import authorize_admission
-from openultrasast.preprocess import detect_language
-from openultrasast.source import canonical_language, ranges
 
 __all__ = [
     "admission_ordinary",
     "admission_pair_cases",
-    "assemble_admission_report",
     "coverage_share",
     "fixed_side_change",
-    "load_admission_population",
     "locate_function",
-    "run_admission",
     "run_v2_admission",
     "V2AdmissionRunInput",
     "site_judgment",
@@ -225,156 +213,3 @@ def coverage_share(records: tuple[dict[str, Any], ...]) -> float:
         return 0.0
     covered = sum(1 for total in per_repository.values() if total > 0)
     return covered / len(per_repository)
-
-
-def load_admission_population(
-    payload: dict[str, object], pool_path: Path, freeze_path: Path
-) -> tuple[tuple[dict[str, Any], ...], tuple[dict[str, Any], ...]]:
-    """Validate the manifest and the reviewed freeze before opening labels (Req 12.1)."""
-    manifest = validate_admission_manifest(payload)
-    pool = tomllib.loads(Path(pool_path).read_text(encoding="utf-8"))
-    freeze = json.loads(Path(freeze_path).read_text(encoding="utf-8"))
-    digest = hashlib.sha256(canonical(pool)).hexdigest()
-    if digest != freeze.get("freeze_digest"):
-        raise ValueError(f"population: pool digest {digest[:12]} does not match the reviewed freeze")
-    if freeze.get("guard_result") != 0:
-        raise ValueError("guard: held-out guard failed for this population")
-    if manifest.population_digest != digest:
-        raise ValueError("population: manifest names a different population than the reviewed freeze")
-    changes = tuple(
-        {**change, "id": _change_identity(repository, change), "repo": str(repository["id"])}
-        for repository in pool.get("repository", [])
-        for change in repository.get("changes", [])
-    )
-    vulnerable = tuple(change for change in changes if change.get("kind") == "vulnerability")
-    ordinary = tuple(change for change in changes if change.get("kind") == "ordinary")
-    return vulnerable, ordinary
-
-
-def _change_identity(repository: dict[str, Any], change: dict[str, Any]) -> str:
-    """The pool's canonical change identity, as ``replay.load_slice`` derives it."""
-    payload = [repository["id"], change["kind"], change["base"], change["head"]]
-    return hashlib.sha256(canonical(payload)).hexdigest()
-
-
-def assemble_admission_report(
-    manifest: AdmissionManifest,
-    vulnerable: tuple[dict[str, Any], ...],
-    fixed: tuple[dict[str, Any], ...],
-    ordinary: tuple[dict[str, Any], ...],
-    *,
-    criteria: dict[str, float] | None,
-    budget_seconds: float = 120.0,
-) -> dict[str, Any]:
-    """Bridge measured records to the paired admission report (Reqs 12.7, 12.8).
-
-    Every change is budget-gated: pairs by their combined seconds, ordinary
-    changes individually (design.md:370 "fails any change over 120 seconds").
-    """
-    failures = sum(1 for record in (*vulnerable, *fixed, *ordinary) if record.get("status") == "instrument_failure")
-    report = admission_report(
-        manifest,
-        admission_pair_cases(vulnerable, fixed),
-        admission_ordinary(ordinary),
-        coverage=coverage_share((*vulnerable, *fixed, *ordinary)),
-        instrument_failures=failures,
-        budget_seconds=budget_seconds,
-        criteria=criteria,
-    )
-    overruns = [
-        f"budget:{record['id']}:{float(record.get('seconds', 0.0)):g}s>{budget_seconds:g}s"
-        for record in ordinary
-        if float(record.get("seconds", 0.0)) > budget_seconds
-    ]
-    if overruns:
-        report["failed_gates"] = [*report["failed_gates"], *overruns]
-        report["decision"] = "NO-GO"
-    return report
-
-
-def _resume_or_prove(
-    bundle: BundleDigests,
-    population: str,
-    change: dict[str, Any],
-    repo_path: Path,
-    side_dir: Path,
-) -> dict[str, Any]:
-    from benchmarks.valid.prover_arm import _write_json
-
-    side_dir.mkdir(parents=True, exist_ok=True)
-    path = side_dir / f"{change['id']}.json"
-    if path.is_file():
-        previous: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
-        if previous.get("input_digest") == _input_digest(change, ARM_NAME):
-            return previous
-        raise ValueError(f"existing record for {change['id']} does not match this arm's inputs")
-    record = _prove_one(bundle, ARM_NAME, population, change, repo_path)
-    _write_json(path, record)
-    return record
-
-
-def run_admission(
-    *,
-    payload: dict[str, object],
-    pool_path: Path,
-    freeze_path: Path,
-    repos: dict[str, str],
-    bundle: BundleDigests,
-    out_dir: Path,
-    criteria: dict[str, float] | None,
-    budget_seconds: float = 120.0,
-) -> dict[str, Any]:
-    """Consume the reviewed manifest, prove the population, return GO/NO-GO."""
-    vulnerable, ordinary = load_admission_population(payload, pool_path, freeze_path)
-    manifest = validate_admission_manifest(payload)
-    out_dir.mkdir(parents=True, exist_ok=True)
-    vulnerable_records = tuple(
-        _resume_or_prove(bundle, manifest.population_digest, change, Path(repos[change["repo"]]).expanduser(), out_dir / "vulnerable")
-        for change in vulnerable
-    )
-    fixed_records = tuple(
-        _resume_or_prove(
-            bundle,
-            manifest.population_digest,
-            _fixed_side_change(Path(repos[change["repo"]]).expanduser(), change),
-            Path(repos[change["repo"]]).expanduser(),
-            out_dir / "fixed",
-        )
-        for change in vulnerable
-    )
-    ordinary_records = tuple(
-        _resume_or_prove(bundle, manifest.population_digest, change, Path(repos[change["repo"]]).expanduser(), out_dir / "ordinary")
-        for change in ordinary
-    )
-    return assemble_admission_report(
-        manifest, vulnerable_records, fixed_records, ordinary_records, criteria=criteria, budget_seconds=budget_seconds
-    )
-
-
-def _fixed_side_change(repo_path: Path, change: dict[str, Any]) -> dict[str, Any]:
-    lines, operation = _fixed_site(repo_path, change)
-    return fixed_side_change(change, fixed_lines=lines, fixed_operation=operation)
-
-
-def _fixed_site(repo_path: Path, change: dict[str, Any]) -> tuple[tuple[int, int] | None, str]:
-    """(lines, operation) for the labelled function at the fixed revision.
-
-    A locator miss (the name is present but ``ranges`` could not name it) is
-    "missed" and can never become a clean judgment (design.md:371).
-    """
-    from benchmarks.valid.catalog import local_git
-
-    git = local_git(repo_path)
-    text = git.runner(
-        ["git", "-C", str(repo_path), "show", f"{change['base']}:{change['path']}"],
-        capture_output=True,
-        text=True,
-        check=True,
-    ).stdout
-    name = str(change.get("function"))
-    try:
-        functions = ranges(str(change["path"]), text, canonical_language(detect_language(repo_path / change["path"])))
-    except ValueError:
-        functions = ()
-    lines = locate_function(functions, name=name)
-    return lines, classify_fixed_site(lines, name_in_text=name in text)

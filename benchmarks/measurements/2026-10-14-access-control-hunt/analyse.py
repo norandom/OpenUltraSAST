@@ -17,6 +17,13 @@ import sys
 from pathlib import Path
 
 from benchmarks.unseen import score
+from benchmarks.unseen.replay import load_slice
+from benchmarks.valid.artifact_contract import write_benchmark_jsonl
+from benchmarks.valid.hunt_handoff import (
+    HUNT_RUNNER_PRODUCER,
+    discover_hunt_runner_context,
+    persist_hunt_runner_records,
+)
 from openultrasast import stats
 from openultrasast.model.endpoint import _PRICES as PRICES
 
@@ -130,12 +137,25 @@ def cost(log: Path) -> dict | None:
 def main(root: Path) -> dict:
     out: dict = {}
     all_suspicions = []
+    repo = Path(__file__).resolve().parents[3]
+    manifest = repo / "benchmarks/valid/train/pool-train.toml"
+    freeze = json.loads((repo / "benchmarks/valid/train/freeze-train.json").read_text())
+    changes = load_slice(manifest, "1")
     for arm, folder in (("dspy", "dspy-1"), ("hunter", "hunter-1")):
-        records = score.load_records(root / folder)
+        source = root / folder
+        destination = root / "benchmark-v2" / arm
+        context = discover_hunt_runner_context(
+            source,
+            manifest,
+            producer=HUNT_RUNNER_PRODUCER,
+            freeze_digest=freeze["freeze_digest"],
+        )
+        persist_hunt_runner_records(source, destination, context=context, changes=changes)
+        records = score.load_records(destination)
         out[arm], suspicions = arm_summary(records, arm)
         all_suspicions.extend(suspicions)
     out["dspy"]["cost"] = cost(root / "dspy-1.log")
-    (root / "suspicions.jsonl").write_text("".join(json.dumps(s) + "\n" for s in all_suspicions))
+    write_benchmark_jsonl(root / "suspicions.jsonl", "access-control-suspicion", all_suspicions, replace=True)
     return out
 
 

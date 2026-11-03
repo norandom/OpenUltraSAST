@@ -382,7 +382,7 @@
   - _Requirements: 14.1, 14.3, 15.3_
   - _Boundary: Core and Adjacent Adapter Migration_
   - _Depends: 10.3_
-- [ ] 10.5 Migrate benchmark readiness and admission consumers
+- [x] 10.5 Migrate benchmark readiness and admission consumers
   - Move every registered benchmark reader and writer to v2 while retaining readiness sequencing, persistence, population custody, and admission orchestration in the benchmark boundary.
   - Update each matching stable inventory entry to `v2_migrated` or `retired` without changing its identity.
   - Preserve guarded spend, authenticated case release, fixed measurement, and bounded model behavior through the migration.
@@ -442,3 +442,5 @@
 
 - The frozen migration inventory is a reviewed worklist with stable identities, not a semantic-use census. It may only close entries as `v2_migrated` or `retired`; it never grows, deletes entries, or proves absence by interpreting Python flow.
 - Cutover is proved by explicit syntax checks plus deletion of the compatibility and v1 write capability. No task extends the discarded alias/data-flow interpreter.
+- Task 10.5 debug established that executable owner probes cannot compensate for blanket source-closure acceptance; resumed hunt attempts also require collision-resistant attempt identity and create-only persistence before handoff validation is authoritative.
+- Human review reopened Task 10.5 for one focused remediation cycle covering exact source-closure evidence, collision-resistant create-only attempt persistence, and complexity-cap conformance.

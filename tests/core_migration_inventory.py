@@ -9,6 +9,8 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 
+from benchmark_migration_evidence import BENCHMARK_TERMINAL_EVIDENCE, BenchmarkTerminalEvidence
+
 from openultrasast.core.legacy import LegacyArtifact, decode_legacy_artifact
 
 REPO = Path(__file__).resolve().parents[1]
@@ -55,6 +57,12 @@ _APPROVED_TERMINAL_SOURCE_CLOSURES = {
     "9f2097b8a673c3079a8a61cc28e9099c671e48e6c29a3e95a9e3aac3d53ccb00": MigrationDisposition.RETIRED,
     "eb963401f43fca11e38c50e5e064f58b33233b9564a3a85e5b629a6fb2820d7d": MigrationDisposition.V2_MIGRATED,
     "f8a5c42661f6a79b0abbe668e8993fd0ec26d1c9dad5df4e141472e6de62f586": MigrationDisposition.V2_MIGRATED,
+    "ae8dd5862ff8cb6fb4cdfb83f99eb0ac881fed4dd6d0e01d19f7e4bad25f1a36": MigrationDisposition.V2_MIGRATED,
+    "f3ba25f48c0da317242323061f27a45213a459b93a12aeeb16389bd0f3e5525f": MigrationDisposition.V2_MIGRATED,
+    "b7de07df33d29a2cba9543b53505f9789d7b51b4890797964b571c20f69fa26d": MigrationDisposition.RETIRED,
+    "cb86f9a346e08246f627daa0ad1ba71b4e203d467dd08c983772b73d0926a429": MigrationDisposition.RETIRED,
+    "ce683bd3299f95f9972af9e760939fc0c465a4ce0f682a0eb6e1de3e29538522": MigrationDisposition.RETIRED,
+    "f206dbf8024c582e401dc14fe1dd336f0d7abfac016f6ab0c3e3980236eb6b2c": MigrationDisposition.RETIRED,
 }
 
 
@@ -322,7 +330,7 @@ def _dotted(node: ast.AST) -> str:
 
 
 def _top_level_reads(tree: ast.Module) -> set[str]:
-    aliases = set()
+    aliases: set[str] = set()
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             aliases.update(alias.asname for alias in node.names if alias.name == "openultrasast.core" and alias.asname)
@@ -448,8 +456,46 @@ def _moved_mixed_v1_owner(entry: LegacyInventoryEntry, *, root: Path) -> bool:
     return set(destination_symbols) <= owned
 
 
-def _approved_terminal_source_closure(entry: LegacyInventoryEntry) -> bool:
-    return _APPROVED_TERMINAL_SOURCE_CLOSURES.get(entry.entry_id) is entry.disposition and entry.entry_id == entry_identity(entry)
+def _successor_path(root: Path, evidence: BenchmarkTerminalEvidence) -> Path:
+    assert evidence.successor_module is not None
+    relative = Path(*evidence.successor_module.split(".")).with_suffix(".py")
+    direct = root / relative
+    return direct if direct.is_file() else root / "src" / relative
+
+
+def _validate_retired_absence(entry: LegacyInventoryEntry, tree: ast.Module) -> None:
+    if entry.symbol != "<module>" and entry.symbol in _defined_symbols(tree):
+        raise LegacyInventoryError(f"retired owner remains live: {entry.path}:{entry.symbol}")
+    if entry.symbol == "<module>" and not _missing_anchors(entry, tree):
+        raise LegacyInventoryError(f"retired capability remains live: {entry.path}:{entry.capability_anchors}")
+
+
+def _benchmark_terminal_source_closure(entry: LegacyInventoryEntry, *, root: Path, tree: ast.Module) -> bool:
+    if not entry.path.startswith("benchmarks/") or entry.disposition is MigrationDisposition.OPEN:
+        return False
+    evidence = BENCHMARK_TERMINAL_EVIDENCE.get(entry.entry_id)
+    if (
+        evidence is None
+        or evidence.disposition != entry.disposition.value
+        or evidence.stable_fields != _stable_entry_fields(entry)
+        or entry.entry_id != entry_identity(entry)
+    ):
+        raise LegacyInventoryError(f"benchmark terminal evidence is absent or mismatched: {entry.entry_id}")
+    if entry.disposition is MigrationDisposition.RETIRED:
+        _validate_retired_absence(entry, tree)
+        return True
+    successor = _read_owner_module(_successor_path(root, evidence), "migrated benchmark successor")
+    assert evidence.successor_symbol is not None
+    if evidence.successor_symbol not in _defined_symbols(successor):
+        raise LegacyInventoryError(f"migrated owner is absent: {evidence.successor_module}:{evidence.successor_symbol}")
+    return True
+
+
+def _approved_terminal_source_closure(entry: LegacyInventoryEntry, *, root: Path, tree: ast.Module) -> bool:
+    if _benchmark_terminal_source_closure(entry, root=root, tree=tree):
+        return True
+    approved = _APPROVED_TERMINAL_SOURCE_CLOSURES.get(entry.entry_id) is entry.disposition
+    return approved and entry.entry_id == entry_identity(entry)
 
 
 def validate_inventory_sources(inventory: LegacyMigrationInventory, *, root: Path) -> None:
@@ -468,7 +514,7 @@ def validate_inventory_sources(inventory: LegacyMigrationInventory, *, root: Pat
             raise LegacyInventoryError(f"inventory source is not parseable: {entry.path}") from exc
         is_shim = _explicit_legacy_shim(tree, entry.symbol)
         moved_owner = _moved_mixed_v1_owner(entry, root=root)
-        terminal_closure = _approved_terminal_source_closure(entry)
+        terminal_closure = _approved_terminal_source_closure(entry, root=root, tree=tree)
         if entry.symbol not in _defined_symbols(tree) and not is_shim and not moved_owner and not terminal_closure:
             raise LegacyInventoryError(f"inventory target is absent: {entry.path}:{entry.symbol}")
         missing = _missing_anchors(entry, tree)

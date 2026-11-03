@@ -84,7 +84,7 @@ def test_valid_report_before_after_workload_curve_and_ledger(pilot_case, populat
         assert row["changed_bytes"]["app.py"] > 0
         assert row["base_verified"] and row["head_verified"] and row["base"] and row["head"]
     assert analysis["before"]["raw"]["metrics"] == json.loads(kwargs["pilot_metrics"]["raw"].read_text())
-    records = score.load_records(directory / "records")
+    records = score.load_records(directory / "benchmark-records")
     assert analysis["after"]["pooled"]["push"] == metrics.summarize(records, scored=score.score(metrics.scoring_records(records)))
     assert analysis["after"]["injection"]["search"]["recall"]["rate"] == 1
     assert analysis["after"]["pooled"]["search"]["suspicions_per_push"]["rate"] == 0

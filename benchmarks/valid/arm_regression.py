@@ -23,11 +23,18 @@ from typing import Any
 
 from benchmarks.unseen.extract import InstrumentFailure
 from benchmarks.unseen.replay import canonical
+from benchmarks.valid.artifact_contract import read_benchmark_artifact, write_benchmark_artifact
 from benchmarks.valid.catalog import local_git
 from benchmarks.valid.development_runner import AnalyzerBundle, stage_funnel
-from benchmarks.valid.prover_arm import _write_json
-from openultrasast.core.legacy_v1 import InstrumentFailure as CoreInstrumentFailure
-from openultrasast.core.legacy_v1 import check_reads
+from openultrasast.core.coverage import (
+    InputManifest,
+    InputReadReceipt,
+    derive_input_manifest_digest,
+    validate_instrument,
+)
+from openultrasast.core.coverage import (
+    InstrumentFailure as CoreInstrumentFailure,
+)
 from openultrasast.hunt.producers import Context, _Absent, _safe_path
 from openultrasast.hunt.prover import prove_change
 
@@ -119,25 +126,8 @@ def _population_digest(changes: tuple[dict[str, Any], ...]) -> str:
     return hashlib.sha256(joined.encode()).hexdigest()[:12]
 
 
-def _prove_one(
-    bundle: BundleDigests,
-    arm_name: str,
-    population: str,
-    change: dict[str, Any],
-    repo_path: Path,
-) -> dict[str, Any]:
-    started = time.monotonic()
-    instrument: dict[str, Any] = dict(
-        hook_exit=0,
-        hook_bytes_read=0,
-        changed_bytes={},
-        file_bytes={},
-        head_verified=False,
-        base_verified=False,
-        suspect_fast=False,
-        failure=None,
-    )
-    record: dict[str, Any] = {
+def _arm_record(bundle: BundleDigests, arm_name: str, population: str, change: dict[str, Any], instrument: dict[str, Any]):
+    return {
         **change,
         "arm": arm_name,
         "analyzer_revision": bundle.analyzer_revision,
@@ -157,40 +147,71 @@ def _prove_one(
         "stage_funnel": {},
         "push": {"admission": {"defects": [], "dispositions": []}, "quick_tier": []},
     }
+
+
+def _apply_prover_result(record: dict[str, Any], result: Any, change: dict[str, Any], instrument: dict[str, Any]) -> None:
+    funnel = stage_funnel(result)
+    record.update(
+        findings=list(result.findings),
+        traces=list(result.traces),
+        coverage=asdict(result.coverage),
+        degradations=list(result.degradations),
+        stage_funnel=funnel,
+    )
+    record["complexity"] = {
+        "regions": len(change.get("files", ())),
+        "calls": sum(funnel.get("resolution", {}).values()),
+        "changed_bytes": sum(instrument.get("changed_bytes", {}).values()),
+    }
+    record["push"]["admission"]["defects"] = [
+        {**finding, "defect_id": finding["id"], "source": "prover", "locations": [[finding["path"], finding["line"]]]}
+        for finding in result.findings
+    ]
+
+
+def _prove_checkout(record: dict[str, Any], change: dict[str, Any], repo_path: Path, instrument: dict[str, Any]) -> None:
+    git = local_git(repo_path)
+    git.run("cat-file", "-e", change["base"] + "^{commit}")
+    instrument["base_verified"] = True
+    with tempfile.TemporaryDirectory(prefix="ousast-arm-") as temporary:
+        root = Path(temporary) / "head"
+        git.run("-c", "core.hooksPath=/dev/null", "worktree", "add", "--detach", str(root), change["head"])
+        try:
+            _verify_checkout(root)
+            ctx = Context(root, change)
+            ctx.verify_head()
+            instrument["head_verified"] = True
+            _instrument_reads(ctx, root, change, instrument)
+            result = prove_change(root, change, ctx, judgment_mode=True)
+            instrument["hook_bytes_read"] = sum(instrument["file_bytes"].values())
+            _apply_prover_result(record, result, change, instrument)
+        finally:
+            git.run("worktree", "remove", "--force", str(root))
+
+
+def _prove_one(
+    bundle: BundleDigests,
+    arm_name: str,
+    population: str,
+    change: dict[str, Any],
+    repo_path: Path,
+) -> dict[str, Any]:
+    started = time.monotonic()
+    instrument: dict[str, Any] = dict(
+        hook_exit=0,
+        hook_bytes_read=0,
+        changed_bytes={},
+        changed_digests={},
+        file_bytes={},
+        file_digests={},
+        head_verified=False,
+        base_verified=False,
+        suspect_fast=False,
+        failure=None,
+    )
+    record = _arm_record(bundle, arm_name, population, change, instrument)
     try:
-        git = local_git(repo_path)
-        git.run("cat-file", "-e", change["base"] + "^{commit}")
-        instrument["base_verified"] = True
-        with tempfile.TemporaryDirectory(prefix="ousast-arm-") as temporary:
-            root = Path(temporary) / "head"
-            git.run("-c", "core.hooksPath=/dev/null", "worktree", "add", "--detach", str(root), change["head"])
-            try:
-                _verify_checkout(root)
-                ctx = Context(root, change)
-                ctx.verify_head()
-                instrument["head_verified"] = True
-                _instrument_reads(ctx, root, change, instrument)
-                result = prove_change(root, change, ctx, judgment_mode=True)
-                instrument["hook_bytes_read"] = sum(instrument["file_bytes"].values())
-                funnel = stage_funnel(result)
-                record.update(
-                    findings=list(result.findings),
-                    traces=list(result.traces),
-                    coverage=asdict(result.coverage),
-                    degradations=list(result.degradations),
-                    stage_funnel=funnel,
-                )
-                record["complexity"] = {
-                    "regions": len(change.get("files", ())),
-                    "calls": sum(funnel.get("resolution", {}).values()),
-                    "changed_bytes": sum(instrument.get("changed_bytes", {}).values()),
-                }
-                record["push"]["admission"]["defects"] = [
-                    {**finding, "defect_id": finding["id"], "source": "prover", "locations": [[finding["path"], finding["line"]]]}
-                    for finding in result.findings
-                ]
-            finally:
-                git.run("worktree", "remove", "--force", str(root))
+        _prove_checkout(record, change, repo_path, instrument)
     except Exception as error:  # noqa: BLE001 - the record must survive any instrument failure
         instrument.update(hook_exit=2, failure=type(error).__name__)
         record.update(status="instrument_failure", findings=[])
@@ -223,12 +244,19 @@ def _instrument_reads(ctx: Context, root: Path, change: dict[str, Any], instrume
             held = local_git(root).runner(["git", "-C", str(root), "cat-file", "-s", f"HEAD:{relative}"], capture_output=True, text=True)
             if getattr(error, "reason", "") == "empty_source" and held.returncode == 0 and int(held.stdout.strip() or 0) == 0:
                 instrument["empty_files"] = instrument.get("empty_files", 0) + 1
-                continue
+                instrument["file_bytes"][relative] = 0
+                instrument["file_digests"][relative] = hashlib.sha256(b"").hexdigest()
+                if relative in changed:
+                    instrument["changed_bytes"][relative] = 0
+                    instrument["changed_digests"][relative] = instrument["file_digests"][relative]
+                raise InstrumentFailure("zero-byte read") from error
             raise InstrumentFailure("unread tracked file") from error
         size = len(text.encode("utf-8"))
         instrument["file_bytes"][relative] = size
+        instrument["file_digests"][relative] = hashlib.sha256(text.encode("utf-8")).hexdigest()
         if relative in changed:
             instrument["changed_bytes"][relative] = size
+            instrument["changed_digests"][relative] = instrument["file_digests"][relative]
         if not size:
             raise InstrumentFailure("zero-byte read")
 
@@ -248,13 +276,13 @@ def run_arm(
     for change in changes:
         path = out_dir / f"{change['id']}.json"
         if path.is_file():
-            previous = json.loads(path.read_text(encoding="utf-8"))
+            previous = read_benchmark_artifact(path, "development-arm-record")
             if previous.get("input_digest") == _input_digest(change, arm_name):
                 records.append(previous)
                 continue
             raise ValueError(f"existing record for {change['id']} does not match this arm's inputs")
         record = _prove_one(bundle, arm_name, population, change, Path(repos[change["repo"]]).expanduser())
-        _write_json(path, record)
+        write_benchmark_artifact(path, "development-arm-record", record)
         records.append(record)
     return tuple(records)
 
@@ -263,17 +291,25 @@ def _masked(repo: str) -> str:
     return hashlib.sha256(repo.encode()).hexdigest()[:12]
 
 
+def _validate_record_instrument(instrument: dict[str, Any]) -> None:
+    sizes = {**instrument.get("file_bytes", {}), **instrument.get("changed_bytes", {})}
+    digests = {**instrument.get("file_digests", {}), **instrument.get("changed_digests", {})}
+    input_ids = tuple(sorted(sizes))
+    try:
+        manifest = InputManifest(input_ids, derive_input_manifest_digest(input_ids))
+        receipts = tuple(InputReadReceipt(path, path, True, int(sizes[path]), digests.get(path)) for path in input_ids)
+        validate_instrument(manifest, receipts)
+    except (CoreInstrumentFailure, TypeError, ValueError) as error:
+        raise InstrumentFailure(str(error)) from error
+
+
 def summarize_arm(records: tuple[dict[str, Any], ...]) -> dict[str, Any]:
     """Aggregate one arm; refuse any zero-byte read, publish budget and masked coverage."""
     judgment = {"unguarded": 0, "discharged": 0, "indeterminate": 0}
     per_repository: dict[str, dict[str, Any]] = {}
     for record in records:
         instrument = record.get("instrument", {})
-        merged = {**instrument.get("file_bytes", {}), **instrument.get("changed_bytes", {})}
-        try:
-            check_reads(merged)  # core instrument refusal: a zero-byte read invalidates the run
-        except CoreInstrumentFailure as error:
-            raise InstrumentFailure(str(error)) from error
+        _validate_record_instrument(instrument)
         funnel = record.get("stage_funnel", {})
         for kind, count in funnel.get("judgment", {}).items():
             judgment[kind] += int(count)

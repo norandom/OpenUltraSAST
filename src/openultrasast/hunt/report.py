@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import fcntl
+import hashlib
 import json
 import math
 import os
@@ -40,11 +41,21 @@ def _reserve(root: Path, program_id: str) -> Path:
     return directory
 
 
-def _records(directory: Path, changes: Sequence[Mapping]) -> list[dict]:
+def _records(
+    directory: Path,
+    destination: Path,
+    changes: Sequence[Mapping],
+    *,
+    context: Any,
+) -> list[dict]:
     """Load benchmark records and retain every expected change, even after a budget stop."""
     from benchmarks.unseen import score
+    from benchmarks.valid.hunt_handoff import persist_hunt_runner_records
 
-    records = score.load_records(Path(directory)) if (Path(directory) / "inputs.json").exists() else []
+    records = []
+    if (Path(directory) / "inputs.json").exists():
+        persist_hunt_runner_records(Path(directory), Path(destination), context=context, changes=changes)
+        records = score.load_records(Path(destination))
     indexed = {r["id"]: r for r in records}
     if len(indexed) != len(records) or set(indexed) - {c["id"] for c in changes}:
         raise ValueError("records do not match the pilot population")
@@ -55,6 +66,24 @@ def _records(directory: Path, changes: Sequence[Mapping]) -> list[dict]:
             raise ValueError("record describes a different pilot change")
         result.append(record)
     return result
+
+
+def _hunt_context(source: Path, manifest: Path, program_id: str, mask: Sequence[str]) -> Any:
+    from benchmarks.valid.hunt_handoff import HUNT_RUNNER_PRODUCER, discover_hunt_runner_context
+
+    content = Path(manifest).read_bytes()
+    if not content:
+        raise ValueError("hunt manifest is empty")
+    manifest_digest = hashlib.sha256(content).hexdigest()
+    freeze = Path(manifest).with_name("freeze-" + Path(manifest).stem.removeprefix("pool-") + ".json")
+    freeze_digest = manifest_digest
+    if freeze.is_file():
+        payload = json.loads(freeze.read_text())
+        freeze_digest = str(payload.get("freeze_digest") or "")
+    context = discover_hunt_runner_context(source, manifest, producer=HUNT_RUNNER_PRODUCER, freeze_digest=freeze_digest)
+    if context.program_id != program_id or context.mask != tuple(sorted(set(mask))) or context.manifest_digest != manifest_digest:
+        raise ValueError("hunt report context does not match the requested program")
+    return context
 
 
 def _instrument(records: Sequence[Mapping]) -> dict:
@@ -368,6 +397,137 @@ def _notes(analysis: dict) -> str:
     return "\n".join(lines)
 
 
+def _pilot_inputs(
+    candidate: Candidate,
+    decision: accept.Decision,
+    training_runs: Sequence[Path],
+    pilot_metrics: Mapping[str, Path],
+    pilot_manifest: Path,
+    load_changes: Any,
+) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    from benchmarks.unseen.replay import load_slice
+
+    if not decision.accepted or decision.comparison.get("candidate_id") != candidate.program_id:
+        raise ValueError("pilot gain requires the accepted decision for this candidate")
+    normalized_runs = [Path(path) for path in training_runs]
+    if contamination.clean_runs(normalized_runs) != normalized_runs:
+        raise ValueError("contaminated training runs cannot report pilot gain")
+    changes = list((load_changes or load_slice)(Path(pilot_manifest), "1"))
+    if not changes or len({change["id"] for change in changes}) != len(changes):
+        raise ValueError("pilot changes must be nonempty and have unique IDs")
+    return _before(pilot_metrics), changes
+
+
+def _run_pilot_candidate(
+    candidate: Candidate,
+    pilot_manifest: Path,
+    repos: Mapping[str, str],
+    directory: Path,
+    lm: Any,
+    budget: Mapping[str, float],
+    tools_for: Any,
+    changes: list[dict[str, Any]],
+) -> runner.RunArtifact | None:
+    import dspy
+
+    from .program import repository_tools
+
+    program = _candidate_program(candidate, tools_for)
+    with dspy.context(lm=lm, adapter=dspy.ChatAdapter()):
+        return runner.run(
+            Path(pilot_manifest),
+            repos,
+            directory / "records",
+            program=program,
+            program_id=candidate.program_id,
+            mask=candidate.mask,
+            pilot_report=True,
+            only="all",
+            budget=budget,
+            tools_for=tools_for or repository_tools,
+            load_changes=lambda _path, _slice: changes,
+            versions={"dspy": dspy.__version__},
+        )
+
+
+def _pilot_baselines(
+    candidate: Candidate,
+    pilot_manifest: Path,
+    baseline_runs: Sequence[Path],
+    directory: Path,
+    changes: list[dict[str, Any]],
+) -> list[list[dict[str, Any]]]:
+    return [
+        _clean(
+            _records(
+                Path(path),
+                directory / "benchmark-baselines" / str(index),
+                changes,
+                context=_hunt_context(Path(path), Path(pilot_manifest), candidate.base_program_id, ()),
+            )
+        )
+        for index, path in enumerate(baseline_runs)
+    ]
+
+
+def _successful_pilot_analysis(
+    analysis: dict[str, Any],
+    records: list[dict[str, Any]],
+    before: dict[str, Any],
+    baseline_records: list[list[dict[str, Any]]],
+) -> tuple[list[dict[str, Any]], list[str]]:
+    from benchmarks.unseen import score
+
+    records = _clean(records)
+    score.score(records)
+    families = _families([dict(change=record, after=_outcome(record, record, 10)) for record in records], ("after",))
+    for baseline in baseline_records:
+        before_units = [dict(change=record, before=_outcome(record, record, 10)) for record in baseline]
+        families = sorted(set(families) | set(_families(before_units, ("before",))))
+    curve, distance = _curve(records)
+    counts = [search_outcome(record, _findings(record["push"]["admission"]["defects"])).suspicions for record in records]
+    analysis.update(
+        before=before,
+        after=_summaries(records, families),
+        curve=curve,
+        gate_distance=distance,
+        workload={
+            "suspicions_per_100_pushes": _rate(counts, [record["repo"] for record in records], scale=100),
+            "flagged_pushes_per_100_pushes": _rate(
+                [int(count > 0) for count in counts], [record["repo"] for record in records], binary=True, scale=100
+            ),
+        },
+    )
+    return records, families
+
+
+def _add_pilot_baselines(
+    analysis: dict[str, Any],
+    baseline_runs: Sequence[Path],
+    baseline_records: list[list[dict[str, Any]]],
+    records: list[dict[str, Any]],
+    families: list[str],
+) -> None:
+    if not baseline_records:
+        return
+    analysis["baseline"] = []
+    for path, baseline in zip(baseline_runs, baseline_records, strict=True):
+        instrument = _instrument(baseline)
+        entry = {"directory": str(path), "valid": instrument["valid"], "instrument": instrument}
+        if entry["valid"]:
+            entry["summary"] = _summaries(baseline, families)
+        analysis["baseline"].append(entry)
+    if all(row["valid"] for row in analysis["baseline"]):
+        analysis["paired"] = _baseline_comparison(baseline_records, records, families)
+
+
+def _persist_pilot_analysis(directory: Path, analysis: dict[str, Any]) -> dict[str, Any]:
+    normalized: dict[str, Any] = json.loads(json.dumps(analysis))
+    _write(directory / "analysis.json", normalized)
+    (directory / "NOTES.md").write_text(_notes(normalized), encoding="utf-8")
+    return normalized
+
+
 def pilot_gain(
     candidate: Candidate,
     decision: accept.Decision,
@@ -390,40 +550,11 @@ def pilot_gain(
     line scorers or real model clients are constructed here. Budget exhaustion or more than five
     percent instrument failures leaves an invalid measurement without performance numbers.
     """
-    import dspy
-
-    from benchmarks.unseen import score
-    from benchmarks.unseen.replay import load_slice
-
-    from .program import repository_tools
-
-    if not decision.accepted or decision.comparison.get("candidate_id") != candidate.program_id:
-        raise ValueError("pilot gain requires the accepted decision for this candidate")
-    training_runs = [Path(p) for p in training_runs]
-    if contamination.clean_runs(training_runs) != training_runs:
-        raise ValueError("contaminated training runs cannot report pilot gain")
-    before = _before(pilot_metrics)
-    program = _candidate_program(candidate, tools_for)
-    changes = list((load_changes or load_slice)(Path(pilot_manifest), "1"))
-    if not changes or len({c["id"] for c in changes}) != len(changes):
-        raise ValueError("pilot changes must be nonempty and have unique IDs")
+    before, changes = _pilot_inputs(candidate, decision, training_runs, pilot_metrics, pilot_manifest, load_changes)
     directory = _reserve(Path(out_root), candidate.program_id)
-    with dspy.context(lm=lm, adapter=dspy.ChatAdapter()):
-        artifact = runner.run(
-            Path(pilot_manifest),
-            repos,
-            directory / "records",
-            program=program,
-            program_id=candidate.program_id,
-            mask=candidate.mask,
-            pilot_report=True,
-            only="all",
-            budget=budget,
-            tools_for=tools_for or repository_tools,
-            load_changes=lambda _path, _slice: changes,
-            versions={"dspy": dspy.__version__},
-        )
-    records = _records(directory / "records", changes)
+    artifact = _run_pilot_candidate(candidate, pilot_manifest, repos, directory, lm, budget, tools_for, changes)
+    context = _hunt_context(directory / "records", Path(pilot_manifest), candidate.program_id, candidate.mask)
+    records = _records(directory / "records", directory / "benchmark-records", changes, context=context)
     proof = _instrument(records)
     _write(directory / "instrument.json", proof)
     analysis: dict[str, Any] = dict(
@@ -436,37 +567,7 @@ def pilot_gain(
     if not analysis["valid"]:
         analysis["reason"] = "more than 5% instrument failures" if not proof["valid"] else "runner budget exhausted"
     else:
-        records = _clean(records)
-        # Run the same overall instrument gate and scorer as the pilot before quoting any scores.
-        score.score(records)
-        families = _families([dict(change=r, after=_outcome(r, r, 10)) for r in records], ("after",))
-        baseline_records = [_clean(_records(Path(path), changes)) for path in baseline_runs]
-        for baseline in baseline_records:
-            families = sorted(set(families) | set(_families([dict(change=r, before=_outcome(r, r, 10)) for r in baseline], ("before",))))
-        curve, distance = _curve(records)
-        counts = [search_outcome(r, _findings(r["push"]["admission"]["defects"])).suspicions for r in records]
-        analysis.update(
-            before=before,
-            after=_summaries(records, families),
-            curve=curve,
-            gate_distance=distance,
-            workload=dict(
-                suspicions_per_100_pushes=_rate(counts, [r["repo"] for r in records], scale=100),
-                flagged_pushes_per_100_pushes=_rate([int(n > 0) for n in counts], [r["repo"] for r in records], binary=True, scale=100),
-            ),
-        )
-        if baseline_records:
-            analysis["baseline"] = []
-            for path, baseline in zip(baseline_runs, baseline_records, strict=True):
-                instrument = _instrument(baseline)
-                entry = dict(directory=str(path), valid=instrument["valid"], instrument=instrument)
-                if entry["valid"]:
-                    entry["summary"] = _summaries(baseline, families)
-                analysis["baseline"].append(entry)
-            if all(row["valid"] for row in analysis["baseline"]):
-                analysis["paired"] = _baseline_comparison(baseline_records, records, families)
-    # Return the same JSON types that a reader of analysis.json receives.
-    analysis = json.loads(json.dumps(analysis))
-    _write(directory / "analysis.json", analysis)
-    (directory / "NOTES.md").write_text(_notes(analysis), encoding="utf-8")
-    return analysis
+        baseline_records = _pilot_baselines(candidate, pilot_manifest, baseline_runs, directory, changes)
+        records, families = _successful_pilot_analysis(analysis, records, before, baseline_records)
+        _add_pilot_baselines(analysis, baseline_runs, baseline_records, records, families)
+    return _persist_pilot_analysis(directory, analysis)

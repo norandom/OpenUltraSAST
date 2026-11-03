@@ -10,12 +10,13 @@ indeterminate and never converted to clean results; ordinary changes whose
 review found a real missing-authorization defect are refused before scoring.
 """
 
+from __future__ import annotations
+
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Protocol
 
 from benchmarks.unseen import score
-from benchmarks.valid.prover_admission import AdmissionManifest
 from openultrasast.core import canonical
 from openultrasast.core.admission_case import AdmissionCaseRelease, AdmissionCaseResult
 from openultrasast.core.admission_context import AdmissionValidationContext
@@ -29,6 +30,18 @@ from openultrasast.core.readiness import ReadinessResult
 __all__ = ["AdmissionCase", "AdmissionScoringError", "OrdinaryChange", "admission_report", "score_v2_admission"]
 
 _JUDGMENTS = ("unguarded", "discharged", "indeterminate")
+
+
+class AdmissionManifest(Protocol):
+    """Structural shape used only by the parked legacy scoring helpers."""
+
+    population_role: str
+    analyzer_revision: str
+    fact_set_digest: str
+    acquisition_record_digest: str
+    configuration_digest: str
+    population_digest: str
+    families: tuple[str, ...]
 
 
 class AdmissionScoringError(ValueError):

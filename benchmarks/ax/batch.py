@@ -19,11 +19,13 @@ from collections import Counter, deque
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from dataclasses import dataclass, field
 from datetime import timedelta
+from functools import partial
 from pathlib import Path
 from urllib.parse import urlsplit
 
 import yaml
 
+from benchmarks.valid.artifact_contract import read_benchmark_artifact, write_benchmark_artifact
 from openultrasast.config import load_dotenv
 from openultrasast.plane.memory import PRESIGNED_ARCHIVE_SUFFIX, S3Store, open_store
 from openultrasast.search.task_storage import diagnostic, exception_reason
@@ -495,21 +497,21 @@ def schedule(pending, lanes, out, execute, complete, *, fallbacks=(), overflow=T
     return failures
 
 
-def dispatch(items, workload, out, executors, *, lanes=("ax", "ax", "docker"), overflow=True, max_attempts=2):
-    """Digest checkpoints, one instrument rerun, sandbox retry, priority VM fallback."""
-    if not isinstance(max_attempts, int) or not 1 <= max_attempts <= 2:
-        raise ValueError("batch attempts must be one or two")
-    out.mkdir(parents=True, exist_ok=True)
-    items = list(items)
-    if len({item.id for item in items}) != len(items):
-        raise ValueError("duplicate dispatch item id")
+def _dispatch_path(out, item):
+    return out / (hashlib.sha256(item.id.encode()).hexdigest() + ".json")
+
+
+def _read_dispatch_record(out, item, record_kind):
+    path = _dispatch_path(out, item)
+    if not path.exists():
+        return {}
+    return read_benchmark_artifact(path, record_kind) if record_kind is not None else json.loads(path.read_text())
+
+
+def _dispatch_queue(items, out, record_kind):
     pending, fallbacks = [], []
-
-    def path(item):
-        return out / (hashlib.sha256(item.id.encode()).hexdigest() + ".json")
-
     for item in items:
-        previous = json.loads(path(item).read_text()) if path(item).exists() else {}
+        previous = _read_dispatch_record(out, item, record_kind)
         if previous.get("input_digest") == item.input_digest:
             if previous.get("fallback_pending"):
                 fallbacks.append((item, previous))
@@ -517,37 +519,62 @@ def dispatch(items, workload, out, executors, *, lanes=("ax", "ax", "docker"), o
             if previous.get("done"):
                 continue
         pending.append(item)
+    return pending, fallbacks
 
-    def execute(item, lane, previous):
-        output = out / hashlib.sha256(item.id.encode()).hexdigest()
-        output.mkdir(exist_ok=True)
-        attempts = []
-        for attempt in range(max_attempts):
-            attempt_output = output / ("attempt-" + uuid.uuid4().hex)
-            attempt_output.mkdir()
-            record = executors[lane](item, attempt_output, attempt)
-            for artifact in attempt_output.iterdir():
-                if artifact.is_file():
-                    shutil.copyfile(artifact, output / artifact.name)
-            attempts.append(
-                {
-                    "lane": lane,
-                    "status": record.get("status"),
-                    "attempt": attempt,
-                    "transport": record.get("ax_attempts", []),
-                    "docker_errors": record.get("docker_errors", []),
-                }
-            )
-            if record.get("status") not in {"sandbox_failure", "instrument_failure"}:
-                break
-        return {**record, "attempts": (previous or {}).get("attempts", []) + attempts, "input_digest": item.input_digest, "done": True}
 
-    def complete(item, lane, record, progress):
-        fallback = lane in {"ax", "kind"} and record.get("status") in {"sandbox_failure", "oom"} and "docker" in lanes
-        record["fallback_pending"] = fallback
-        write_json(path(item), record)
-        progress["last_item"] = hashlib.sha256(item.id.encode()).hexdigest()
-        return record.get("status") not in {"ok", "unanalysable", "quick_only", "engine_covered"}, record if fallback else None
+def _dispatch_attempt(item, lane, output, executors, attempt):
+    attempt_output = output / ("attempt-" + uuid.uuid4().hex)
+    attempt_output.mkdir()
+    record = executors[lane](item, attempt_output, attempt)
+    for artifact in attempt_output.iterdir():
+        if artifact.is_file():
+            shutil.copyfile(artifact, output / artifact.name)
+    summary = {
+        "lane": lane,
+        "status": record.get("status"),
+        "attempt": attempt,
+        "transport": record.get("ax_attempts", []),
+        "docker_errors": record.get("docker_errors", []),
+    }
+    return record, summary
+
+
+def _execute_dispatch(item, lane, previous, *, out, executors, max_attempts):
+    output = out / hashlib.sha256(item.id.encode()).hexdigest()
+    output.mkdir(exist_ok=True)
+    attempts = []
+    for attempt in range(max_attempts):
+        record, summary = _dispatch_attempt(item, lane, output, executors, attempt)
+        attempts.append(summary)
+        if record.get("status") not in {"sandbox_failure", "instrument_failure"}:
+            break
+    return {**record, "attempts": (previous or {}).get("attempts", []) + attempts, "input_digest": item.input_digest, "done": True}
+
+
+def _complete_dispatch(item, lane, record, progress, *, out, lanes, record_kind):
+    fallback = lane in {"ax", "kind"} and record.get("status") in {"sandbox_failure", "oom"} and "docker" in lanes
+    record["fallback_pending"] = fallback
+    path = _dispatch_path(out, item)
+    if record_kind is None:
+        write_json(path, record)
+    else:
+        write_benchmark_artifact(path, record_kind, record, replace=True)
+    progress["last_item"] = hashlib.sha256(item.id.encode()).hexdigest()
+    failed = record.get("status") not in {"ok", "unanalysable", "quick_only", "engine_covered"}
+    return failed, record if fallback else None
+
+
+def dispatch(items, workload, out, executors, *, lanes=("ax", "ax", "docker"), overflow=True, max_attempts=2, record_kind=None):
+    """Digest checkpoints, one instrument rerun, sandbox retry, priority VM fallback."""
+    if not isinstance(max_attempts, int) or not 1 <= max_attempts <= 2:
+        raise ValueError("batch attempts must be one or two")
+    out.mkdir(parents=True, exist_ok=True)
+    items = list(items)
+    if len({item.id for item in items}) != len(items):
+        raise ValueError("duplicate dispatch item id")
+    pending, fallbacks = _dispatch_queue(items, out, record_kind)
+    execute = partial(_execute_dispatch, out=out, executors=executors, max_attempts=max_attempts)
+    complete = partial(_complete_dispatch, out=out, lanes=lanes, record_kind=record_kind)
 
     return schedule(pending, lanes, out, execute, complete, fallbacks=fallbacks, overflow=overflow)
 

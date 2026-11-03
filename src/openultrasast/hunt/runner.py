@@ -14,7 +14,7 @@ import subprocess
 import sys
 import tempfile
 import time
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Mapping, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -219,6 +219,119 @@ def _function_at(root: Path, finding: Mapping[str, Any]) -> str | None:
         return None
 
 
+def _run_entries(out: Path) -> tuple[Path, list[dict[str, Any]], dict[str, dict[str, Any]]]:
+    inputs_path = out / "inputs.json"
+    entries = json.loads(inputs_path.read_text()) if inputs_path.is_file() else []
+    return inputs_path, entries, {entry["item_id"]: entry for entry in entries}
+
+
+def _change_entry(
+    change: Mapping[str, Any],
+    program_id: str,
+    mask: tuple[str, ...],
+    entries: list[dict[str, Any]],
+    indexed: dict[str, dict[str, Any]],
+) -> str:
+    digest = input_digest(change, program_id, mask)
+    entry = indexed.get(change["id"])
+    if entry is None:
+        entry = {"item_id": change["id"], "change": change, "input_digest": digest}
+        entries.append(entry)
+        indexed[change["id"]] = entry
+    elif entry["input_digest"] != digest:
+        entry.update(change=change, input_digest=digest)
+    return digest
+
+
+def _record_is_complete(out: Path, change_id: str, digest: str) -> bool:
+    path = record_path(out, change_id)
+    if not path.is_file():
+        return False
+    previous = json.loads(path.read_text())
+    return bool(previous.get("done") and previous.get("input_digest") == digest)
+
+
+def _run_change(
+    change: Mapping[str, Any],
+    repos: Mapping[str, str],
+    out: Path,
+    program: Any,
+    program_id: str,
+    mask: tuple[str, ...],
+    render: Any,
+    tools_for: Any,
+    ledger: UsageLedger,
+) -> None:
+    history = _lm_history()
+    first_call = len(history) if history is not None else 0
+    record = hunt_change(
+        change,
+        Path(repos[change["repo"]]).expanduser(),
+        program=program,
+        program_id=program_id,
+        mask=mask,
+        render=render,
+        tools_for=tools_for,
+    )
+    record["input_digest"] = input_digest(change, program_id, mask)
+    record["usd"] = round(spent_since(history, first_call), 6)
+    ledger.add({"calls": 1, "usd": record["usd"]})
+    _write_json(record_path(out, change["id"]), record)
+
+
+def _process_changes(
+    changes: Sequence[Mapping[str, Any]],
+    repos: Mapping[str, str],
+    out: Path,
+    program: Any,
+    program_id: str,
+    mask: tuple[str, ...],
+    render: Any,
+    tools_for: Any,
+    budget: Mapping[str, float] | None,
+    entries: list[dict[str, Any]],
+    indexed: dict[str, dict[str, Any]],
+    inputs_path: Path,
+) -> UsageLedger:
+    ledger = UsageLedger()
+    for change in changes:
+        digest = _change_entry(change, program_id, mask, entries, indexed)
+        if _record_is_complete(out, change["id"], digest):
+            continue
+        if budget and ledger.exhausted(budget):
+            print("budget exhausted; stopping before the next change", flush=True)
+            break
+        _run_change(change, repos, out, program, program_id, mask, render, tools_for, ledger)
+        _write_json(inputs_path, entries)
+    _write_json(inputs_path, entries)
+    return ledger
+
+
+def _run_artifact(
+    manifest: Path,
+    program_id: str,
+    mask: tuple[str, ...],
+    only: str,
+    slice_id: str,
+    changes: Sequence[Mapping[str, Any]],
+    ledger: UsageLedger,
+    versions: Mapping[str, str] | None,
+    started: float,
+) -> RunArtifact:
+    usage = dict(ledger.usage)
+    usage["wall_seconds"] = round(time.monotonic() - started, 1)
+    return RunArtifact(
+        program_id=program_id,
+        schema_version=1,
+        mask=list(mask),
+        data_digests={"manifest": hashlib.sha256(manifest.read_bytes()).hexdigest()},
+        configurations=[{"only": only, "slice": slice_id, "changes": len(changes)}],
+        usage=usage,
+        versions=dict(versions or {}),
+        created=datetime.now(UTC).isoformat(timespec="seconds"),
+    )
+
+
 def run(
     manifest: Path,
     repos: Mapping[str, str],
@@ -245,56 +358,10 @@ def run(
     changes = load_changes(manifest, slice_id)
     changes = [change for change in changes if only == "all" or change["kind"] == only]
     out.mkdir(parents=True, exist_ok=True)
-    inputs_path = out / "inputs.json"
-    entries = json.loads(inputs_path.read_text()) if inputs_path.is_file() else []
-    indexed = {entry["item_id"]: entry for entry in entries}
-    ledger = UsageLedger()
+    inputs_path, entries, indexed = _run_entries(out)
     started = time.monotonic()
-    for change in changes:
-        digest = input_digest(change, program_id, mask)
-        entry = indexed.get(change["id"])
-        if entry is None:
-            entry = {"item_id": change["id"], "change": change, "input_digest": digest}
-            entries.append(entry)
-            indexed[change["id"]] = entry
-        elif entry["input_digest"] != digest:
-            entry.update(change=change, input_digest=digest)
-        path = record_path(out, change["id"])
-        if path.is_file():
-            previous = json.loads(path.read_text())
-            if previous.get("done") and previous.get("input_digest") == digest:
-                continue
-        if budget and ledger.exhausted(budget):
-            print("budget exhausted; stopping before the next change", flush=True)
-            break
-        history = _lm_history()
-        first_call = len(history) if history is not None else 0
-        record = hunt_change(
-            change,
-            Path(repos[change["repo"]]).expanduser(),
-            program=program,
-            program_id=program_id,
-            mask=mask,
-            render=render,
-            tools_for=tools_for,
-        )
-        record["input_digest"] = digest
-        record["usd"] = round(spent_since(history, first_call), 6)
-        ledger.add({"calls": 1, "usd": record["usd"]})
-        _write_json(path, record)
-        _write_json(inputs_path, entries)
-    _write_json(inputs_path, entries)
-    usage = dict(ledger.usage)
-    usage["wall_seconds"] = round(time.monotonic() - started, 1)
-    artifact = RunArtifact(
-        program_id=program_id,
-        schema_version=1,
-        mask=list(mask),
-        data_digests={"manifest": hashlib.sha256(manifest.read_bytes()).hexdigest()},
-        configurations=[{"only": only, "slice": slice_id, "changes": len(changes)}],
-        usage=usage,
-        versions=dict(versions or {}),
-        created=datetime.now(UTC).isoformat(timespec="seconds"),
-    )
-    written = artifact.write(out, budget=budget) if budget else artifact.write(out)
-    return artifact if written is not None else None
+    ledger = _process_changes(changes, repos, out, program, program_id, mask, render, tools_for, budget, entries, indexed, inputs_path)
+    artifact = _run_artifact(manifest, program_id, mask, only, slice_id, changes, ledger, versions, started)
+    completed: RunArtifact | None = artifact.finish(budget) if budget else artifact
+    artifact.write(out, reserve_attempt=True)
+    return completed

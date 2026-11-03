@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+from datetime import UTC, datetime
 
 import pytest
 
@@ -11,6 +12,12 @@ dspy = pytest.importorskip("dspy")
 from dspy.utils import DummyLM  # noqa: E402
 
 from benchmarks.unseen import score  # noqa: E402
+from benchmarks.valid.hunt_handoff import (  # noqa: E402
+    HUNT_RUNNER_PRODUCER,
+    discover_hunt_runner_context,
+    persist_hunt_runner_records,
+    read_hunt_runner_records,
+)
 from openultrasast.hunt import program as hp  # noqa: E402
 from openultrasast.hunt import runner  # noqa: E402
 
@@ -73,7 +80,8 @@ def test_runner_writes_scorable_records_and_resumes(repository, tmp_path):
         manifest, {"fixture/repo": str(root)}, out, program=program, program_id=pid, mask=program.mask, load_changes=lambda m, s: changes
     )
     assert artifact is not None and artifact.program_id == pid
-    rows = score.load_records(out)
+    context = discover_hunt_runner_context(out, manifest, producer=HUNT_RUNNER_PRODUCER, freeze_digest="e" * 64)
+    rows = list(read_hunt_runner_records(out, context=context, changes=changes))
     assert {r["id"]: r["status"] for r in rows} == {"pos": "hunt_covered", "ord": "hunt_covered"}
     pos = next(r for r in rows if r["id"] == "pos")
     assert pos["instrument"]["head_verified"] and pos["instrument"]["hook_bytes_read"] > 0
@@ -89,6 +97,58 @@ def test_runner_writes_scorable_records_and_resumes(repository, tmp_path):
         manifest, {"fixture/repo": str(root)}, out, program=program, program_id=pid, mask=program.mask, load_changes=lambda m, s: changes
     )
     assert {p.name: p.read_bytes() for p in out.glob("*.json") if p.name in before} == before
+
+
+def _budget_attempt(manifest, root, source, program, pid, changes):
+    return runner.run(
+        manifest,
+        {"fixture/repo": str(root)},
+        source,
+        program=program,
+        program_id=pid,
+        mask=program.mask,
+        load_changes=lambda _manifest, _slice: changes,
+        budget={"calls": 1},
+        versions={"dspy": dspy.__version__},
+    )
+
+
+def test_budget_stop_resume_handoff_binds_all_attempt_artifacts(repository, tmp_path, monkeypatch):
+    root, manifest, changes = repository
+    program = _scripted_program()
+    pid = hp.program_id(program, mask=program.mask)
+    source = tmp_path / "attempts"
+    destination = tmp_path / "benchmark-v2"
+    instant = datetime(2026, 11, 2, tzinfo=UTC)
+    instants = iter((instant, instant))
+
+    class AttemptClock:
+        @classmethod
+        def now(cls, _timezone):
+            return next(instants)
+
+    monkeypatch.setattr(runner, "datetime", AttemptClock)
+    monkeypatch.setattr(runner.time, "monotonic", lambda: 100.0)
+
+    first = _budget_attempt(manifest, root, source, program, pid, changes)
+    (first_path,) = [path for path in source.glob("*.json") if "artifact_id" in path.read_text()]
+    first_before = (first_path.read_bytes(), first_path.stat().st_mtime_ns)
+    second = _budget_attempt(manifest, root, source, program, pid, changes)
+    artifacts = [path for path in source.glob("*.json") if "artifact_id" in path.read_text()]
+    assert first is None and second is None
+    assert len(artifacts) == 2
+    assert all(path.stat().st_size > 0 for path in artifacts)
+    assert (first_path.read_bytes(), first_path.stat().st_mtime_ns) == first_before
+    source_before = {path.name: (path.read_bytes(), path.stat().st_mtime_ns) for path in source.iterdir()}
+
+    context = discover_hunt_runner_context(source, manifest, producer=HUNT_RUNNER_PRODUCER, freeze_digest="e" * 64)
+    assert context.artifact_ids == tuple(sorted(path.stem for path in artifacts))
+    assert {row["id"] for row in read_hunt_runner_records(source, context=context, changes=changes)} == {"pos", "ord"}
+    persist_hunt_runner_records(source, destination, context=context, changes=changes)
+    destination_before = {path.name: (path.read_bytes(), path.stat().st_mtime_ns) for path in destination.iterdir()}
+    persist_hunt_runner_records(source, destination, context=context, changes=changes)
+    assert {path.name: (path.read_bytes(), path.stat().st_mtime_ns) for path in source.iterdir()} == source_before
+    assert {path.name: (path.read_bytes(), path.stat().st_mtime_ns) for path in destination.iterdir()} == destination_before
 
 
 def test_runner_refuses_the_pilot_unless_it_is_a_report_run(tmp_path):

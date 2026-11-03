@@ -14,7 +14,7 @@ from benchmarks.valid.admission_scoring import (
     OrdinaryChange,
     admission_report,
 )
-from benchmarks.valid.prover_admission import AdmissionManifest, validate_admission_manifest
+from openultrasast.core.legacy_v1 import AdmissionManifest, validate_admission_manifest
 
 
 def admission_manifest(role: str = "admission") -> AdmissionManifest:

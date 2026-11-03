@@ -14,6 +14,7 @@ from test_hunt_prover import repository  # noqa: E402
 
 from benchmarks.unseen import score  # noqa: E402
 from benchmarks.valid import prover_arm  # noqa: E402
+from benchmarks.valid.artifact_contract import benchmark_payload  # noqa: E402
 
 
 @pytest.fixture
@@ -99,13 +100,25 @@ def test_run_resume_summary_and_locations(pool, monkeypatch, capsys):
     )
 
 
+def test_resume_refuses_stripped_v2_metadata(pool):
+    _, manifest, repos, out = pool
+    assert prover_arm.run(manifest, repos, out) == 0
+    path = out / (hashlib.sha256(b"positive").hexdigest() + ".json")
+    value = json.loads(path.read_text())
+    for field in ("schema_version", "artifact_kind", "artifact_digest"):
+        value.pop(field)
+    path.write_text(json.dumps(value))
+    with pytest.raises(ValueError, match="metadata"):
+        prover_arm.run(manifest, repos, out)
+
+
 def test_zero_byte_record_refuses(pool):
     _, manifest, repos, out = pool
     assert prover_arm.run(manifest, repos, out) == 0
     path = out / (hashlib.sha256(b"positive").hexdigest() + ".json")
-    record = json.loads(path.read_text())
+    record = benchmark_payload(json.loads(path.read_text()), expected_kind="benchmark-arm-record")
     record["instrument"]["changed_bytes"]["Fixture.java"] = 0
-    path.write_text(json.dumps(record))
+    prover_arm._write_json(path, record, replace=True)
     with pytest.raises(ValueError, match="zero-byte"):
         prover_arm.summarize(out)
 

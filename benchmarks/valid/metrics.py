@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 
 from benchmarks.unseen import score
+from benchmarks.valid.artifact_contract import read_benchmark_artifact, write_benchmark_artifact
 
 
 def demonstrated(proof: dict) -> bool:
@@ -104,10 +105,10 @@ def main(argv=None):
     args = parser.parse_args(argv)
     result = summarize(
         score.load_records(args.records),
-        scored=json.loads(args.scored.read_text()) if args.scored else None,
+        scored=read_benchmark_artifact(args.scored, "unseen-score") if args.scored else None,
         proofs=json.loads(args.proofs.read_text()) if args.proofs else [],
     )
-    args.out.write_text(json.dumps(result, sort_keys=True, indent=2) + "\n")
+    write_benchmark_artifact(args.out, "valid-benchmark-metrics", result, replace=True)
     print(result["headline"])
     return 0
 

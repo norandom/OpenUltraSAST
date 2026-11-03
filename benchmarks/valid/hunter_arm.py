@@ -27,6 +27,12 @@ if __package__ in {None, ""}:
 from benchmarks.unseen.extract import SHA, InstrumentFailure
 from benchmarks.unseen.replay import canonical, load_slice
 from benchmarks.unseen.score import load_records
+from benchmarks.valid.artifact_contract import (
+    read_benchmark_artifact,
+    read_benchmark_sequence,
+    write_benchmark_artifact,
+    write_benchmark_sequence,
+)
 from benchmarks.valid.catalog import local_git
 
 # These names describe findings, never benchmark labels. The taxonomy owns the
@@ -154,11 +160,12 @@ def finding_defect(finding, classification=None):
     }
 
 
-def _write_json(path, value):
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_suffix(".json.tmp")
-    temporary.write_text(json.dumps(value, sort_keys=True, indent=2) + "\n")
-    temporary.replace(path)
+def _write_json(path, value, *, kind=None, replace=False):
+    kind = kind or ("benchmark-arm-inputs" if Path(path).name == "inputs.json" else "benchmark-arm-record")
+    if isinstance(value, list):
+        write_benchmark_sequence(path, kind, value, replace=replace)
+    else:
+        write_benchmark_artifact(path, kind, value, replace=replace)
 
 
 def _record_path(out, identity):
@@ -167,7 +174,7 @@ def _record_path(out, identity):
 
 def _inputs(out):
     path = out / "inputs.json"
-    entries = json.loads(path.read_text()) if path.exists() else []
+    entries = list(read_benchmark_sequence(path, "benchmark-arm-inputs")) if path.exists() else []
     for key in (lambda entry: entry["item_id"], lambda entry: entry["change"]["id"]):
         if len({key(entry) for entry in entries}) != len(entries):
             raise ValueError(f"duplicate ids in {path}")
@@ -277,21 +284,13 @@ def _hunt_change(change, repos, *, client, model, max_steps, no_classify=False):
     return record
 
 
-def run(
-    manifest, repos_path, out, *, slice_id="1", max_steps=tool_hunter.DEFAULT_MAX_STEPS, only="all", client_mode=None, no_classify=False
-):
-    if max_steps < 1:
-        raise ValueError("max_steps must be positive")
-    changes = load_slice(manifest, slice_id)
-    if len({change["id"] for change in changes}) != len(changes):
-        raise ValueError("duplicate change ids")
-    changes = [change for change in changes if only == "all" or change["kind"] == only]
+def _pending_hunter_entries(changes, out):
     entries = _inputs(out)
     indexed = {entry["change"]["id"]: entry for entry in entries}
     pending = []
     for change in changes:
         path = _record_path(out, change["id"])
-        previous = json.loads(path.read_text()) if path.exists() else {}
+        previous = read_benchmark_artifact(path, "benchmark-arm-record") if path.exists() else {}
         entry = indexed.get(change["id"])
         if entry is None:
             entry = {
@@ -306,29 +305,49 @@ def run(
             print(f"{change['id']}: skipped (done)", flush=True)
             continue
         pending.append(entry)
-    if not pending:
-        _write_json(out / "inputs.json", entries)
-        return 0
+    return entries, pending
+
+
+def _hunter_client(client_mode, out):
     config_path = Path("openultrasast.toml")
     config = load_config(config_path if config_path.exists() else None, dotenv=client_mode != "scripted")
     model = resolve_models(config)[0]
     client = tool_hunter.scripted_hunter_client() if client_mode == "scripted" else tool_hunter.resolve_hunter_client()
     if client is None:
         print("No hunter client resolved. Configure a hunter provider or use --client scripted for offline tests.", file=sys.stderr)
-        return 2
-    repos = json.loads(repos_path.read_text())
-    _write_json(out / "inputs.json", entries)
+    return client, model
+
+
+def _run_hunter_entries(pending, repos, out, client, model, client_mode, max_steps, no_classify):
     failed = False
     for entry in pending:
-        # The built-in script is a finite sequence, so each change needs a fresh
-        # sequence. Live clients remain shared and are resolved only once.
-        if client_mode == "scripted":
-            client = tool_hunter.scripted_hunter_client()
-        record = _hunt_change(entry["change"], repos, client=client, model=model, max_steps=max_steps, no_classify=no_classify)
+        current_client = tool_hunter.scripted_hunter_client() if client_mode == "scripted" else client
+        record = _hunt_change(entry["change"], repos, client=current_client, model=model, max_steps=max_steps, no_classify=no_classify)
         record["input_digest"] = entry["input_digest"]
         _write_json(_record_path(out, entry["item_id"]), record)
         failed |= record["status"] == "instrument_failure"
     return 2 if failed else 0
+
+
+def run(
+    manifest, repos_path, out, *, slice_id="1", max_steps=tool_hunter.DEFAULT_MAX_STEPS, only="all", client_mode=None, no_classify=False
+):
+    if max_steps < 1:
+        raise ValueError("max_steps must be positive")
+    changes = load_slice(manifest, slice_id)
+    if len({change["id"] for change in changes}) != len(changes):
+        raise ValueError("duplicate change ids")
+    changes = [change for change in changes if only == "all" or change["kind"] == only]
+    entries, pending = _pending_hunter_entries(changes, out)
+    if not pending:
+        _write_json(out / "inputs.json", entries, kind="benchmark-arm-inputs", replace=True)
+        return 0
+    client, model = _hunter_client(client_mode, out)
+    if client is None:
+        return 2
+    repos = json.loads(repos_path.read_text())
+    _write_json(out / "inputs.json", entries, kind="benchmark-arm-inputs", replace=True)
+    return _run_hunter_entries(pending, repos, out, client, model, client_mode, max_steps, no_classify)
 
 
 def _joined(out):
@@ -393,7 +412,7 @@ def combine(replay_out, hunter_out, out, *, keep_verdicts=None):
             "b": right.get("status", "missing") if has_b else "missing",
         }
         combined.append(merged)
-    _write_json(out, combined)
+    _write_json(out, combined, kind="benchmark-arm-records", replace=True)
     return combined
 
 

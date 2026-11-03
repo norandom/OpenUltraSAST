@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING, Any, TypeVar
 if TYPE_CHECKING:
     from openultrasast.hunt.prover import ProverResult
 
+from benchmarks.valid.artifact_contract import write_benchmark_artifact
 from benchmarks.valid.readiness_contract import require_stage_authorized
 from benchmarks.valid.run_manifests import AnalyzerBundle
 from openultrasast.core.readiness import AnalysisIdentity, ReadinessResult, ReadinessStage
@@ -115,10 +116,7 @@ def run_development(
             seconds=seconds,
         )
         records.append(record)
-        (out_dir / f"{record.change_id}.json").write_text(
-            json.dumps(asdict(record), indent=2, sort_keys=True) + "\n",
-            encoding="utf-8",
-        )
+        write_benchmark_artifact(out_dir / f"{record.change_id}.json", "development-observation", asdict(record))
     return tuple(records)
 
 

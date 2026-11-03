@@ -16,16 +16,23 @@ from benchmarks.unseen import score
 from benchmarks.unseen.extract import SHA, InstrumentFailure
 from benchmarks.unseen.replay import canonical, load_slice
 from benchmarks.valid import metrics
+from benchmarks.valid.artifact_contract import (
+    read_benchmark_artifact,
+    read_benchmark_sequence,
+    write_benchmark_artifact,
+    write_benchmark_sequence,
+)
 from benchmarks.valid.catalog import local_git
 from openultrasast.hunt.producers import Context, _Absent, _safe_path
 from openultrasast.hunt.prover import prove_change
 
 
-def _write_json(path, value):
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_suffix(".json.tmp")
-    temporary.write_text(json.dumps(value, sort_keys=True, indent=2) + "\n")
-    temporary.replace(path)
+def _write_json(path, value, *, kind=None, replace=False):
+    kind = kind or ("benchmark-arm-inputs" if Path(path).name == "inputs.json" else "benchmark-arm-record")
+    if isinstance(value, list):
+        write_benchmark_sequence(path, kind, value, replace=replace)
+    else:
+        write_benchmark_artifact(path, kind, value, replace=replace)
 
 
 def _record_path(out, identity):
@@ -144,7 +151,7 @@ def run(manifest, repos_path, out, *, slice_id="1", only="all", max_depth=3):
         raise ValueError("duplicate change ids")
     changes = [change for change in changes if only == "all" or change["kind"] == only]
     index = out / "inputs.json"
-    entries = json.loads(index.read_text()) if index.exists() else []
+    entries = list(read_benchmark_sequence(index, "benchmark-arm-inputs")) if index.exists() else []
     if len({entry["item_id"] for entry in entries}) != len(entries):
         raise ValueError("duplicate inputs")
     indexed = {entry["item_id"]: entry for entry in entries}
@@ -158,14 +165,14 @@ def run(manifest, repos_path, out, *, slice_id="1", only="all", max_depth=3):
         if not previous_entry:
             entries.append(entry)
         path = _record_path(out, change["id"])
-        previous = json.loads(path.read_text()) if path.exists() else {}
+        previous = read_benchmark_artifact(path, "benchmark-arm-record") if path.exists() else {}
         if previous and previous.get("input_digest") != digest:
             raise ValueError("existing prover inputs do not match")
         if previous.get("done"):
             print(f"{change['id']}: skipped (done)", flush=True)
         else:
             pending.append(entry)
-    _write_json(index, entries)
+    _write_json(index, entries, kind="benchmark-arm-inputs", replace=True)
     repos = json.loads(repos_path.read_text())
     failed = False
     for entry in pending:
@@ -176,84 +183,101 @@ def run(manifest, repos_path, out, *, slice_id="1", only="all", max_depth=3):
     return 2 if failed else 0
 
 
-def summarize(out, *, seed=0):
-    out = Path(out)
-    records = score.load_records(out)
+def _summary_records(out):
+    records = score.load_records(Path(out))
     if not records or len({row["id"] for row in records}) != len(records):
         raise ValueError("missing or duplicate prover records")
     for record in records:
         instrument = record.get("instrument", {})
         if any(size == 0 for field in ("changed_bytes", "file_bytes") for size in instrument.get(field, {}).values()):
             raise ValueError("zero-byte read of a tracked file; summary refused")
-    result = metrics.summarize(records, seed=seed)
-    usable = [row for row in records if score.coverage(row) != "instrument_failure"]
-    locations = [
+    return records
+
+
+def _target_locations(usable):
+    return [
         bool(score.catches({**row, **target, "files": [{"path": target["path"], "head_lines": [target["function_lines"]]}]}))
         for row in usable
         if row["kind"] == "vulnerability"
         for target in row.get("targets") or [row]
     ]
-    repositories = {}
-    framework_rows = {}
+
+
+def _coverage_slot():
     fields = ("entry_points", "reached", "unreached", "operations_checked", "operations_discharged")
+    return {
+        **dict.fromkeys(fields, 0),
+        "files_by_language": Counter(),
+        "frameworks_recognised": Counter(),
+        "unchecked_by_reason": Counter(),
+        "changes": 0,
+    }
+
+
+def _add_coverage(target, coverage, fields):
+    target["changes"] += 1
+    for field in fields:
+        target[field] += coverage.get(field, 0)
+    for field in ("files_by_language", "frameworks_recognised", "unchecked_by_reason"):
+        if field in target:
+            target[field].update(coverage.get(field, {}))
+
+
+def _coverage_tables(records):
+    fields = ("entry_points", "reached", "unreached", "operations_checked", "operations_discharged")
+    repositories, framework_rows = {}, {}
     for row in records:
-        cov = row.get("coverage", {})
-        repository = repositories.setdefault(
-            row["repo"],
-            {
-                **dict.fromkeys(fields, 0),
-                "files_by_language": Counter(),
-                "frameworks_recognised": Counter(),
-                "unchecked_by_reason": Counter(),
-                "changes": 0,
-            },
-        )
-        repository["changes"] += 1
-        for field in fields:
-            repository[field] += cov.get(field, 0)
-        for field in ("files_by_language", "frameworks_recognised", "unchecked_by_reason"):
-            repository[field].update(cov.get(field, {}))
-        for framework, count in cov.get("frameworks_recognised", {}).items():
+        coverage = row.get("coverage", {})
+        _add_coverage(repositories.setdefault(row["repo"], _coverage_slot()), coverage, fields)
+        for framework, count in coverage.get("frameworks_recognised", {}).items():
             table = framework_rows.setdefault(
                 framework, {"files": 0, "changes": 0, **dict.fromkeys(fields, 0), "unchecked_by_reason": Counter()}
             )
             table["files"] += count
-            table["changes"] += 1
-            for field in fields:
-                table[field] += cov.get(field, 0)
-            table["unchecked_by_reason"].update(cov.get("unchecked_by_reason", {}))
-    uncovered = sorted(repo for repo, cov in repositories.items() if not cov["frameworks_recognised"])
-    for repo, cov in repositories.items():
-        cov["status"] = "uncovered" if repo in uncovered else "covered"
+            _add_coverage(table, coverage, fields)
+    return repositories, framework_rows
+
+
+def _annotate_repositories(repositories, usable):
+    uncovered = sorted(repo for repo, coverage in repositories.items() if not coverage["frameworks_recognised"])
+    for repo, coverage in repositories.items():
+        coverage["status"] = "uncovered" if repo in uncovered else "covered"
         positives = [row for row in usable if row["repo"] == repo and row["kind"] == "vulnerability"]
-        cov["recall"] = score.rate([bool(score.catches(row)) for row in metrics.scoring_records(positives)])
+        coverage["recall"] = score.rate([bool(score.catches(row)) for row in metrics.scoring_records(positives)])
+    return uncovered
+
+
+def _scope_recall(usable, uncovered, *, include_uncovered):
+    values = [
+        bool(score.catches(row))
+        for row in metrics.scoring_records(usable)
+        if row["kind"] == "vulnerability" and ((row["repo"] in uncovered) is include_uncovered)
+    ]
+    return score.rate(values)
+
+
+def summarize(out, *, seed=0):
+    out = Path(out)
+    records = _summary_records(out)
+    result = metrics.summarize(records, seed=seed)
+    usable = [row for row in records if score.coverage(row) != "instrument_failure"]
+    repositories, framework_rows = _coverage_tables(records)
+    uncovered = _annotate_repositories(repositories, usable)
     seconds = [row["seconds"] for row in records]
     result.update(
-        location_recall=score.rate(locations),
+        location_recall=score.rate(_target_locations(usable)),
         per_repository=repositories,
         per_framework=framework_rows,
         uncovered_repositories=uncovered,
-        covered_recall=score.rate(
-            [
-                bool(score.catches(row))
-                for row in metrics.scoring_records(usable)
-                if row["kind"] == "vulnerability" and row["repo"] not in uncovered
-            ]
-        ),
-        uncovered_recall=score.rate(
-            [
-                bool(score.catches(row))
-                for row in metrics.scoring_records(usable)
-                if row["kind"] == "vulnerability" and row["repo"] in uncovered
-            ]
-        ),
+        covered_recall=_scope_recall(usable, uncovered, include_uncovered=False),
+        uncovered_recall=_scope_recall(usable, uncovered, include_uncovered=True),
         instrument_failures=sum(score.coverage(row) == "instrument_failure" for row in records),
         seconds_per_change=dict(n=len(seconds), mean=statistics.mean(seconds), median=statistics.median(seconds), maximum=max(seconds)),
         changes_over_120_seconds=[{"id": row["id"], "seconds": row["seconds"]} for row in records if row["seconds"] > 120],
     )
     # This is a training pool; the generic metric headline refers to unseen repositories.
     result["headline"] = result["headline"].replace("On unseen app repos:", "On the training pool:")
-    _write_json(out / "summary.json", result)
+    _write_json(out / "summary.json", result, kind="benchmark-arm-summary", replace=True)
     return result
 
 

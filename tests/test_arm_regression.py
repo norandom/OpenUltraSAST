@@ -141,7 +141,33 @@ def test_run_arm_writes_resumable_record_with_digests(sample_repo: Path, tmp_pat
     assert (out / "sample-repo-ordinary-abc.json").stat().st_mtime_ns == first_mtime
 
 
-def test_run_arm_allows_legitimately_empty_tracked_file(sample_repo: Path, tmp_path: Path) -> None:
+def test_run_arm_resume_refuses_stripped_v2_metadata(sample_repo: Path, tmp_path: Path) -> None:
+    change = _change(sample_repo)
+    out = tmp_path / "arm"
+    arm_regression.run_arm(
+        arm_name="candidate-analyzer/candidate-facts",
+        bundle=_bundle(),
+        changes=(change,),
+        repos={"sample/repo": str(sample_repo)},
+        out_dir=out,
+    )
+    path = out / "sample-repo-ordinary-abc.json"
+    value = json.loads(path.read_text())
+    for field in ("schema_version", "artifact_kind", "artifact_digest"):
+        value.pop(field)
+    path.write_text(json.dumps(value))
+
+    with pytest.raises(ValueError, match="metadata"):
+        arm_regression.run_arm(
+            arm_name="candidate-analyzer/candidate-facts",
+            bundle=_bundle(),
+            changes=(change,),
+            repos={"sample/repo": str(sample_repo)},
+            out_dir=out,
+        )
+
+
+def test_run_arm_refuses_empty_tracked_file_through_v2_instrument(sample_repo: Path, tmp_path: Path) -> None:
     (sample_repo / "empty.py").write_text("")
     (sample_repo / "app.py").write_text("def handler(event):\n    return 2\n")
     _git(sample_repo, "add", ".")
@@ -158,9 +184,12 @@ def test_run_arm_allows_legitimately_empty_tracked_file(sample_repo: Path, tmp_p
         repos={"sample/repo": str(sample_repo)},
         out_dir=tmp_path / "arm",
     )
-    assert records[0]["status"] == "prover_covered"
-    assert records[0]["instrument"]["empty_files"] == 1
+    assert records[0]["status"] == "instrument_failure"
+    assert records[0]["instrument"]["failure"] == "InstrumentFailure"
+    assert records[0]["instrument"]["file_bytes"]["empty.py"] == 0
     assert records[0]["instrument"]["file_bytes"]["app.py"] > 0
+    with pytest.raises(arm_regression.InstrumentFailure, match="zero-byte"):
+        arm_regression.summarize_arm(records)
 
 
 def test_summarize_arm_refuses_zero_byte_summary(tmp_path: Path) -> None:
@@ -186,7 +215,7 @@ def test_summarize_arm_publishes_budget_result_and_masks_repositories() -> None:
         "repo": "private/name",
         "kind": "ordinary",
         "status": "prover_covered",
-        "instrument": {"file_bytes": {"app.py": 10}, "hook_bytes_read": 10},
+        "instrument": {"file_bytes": {"app.py": 10}, "file_digests": {"app.py": "a" * 64}, "hook_bytes_read": 10},
         "stage_funnel": {
             "entry_recognition": {"entry_points": 1, "frameworks_recognised": {"web": 1}},
             "resolution": {"resolved": 1},
@@ -244,7 +273,7 @@ def test_summarize_arm_reports_uncovered_repository_separately() -> None:
         "repo": "hidden/other",
         "kind": "vulnerability",
         "status": "prover_covered",
-        "instrument": {"file_bytes": {"app.py": 10}, "hook_bytes_read": 10},
+        "instrument": {"file_bytes": {"app.py": 10}, "file_digests": {"app.py": "a" * 64}, "hook_bytes_read": 10},
         "stage_funnel": {
             "entry_recognition": {"entry_points": 0, "frameworks_recognised": {}},
             "resolution": {},

@@ -6,30 +6,21 @@ reviewed ordinary change, maps per-site prover evidence onto the three-way
 judgment vocabulary and returns the paired admission report.
 """
 
-import hashlib
-import json
 import sys
-import tempfile
-import tomllib
 from pathlib import Path
 from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from benchmarks.unseen.replay import canonical  # noqa: E402
 from benchmarks.valid.admission_run import (  # noqa: E402
     admission_ordinary,
     admission_pair_cases,
-    assemble_admission_report,
     classify_fixed_site,
     coverage_share,
     fixed_side_change,
-    load_admission_population,
     locate_function,
     site_judgment,
 )
-from benchmarks.valid.admission_scoring import AdmissionScoringError  # noqa: E402
-from benchmarks.valid.prover_admission import AdmissionManifest, AdmissionManifestError  # noqa: E402
 
 SITE = ("src/app.py", 30, 40)
 
@@ -194,159 +185,3 @@ def test_coverage_share_over_repositories() -> None:
     bare = _record("b", repo="repo-b", stage_funnel={"entry_recognition": {"frameworks_recognised": {}}})
     other = _record("a", repo="repo-a", stage_funnel={"entry_recognition": {"frameworks_recognised": {"jenkins": 2}}})
     assert coverage_share((covered, bare, other)) == 0.5
-
-
-def _manifest_payload(**over: object) -> dict[str, object]:
-    payload = {
-        "produced_by": "valid-detection-benchmark",
-        "reviewed": True,
-        "label_isolated": True,
-        "spent": False,
-        "population_role": "admission",
-        "analyzer_revision": "d063167",
-        "fact_set_digest": "3eb5bf699434",
-        "acquisition_record_digest": "none",
-        "configuration_digest": "be6d0f688598",
-        "population_digest": "0" * 64,
-        "labels": [],
-    }
-    payload.update(over)
-    return payload
-
-
-POOL_TOML = (
-    'status = "frozen"\n'
-    'pool = "valid"\n'
-    "seed = 0\n"
-    "\n"
-    "[[repository]]\n"
-    'id = "example/project"\n'
-    'repository = "example/project"\n'
-    'url = "https://github.com/example/project.git"\n'
-    "slice = 1\n"
-    "changes = [\n"
-    '  {base = "fixcommit", head = "vulnparent", case_id = "example-project-vuln-1", '
-    'id = "example-project-vuln-1", repo = "example/project", kind = "vulnerability", '
-    'path = "src/app.py", function = "handler", function_lines = [30, 40], '
-    'files = [{path = "src/app.py", head_lines = [[30, 40]]}], family = "access_control"},\n'
-    '  {base = "parent1", head = "ordinary1", case_id = "example-project-ordinary-1", '
-    'id = "example-project-ordinary-1", repo = "example/project", kind = "ordinary", '
-    'files = [{path = "src/lib.py", head_lines = [[1, 5]]}]},\n'
-    "]\n"
-)
-
-
-def _population_files(root: Path, *, freeze_digest: str | None = None, guard_result: int = 0) -> tuple[Path, Path, str]:
-    root.mkdir(parents=True, exist_ok=True)
-    pool_path = root / "pool.toml"
-    pool_path.write_text(POOL_TOML, encoding="utf-8")
-    pool = tomllib.loads(pool_path.read_text(encoding="utf-8"))
-    digest = freeze_digest if freeze_digest is not None else hashlib.sha256(canonical(pool)).hexdigest()
-    freeze_path = root / "freeze.json"
-    freeze_path.write_text(json.dumps({"freeze_digest": digest, "guard_result": guard_result}), encoding="utf-8")
-    return pool_path, freeze_path, digest
-
-
-def test_load_population_verifies_freeze_digest_and_guard() -> None:
-    with tempfile.TemporaryDirectory() as temporary:
-        root = Path(temporary)
-        pool_path, freeze_path, digest = _population_files(root)
-        payload = _manifest_payload(population_digest=digest)
-        vulnerable, ordinary = load_admission_population(payload, pool_path, freeze_path)
-        assert [change["kind"] for change in (*vulnerable, *ordinary)] == ["vulnerability", "ordinary"]
-        assert all(len(change["id"]) == 64 for change in (*vulnerable, *ordinary))
-        tampered = _manifest_payload(population_digest="f" * 64)
-        try:
-            load_admission_population(tampered, pool_path, freeze_path)
-            raise AssertionError("population digest mismatch must be refused")
-        except ValueError as error:
-            assert "population" in str(error)
-        guarded = _population_files(root / "g", guard_result=1)
-        payload_guarded = _manifest_payload(population_digest=guarded[2])
-        try:
-            load_admission_population(payload_guarded, guarded[0], guarded[1])
-            raise AssertionError("held-out guard failure must be refused")
-        except ValueError as error:
-            assert "guard" in str(error)
-
-
-def test_load_population_validates_manifest_before_labels() -> None:
-    with tempfile.TemporaryDirectory() as temporary:
-        root = Path(temporary)
-        pool_path, freeze_path, _ = _population_files(root)
-        spent = _manifest_payload(spent=True)
-        try:
-            load_admission_population(spent, pool_path, freeze_path)
-            raise AssertionError("spent population must be refused")
-        except AdmissionManifestError:
-            pass
-
-
-def _admission_manifest(digest: str = "0" * 64) -> AdmissionManifest:
-    from benchmarks.valid.prover_admission import validate_admission_manifest
-
-    return validate_admission_manifest(_manifest_payload(population_digest=digest))
-
-
-def test_assemble_report_returns_go_without_failed_gates() -> None:
-    vulnerable = _record("case-1", findings=[_finding("src/app.py", 35)], family="access_control")
-    fixed = _record("case-1", fixed_lines=(31, 42), traces=[_trace("src/app.py", 33, "discharged")])
-    ordinary = _record("ord-1", kind="ordinary")
-    manifest = _admission_manifest()
-    report = assemble_admission_report(
-        manifest,
-        (vulnerable,),
-        (fixed,),
-        (ordinary,),
-        criteria={"min_fix_recall": 1.0, "max_flagged_ordinary_per_100": 0.0},
-    )
-    assert report["decision"] == "GO"
-    assert report["fix_recall"]["count"] == 1
-    assert report["pairs"] == {"n": 1, "correct": 1}
-    assert report["flagged_ordinary_per_100"]["count"] == 0
-
-
-def test_assemble_report_no_go_on_ordinary_overrun() -> None:
-    vulnerable = _record("case-1", findings=[_finding("src/app.py", 35)])
-    fixed = _record("case-1", fixed_lines=(31, 42), traces=[_trace("src/app.py", 33, "discharged")])
-    slow = _record("ord-1", kind="ordinary", seconds=300.0)
-    report = assemble_admission_report(_admission_manifest(), (vulnerable,), (fixed,), (slow,), criteria=None, budget_seconds=120.0)
-    assert report["decision"] == "NO-GO"
-    assert any(gate.startswith("budget:ord-1:") for gate in report["failed_gates"])
-
-
-def test_assemble_report_no_go_on_budget_and_criteria() -> None:
-    vulnerable = _record("case-1", seconds=200.0)
-    fixed = _record("case-1", fixed_lines=(31, 42), seconds=1.0)
-    ordinary = _record("ord-1", kind="ordinary", findings=[_finding("src/x.py", 3)])
-    manifest = _admission_manifest()
-    report = assemble_admission_report(
-        manifest,
-        (vulnerable,),
-        (fixed,),
-        (ordinary,),
-        criteria={"min_fix_recall": 0.9, "max_flagged_ordinary_per_100": 0.0},
-    )
-    assert report["decision"] == "NO-GO"
-    assert any(gate.startswith("budget:case-1:") for gate in report["failed_gates"])
-    assert any("min_fix_recall" in gate for gate in report["failed_gates"])
-    assert any("max_flagged_ordinary_per_100" in gate for gate in report["failed_gates"])
-
-
-def test_assemble_report_counts_instrument_failures() -> None:
-    vulnerable = _record("case-1", status="instrument_failure")
-    fixed = _record("case-1", fixed_lines=(31, 42), status="instrument_failure")
-    manifest = _admission_manifest()
-    report = assemble_admission_report(manifest, (vulnerable,), (fixed,), (), criteria=None)
-    assert report["instrument_failures"] == 2
-    assert report["decision"] == "NO-GO"
-
-
-def test_assemble_report_refuses_development_role() -> None:
-    manifest = _admission_manifest()
-    object.__setattr__(manifest, "population_role", "development")
-    try:
-        assemble_admission_report(manifest, (), (), (), criteria=None)
-        raise AssertionError("development population must be refused for admission")
-    except AdmissionScoringError:
-        pass

@@ -35,6 +35,12 @@ if __package__ in {None, ""}:
 
 from benchmarks.unseen.extract import SHA, InstrumentFailure
 from benchmarks.unseen.replay import canonical, load_slice
+from benchmarks.valid.artifact_contract import (
+    read_benchmark_artifact,
+    read_benchmark_sequence,
+    write_benchmark_artifact,
+    write_benchmark_sequence,
+)
 from benchmarks.valid.catalog import local_git
 
 # Our language ids to Semgrep's. Groovy has no Semgrep parser: `generic` plus a path filter.
@@ -427,11 +433,12 @@ def result_defect(result):
     }
 
 
-def _write_json(path, value):
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_suffix(".json.tmp")
-    temporary.write_text(json.dumps(value, sort_keys=True, indent=2) + "\n")
-    temporary.replace(path)
+def _write_json(path, value, *, kind=None, replace=False):
+    kind = kind or ("benchmark-arm-inputs" if Path(path).name == "inputs.json" else "benchmark-arm-record")
+    if isinstance(value, list):
+        write_benchmark_sequence(path, kind, value, replace=replace)
+    else:
+        write_benchmark_artifact(path, kind, value, replace=replace)
 
 
 def _record_path(out, identity):
@@ -440,7 +447,7 @@ def _record_path(out, identity):
 
 def _inputs(out):
     path = out / "inputs.json"
-    entries = json.loads(path.read_text()) if path.exists() else []
+    entries = list(read_benchmark_sequence(path, "benchmark-arm-inputs")) if path.exists() else []
     for key in (lambda entry: entry["item_id"], lambda entry: entry["change"]["id"]):
         if len({key(entry) for entry in entries}) != len(entries):
             raise ValueError(f"duplicate ids in {path}")
@@ -568,7 +575,7 @@ def run(manifest, repos_path, rules, out, *, slice_id="1", only="all", semgrep=N
     pending = []
     for change in changes:
         path = _record_path(out, change["id"])
-        previous = json.loads(path.read_text()) if path.exists() else {}
+        previous = read_benchmark_artifact(path, "benchmark-arm-record") if path.exists() else {}
         entry = indexed.get(change["id"])
         if entry is None:
             entry = {
@@ -583,7 +590,7 @@ def run(manifest, repos_path, rules, out, *, slice_id="1", only="all", semgrep=N
             print(f"{change['id']}: skipped (done)", flush=True)
             continue
         pending.append(entry)
-    _write_json(out / "inputs.json", entries)
+    _write_json(out / "inputs.json", entries, kind="benchmark-arm-inputs", replace=True)
     if not pending:
         return 0
     repos = json.loads(Path(repos_path).expanduser().read_text())

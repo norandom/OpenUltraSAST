@@ -22,6 +22,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 hunter_arm = importlib.import_module("benchmarks.valid.hunter_arm")
 catalog = importlib.import_module("benchmarks.valid.catalog")
 score = importlib.import_module("benchmarks.unseen.score")
+artifact_contract = importlib.import_module("benchmarks.valid.artifact_contract")
 
 
 @pytest.fixture(autouse=True)
@@ -136,7 +137,7 @@ def test_positive_is_scoreable_and_checkout_is_removed(fixture, monkeypatch, cap
     assert row["status"] == "hunter_covered" and row["done"]
     assert row["instrument"]["hook_bytes_read"] == len(git.blob(change["head"], "app.py").encode())
     assert score.coverage(row) != "instrument_failure"
-    assert row["input_digest"] == json.loads((out / "inputs.json").read_text())[0]["input_digest"]
+    assert row["input_digest"] == artifact_contract.read_benchmark_sequence(out / "inputs.json", "benchmark-arm-inputs")[0]["input_digest"]
     assert client.calls[0]["model"] == resolve_models(load_config(dotenv=False))[0]
     assert "fixture-positive app.py:" in capsys.readouterr().out
     assert git.run("worktree", "list", "--porcelain").count("worktree ") == 1
@@ -204,9 +205,11 @@ def test_resume_skips_done_without_client_or_checkout(fixture, monkeypatch, with
     _, change, manifest, repos, out = fixture
     out.mkdir()
     existing = {"id": change["id"], "done": True, "input_digest": "existing-digest", "status": "hunter_covered"}
-    record_path(out, change["id"]).write_text(json.dumps(existing))
+    artifact_contract.write_benchmark_artifact(record_path(out, change["id"]), "benchmark-arm-record", existing)
     if with_inputs:
-        (out / "inputs.json").write_text(json.dumps([{"item_id": change["id"], "change": change, "input_digest": "existing-digest"}]))
+        artifact_contract.write_benchmark_sequence(
+            out / "inputs.json", "benchmark-arm-inputs", [{"item_id": change["id"], "change": change, "input_digest": "existing-digest"}]
+        )
 
     def forbidden(*args, **kwargs):
         pytest.fail("completed change was executed again")
@@ -214,7 +217,7 @@ def test_resume_skips_done_without_client_or_checkout(fixture, monkeypatch, with
     monkeypatch.setattr(tool_hunter, "resolve_hunter_client", forbidden)
     monkeypatch.setattr(hunter_arm, "local_git", forbidden)
     assert hunter_arm.main(["run", str(manifest), "--repos", str(repos), "--out", str(out)]) == 0
-    assert json.loads(record_path(out, change["id"]).read_text()) == existing
+    assert artifact_contract.read_benchmark_artifact(record_path(out, change["id"]), "benchmark-arm-record") == existing
     assert score.load_records(out)[0]["input_digest"] == "existing-digest"
 
 
@@ -418,9 +421,9 @@ def test_classify_family_reuses_parser_and_retry(tmp_path, monkeypatch, failure)
 
 def write_arm(out, entries, records):
     out.mkdir()
-    (out / "inputs.json").write_text(json.dumps(entries))
+    artifact_contract.write_benchmark_sequence(out / "inputs.json", "benchmark-arm-inputs", entries)
     for item_id, record in records.items():
-        record_path(out, item_id).write_text(json.dumps(record))
+        artifact_contract.write_benchmark_artifact(record_path(out, item_id), "benchmark-arm-record", record)
 
 
 @pytest.fixture
@@ -489,7 +492,7 @@ def test_combine_missing_classifier_counts_as_unsure(combine_arms, classificatio
     replay_out, hunter_out, combined, entry, a, b = combine_arms
     defect = {"defect_id": "unclassified", "source": "hunter", "family": "path", "locations": [["app.py", 6]], **classification}
     b["push"]["admission"]["defects"] = [defect]
-    record_path(hunter_out, entry["item_id"]).write_text(json.dumps(b))
+    artifact_contract.write_benchmark_artifact(record_path(hunter_out, entry["item_id"]), "benchmark-arm-record", b, replace=True)
     assert hunter_arm.main(["combine", str(replay_out), str(hunter_out), "--out", str(combined), "--keep-verdicts", keep_verdicts]) == 0
     (row,) = score.load_records(combined)
     kept = int("unsure" in keep_verdicts.split(","))
@@ -546,7 +549,7 @@ def test_combine_preserves_a_and_scores_b(fixture, tmp_path):
     }
     assert b_only["arms"] == {"a": "missing", "b": "hunter_covered"}
     a["push"]["admission"]["defects"] = [{**defect, "defect_id": "a-defect", "source": "engine"}]
-    record_path(replay_out, "replay-both").write_text(json.dumps(a))
+    artifact_contract.write_benchmark_artifact(record_path(replay_out, "replay-both"), "benchmark-arm-record", a, replace=True)
     hunter_arm.main(["combine", str(replay_out), str(hunter_out), "--out", str(combined)])
     defects = score.load_records(combined)[0]["push"]["admission"]["defects"]
     assert len(defects) == 1 and defects[0]["source"] == "engine"
