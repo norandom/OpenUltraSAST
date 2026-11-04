@@ -161,6 +161,7 @@ def test_derivation_is_deterministic_and_discloses_measurement_context() -> None
     assert first.sample_count == 5
     assert first.percentile == 0.8
     assert first.budget_ms == 144
+    assert first.derivation_digest == "89149c1b78b413f543cc3c5950f9ee1b55379c11feb7499d9d49e972f5427b93"
     assert len(first.derivation_digest) == 64
 
 
@@ -191,6 +192,58 @@ def test_derivation_refuses_missing_or_nonfinite_inputs(
             reference_workload=_reference_workload(),
             reference_hardware=_hardware(),
         )
+
+
+@pytest.mark.parametrize(
+    "percentile",
+    (10**400, -(10**400), True, "0.8", object(), math.inf, -math.inf, math.nan, 0, -1, 1.1),
+)
+def test_derivation_refuses_oversized_or_malformed_percentile_without_overflow(percentile: object) -> None:
+    with pytest.raises((TypeError, ValueError)) as caught:
+        budget_v2.derive_budget(
+            _samples(),
+            workload_class="small",
+            percentile=percentile,  # type: ignore[arg-type]
+            reference_workload=_reference_workload(),
+            reference_hardware=_hardware(),
+        )
+    assert not isinstance(caught.value, OverflowError)
+
+
+def test_huge_reply_times_derive_check_and_excess_remain_exact() -> None:
+    huge = 10**400
+    complexity, resolver = _complexity()
+    samples = (
+        budget_v2.MeasuredSample(complexity, huge),
+        budget_v2.MeasuredSample(complexity, huge + 2),
+    )
+    derived = budget_v2.derive_budget(
+        samples,
+        workload_class="small",
+        percentile=0.5,
+        reference_workload=_reference_workload(),
+        reference_hardware=_hardware(),
+    )
+
+    assert derived.budget_ms == huge + 1
+    assert derived == replace(derived, derivation_digest="")
+    encoded = canonical.canonical_bytes({"budget_ms": derived.budget_ms})
+    assert encoded == canonical.canonical_bytes({"budget_ms": huge + 1})
+    assert str(huge + 1).encode() in encoded
+    budget_v2.check_budget(complexity, huge + 1, derived, resolver)
+    with pytest.raises(budget_v2.BudgetGateFailure, match="budget:") as caught:
+        budget_v2.check_budget(complexity, huge + 2, derived, resolver)
+    assert f"{huge + 2}ms>{huge + 1}ms" in str(caught.value)
+
+
+def test_budget_derivation_refuses_oversized_percentile_after_tampering() -> None:
+    derived = _derivation()
+    object.__setattr__(derived, "percentile", 10**400)
+    complexity, resolver = _complexity()
+
+    with pytest.raises(ValueError, match="percentile must not exceed 1") as caught:
+        budget_v2.check_budget(complexity, 100, derived, resolver)
+    assert not isinstance(caught.value, OverflowError)
 
 
 def test_derivation_refuses_mixed_classes_and_incompatible_complexity() -> None:

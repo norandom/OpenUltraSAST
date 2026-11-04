@@ -7,6 +7,7 @@ import math
 import re
 from collections.abc import Sequence
 from dataclasses import dataclass
+from fractions import Fraction
 
 from openultrasast.core import canonical
 
@@ -38,13 +39,16 @@ def _nonnegative_int(value: object, field: str) -> None:
         raise ValueError(f"{field} must be a non-negative integer")
 
 
-def _finite_number(value: object, field: str, *, positive: bool = False) -> float:
-    if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
-        raise ValueError(f"{field} must be finite")
-    number = float(value)
-    if positive and number <= 0:
-        raise ValueError(f"{field} must be positive")
-    return number
+def _percentile(value: object) -> tuple[float, Fraction]:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError("percentile must be finite")
+    if isinstance(value, float) and not math.isfinite(value):
+        raise ValueError("percentile must be finite")
+    if value <= 0:
+        raise ValueError("percentile must be positive")
+    if value > 1:
+        raise ValueError("percentile must not exceed 1")
+    return float(value), Fraction(str(value))
 
 
 @dataclass(frozen=True)
@@ -241,9 +245,7 @@ def derive_budget_derivation_digest(value: BudgetDerivation) -> str:
 def _validate_derivation(value: BudgetDerivation, *, allow_empty_digest: bool = False) -> None:
     _text(value.workload_class, "workload_class")
     _positive_int(value.sample_count, "sample_count")
-    percentile = _finite_number(value.percentile, "percentile", positive=True)
-    if percentile > 1:
-        raise ValueError("percentile must not exceed 1")
+    _percentile(value.percentile)
     if not isinstance(value.reference_workload, ReferenceWorkload):
         raise TypeError("reference_workload must be ReferenceWorkload")
     if not isinstance(value.reference_hardware, ReferenceHardware):
@@ -257,12 +259,12 @@ def _validate_derivation(value: BudgetDerivation, *, allow_empty_digest: bool = 
         raise ValueError("budget derivation digest does not match fields")
 
 
-def _quantile(sorted_values: Sequence[float], percentile: float) -> float:
+def _quantile(sorted_values: Sequence[int], percentile: Fraction) -> Fraction:
     position = percentile * (len(sorted_values) - 1)
-    lower = math.floor(position)
+    lower = position.numerator // position.denominator
     upper = math.ceil(position)
     if lower == upper:
-        return sorted_values[lower]
+        return Fraction(sorted_values[lower])
     weight = position - lower
     return sorted_values[lower] * (1 - weight) + sorted_values[upper] * weight
 
@@ -286,8 +288,8 @@ def derive_budget(
     reference_hardware: ReferenceHardware,
 ) -> BudgetDerivation:
     _text(workload_class, "workload_class")
-    value = _finite_number(percentile, "percentile", positive=True)
-    if value > 1 or not samples:
+    value, exact_percentile = _percentile(percentile)
+    if not samples:
         raise ValueError("v2 derivation requires samples and percentile in (0, 1]")
     _validate_reference_workload(reference_workload)
     _validate_reference_hardware(reference_hardware)
@@ -301,7 +303,7 @@ def derive_budget(
             raise ValueError("sample workload class does not match derivation")
         if not _compatible(sample.complexity, reference_workload):
             raise ValueError("sample complexity is outside reference workload")
-    budget_ms = math.ceil(_quantile(sorted(float(item.total_reply_ms) for item in measured), value))
+    budget_ms = math.ceil(_quantile(sorted(item.total_reply_ms for item in measured), exact_percentile))
     return BudgetDerivation(workload_class, len(measured), value, reference_workload, reference_hardware, budget_ms, "")
 
 

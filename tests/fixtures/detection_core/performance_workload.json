@@ -1,0 +1,9 @@
+{
+  "schema_version": "detection-core-performance-workload-v1",
+  "workload_class": "small",
+  "sizes": [8, 32, 128, 256],
+  "repeats": 3,
+  "percentile": 1.0,
+  "changed_regions": 1,
+  "changed_bytes": 120
+}

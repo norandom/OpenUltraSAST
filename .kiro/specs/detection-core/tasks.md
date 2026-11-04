@@ -422,7 +422,7 @@
   - Mutate a semantic identity and verify transitive staleness through all dependent readiness and measurement records.
   - Done when every injected failure is diagnosed at its source and no late admission-only surprise remains.
   - _Requirements: 5.3, 5.4, 5.5, 8.3, 8.4, 8.5, 15.4, 15.5_
-- [ ] 11.3 Verify bounded validation cost and total consumer deadline accounting
+- [x] 11.3 Verify bounded validation cost and total consumer deadline accounting
   - Measure canonicalization and validation across increasing relation, observation, receipt, and case counts.
   - Exercise large transition sets for linear behavior and bounded memory without weakening semantic checks.
   - Include optional model and proof processing in the same measured consumer budget.
