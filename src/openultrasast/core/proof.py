@@ -8,7 +8,7 @@ from enum import Enum
 
 from openultrasast.core import canonical
 from openultrasast.core.semantics import SourceLocation
-from openultrasast.core.verdict_v2 import DefectClaim
+from openultrasast.core.verdict import DefectClaim
 
 DIFFERENTIAL_PROOF_SCHEMA = "openultrasast.detection-core.differential-proof.v2"
 _DIGEST = re.compile(r"[0-9a-f]{64}")

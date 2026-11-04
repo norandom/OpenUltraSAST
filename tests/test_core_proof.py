@@ -46,7 +46,7 @@ from openultrasast.core.semantics import (
     make_observation,
     make_relation,
 )
-from openultrasast.core.verdict_v2 import DefectClaim
+from openultrasast.core.verdict import DefectClaim
 
 
 def _digest(value: str) -> str:

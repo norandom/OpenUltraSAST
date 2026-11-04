@@ -14,6 +14,7 @@ from pathlib import Path
 
 from benchmark_migration_evidence import BENCHMARK_TERMINAL_EVIDENCE, BenchmarkTerminalEvidence
 from consumer_migration_evidence import CONSUMER_TERMINAL_EVIDENCE, REVIEWED_SUCCESSOR_MODULES, ConsumerTerminalEvidence
+from core_migration_scope import CUTOVER_DELETIONS
 
 from openultrasast.core.legacy import LegacyArtifact, decode_legacy_artifact
 
@@ -830,8 +831,31 @@ def _approved_terminal_source_closure(entry: LegacyInventoryEntry, *, root: Path
         return True
     if _benchmark_terminal_source_closure(entry, root=root, tree=tree):
         return True
+    transfer = _APPROVED_MIXED_TRANSFERS.get(entry.entry_id)
+    if (
+        transfer is not None
+        and entry.disposition is not MigrationDisposition.OPEN
+        and entry.entry_id == entry_identity(entry)
+        and _stable_entry_fields(entry) == transfer[0]
+        and _cutover_complete(root)
+        and not any(_exact_anchor_present(anchor, tree) for anchor in entry.capability_anchors)
+    ):
+        return True
     approved = _APPROVED_TERMINAL_SOURCE_CLOSURES.get(entry.entry_id) is entry.disposition
     return approved and entry.entry_id == entry_identity(entry)
+
+
+def _cutover_complete(root: Path) -> bool:
+    if any((root / relative).exists() for relative in CUTOVER_DELETIONS):
+        return False
+    public = tuple(root / f"src/openultrasast/core/{name}.py" for name in ("__init__", "admission", "consumer", "verdict"))
+    return all(path.is_file() and path.stat().st_size > 0 for path in public)
+
+
+def _approved_cutover_deletion(entry: LegacyInventoryEntry, *, root: Path) -> bool:
+    if entry.disposition is MigrationDisposition.OPEN or entry.path not in CUTOVER_DELETIONS or entry.entry_id != entry_identity(entry):
+        return False
+    return _cutover_complete(root)
 
 
 def validate_inventory_sources(inventory: LegacyMigrationInventory, *, root: Path) -> None:
@@ -840,6 +864,10 @@ def validate_inventory_sources(inventory: LegacyMigrationInventory, *, root: Pat
         path = root / entry.path
         try:
             content = path.read_bytes()
+        except FileNotFoundError as exc:
+            if _approved_cutover_deletion(entry, root=root):
+                continue
+            raise LegacyInventoryError(f"inventory source is not readable: {entry.path}") from exc
         except OSError as exc:
             raise LegacyInventoryError(f"inventory source is not readable: {entry.path}") from exc
         if not content:
@@ -849,8 +877,8 @@ def validate_inventory_sources(inventory: LegacyMigrationInventory, *, root: Pat
         except (SyntaxError, UnicodeDecodeError) as exc:
             raise LegacyInventoryError(f"inventory source is not parseable: {entry.path}") from exc
         is_shim = _explicit_legacy_shim(tree, entry.symbol)
-        moved_owner = _moved_mixed_v1_owner(entry, root=root)
         terminal_closure = _approved_terminal_source_closure(entry, root=root, tree=tree)
+        moved_owner = False if terminal_closure else _moved_mixed_v1_owner(entry, root=root)
         if entry.symbol not in _defined_symbols(tree) and not is_shim and not moved_owner and not terminal_closure:
             raise LegacyInventoryError(f"inventory target is absent: {entry.path}:{entry.symbol}")
         missing = _missing_anchors(entry, tree)

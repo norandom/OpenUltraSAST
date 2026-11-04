@@ -14,7 +14,7 @@ from core_migration_boundary import (
     boundary_python,
     inspect_legacy_boundary,
     require_cutover_ready,
-    static_top_level_v1,
+    static_top_level_exports,
 )
 from core_migration_inventory import (
     LegacyInventoryError,
@@ -214,7 +214,9 @@ def test_cutover_refuses_empty_scope_and_migration_compatibility(tmp_path: Path)
 
 
 def test_complete_frozen_top_level_surface_is_reported_and_star_is_forbidden(tmp_path: Path) -> None:
-    assert static_top_level_v1(REPO) == FROZEN_TOP_LEVEL_V1
+    exports = static_top_level_exports(REPO)
+    assert exports == ("admission", "consumer", "verdict")
+    assert set(exports).isdisjoint(FROZEN_TOP_LEVEL_V1)
     assert len(FROZEN_TOP_LEVEL_V1) == 38
     imports = ", ".join(FROZEN_TOP_LEVEL_V1)
     attributes = "\n".join(f"value_{index} = core_api.{name}" for index, name in enumerate(FROZEN_TOP_LEVEL_V1))
@@ -283,16 +285,25 @@ def test_repository_scope_proves_nonzero_inputs_before_reporting_sites() -> None
     paths = boundary_python()
     frozen = load_migration_inventory(INVENTORY)
 
-    report = inspect_legacy_boundary(paths, frozen_inventory=frozen, root=REPO)
+    report = inspect_legacy_boundary(
+        paths,
+        frozen_inventory=frozen,
+        candidate_inventory=frozen,
+        expected_scope=paths,
+        root=REPO,
+        phase=BoundaryPhase.POST_DELETION,
+    )
 
     assert report.files_read == len(paths) > 0
     assert report.bytes_read > 0
-    assert report.legacy_import_sites
+    assert report.legacy_import_sites == ()
+    assert report.legacy_writer_sites == ()
     assert report.open_inventory_entries == ()
     assert report.consumer_legacy_import_sites == ()
     assert report.consumer_legacy_writer_sites == ()
     assert report.forbidden_dynamic_sites == ()
-    assert report.compatibility_implementation_sites
+    assert report.compatibility_implementation_sites == ()
+    _require_cutover(report, frozen=frozen, candidate=frozen, root=REPO)
 
 
 def test_cutover_rejects_positive_but_incomplete_repository_scope() -> None:

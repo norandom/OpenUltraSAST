@@ -398,7 +398,7 @@
   - _Requirements: 14.3, 15.3_
   - _Boundary: Migration Tests and Operational Tooling_
   - _Depends: 10.4, 10.5_
-- [ ] 10.7 Delete v1 write capability and publish the single v2 surface atomically
+- [x] 10.7 Delete v1 write capability and publish the single v2 surface atomically
   - Require every inventory entry to be terminal and the migration-time production-consumer boundary to be zero before deletion begins.
   - Delete the compatibility namespace, v1 writer facade, and temporary shims while publishing the canonical v2 modules and top-level exports in the same integration change.
   - Prove old top-level and submodule imports and writes fail and that no v1 serializer or converter remains.

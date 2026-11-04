@@ -7,6 +7,8 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
+from core_migration_scope import CUTOVER_DELETIONS
+
 REPO = Path(__file__).resolve().parents[1]
 _EXCLUDED_PREFIXES = ("benchmarks/fixtures/", "benchmarks/pairs/", "tests/fixtures/")
 _LEGACY_IMPORTS: dict[str, frozenset[str] | None] = {
@@ -47,7 +49,7 @@ _LEGACY_IMPORTS: dict[str, frozenset[str] | None] = {
         }
     ),
     "openultrasast.core.budget": frozenset({"Budget", "Complexity"}),
-    "openultrasast.core.consumer": None,
+    "openultrasast.core.consumer": frozenset({"consume_verdict"}),
     "openultrasast.core.coverage": frozenset({"Coverage", "InstrumentFailure", "ResolutionOutcome", "check_reads"}),
     "openultrasast.core.factpack": frozenset({"FactPackError", "admit_fact_pack", "admit_pack_file", "load_pack_file", "verify_fact_pack"}),
     "openultrasast.core.probes": frozenset(
@@ -62,7 +64,7 @@ _LEGACY_IMPORTS: dict[str, frozenset[str] | None] = {
     ),
     "openultrasast.core.provenance": frozenset({"ProvenanceMismatch", "stamp", "verify_stamp"}),
     "openultrasast.core.trace": None,
-    "openultrasast.core.verdict": None,
+    "openultrasast.core.verdict": frozenset({"Judgment", "ProvenClaim", "as_clean"}),
 }
 _TOP_LEVEL_COMPATIBILITY = _LEGACY_IMPORTS["openultrasast.core"] or frozenset()
 
@@ -80,10 +82,22 @@ class ReaderAuditReport:
 
 def tracked_python() -> tuple[Path, ...]:
     completed = subprocess.run(["git", "ls-files", "*.py"], cwd=REPO, check=True, capture_output=True, text=True)
+    deleted = set(
+        subprocess.run(
+            ["git", "ls-files", "--deleted", "--", "*.py"],
+            cwd=REPO,
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.splitlines()
+    )
+    unexpected = deleted - CUTOVER_DELETIONS
+    if unexpected:
+        raise LegacyReaderAuditError(f"unexpected tracked Python deletion: {min(unexpected)}")
     return tuple(
         REPO / relative
         for relative in completed.stdout.splitlines()
-        if relative.endswith(".py") and not relative.startswith(_EXCLUDED_PREFIXES)
+        if relative.endswith(".py") and relative not in deleted and not relative.startswith(_EXCLUDED_PREFIXES)
     )
 
 

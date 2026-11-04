@@ -42,7 +42,7 @@ from openultrasast.core.semantics import (
     SourceLocation,
     make_relation,
 )
-from openultrasast.core.verdict_v2 import DefectClaim, VerdictContractError, derive_verdict_outputs
+from openultrasast.core.verdict import DefectClaim, VerdictContractError, derive_verdict_outputs
 
 
 def _digest(value: str) -> str:

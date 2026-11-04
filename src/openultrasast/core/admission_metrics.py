@@ -36,7 +36,7 @@ from openultrasast.core.model import ModelStatus
 from openultrasast.core.proof import ProofAttachment, attach_differential_proof
 from openultrasast.core.readiness import ReadinessResult
 from openultrasast.core.validation import validate_evidence_input
-from openultrasast.core.verdict_v2 import DefectClaim, derive_verdict_outputs
+from openultrasast.core.verdict import DefectClaim, derive_verdict_outputs
 
 
 class AdmissionMetricsError(ValueError):

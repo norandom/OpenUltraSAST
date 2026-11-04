@@ -19,7 +19,7 @@ from openultrasast.core.measurement import DenominatorPolicy, ScopeKey
 from openultrasast.core.proof import ProofAttachment
 from openultrasast.core.readiness import ReadinessResult
 from openultrasast.core.validation import EvidenceValidationInput
-from openultrasast.core.verdict_v2 import BoundedSatisfaction, BoundedSilence, DefectClaim
+from openultrasast.core.verdict import BoundedSatisfaction, BoundedSilence, DefectClaim
 
 ADMISSION_CASE_RELEASE_SCHEMA = "openultrasast.detection-core.admission-case-release.v2"
 ADMISSION_CASE_RELEASE_PAYLOAD_SCHEMA = "openultrasast.detection-core.admission-case-release-payload.v2"

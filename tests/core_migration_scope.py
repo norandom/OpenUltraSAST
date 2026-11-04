@@ -15,10 +15,14 @@ COMPATIBILITY_PATHS = frozenset(
     src/openultrasast/core/admission.py src/openultrasast/core/consumer.py
     src/openultrasast/core/trace.py src/openultrasast/core/verdict.py""".split()  # noqa: SIM905
 )
-COMPATIBILITY_SHIMS = frozenset(
-    """openultrasast.core._legacy_factpack openultrasast.core.admission
-    openultrasast.core.consumer openultrasast.core.trace openultrasast.core.verdict""".split()  # noqa: SIM905
-)
+COMPATIBILITY_SHIMS = frozenset(["openultrasast.core._legacy_factpack", "openultrasast.core.trace"])
+REPLACED_SHIM_MEMBERS = {
+    "openultrasast.core.admission": frozenset(
+        {"REPORT_SCHEMA_KEYS", "AdmissionManifest", "AdmissionManifestError", "validate_admission_manifest", "validate_report_schema"}
+    ),
+    "openultrasast.core.consumer": frozenset({"consume_verdict"}),
+    "openultrasast.core.verdict": frozenset({"Judgment", "ProvenClaim", "as_clean"}),
+}
 FROZEN_TOP_LEVEL_V1 = tuple(
     """REPORT_SCHEMA_KEYS AdmissionManifest AdmissionManifestError BoundedSilence Budget BudgetGateFailure
     Complexity Coverage FactPack FactPackError FittedComponentBlocked Guard Hop InstrumentFailure Judgment ProbeResult
@@ -26,6 +30,17 @@ FROZEN_TOP_LEVEL_V1 = tuple(
     admit_fact_pack as_clean assert_no_shortcut check_budget check_reads consume_verdict derive_budget
     require_admission_evidence reversed_pair_probe stamp validate_admission_manifest validate_report_schema
     verify_fact_pack verify_stamp""".split()  # noqa: SIM905
+)
+CUTOVER_DELETIONS = frozenset(
+    {
+        "src/openultrasast/core/_legacy_factpack.py",
+        "src/openultrasast/core/consumer_v2.py",
+        "src/openultrasast/core/legacy_v1/__init__.py",
+        "src/openultrasast/core/legacy_v1/contracts.py",
+        "src/openultrasast/core/legacy_v1/writer.py",
+        "src/openultrasast/core/trace.py",
+        "src/openultrasast/core/verdict_v2.py",
+    }
 )
 
 
@@ -47,6 +62,19 @@ def boundary_python(root: Path = REPO) -> tuple[Path, ...]:
     commands = (("git", "ls-files", "*.py"), ("git", "ls-files", "--others", "--exclude-standard", "--", "*.py"))
     outputs = (subprocess.run(command, cwd=root, check=True, capture_output=True, text=True).stdout for command in commands)
     relatives = {value for output in outputs for value in output.splitlines() if _owned_python(value)}
+    deleted = set(
+        subprocess.run(
+            ("git", "ls-files", "--deleted", "--", "*.py"),
+            cwd=root,
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.splitlines()
+    )
+    unexpected = deleted - CUTOVER_DELETIONS
+    if unexpected:
+        raise MigrationScopeError(f"unexpected tracked Python deletion: {min(unexpected)}")
+    relatives.difference_update(deleted)
     return tuple(root / relative for relative in sorted(relatives))
 
 
@@ -149,8 +177,8 @@ def relative_path(path: Path, root: Path) -> str:
         return path.as_posix()
 
 
-def static_top_level_v1(root: Path = REPO) -> tuple[str, ...]:
-    """Read the migration shim's literal ``__all__`` without importing it."""
+def static_top_level_exports(root: Path = REPO) -> tuple[str, ...]:
+    """Read the public package's literal ``__all__`` without importing it."""
     path = root / "src/openultrasast/core/__init__.py"
     try:
         content = path.read_bytes()
@@ -185,6 +213,7 @@ __all__ = [
     "FROZEN_TOP_LEVEL_V1",
     "COMPATIBILITY_PATHS",
     "COMPATIBILITY_SHIMS",
+    "CUTOVER_DELETIONS",
     "MigrationScopeError",
     "REPO",
     "authoritative_cutover_scope",
@@ -197,5 +226,5 @@ __all__ = [
     "relative_path",
     "scope_identity_error",
     "scope_identity",
-    "static_top_level_v1",
+    "static_top_level_exports",
 ]

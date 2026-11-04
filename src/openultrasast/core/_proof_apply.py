@@ -16,7 +16,7 @@ from openultrasast.core.proof import (
     ProofVerificationReceipt,
     derive_producer_identity_digest,
 )
-from openultrasast.core.verdict_v2 import DefectClaim
+from openultrasast.core.verdict import DefectClaim
 
 
 def _validate_claim_binding(claim: DefectClaim, attachment: ProofAttachment) -> None:

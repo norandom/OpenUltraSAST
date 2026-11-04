@@ -59,7 +59,7 @@ from openultrasast.core.semantics import (
     SourceLocation,
 )
 from openultrasast.core.validation import EvidenceValidationInput
-from openultrasast.core.verdict_v2 import BoundedSatisfaction, BoundedSilence, DefectClaim
+from openultrasast.core.verdict import BoundedSatisfaction, BoundedSilence, DefectClaim
 
 _DATACLASSES: tuple[type[object], ...] = (
     ScopeKey,

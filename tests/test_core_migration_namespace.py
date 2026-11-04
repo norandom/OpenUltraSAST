@@ -1,4 +1,4 @@
-"""Structural ownership tests for the temporary v1 compatibility implementation."""
+"""Structural ownership tests for the final v2-only core namespace."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
 CORE = REPO / "src/openultrasast/core"
-PURE_COMPATIBILITY_MODULES = ("admission.py", "consumer.py", "trace.py", "verdict.py", "_legacy_factpack.py")
+REMOVED_COMPATIBILITY = ("trace.py", "_legacy_factpack.py", "consumer_v2.py", "verdict_v2.py")
 MIXED_LEGACY_NAMES = {
     "budget": {"Budget", "Complexity"},
     "coverage": {"Coverage", "ResolutionOutcome", "check_reads"},
@@ -38,76 +38,58 @@ def _imported(tree: ast.Module) -> set[str]:
     return {alias.asname or alias.name for node in tree.body if isinstance(node, (ast.Import, ast.ImportFrom)) for alias in node.names}
 
 
-def test_legacy_contract_values_have_one_compatibility_owner() -> None:
-    contracts = _tree(CORE / "legacy_v1/contracts.py")
-    expected = {
-        "AdmissionManifest",
-        "AdmissionManifestError",
-        "BoundedSilence",
-        "Budget",
-        "BudgetGateFailure",
-        "Complexity",
-        "Coverage",
-        "FactPackError",
-        "FittedComponentBlocked",
-        "Guard",
-        "Hop",
-        "InstrumentFailure",
-        "Judgment",
-        "LegacyFactPack",
-        "LegacyProbeResult",
-        "ProvenClaim",
-        "ProvenanceMismatch",
-        "PushRequest",
-        "PushVerdict",
-        "ResolutionOutcome",
-        "ShortcutDetected",
-        "TraceRecord",
-        "Witness",
-    }
-    assert expected <= _defined(contracts)
-
-
-def test_pure_compatibility_modules_define_no_contract_or_serializer() -> None:
-    for name in PURE_COMPATIBILITY_MODULES:
-        tree = _tree(CORE / name)
-        assert not _defined(tree)
-        assert not any(isinstance(node, (ast.Import, ast.ImportFrom)) and "json" in ast.unparse(node) for node in tree.body)
-        assert any(isinstance(node, ast.ImportFrom) and node.module == "openultrasast.core.legacy_v1.contracts" for node in tree.body)
-
-
-def test_writer_is_the_only_compatibility_json_serializer() -> None:
-    namespace = CORE / "legacy_v1"
-    paths = sorted(namespace.glob("*.py"))
-    assert {path.name for path in paths} == {"__init__.py", "contracts.py", "writer.py"}
-    json_importers = [
-        path.name
-        for path in paths
-        if any(isinstance(node, (ast.Import, ast.ImportFrom)) and "json" in ast.unparse(node) for node in _tree(path).body)
+def _literal_all(tree: ast.Module) -> tuple[str, ...]:
+    values = [
+        node.value
+        for node in tree.body
+        if isinstance(node, ast.Assign) and any(isinstance(target, ast.Name) and target.id == "__all__" for target in node.targets)
     ]
-    assert json_importers == ["writer.py"]
+    assert len(values) == 1 and isinstance(values[0], (ast.List, ast.Tuple))
+    assert all(isinstance(item, ast.Constant) and isinstance(item.value, str) for item in values[0].elts)
+    return tuple(item.value for item in values[0].elts)
 
 
-def test_namespace_and_v2_dependency_directions_are_closed() -> None:
-    for path in (CORE / "legacy_v1").glob("*.py"):
-        imports = {node.module for node in ast.walk(_tree(path)) if isinstance(node, ast.ImportFrom) and node.module}
-        assert all(module.startswith("openultrasast.core.legacy_v1") for module in imports if module.startswith("openultrasast"))
-    compatibility = {*PURE_COMPATIBILITY_MODULES, "legacy.py", "__init__.py"}
-    for path in CORE.glob("*.py"):
-        if path.name not in compatibility:
-            imports = {node.module for node in ast.walk(_tree(path)) if isinstance(node, ast.ImportFrom) and node.module}
-            assert not any(module.startswith("openultrasast.core.legacy_v1") for module in imports)
+def test_compatibility_namespace_writer_and_temporary_shims_are_absent() -> None:
+    assert not (CORE / "legacy_v1").exists()
+    for name in REMOVED_COMPATIBILITY:
+        assert not (CORE / name).exists()
 
 
-def test_historical_decoder_stays_independent_from_compatibility_namespace() -> None:
-    imports = {node.module for node in ast.walk(_tree(CORE / "legacy.py")) if isinstance(node, ast.ImportFrom)}
+def test_canonical_v2_replacements_own_the_public_paths() -> None:
+    consumer = _tree(CORE / "consumer.py")
+    verdict = _tree(CORE / "verdict.py")
+    admission = _tree(CORE / "admission.py")
+
+    assert {"PushRequest", "PushVerdict", "consume_records"} <= _defined(consumer)
+    assert {"BoundedSilence", "DefectClaim", "derive_verdict_outputs"} <= _defined(verdict)
+    assert {"AdmissionManifestV2", "authorize_admission", "score_admission"} <= set(_literal_all(admission))
+
+
+def test_core_modules_have_no_legacy_namespace_dependency() -> None:
+    paths = tuple(sorted(CORE.glob("*.py")))
+    assert paths and all(path.read_bytes() for path in paths)
+    for path in paths:
+        tree = _tree(path)
+        imports = {node.module for node in ast.walk(tree) if isinstance(node, ast.ImportFrom) and node.module}
+        imported_modules = {alias.name for node in ast.walk(tree) if isinstance(node, ast.Import) for alias in node.names}
+        assert not any(module.startswith("openultrasast.core.legacy_v1") for module in imports | imported_modules)
+
+
+def test_historical_decoder_stays_independent_and_read_only() -> None:
+    tree = _tree(CORE / "legacy.py")
+    imports = {node.module for node in ast.walk(tree) if isinstance(node, ast.ImportFrom)}
+    exports = set(_literal_all(tree))
+
     assert "openultrasast.core.legacy_v1" not in imports
+    assert {"write", "serialize", "to_v2", "compare_identity"}.isdisjoint(exports)
 
 
-def test_top_level_v1_api_is_only_a_closed_namespace_shim() -> None:
+def test_top_level_api_publishes_only_canonical_v2_modules() -> None:
     tree = _tree(CORE / "__init__.py")
     modules = {node.module for node in tree.body if isinstance(node, ast.ImportFrom)}
-    assert modules == {"openultrasast.core.legacy_v1"}
+
+    assert modules == {"openultrasast.core"}
+    assert _literal_all(tree) == ("admission", "consumer", "verdict")
     assert not _defined(tree)
 
 
@@ -115,9 +97,3 @@ def test_mixed_v2_modules_expose_no_legacy_compatibility_names() -> None:
     for module_name, legacy_names in MIXED_LEGACY_NAMES.items():
         tree = _tree(CORE / f"{module_name}.py")
         assert legacy_names.isdisjoint(_defined(tree) | _imported(tree))
-
-
-def test_closed_namespace_is_the_only_owner_of_moved_mixed_names() -> None:
-    contracts = _tree(CORE / "legacy_v1/contracts.py")
-    expected = set().union(*MIXED_LEGACY_NAMES.values())
-    assert expected <= _defined(contracts)

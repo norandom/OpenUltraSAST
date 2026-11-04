@@ -50,7 +50,7 @@ from openultrasast.core.family_catalog import FamilyCatalog, FamilyCatalogEntry,
 from openultrasast.core.measurement import DenominatorPolicy, IntervalMethod, MetricId, ScopeKey, standard_metric_rules
 from openultrasast.core.readiness import ReadinessResult
 from openultrasast.core.semantics import RelationStatus
-from openultrasast.core.verdict_v2 import derive_verdict_outputs
+from openultrasast.core.verdict import derive_verdict_outputs
 
 
 class _InputManifestSubclass(InputManifest):

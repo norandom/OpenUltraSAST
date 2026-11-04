@@ -19,10 +19,10 @@ from test_core_validation_v2 import (
     _with_fact_set,
 )
 
-import openultrasast.core.consumer_v2 as consumer_v2
+import openultrasast.core.consumer as consumer_v2
 from openultrasast.core import budget, canonical, evidence, validation
 from openultrasast.core._proof_attestation import proof_attestation_bytes
-from openultrasast.core.consumer_v2 import ConsumerContractError, PushRequest, consume_records, make_push_request
+from openultrasast.core.consumer import ConsumerContractError, PushRequest, consume_records, make_push_request
 from openultrasast.core.family import FamilyContract
 from openultrasast.core.proof import (
     DIFFERENTIAL_PROOF_SCHEMA,

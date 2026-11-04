@@ -18,6 +18,7 @@ from core_migration_scope import (
     COMPATIBILITY_PATHS,
     COMPATIBILITY_SHIMS,
     FROZEN_TOP_LEVEL_V1,
+    REPLACED_SHIM_MEMBERS,
     REPO,
     MigrationScopeError,
     authoritative_cutover_scope,
@@ -29,9 +30,7 @@ from core_migration_scope import (
     relative_path,
     scope_identity,
 )
-from core_migration_scope import (
-    static_top_level_v1 as _static_top_level_v1,
-)
+from core_migration_scope import static_top_level_exports as _static_top_level_exports
 
 
 class LegacyBoundaryError(ValueError):
@@ -71,9 +70,9 @@ class _Bindings:
     import_functions: frozenset[str]
 
 
-def static_top_level_v1(root: Path = REPO) -> tuple[str, ...]:
+def static_top_level_exports(root: Path = REPO) -> tuple[str, ...]:
     try:
-        return _static_top_level_v1(root)
+        return _static_top_level_exports(root)
     except MigrationScopeError as exc:
         raise LegacyBoundaryError(str(exc)) from exc
 
@@ -215,6 +214,19 @@ def _classify_import_from(
                 legacy.add(_site(relative, node, parents, "compatibility_shim_import", shim))
     if module in COMPATIBILITY_SHIMS:
         legacy.add(_site(relative, node, parents, "compatibility_shim_import", module))
+    _record_replaced_shim_members(relative, node, parents, module, names, legacy)
+
+
+def _record_replaced_shim_members(
+    relative: str,
+    node: ast.ImportFrom,
+    parents: dict[ast.AST, ast.AST],
+    module: str,
+    names: set[str],
+    legacy: set[str],
+) -> None:
+    for name in sorted(names.intersection(REPLACED_SHIM_MEMBERS.get(module, frozenset()))):
+        legacy.add(_site(relative, node, parents, "retired_shim_member_import", f"{module}.{name}"))
 
 
 def _reference_sites(
@@ -449,5 +461,5 @@ __all__ = [
     "boundary_python",
     "inspect_legacy_boundary",
     "require_cutover_ready",
-    "static_top_level_v1",
+    "static_top_level_exports",
 ]
