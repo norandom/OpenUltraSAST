@@ -1,0 +1,23 @@
+{
+  "schema_version": "detection-core-source-authority-v1",
+  "repository": "obligation_repository",
+  "producer_identity": "reference-fixture-author@v1",
+  "reviewer_identity": "independent-reference-review@v1",
+  "cases": [
+    {
+      "case_id": "obligation-positive",
+      "path": "reference/obligation_positive.py",
+      "content_digest": "e29307cd0ae6d1d817c19fd79bfa4d494d602fc5daf9aad4e6da9caa1ee31e29"
+    },
+    {
+      "case_id": "obligation-negative",
+      "path": "reference/obligation_negative.py",
+      "content_digest": "223e1065ef30aa0cb1073125e2f845c1b2b5a498400ac34cdc5f78bb0621cd7a"
+    },
+    {
+      "case_id": "obligation-missing",
+      "path": "reference/obligation_missing.py",
+      "content_digest": "c119b846e6797a9e1b6c96aff73426c1f53a46053ab074f88931e7d07383652c"
+    }
+  ]
+}

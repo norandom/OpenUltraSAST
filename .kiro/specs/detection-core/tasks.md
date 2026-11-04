@@ -410,7 +410,7 @@
   - _Depends: 10.6_
 
 - [ ] 11. Validate readiness, failure visibility, and implementation boundaries
-- [ ] 11.1 Run both reference families through the complete synthetic readiness path
+- [x] 11.1 Run both reference families through the complete synthetic readiness path
   - Start from a verified nonzero input and run recognition, transitions, security object/constraints, pair, development, reviewed synthetic admission, guarded spend, and consumer verdict.
   - Produce violation, bounded satisfaction, and bounded silence for both unlike families.
   - Require current prerequisite readiness identities at every later stage.

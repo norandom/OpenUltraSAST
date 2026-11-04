@@ -1,0 +1,23 @@
+{
+  "schema_version": "detection-core-source-authority-v1",
+  "repository": "taint_repository",
+  "producer_identity": "reference-fixture-author@v1",
+  "reviewer_identity": "independent-reference-review@v1",
+  "cases": [
+    {
+      "case_id": "flow-positive",
+      "path": "reference/flow_positive.py",
+      "content_digest": "ece3add1d60cf01527cb83746b20c3be1f9468c589677932830efbb6a5d67a48"
+    },
+    {
+      "case_id": "flow-negative",
+      "path": "reference/flow_negative.py",
+      "content_digest": "2413778080ea6626b47dff8ee82a54f88902707a90e1f41c67a7380bc8784a5f"
+    },
+    {
+      "case_id": "flow-missing",
+      "path": "reference/flow_missing.py",
+      "content_digest": "662b99c3c093b38de535ab21b17a1acfe10bb70911c8b83768844b607424c345"
+    }
+  ]
+}
