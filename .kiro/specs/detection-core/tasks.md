@@ -416,7 +416,7 @@
   - Require current prerequisite readiness identities at every later stage.
   - Done when both authored repositories complete the path without target-specific core fields or a real admission population.
   - _Requirements: 3.5, 8.1, 8.2, 8.4, 8.6, 12.1, 14.1, 15.5_
-- [ ] 11.2 Inject one failure at every semantic and governance stage
+- [x] 11.2 Inject one failure at every semantic and governance stage
   - Exercise unread/zero input, missing recognition, incomplete transition, missing constraint, pair mismatch, failed development, contaminated admission, and refused integration.
   - Verify each run stops at the first failing stage with a named correction lever and no later metric or clean result.
   - Mutate a semantic identity and verify transitive staleness through all dependent readiness and measurement records.
