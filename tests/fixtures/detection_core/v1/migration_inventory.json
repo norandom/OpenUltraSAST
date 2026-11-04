@@ -459,7 +459,7 @@
         "import_from:openultrasast.core._legacy_factpack:LegacyFactPack"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "887c9abe9a6d827c39655c6835fb0c2471be035914e2bbff888a4cd54635b8e0",
       "owner_boundary": "core",
       "path": "src/openultrasast/core/__init__.py",
@@ -471,7 +471,7 @@
         "import_from:openultrasast.core.admission:AdmissionManifest"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "e0e6b7628e807268977f50b44957d7077e7b96b1694d830000428f9e04d4dba6",
       "owner_boundary": "core",
       "path": "src/openultrasast/core/__init__.py",
@@ -483,7 +483,7 @@
         "import_from:openultrasast.core.admission:AdmissionManifestError"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "72504f565d0aed596df0aec44a85a52f817cc6c8e9d8b24c1a571fb913b7d32f",
       "owner_boundary": "core",
       "path": "src/openultrasast/core/__init__.py",
@@ -495,7 +495,7 @@
         "import_from:openultrasast.core.admission:REPORT_SCHEMA_KEYS"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "d9388f59242df66bd22089fabf63e9c10a47074ba309428af73989bb63e8f2b3",
       "owner_boundary": "core",
       "path": "src/openultrasast/core/__init__.py",
@@ -507,7 +507,7 @@
         "import_from:openultrasast.core.admission:validate_admission_manifest"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "c286592508bf696ef3a3cf0fb9a04a20a7cefc83595903ec55e8a9eb64d6d0d7",
       "owner_boundary": "core",
       "path": "src/openultrasast/core/__init__.py",
@@ -519,7 +519,7 @@
         "import_from:openultrasast.core.admission:validate_report_schema"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "28f1843913be0fb2d25047f07ee6ccad67dcedcdbc13f3be739de6b61506242a",
       "owner_boundary": "core",
       "path": "src/openultrasast/core/__init__.py",
@@ -531,7 +531,7 @@
         "import_from:openultrasast.core.budget:Budget"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "978b22af2773bfd5fb0a0ef8f3c6954e7ab4e80415c8e8d1493f1c1316919359",
       "owner_boundary": "core",
       "path": "src/openultrasast/core/__init__.py",
@@ -543,7 +543,7 @@
         "import_from:openultrasast.core.budget:Complexity"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "45d0fda44ab94264d9f9d483441104572d4e9cb6fa2fc4ac6648b59191053b57",
       "owner_boundary": "core",
       "path": "src/openultrasast/core/__init__.py",
@@ -555,7 +555,7 @@
         "import_from:openultrasast.core.consumer:PushRequest"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "48c7c5f8d20c5ce91d5b67662c0bbff9a73b36dc74dbd982a97622428f732510",
       "owner_boundary": "core",
       "path": "src/openultrasast/core/__init__.py",
@@ -567,7 +567,7 @@
         "import_from:openultrasast.core.consumer:PushVerdict"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "7dcc39a3e0a9b228323e9e7dd951aaa834d33da52324ea9b54b87862df13c782",
       "owner_boundary": "core",
       "path": "src/openultrasast/core/__init__.py",
@@ -579,7 +579,7 @@
         "import_from:openultrasast.core.consumer:consume_verdict"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "60206eae898dc5a886421040733f505fb2b0018a16ac33be1a5bf4b1ec63f1bf",
       "owner_boundary": "core",
       "path": "src/openultrasast/core/__init__.py",
@@ -591,7 +591,7 @@
         "import_from:openultrasast.core.coverage:Coverage"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "37109a1ec553a8ec4932ed4bc0b5f607eaec49d063aa92019bea4d0e6c9cd5f6",
       "owner_boundary": "core",
       "path": "src/openultrasast/core/__init__.py",
@@ -603,7 +603,7 @@
         "import_from:openultrasast.core.coverage:InstrumentFailure"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "2c82b2ea7ac674100c40524440c01b330024d6470e066f7d0b7a1141cd469fdb",
       "owner_boundary": "core",
       "path": "src/openultrasast/core/__init__.py",
@@ -615,7 +615,7 @@
         "import_from:openultrasast.core.coverage:ResolutionOutcome"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "ec9e6071b66da9950df479222966229e5fab6a745654a7c72cab409bc19b9d7d",
       "owner_boundary": "core",
       "path": "src/openultrasast/core/__init__.py",
@@ -627,7 +627,7 @@
         "import_from:openultrasast.core.coverage:check_reads"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "1ab736e2ba9cf9f48459dd62a6b22360777285391af1b4ade671dfdf6e5131d0",
       "owner_boundary": "core",
       "path": "src/openultrasast/core/__init__.py",
@@ -639,7 +639,7 @@
         "import_from:openultrasast.core.factpack:FactPackError"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "aef399565171f4f7e3959a31ccca7b7cfa1920c280fa01c0824db1c1304a7f79",
       "owner_boundary": "core",
       "path": "src/openultrasast/core/__init__.py",
@@ -651,7 +651,7 @@
         "import_from:openultrasast.core.factpack:admit_fact_pack"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "bdac5e64e2cc371c1900cfe8ff33f9f4850e9eada8ed4081447d2853b2ba87da",
       "owner_boundary": "core",
       "path": "src/openultrasast/core/__init__.py",
@@ -663,7 +663,7 @@
         "import_from:openultrasast.core.factpack:verify_fact_pack"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "4c298d5a77c421030968e6f01520b6e1a7f508168a60323894aad90771622a6f",
       "owner_boundary": "core",
       "path": "src/openultrasast/core/__init__.py",
@@ -675,7 +675,7 @@
         "import_from:openultrasast.core.probes:FittedComponentBlocked"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "6d29462362d8f48ec83f231d73cab7a28b8fabf24a4804115085b0c5459a88a2",
       "owner_boundary": "core",
       "path": "src/openultrasast/core/__init__.py",
@@ -687,7 +687,7 @@
         "import_from:openultrasast.core.probes:LegacyProbeResult"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "6625181ec5682cee60e7e2e8a893fba8e6d36d0182a168729cfc8938020bf4a7",
       "owner_boundary": "core",
       "path": "src/openultrasast/core/__init__.py",
@@ -699,7 +699,7 @@
         "import_from:openultrasast.core.probes:ShortcutDetected"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "0d4d0d81c8fe5208557ee28ed51b5cdd9b4adb2ecf2a8ea12fa08d1a950283d9",
       "owner_boundary": "core",
       "path": "src/openultrasast/core/__init__.py",
@@ -711,7 +711,7 @@
         "import_from:openultrasast.core.probes:assert_no_shortcut"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "a2106653f09d94c14df246b6b395515ce9e4dc4a6bc02af40171b971ff0b6420",
       "owner_boundary": "core",
       "path": "src/openultrasast/core/__init__.py",
@@ -723,7 +723,7 @@
         "import_from:openultrasast.core.probes:require_admission_evidence"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "042cbbbf7b724c8f994b36f483e184ecaf3f78ddc9987dab748bcdaf5f700312",
       "owner_boundary": "core",
       "path": "src/openultrasast/core/__init__.py",
@@ -735,7 +735,7 @@
         "import_from:openultrasast.core.probes:reversed_pair_probe"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "b5e912ad36e56bec3cebb76a899c9f0b7982178ce698745c029af6e407ba3737",
       "owner_boundary": "core",
       "path": "src/openultrasast/core/__init__.py",
@@ -747,7 +747,7 @@
         "import_from:openultrasast.core.provenance:ProvenanceMismatch"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "0d5669f0f82f3263a32bf3e8e347664126a5c2b72b70547521c6d066216ac1d3",
       "owner_boundary": "core",
       "path": "src/openultrasast/core/__init__.py",
@@ -759,7 +759,7 @@
         "import_from:openultrasast.core.provenance:stamp"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "44c243eef2fce80567e6f9256cec2e2b79dbda92c7f94ef51d30b95e109e0cd4",
       "owner_boundary": "core",
       "path": "src/openultrasast/core/__init__.py",
@@ -771,7 +771,7 @@
         "import_from:openultrasast.core.provenance:verify_stamp"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "57f5d7e641cbf32f3367f58c6fc73cb62034f6ca50e054158565c51b24a0722e",
       "owner_boundary": "core",
       "path": "src/openultrasast/core/__init__.py",
@@ -783,7 +783,7 @@
         "import_from:openultrasast.core.trace:Guard"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "638e07ce04752e53a7434016121432ec164c37c9943846e8e0779a7431d08212",
       "owner_boundary": "core",
       "path": "src/openultrasast/core/__init__.py",
@@ -795,7 +795,7 @@
         "import_from:openultrasast.core.trace:Hop"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "765cf64f7365d72bda21ef05ad428a1789f121c94616d65fb5b4f76c22c621c2",
       "owner_boundary": "core",
       "path": "src/openultrasast/core/__init__.py",
@@ -807,7 +807,7 @@
         "import_from:openultrasast.core.trace:TraceRecord"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "7d41be20de3aaf488561f679af8e61a1ffb555df853ba2b1471ad9c9b48ba46b",
       "owner_boundary": "core",
       "path": "src/openultrasast/core/__init__.py",
@@ -819,7 +819,7 @@
         "import_from:openultrasast.core.trace:Witness"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "7b7061e378b95b5b4226c9e07dc89209b2d53a7eb53ae712d593615776049eb7",
       "owner_boundary": "core",
       "path": "src/openultrasast/core/__init__.py",
@@ -831,7 +831,7 @@
         "import_from:openultrasast.core.verdict:BoundedSilence"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "03fef27c448f9cc21b3730510d3541b7026a71278e780e0eee6d465688b505f6",
       "owner_boundary": "core",
       "path": "src/openultrasast/core/__init__.py",
@@ -843,7 +843,7 @@
         "import_from:openultrasast.core.verdict:Judgment"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "5fd498e0cde62f31d61d94ba241ac19ae09035a499e25a2cd085d565517dad72",
       "owner_boundary": "core",
       "path": "src/openultrasast/core/__init__.py",
@@ -855,7 +855,7 @@
         "import_from:openultrasast.core.verdict:ProvenClaim"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "11a794312a50f82e36447aaca87713bd8767274056a671c531cfe27dcc8834dc",
       "owner_boundary": "core",
       "path": "src/openultrasast/core/__init__.py",
@@ -867,7 +867,7 @@
         "import_from:openultrasast.core.verdict:as_clean"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "db3c78ea4b76f06b44199a1bb8c3ce27530fd4661633fb289c2294661d553afc",
       "owner_boundary": "core",
       "path": "src/openultrasast/core/__init__.py",
@@ -879,7 +879,7 @@
         "definition:LegacyFactPack"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "4bd20ab1f41b5bee116cfc4b750053153e43c2e6a69d937d37edcf9b9d2c839b",
       "owner_boundary": "core",
       "path": "src/openultrasast/core/_legacy_factpack.py",
@@ -893,7 +893,7 @@
         "name:LegacyFactPack"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "c6ed5d745593aa2a7f067999ce36c147870bc603b0d69a5e9a8525dba01981a3",
       "owner_boundary": "core",
       "path": "src/openultrasast/core/_legacy_factpack.py",
@@ -907,7 +907,7 @@
         "name:LegacyFactPack"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "5ccaabc6c41d9dd9b43c51a72e25f62861a32b31da613eeb294f9bf73c5910b3",
       "owner_boundary": "core",
       "path": "src/openultrasast/core/_legacy_factpack.py",
@@ -924,7 +924,7 @@
         "name:admit_fact_pack"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "c3283d2128b5a9ad17e3986b6901e14436c93b7e7c00f09d3e9818b21259311d",
       "owner_boundary": "core",
       "path": "src/openultrasast/core/_legacy_factpack.py",
@@ -936,7 +936,7 @@
         "import_from:openultrasast.core.trace:TraceRecord"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "54b51010027a01bbef01c27d0f9b55b45f0d72ed28c16c32e0fdb54e0dced22d",
       "owner_boundary": "core",
       "path": "src/openultrasast/core/consumer.py",
@@ -948,7 +948,7 @@
         "import_from:openultrasast.core.verdict:BoundedSilence"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "430da53a431e51206c676a01fd194d8da88ef82d486adcaf9639799099183cae",
       "owner_boundary": "core",
       "path": "src/openultrasast/core/consumer.py",
@@ -960,7 +960,7 @@
         "import_from:openultrasast.core.verdict:ProvenClaim"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "b0604196a9601049d109926643fa4896f146c591a475711fd97b0fa72b74d559",
       "owner_boundary": "core",
       "path": "src/openultrasast/core/consumer.py",
@@ -973,7 +973,7 @@
         "name:TraceRecord"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "c22607252467344d5c4aa26dafaf02052c00d36df41f7e700f72383c6b2182a6",
       "owner_boundary": "core",
       "path": "src/openultrasast/core/consumer.py",
@@ -1058,7 +1058,7 @@
         "import_from:openultrasast.core.verdict:Judgment"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "2b27d3181fcacfd832ee3c3dea4f3b52a5d73d76dc478620d1e726ce9454b394",
       "owner_boundary": "core",
       "path": "src/openultrasast/core/trace.py",
@@ -1071,7 +1071,7 @@
         "call:record"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "36e5d60b410bf7f9c676a5da9e95718cab95dadfbf61cda0d0e2f24b56cf3c92",
       "owner_boundary": "core",
       "path": "src/openultrasast/core/trace.py",
@@ -1147,7 +1147,7 @@
         "call:dumps"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "f002a8d514f64f221e15484b4bfb89775c154e90720030530fcf3e1d9a1e23e4",
       "owner_boundary": "operational-tooling",
       "path": "ops/smoke_admission.py",
@@ -1161,7 +1161,7 @@
         "call:dumps"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "896a61db1ce207ddc6a5a99432de6ae6f1a2889f450c384a25b0478ee61123c4",
       "owner_boundary": "operational-tooling",
       "path": "ops/smoke_report.py",
@@ -1202,7 +1202,7 @@
         "name:admission_report"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "a8685de9229906307386c537ff096b385bff727e270744ccc3dd02978a7d5b2a",
       "owner_boundary": "tests",
       "path": "tests/test_admission_scoring.py",
@@ -1215,7 +1215,7 @@
         "name:admission_report"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "6192b0591a4086c0c818f1f9090744eae1d6dcd57d388e7263d8e1fee7f31700",
       "owner_boundary": "tests",
       "path": "tests/test_admission_scoring.py",
@@ -1230,7 +1230,7 @@
         "name:admission_report"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "62958d0f3ce864676a71b63ac8ad460acac24b7e4a74c423307847ba723c6b55",
       "owner_boundary": "tests",
       "path": "tests/test_admission_scoring.py",
@@ -1244,7 +1244,7 @@
         "name:admission_report"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "dff4c6a9d8351492fc104cff2b77f6655a368c306436bc626b40a9ca00efea7b",
       "owner_boundary": "tests",
       "path": "tests/test_admission_scoring.py",
@@ -1258,7 +1258,7 @@
         "name:admission_report"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "6ee17dd07b6cb3dac0e7fa0199be6823fb36a85ea42c6fd199c72ca9d0f33d50",
       "owner_boundary": "tests",
       "path": "tests/test_admission_scoring.py",
@@ -1272,7 +1272,7 @@
         "name:admission_report"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "339a9f2db2ad5cc25aeb67f8a1e8eb7bdaa7d82d676854f4ebcca7094c577d38",
       "owner_boundary": "tests",
       "path": "tests/test_admission_scoring.py",
@@ -1286,7 +1286,7 @@
         "name:admission_report"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "c750e9f857db29f5af4190d10ae12ea58667c9d830e6622d2939bb3741b44797",
       "owner_boundary": "tests",
       "path": "tests/test_admission_scoring.py",
@@ -1299,7 +1299,7 @@
         "name:admission_report"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "2950179a754e2a7d1c6f14babe89e988e248d6ed906c12aed627a44f72ea5e63",
       "owner_boundary": "tests",
       "path": "tests/test_admission_scoring.py",
@@ -1312,7 +1312,7 @@
         "name:admission_report"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "8dbe137ba370dda9b64c3b1d515f85ef394842f646b45830c9654c85f84ab5f6",
       "owner_boundary": "tests",
       "path": "tests/test_admission_scoring.py",
@@ -1326,7 +1326,7 @@
         "name:admission_report"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "6a0cad50d7cacf249013efa131534342b42ea8926e8a854c13989238be75e0ba",
       "owner_boundary": "tests",
       "path": "tests/test_admission_scoring.py",
@@ -1340,7 +1340,7 @@
         "name:admission_report"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "30352a898da4651340068aba6ac03dc3239b4dd1cbee0eb01284eec8e2a3ef99",
       "owner_boundary": "tests",
       "path": "tests/test_admission_scoring.py",
@@ -1353,7 +1353,7 @@
         "name:admission_report"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "e7dd8917446e73e989177e1d403e8dd27393746bc884b906343884bbdf2749a3",
       "owner_boundary": "tests",
       "path": "tests/test_admission_scoring.py",
@@ -1368,7 +1368,7 @@
         "name:admission_report"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "8b97cc498fdd6a4411cb6c22ec6fa592c72dd63e80853e6e3757323016635fa3",
       "owner_boundary": "tests",
       "path": "tests/test_admission_scoring.py",
@@ -1387,7 +1387,7 @@
         "call:dumps"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "v2_migrated",
       "entry_id": "6fe48be48004f15cf1157b77a2ca88c7a0fb2f6bb649c71aa656f3a62c17c53b",
       "owner_boundary": "tests",
       "path": "tests/test_arm_regression.py",
@@ -1406,7 +1406,7 @@
         "call:write_text"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "v2_migrated",
       "entry_id": "d81da9903d045cbad92e06b1f36bd12becec9f9b88e09697689c5a69ab7a04f4",
       "owner_boundary": "tests",
       "path": "tests/test_arm_regression.py",
@@ -1418,7 +1418,7 @@
         "import_from:openultrasast.core.admission:AdmissionManifest"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "546a3f2d3921f64728fa02c888eee3feefaeafaa1ea1a146c75fc13da32351dc",
       "owner_boundary": "tests",
       "path": "tests/test_core_admission.py",
@@ -1430,7 +1430,7 @@
         "import_from:openultrasast.core.admission:AdmissionManifestError"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "16b2351051af0b44f4e14e19e40c1ecb54bbcd384de099a2770c82d387d4e651",
       "owner_boundary": "tests",
       "path": "tests/test_core_admission.py",
@@ -1442,7 +1442,7 @@
         "import_from:openultrasast.core.admission:REPORT_SCHEMA_KEYS"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "1c4b767a6d878b987583f4f56da1850ce82414079a0e1ca68367d7e6a4101874",
       "owner_boundary": "tests",
       "path": "tests/test_core_admission.py",
@@ -1454,7 +1454,7 @@
         "import_from:openultrasast.core.admission:validate_admission_manifest"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "e3cb066f71af808d9445bd9df27a2483efa64a1637ec6519099035eda85f1dfc",
       "owner_boundary": "tests",
       "path": "tests/test_core_admission.py",
@@ -1466,7 +1466,7 @@
         "import_from:openultrasast.core.budget:Budget"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "c974daa201ee1477870220cc125647f780483ecbb73f368cd118e620f93271e4",
       "owner_boundary": "tests",
       "path": "tests/test_core_budget.py",
@@ -1478,7 +1478,7 @@
         "import_from:openultrasast.core.budget:Complexity"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "97e4d250409b8d1644847e7c83660e8e20139612e80c0193f340d046d1d7aa6c",
       "owner_boundary": "tests",
       "path": "tests/test_core_budget.py",
@@ -1490,7 +1490,7 @@
         "module_attr:openultrasast.core.budget:Budget"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "038a226ebcc1eca0a32cd8b898ffe9ce83adb5df15d18d79a3c43483ad1aca24",
       "owner_boundary": "tests",
       "path": "tests/test_core_budget_v2.py",
@@ -1502,7 +1502,7 @@
         "module_attr:openultrasast.core.budget:Complexity"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "b25954ccaf660d5bd49452865c401b865840cf7ea3200b6ab326b03dd4e2ddef",
       "owner_boundary": "tests",
       "path": "tests/test_core_budget_v2.py",
@@ -1514,7 +1514,7 @@
         "import:openultrasast.core.verdict"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "358c892356e82903ac96a6ab5283df55d9f47187c103ebce68fb851de72abd2f",
       "owner_boundary": "tests",
       "path": "tests/test_core_contract.py",
@@ -1526,7 +1526,7 @@
         "module_attr:openultrasast.core.verdict:__all__"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "02e8dd66f7e81267b27d2ea5397fcfd84dbd4a60ffd0a82afcc22c408ee48c6e",
       "owner_boundary": "tests",
       "path": "tests/test_core_contract.py",
@@ -1538,7 +1538,7 @@
         "import_from:openultrasast.core.coverage:Coverage"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "acee736c3f54c1f7c8f01a274168634c68ecd74d21bf2957558cf0023070173c",
       "owner_boundary": "tests",
       "path": "tests/test_core_contract.py",
@@ -1550,7 +1550,7 @@
         "import_from:openultrasast.core.coverage:InstrumentFailure"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "effcf6b958937e3a81e9c03ec9e7c0e85dfc488b408bf863a1c1eb4d2af78466",
       "owner_boundary": "tests",
       "path": "tests/test_core_contract.py",
@@ -1562,7 +1562,7 @@
         "import_from:openultrasast.core.coverage:check_reads"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "7b30c9525f9f720376fcd522fe2ccacb0dd23c31dd202de870757ea7a6aa7937",
       "owner_boundary": "tests",
       "path": "tests/test_core_contract.py",
@@ -1574,7 +1574,7 @@
         "import_from:openultrasast.core.provenance:ProvenanceMismatch"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "2a76d3269b716199320b8289664176e215efb33a63525a79409eaa741acb2622",
       "owner_boundary": "tests",
       "path": "tests/test_core_contract.py",
@@ -1586,7 +1586,7 @@
         "import_from:openultrasast.core.provenance:stamp"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "1ef7ad00714c9f91cb3ce4213e9333b2b854f82701e1a222655cb8d16c3b5ac4",
       "owner_boundary": "tests",
       "path": "tests/test_core_contract.py",
@@ -1598,7 +1598,7 @@
         "import_from:openultrasast.core.provenance:verify_stamp"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "d5a9dd284be54015e2db8fb5404a1aa5874f9144d4757e31aced9e70e112b08b",
       "owner_boundary": "tests",
       "path": "tests/test_core_contract.py",
@@ -1610,7 +1610,7 @@
         "import_from:openultrasast.core.trace:Guard"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "25930bdec32b86e9095600cc021c457211329e633ceb0b832a743d45a934c77a",
       "owner_boundary": "tests",
       "path": "tests/test_core_contract.py",
@@ -1622,7 +1622,7 @@
         "import_from:openultrasast.core.trace:Hop"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "4ef60d902d422c1e8294790073f87297bf0e0bb590e50096d401bb62e1bd1176",
       "owner_boundary": "tests",
       "path": "tests/test_core_contract.py",
@@ -1634,7 +1634,7 @@
         "import_from:openultrasast.core.trace:TraceRecord"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "f8d6537243fdda7764595bab88a1ee254a9608093cce3f0505b3b99f99ef8781",
       "owner_boundary": "tests",
       "path": "tests/test_core_contract.py",
@@ -1646,7 +1646,7 @@
         "import_from:openultrasast.core.trace:Witness"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "5af8f27b2897bf64b00c806ec42461e2fcfb3c528dafd8d6eba85fcb6b38cbee",
       "owner_boundary": "tests",
       "path": "tests/test_core_contract.py",
@@ -1658,7 +1658,7 @@
         "import_from:openultrasast.core.verdict:BoundedSilence"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "2033f744b853b1d6423966cfc9d810fd93f653f3ba397beb7edc6b5ddbe42232",
       "owner_boundary": "tests",
       "path": "tests/test_core_contract.py",
@@ -1670,7 +1670,7 @@
         "import_from:openultrasast.core.verdict:Judgment"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "91b37247c77ca3da8ac78deaa4ee61624cd4e2b4613807b4a127c0963f07c007",
       "owner_boundary": "tests",
       "path": "tests/test_core_contract.py",
@@ -1682,7 +1682,7 @@
         "import_from:openultrasast.core.verdict:ProvenClaim"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "efb1105356223fea3d5311879e28576c1aa2c6dd6ade5120854ee377fb9d818a",
       "owner_boundary": "tests",
       "path": "tests/test_core_contract.py",
@@ -1694,7 +1694,7 @@
         "import_from:openultrasast.core.verdict:as_clean"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "24d652011571ceedc00e0fb49502bde6dafe8f480defef5ae8d0462d9bb2d901",
       "owner_boundary": "tests",
       "path": "tests/test_core_contract.py",
@@ -1707,7 +1707,7 @@
         "name:TraceRecord"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "e046ed22bba9f748b48be4ac797979dab494cb81b702c1554056569f2ec3bfbe",
       "owner_boundary": "tests",
       "path": "tests/test_core_contract.py",
@@ -1726,7 +1726,7 @@
         "call:record"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "1cad39c718f515373ab0c2f304d6272608ddd396f38cbf9c26c595ebac333516",
       "owner_boundary": "tests",
       "path": "tests/test_core_contract.py",
@@ -1739,7 +1739,7 @@
         "call:canonical"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "deaea9e5222f22e6eb2a651b90b235b3bb768092c2109ff89514e98dbbbc1a0d",
       "owner_boundary": "tests",
       "path": "tests/test_core_contract.py",
@@ -1751,7 +1751,7 @@
         "import_from:openultrasast.core.coverage:InstrumentFailure"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "v2_migrated",
       "entry_id": "fc94bf747979b7e84d153e9b35502cfdbfd3d23b605328ad7d198c32059bbda6",
       "owner_boundary": "tests",
       "path": "tests/test_core_coverage_v2.py",
@@ -1763,7 +1763,7 @@
         "import_from:openultrasast.core.consumer:PushRequest"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "992991e421ad3e70f5c62f65cdb70f12cf655a786ade1efb56b1703a5ec940fc",
       "owner_boundary": "tests",
       "path": "tests/test_core_factpack_consumer.py",
@@ -1775,7 +1775,7 @@
         "import_from:openultrasast.core.consumer:consume_verdict"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "f1a6a81676cc8c785bc5793a618638643374680e22e2097ab1c2bbc1dc81dde3",
       "owner_boundary": "tests",
       "path": "tests/test_core_factpack_consumer.py",
@@ -1787,7 +1787,7 @@
         "import_from:openultrasast.core.factpack:FactPackError"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "a5e43c42451b19f43c67eb26c5788da657bc4ee61aa24103b3654b3b0cf8e40a",
       "owner_boundary": "tests",
       "path": "tests/test_core_factpack_consumer.py",
@@ -1799,7 +1799,7 @@
         "import_from:openultrasast.core.factpack:admit_fact_pack"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "0f715b2bf7e3462b13d07f035b3a3a8e2e86d8a183aa4acd8662331b31907b83",
       "owner_boundary": "tests",
       "path": "tests/test_core_factpack_consumer.py",
@@ -1811,7 +1811,7 @@
         "import_from:openultrasast.core.factpack:verify_fact_pack"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "63f827ed52c4e703af23212d34ee619b871c2d9285e82ad1ef1c760b49e96c2a",
       "owner_boundary": "tests",
       "path": "tests/test_core_factpack_consumer.py",
@@ -1823,7 +1823,7 @@
         "import_from:openultrasast.core.trace:TraceRecord"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "a9a1d1e2367fbbc265a2881aaae827a2c85eb1580e1b3382622e0baaa40b8a8a",
       "owner_boundary": "tests",
       "path": "tests/test_core_factpack_consumer.py",
@@ -1835,7 +1835,7 @@
         "import_from:openultrasast.core.verdict:BoundedSilence"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "eb84a659da8017aca4b38485e4af746b9bc21643ffb9d6443a4409e2521fc85b",
       "owner_boundary": "tests",
       "path": "tests/test_core_factpack_consumer.py",
@@ -1847,7 +1847,7 @@
         "import_from:openultrasast.core.verdict:Judgment"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "bdde92b920dcbaa6f5ca92990b87e0314cb2341c1ae63c2f9559ad09feb1272d",
       "owner_boundary": "tests",
       "path": "tests/test_core_factpack_consumer.py",
@@ -1859,7 +1859,7 @@
         "import_from:openultrasast.core.verdict:ProvenClaim"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "7707603bc7ab3de03007e458484515aa7a2a4595b6dafe4da7b44b492eea39e8",
       "owner_boundary": "tests",
       "path": "tests/test_core_factpack_consumer.py",
@@ -1872,7 +1872,7 @@
         "name:TraceRecord"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "e8758b18d7936afad4fa7446a3e266d825a9a27692f825cf40a293580a2e0dda",
       "owner_boundary": "tests",
       "path": "tests/test_core_factpack_consumer.py",
@@ -1884,7 +1884,7 @@
         "import_from:openultrasast.core.factpack:FactPackError"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "a98bc3e050a545541ff3cd18b6952e91ecaa9dd7654da604b87c1f1e34dbc470",
       "owner_boundary": "tests",
       "path": "tests/test_core_factpack_file.py",
@@ -1896,7 +1896,7 @@
         "import_from:openultrasast.core.factpack:admit_pack_file"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "0b8a72c93433962641ffca7f4c6a0c3b97c9a6a8603d9727e8cc7dc97f127e82",
       "owner_boundary": "tests",
       "path": "tests/test_core_factpack_file.py",
@@ -1908,7 +1908,7 @@
         "import_from:openultrasast.core.factpack:verify_fact_pack"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "f2eec239c6466fd7155a3e4cafceb2226c135ba9a286b4a77531ffe7930a9d8e",
       "owner_boundary": "tests",
       "path": "tests/test_core_factpack_file.py",
@@ -1920,7 +1920,7 @@
         "import_from:openultrasast.core.trace:TraceRecord"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "43370cf42c55b92b78ee6c6889d403576114b6afbe60377101c5c57697a34034",
       "owner_boundary": "tests",
       "path": "tests/test_core_native.py",
@@ -1932,7 +1932,7 @@
         "import_from:openultrasast.core.verdict:Judgment"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "26b6da04c995ce3372c89f8f96511a6f13ebcafff73cc575818d79815619f38b",
       "owner_boundary": "tests",
       "path": "tests/test_core_native.py",
@@ -1944,7 +1944,7 @@
         "module_attr:openultrasast.core.probes:FittedComponentBlocked"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "37aa4e298728c683fd973c1f059962c4815a3810df5927279708fec770887152",
       "owner_boundary": "tests",
       "path": "tests/test_core_probes.py",
@@ -1956,7 +1956,7 @@
         "module_attr:openultrasast.core.probes:LegacyProbeResult"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "137a37a282eb9cf14e962a2ce5240d067502afc2c312c012df04d4450b14745c",
       "owner_boundary": "tests",
       "path": "tests/test_core_probes.py",
@@ -1968,7 +1968,7 @@
         "module_attr:openultrasast.core.probes:ShortcutDetected"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "39581bbb92ab239269bd338ff8ac52baf6b1d7cef88f597dc0d5e83e14761919",
       "owner_boundary": "tests",
       "path": "tests/test_core_probes.py",
@@ -1980,7 +1980,7 @@
         "module_attr:openultrasast.core.probes:assert_no_shortcut"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "fab878643f2e0ada88b9efaea759e316a781bf6a23bdf2d95c0000b9b456ae13",
       "owner_boundary": "tests",
       "path": "tests/test_core_probes.py",
@@ -1992,7 +1992,7 @@
         "module_attr:openultrasast.core.probes:require_admission_evidence"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "286b22760f38c55a1ddf41ffe4fbf0bfd0d7e128f6443ce3f3c8fae59d0eb4b2",
       "owner_boundary": "tests",
       "path": "tests/test_core_probes.py",
@@ -2004,7 +2004,7 @@
         "module_attr:openultrasast.core.probes:reversed_pair_probe"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "a7ddae538a396120da01cb9855654804dbc1f1ad5999552778dd4e3b1a36232e",
       "owner_boundary": "tests",
       "path": "tests/test_core_probes.py",
@@ -2016,7 +2016,7 @@
         "top_level:ProbeResult"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "b5a93b96a87310face9feb530c7520b3a9f56009b1736f35f136c8a4a6c3673f",
       "owner_boundary": "tests",
       "path": "tests/test_core_probes.py",
@@ -2028,7 +2028,7 @@
         "import_from:openultrasast.core.admission:AdmissionManifestError"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "0ba8cb1e2916dbda5829c753935e09fb10d3efbc9fae01295139ea65d895e53e",
       "owner_boundary": "tests",
       "path": "tests/test_core_validation.py",
@@ -2040,7 +2040,7 @@
         "import_from:openultrasast.core.admission:validate_report_schema"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "90f7a839a71d4c1c3669c219c28fcc2b3816b963cdea25a634a7042c2ede8269",
       "owner_boundary": "tests",
       "path": "tests/test_core_validation.py",
@@ -2052,7 +2052,7 @@
         "import_from:openultrasast.core.consumer:PushRequest"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "656a3a0e7175e98589c9094feb261569259f5aefda343c4e4daa00fc5480056a",
       "owner_boundary": "tests",
       "path": "tests/test_core_validation.py",
@@ -2064,7 +2064,7 @@
         "import_from:openultrasast.core.consumer:consume_verdict"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "4471330d8ecd10925858eb9978a8c5f39073b1fa8384c4262b73644f6a4b3b4a",
       "owner_boundary": "tests",
       "path": "tests/test_core_validation.py",
@@ -2076,7 +2076,7 @@
         "import_from:openultrasast.core.verdict:Judgment"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "681864c66348a52dfee3631bf59307652fadc2e4d259c48b6bc81853ee1df567",
       "owner_boundary": "tests",
       "path": "tests/test_core_validation.py",
@@ -2088,7 +2088,7 @@
         "import_from:openultrasast.core.verdict:ProvenClaim"
       ],
       "dependency_kind": "reader",
-      "disposition": "open",
+      "disposition": "retired",
       "entry_id": "1ab2115d0c47e65acdef399d3927077fd33fce08171ee955ef3e167e79db17f3",
       "owner_boundary": "tests",
       "path": "tests/test_core_validation.py",
@@ -2101,7 +2101,7 @@
         "name:DevelopmentRecord"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "v2_migrated",
       "entry_id": "3de95f829f742fcfcb71ad8b06b4376c58940750ad4e7dd26739f0c3285b9655",
       "owner_boundary": "tests",
       "path": "tests/test_development_runner.py",
@@ -2115,7 +2115,7 @@
         "name:DevelopmentRecord"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "v2_migrated",
       "entry_id": "2d764d7a5c78c7822e22c2abbe9f9baf67a3fdbaac4d1c36fcf3c307539d819f",
       "owner_boundary": "tests",
       "path": "tests/test_four_arm.py",
@@ -2134,7 +2134,7 @@
         "call:write_text"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "v2_migrated",
       "entry_id": "4ceb5c63f47c07603a61ee972d29e8528639820b4c1969233ca74efea9c98403",
       "owner_boundary": "tests",
       "path": "tests/test_hunt_ablation.py",
@@ -2147,7 +2147,7 @@
         "name:RunArtifact"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "v2_migrated",
       "entry_id": "75f2086747bc1c6b7cb19cbffe6dcc6bdd55fd844df9220eb9e427c8d996a57c",
       "owner_boundary": "tests",
       "path": "tests/test_hunt_artifact.py",
@@ -2164,7 +2164,7 @@
         "name:RunArtifact"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "v2_migrated",
       "entry_id": "439a94cbe5033a44ecbcfe195346a6ba9eb87482235816135a6a7106b6a28c88",
       "owner_boundary": "tests",
       "path": "tests/test_hunt_artifact.py",
@@ -2177,7 +2177,7 @@
         "call:write"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "v2_migrated",
       "entry_id": "7a430458372aeed7e32e2982bc2378dbcb714ac0f6c6c169085b7f1881d85f9d",
       "owner_boundary": "tests",
       "path": "tests/test_hunt_artifact.py",
@@ -2194,7 +2194,7 @@
         "constant:push"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "v2_migrated",
       "entry_id": "89586e24c4493834ac1a787ac54fc820faf039b85a4ef780512d699fed9813c9",
       "owner_boundary": "tests",
       "path": "tests/test_hunt_contamination.py",
@@ -2218,7 +2218,7 @@
         "call:write_text"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "v2_migrated",
       "entry_id": "9532b0212b14cac8e4b4d29e5ff3173b82f8368399e635b27c491045c678fee0",
       "owner_boundary": "tests",
       "path": "tests/test_hunter_arm.py",
@@ -2238,7 +2238,7 @@
         "call:write_text"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "v2_migrated",
       "entry_id": "38b18d685e2da74ef99890c992b609a4135e2bbb2322a6e773f4a4ef9c73d66d",
       "owner_boundary": "tests",
       "path": "tests/test_hunter_arm.py",
@@ -2253,7 +2253,7 @@
         "name:build_trace"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "v2_migrated",
       "entry_id": "2d37be8ae21946fbed17ad5e5fa68d8bf486a657299e442ad35dd69503912365",
       "owner_boundary": "tests",
       "path": "tests/test_obligation_judgment.py",
@@ -2266,7 +2266,7 @@
         "name:build_trace"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "v2_migrated",
       "entry_id": "6d3caa2638285c1d8ff40194de536f63942229b3e0dab2feba1bb1d8676407b2",
       "owner_boundary": "tests",
       "path": "tests/test_obligation_trace.py",
@@ -2280,7 +2280,7 @@
         "name:build_trace"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "v2_migrated",
       "entry_id": "eb6ec4bfc9ffd463a40083808655d7ad74ad76e75f3fdd55388e18493eaf4d18",
       "owner_boundary": "tests",
       "path": "tests/test_obligation_trace.py",
@@ -2295,7 +2295,7 @@
         "call:record"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "v2_migrated",
       "entry_id": "66ac06dda8fa6a57a8a8a66a7066b7a89759fb0b4de1aed639df60728002bf1c",
       "owner_boundary": "tests",
       "path": "tests/test_obligation_trace.py",
@@ -2308,7 +2308,7 @@
         "name:build_trace"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "v2_migrated",
       "entry_id": "182178303988df577e5caa1c8c19779567f1adbcea4a599730b1dead164dad85",
       "owner_boundary": "tests",
       "path": "tests/test_obligation_trace.py",
@@ -2321,7 +2321,7 @@
         "name:build_trace"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "v2_migrated",
       "entry_id": "cf678e5453ab4feab1394e0d1ef2a5911d35007c86cde2e3e602eb39c44449fb",
       "owner_boundary": "tests",
       "path": "tests/test_obligation_trace.py",
@@ -2334,7 +2334,7 @@
         "call:record"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "v2_migrated",
       "entry_id": "278e7328ffc7bb24d51e3144b31a481b60eb5d75c3b22b1657f66d3d21dfadb4",
       "owner_boundary": "tests",
       "path": "tests/test_obligation_trace.py",
@@ -2347,7 +2347,7 @@
         "name:build_trace"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "v2_migrated",
       "entry_id": "af1802204a0b13b0abe152869e26bab08bb087673a37f2be8360e87c79d27f96",
       "owner_boundary": "tests",
       "path": "tests/test_obligation_trace.py",
@@ -2360,7 +2360,7 @@
         "name:build_trace"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "v2_migrated",
       "entry_id": "e27cd988eff513f84e1f3ae7f5f7933bda6b4a440873d41600ab9f95fc4f4a01",
       "owner_boundary": "tests",
       "path": "tests/test_obligation_trace.py",
@@ -2373,7 +2373,7 @@
         "name:build_trace"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "v2_migrated",
       "entry_id": "583551a4944cd94d2bd7c11f624d9d1401d911b134837fa8a1d6220a7782a9e3",
       "owner_boundary": "tests",
       "path": "tests/test_obligation_trace.py",
@@ -2386,7 +2386,7 @@
         "name:build_trace"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "v2_migrated",
       "entry_id": "4066abfdd6f8e4e1cd54040b1edf76aa55fb73f2141b0002926c159c81401b7a",
       "owner_boundary": "tests",
       "path": "tests/test_obligation_trace.py",
@@ -2398,7 +2398,7 @@
         "definition:test_equivalent_origins_admit_same_claim_and_only_block_when_enabled"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "v2_migrated",
       "entry_id": "d27a3d4a2b74dfb2733180b5630a47bc526e882aec481fbdccb17fea1dccf5e0",
       "owner_boundary": "tests",
       "path": "tests/test_push_admission.py",
@@ -2410,7 +2410,7 @@
         "definition:test_no_default_eligibility_and_unsupported_origin_is_a_coverage_gap"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "v2_migrated",
       "entry_id": "6053d34069919993420bf59d10d1fb78e61b47728d72a750d7f21a3c25343453",
       "owner_boundary": "tests",
       "path": "tests/test_push_admission.py",
@@ -2422,7 +2422,7 @@
         "definition:test_unchanged_on_one_base_does_not_suppress_new_on_another"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "v2_migrated",
       "entry_id": "dc6ca292792d0d1c04ba2a12effad4bb0491bf18d0a421e5dbeb76386f15f546",
       "owner_boundary": "tests",
       "path": "tests/test_push_admission.py",
@@ -2434,7 +2434,7 @@
         "definition:test_unknown_novelty_is_coverage_but_unchanged_debt_is_not"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "v2_migrated",
       "entry_id": "ee04a2981458e29ebd221ab61ed44c1df7e2af88803b1dc7a2bce63b9c895f39",
       "owner_boundary": "tests",
       "path": "tests/test_push_admission.py",
@@ -2447,7 +2447,7 @@
         "constant:facts"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "v2_migrated",
       "entry_id": "2d20c6424ba6c7a5388fe4da3981541ea87e7d96826be20748a9bc88b6a295e9",
       "owner_boundary": "tests",
       "path": "tests/test_push_report.py",
@@ -2462,7 +2462,7 @@
         "name:DevelopmentRecord"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "v2_migrated",
       "entry_id": "9b39705e258c05855051dc4e84cbc999f68cb27f8584dc8d2f64ec22a93f5945",
       "owner_boundary": "tests",
       "path": "tests/test_runner_gates.py",
@@ -2483,7 +2483,7 @@
         "call:_write_json"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "v2_migrated",
       "entry_id": "ed6e50427d3a43f6d6beaa12d9fc23520235edc7e91da2be21d5edd0b000d052",
       "owner_boundary": "tests",
       "path": "tests/test_semgrep_arm.py",
@@ -2507,7 +2507,7 @@
         "call:dumps"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "v2_migrated",
       "entry_id": "97b5d8f82de0c3f37aaf6875a46ea6f093872f2e0c15aac372d1843841f06005",
       "owner_boundary": "tests",
       "path": "tests/test_semgrep_arm.py",
@@ -2522,7 +2522,7 @@
         "call:dumps"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "v2_migrated",
       "entry_id": "aaf79a319db89e70aaa3dcba02f0aeefd47327f39b60f93cc4e37db31c2c5ce7",
       "owner_boundary": "tests",
       "path": "tests/test_unseen_calibrate.py",
@@ -2539,7 +2539,7 @@
         "call:write_text"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "v2_migrated",
       "entry_id": "72e697a76fb7262182faed2cc5f7a5b0f7dac0a16f9841d511a72d0823bef1c1",
       "owner_boundary": "tests",
       "path": "tests/test_unseen_proof.py",
@@ -2558,7 +2558,7 @@
         "call:write_text"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "v2_migrated",
       "entry_id": "b513894d07db26320eeb40c40d2841b640a02c5187ef6c302ba7cc5abd02901f",
       "owner_boundary": "tests",
       "path": "tests/test_unseen_proof.py",
@@ -2577,7 +2577,7 @@
         "call:write_text"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "v2_migrated",
       "entry_id": "73c2eaab431b3c48e1c6664039f67b27b251dd64aecc39e86c8dd84854925a30",
       "owner_boundary": "tests",
       "path": "tests/test_unseen_replay.py",
@@ -2592,7 +2592,7 @@
         "call:record"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "v2_migrated",
       "entry_id": "8901c60311b597627ecf1d1b0746a53cd07f16b4e51ab757146c9b1a5aa13319",
       "owner_boundary": "tests",
       "path": "tests/test_unseen_score.py",
@@ -2608,7 +2608,7 @@
         "call:record"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "v2_migrated",
       "entry_id": "91cc457f9b62e6e5cfa3891b68e1ed0da51917b60717c8f07b125b13a28a2046",
       "owner_boundary": "tests",
       "path": "tests/test_unseen_score.py",
@@ -2622,7 +2622,7 @@
         "call:record"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "v2_migrated",
       "entry_id": "c63d79f8f137667740e157f1d1b45229430d5c35a8f2a287f85e4cbb81178e72",
       "owner_boundary": "tests",
       "path": "tests/test_unseen_score.py",
@@ -2635,7 +2635,7 @@
         "call:record"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "v2_migrated",
       "entry_id": "b8bafdb6150fcd09f1a98b167cc90c8638376e83ea8d367ab6e287ebd531e05f",
       "owner_boundary": "tests",
       "path": "tests/test_unseen_score.py",
@@ -2650,7 +2650,7 @@
         "call:record"
       ],
       "dependency_kind": "writer",
-      "disposition": "open",
+      "disposition": "v2_migrated",
       "entry_id": "de9fe8d13ae069dd101e9e76cd5a1a63b95cf7a39ce2da49b52ef7f57dca9aef",
       "owner_boundary": "tests",
       "path": "tests/test_unseen_score.py",

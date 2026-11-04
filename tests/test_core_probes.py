@@ -2,14 +2,11 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
 from dataclasses import dataclass, replace
-from typing import Any
 
 import pytest
 from detection_core_fixtures import InMemoryContentResolver, stored_artifact
 
-import openultrasast.core as public_core
 from openultrasast.core import canonical, evidence, probes, provenance, semantics
 from openultrasast.core.factpack import (
     IndependenceAttestation,
@@ -27,14 +24,6 @@ from openultrasast.core.family import (
     RoleSpec,
     derive_security_object_id,
     family_contract_digest,
-)
-from openultrasast.core.legacy_v1 import (
-    FittedComponentBlocked,
-    LegacyProbeResult,
-    ShortcutDetected,
-    assert_no_shortcut,
-    require_admission_evidence,
-    reversed_pair_probe,
 )
 
 
@@ -392,24 +381,3 @@ def test_observation_for_another_probe_is_refused() -> None:
 
     with pytest.raises(probes.ProbeValidationError, match="probe identity"):
         probes.evaluate_probe(case.probe, substituted, case.contract, case.policy, case.resolver)
-
-
-def test_legacy_reversed_pair_probe_remains_compatible() -> None:
-    forward: dict[str, Any] = {"lines": 10}
-    reversed_change: dict[str, Any] = {"lines": 50}
-
-    def shape_score(change: Mapping[str, Any]) -> float:
-        return float(change["lines"])
-
-    result = reversed_pair_probe(shape_score, forward, reversed_change)
-    assert result.separated is True
-    with pytest.raises(ShortcutDetected):
-        assert_no_shortcut(shape_score, forward, reversed_change)
-
-    assert public_core.ProbeResult is LegacyProbeResult
-
-
-def test_legacy_admission_guard_remains_compatible() -> None:
-    require_admission_evidence(holdout_passed=True, admission_decision="GO")
-    with pytest.raises(FittedComponentBlocked):
-        require_admission_evidence(holdout_passed=False, admission_decision="GO")

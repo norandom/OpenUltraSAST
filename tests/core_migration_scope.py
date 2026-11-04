@@ -9,11 +9,6 @@ from collections.abc import Sequence
 from pathlib import Path, PurePosixPath
 
 REPO = Path(__file__).resolve().parents[1]
-_TASK_FILES = (
-    "tests/core_migration_boundary.py",
-    "tests/core_migration_scope.py",
-    "tests/test_core_migration_boundary.py",
-)
 _FIXTURE_PREFIXES = ("benchmarks/fixtures/", "tests/fixtures/")
 COMPATIBILITY_PATHS = frozenset(
     """src/openultrasast/core/__init__.py src/openultrasast/core/_legacy_factpack.py
@@ -48,10 +43,10 @@ def _owned_python(relative: str) -> bool:
 
 
 def boundary_python(root: Path = REPO) -> tuple[Path, ...]:
-    """Return owned tracked Python, excluding only harvested fixture material."""
-    completed = subprocess.run(["git", "ls-files", "*.py"], cwd=root, check=True, capture_output=True, text=True)
-    relatives = {value for value in completed.stdout.splitlines() if _owned_python(value)}
-    relatives.update(path for path in _TASK_FILES if (root / path).is_file())
+    """Return owned tracked and current untracked Python source."""
+    commands = (("git", "ls-files", "*.py"), ("git", "ls-files", "--others", "--exclude-standard", "--", "*.py"))
+    outputs = (subprocess.run(command, cwd=root, check=True, capture_output=True, text=True).stdout for command in commands)
+    relatives = {value for output in outputs for value in output.splitlines() if _owned_python(value)}
     return tuple(root / relative for relative in sorted(relatives))
 
 

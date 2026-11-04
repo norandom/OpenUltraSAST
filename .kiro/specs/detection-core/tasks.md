@@ -390,7 +390,7 @@
   - _Requirements: 8.1, 12.6, 14.3, 15.3_
   - _Boundary: Benchmark Readiness and Admission Adapters_
   - _Depends: 9.5, 9.6, 10.3_
-- [ ] 10.6 Migrate or retire registered test and operational-tool consumers
+- [x] 10.6 Migrate or retire registered test and operational-tool consumers
   - Move authorization assumptions into legacy or adapter tests, keep family-neutral contract tests on v2, and retain frozen v1 bytes only for decoder regression.
   - Move or retire registered operational-tool consumers without adding a second compatibility or write path.
   - Mark the corresponding stable inventory entries `v2_migrated` or `retired` and require every original entry to reach a terminal status.
@@ -443,4 +443,6 @@
 - The frozen migration inventory is a reviewed worklist with stable identities, not a semantic-use census. It may only close entries as `v2_migrated` or `retired`; it never grows, deletes entries, or proves absence by interpreting Python flow.
 - Cutover is proved by explicit syntax checks plus deletion of the compatibility and v1 write capability. No task extends the discarded alias/data-flow interpreter.
 - Task 10.5 debug established that executable owner probes cannot compensate for blanket source-closure acceptance; resumed hunt attempts also require collision-resistant attempt identity and create-only persistence before handoff validation is authoritative.
+- Task 10.6 debug established that exact-byte successor authority must require canonical repository-relative paths and strict resolved-root containment, including rejection of outside-root symlink targets, before module digests can prove closure.
+- Human review reopened Task 10.6 for one focused remediation cycle covering canonical path syntax, resolved-root containment/symlink refusal, and the task-local formatting gate.
 - Human review reopened Task 10.5 for one focused remediation cycle covering exact source-closure evidence, collision-resistant create-only attempt persistence, and complexity-cap conformance.

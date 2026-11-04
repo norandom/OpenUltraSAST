@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pytest
 from benchmark_migration_evidence import BENCHMARK_TERMINAL_EVIDENCE
+from consumer_migration_evidence import CONSUMER_TERMINAL_EVIDENCE
 from core_migration_boundary import inspect_legacy_boundary
 from core_migration_inventory import (
     REPO,
@@ -77,13 +78,22 @@ def test_source_validation_refuses_removed_migrated_owner(tmp_path: Path) -> Non
         validate_inventory_sources(replace(inventory, entries=(original,)), root=tmp_path)
 
 
-def test_test_and_operational_entries_remain_open_for_task_10_6() -> None:
+def test_test_and_operational_entries_have_exact_terminal_evidence() -> None:
     candidate = load_migration_inventory(INVENTORY)
-    deferred = {
-        entry.disposition for entry in candidate.entries if entry.owner_boundary in {"tests", "operational-tooling", "repository-tooling"}
+    migrated_ids = {entry_id for entry_id, evidence in CONSUMER_TERMINAL_EVIDENCE.items() if evidence.disposition == "v2_migrated"}
+    consumers = {
+        entry.entry_id: entry.disposition
+        for entry in candidate.entries
+        if entry.owner_boundary in {"tests", "operational-tooling", "repository-tooling"}
     }
 
-    assert deferred == {MigrationDisposition.OPEN}
+    assert set(consumers) == {
+        entry_id
+        for entry_id in CONSUMER_TERMINAL_EVIDENCE
+        if next(entry for entry in candidate.entries if entry.entry_id == entry_id).owner_boundary != "core"
+    }
+    assert all(consumers[entry_id] is MigrationDisposition.V2_MIGRATED for entry_id in migrated_ids)
+    assert all(consumers[entry_id] is MigrationDisposition.RETIRED for entry_id in set(consumers) - migrated_ids)
 
 
 def test_old_benchmark_admission_contract_and_runner_are_not_live() -> None:

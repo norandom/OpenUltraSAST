@@ -17,7 +17,6 @@ from openultrasast.core.coverage import (
     diagnose_first_zero,
     validate_instrument,
 )
-from openultrasast.core.legacy_v1 import InstrumentFailure as LegacyInstrumentFailure
 from openultrasast.core.semantics import RelationStatus
 
 DIGEST_A = "a" * 64
@@ -75,10 +74,7 @@ def test_input_manifest_and_receipts_validate_exactly() -> None:
     validate_instrument(_manifest(), _receipts())
 
 
-def test_v2_instrument_failure_is_distinct_from_legacy_and_owns_input_refusal() -> None:
-    from openultrasast.core.coverage import InstrumentFailure
-
-    assert InstrumentFailure is not LegacyInstrumentFailure
+def test_v2_instrument_failure_owns_input_refusal() -> None:
     receipt = InputReadReceipt("src/app.py", "src/app.py", False, 12, DIGEST_A)
     with pytest.raises(InstrumentFailure, match="not opened"):
         validate_instrument(_manifest(), (receipt, _receipts()[1]))
@@ -92,10 +88,6 @@ def test_zero_named_counts_are_allowed_for_measurements_but_not_unresolved_cover
                 ReasonCount("unused_measurement_bucket", 0),
             )
         )
-
-
-def test_legacy_instrument_failure_is_available_only_through_compatibility_boundary() -> None:
-    assert LegacyInstrumentFailure.__module__ == "openultrasast.core.legacy_v1.contracts"
 
 
 @pytest.mark.parametrize(

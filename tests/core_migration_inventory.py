@@ -3,13 +3,17 @@
 from __future__ import annotations
 
 import ast
+import errno
 import hashlib
 import json
+import os
+import stat
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 
 from benchmark_migration_evidence import BENCHMARK_TERMINAL_EVIDENCE, BenchmarkTerminalEvidence
+from consumer_migration_evidence import CONSUMER_TERMINAL_EVIDENCE, REVIEWED_SUCCESSOR_MODULES, ConsumerTerminalEvidence
 
 from openultrasast.core.legacy import LegacyArtifact, decode_legacy_artifact
 
@@ -491,7 +495,339 @@ def _benchmark_terminal_source_closure(entry: LegacyInventoryEntry, *, root: Pat
     return True
 
 
+def _actual_definitions(tree: ast.Module) -> dict[str, ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef]:
+    definitions: dict[str, ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef] = {}
+
+    def visit(nodes: list[ast.stmt], parents: tuple[str, ...] = ()) -> None:
+        for node in nodes:
+            if isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
+                qualified = ".".join((*parents, node.name))
+                definitions[qualified] = node
+                visit(node.body, (*parents, node.name))
+
+    visit(tree.body)
+    return definitions
+
+
+def _exact_anchor_present(anchor: str, tree: ast.Module) -> bool:
+    kind, separator, value = anchor.partition(":")
+    if not separator:
+        return False
+    if kind == "definition":
+        return value in _actual_definitions(tree)
+    return value in _capability_index(tree).get(kind, set())
+
+
+def _retired_anchor_present(entry: LegacyInventoryEntry, anchor: str, tree: ast.Module) -> bool:
+    kind, separator, _ = anchor.partition(":")
+    if not separator or kind not in {"name", "constant"} or entry.symbol == "<module>":
+        return _exact_anchor_present(anchor, tree)
+    owner = _actual_definitions(tree).get(entry.symbol)
+    if not isinstance(owner, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
+        return False
+    scoped = ast.Module(body=owner.body, type_ignores=[])
+    return _exact_anchor_present(anchor, scoped)
+
+
+def _target_names(node: ast.AST) -> tuple[str, ...]:
+    if isinstance(node, ast.Name):
+        return (node.id,)
+    if isinstance(node, (ast.List, ast.Tuple)):
+        return tuple(name for item in node.elts for name in _target_names(item))
+    if isinstance(node, ast.Starred):
+        return _target_names(node.value)
+    return ()
+
+
+def _pattern_names(node: ast.pattern) -> tuple[str, ...]:
+    names = tuple(value for value in (getattr(node, "name", None), getattr(node, "rest", None)) if isinstance(value, str))
+    return (*names, *(name for child in ast.iter_child_nodes(node) if isinstance(child, ast.pattern) for name in _pattern_names(child)))
+
+
+def _module_scope_nodes(node: ast.AST) -> tuple[ast.AST, ...]:
+    nodes = [node]
+    if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Lambda)):
+        return tuple(nodes)
+    for child in ast.iter_child_nodes(node):
+        nodes.extend(_module_scope_nodes(child))
+    return tuple(nodes)
+
+
+def _dynamic_import_signature(node: ast.Assign | ast.AnnAssign) -> str | None:
+    targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+    value = node.value
+    if len(targets) != 1 or not isinstance(targets[0], ast.Name) or not isinstance(value, ast.Call):
+        return None
+    if _call_leaf(value) != "import_module" or len(value.args) != 1 or value.keywords:
+        return None
+    module = value.args[0]
+    if not isinstance(module, ast.Constant) or not isinstance(module.value, str):
+        return None
+    return f"dynamic_import:{module.value}"
+
+
+def _node_bindings(node: ast.AST) -> tuple[tuple[str, str], ...]:
+    if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+        return ((node.name, type(node).__name__),)
+    if isinstance(node, (ast.Assign, ast.AnnAssign)):
+        targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+        signature = _dynamic_import_signature(node) or type(node).__name__
+        return tuple((name, signature) for target in targets for name in _target_names(target))
+    if isinstance(node, (ast.AugAssign, ast.NamedExpr)):
+        return tuple((name, type(node).__name__) for name in _target_names(node.target))
+    if isinstance(node, ast.Delete):
+        return tuple((name, "Delete") for target in node.targets for name in _target_names(target))
+    if isinstance(node, (ast.For, ast.AsyncFor)):
+        return tuple((name, type(node).__name__) for name in _target_names(node.target))
+    if isinstance(node, (ast.With, ast.AsyncWith)):
+        return tuple((name, type(node).__name__) for item in node.items if item.optional_vars for name in _target_names(item.optional_vars))
+    if isinstance(node, ast.ExceptHandler) and node.name:
+        return ((node.name, "ExceptHandler"),)
+    if isinstance(node, ast.match_case):
+        return tuple((name, "MatchCase") for name in _pattern_names(node.pattern))
+    return _import_bindings(node)
+
+
+def _import_bindings(node: ast.AST) -> tuple[tuple[str, str], ...]:
+    if isinstance(node, ast.Import):
+        return tuple((alias.asname or alias.name.split(".", 1)[0], f"import:{alias.name}") for alias in node.names)
+    if isinstance(node, ast.ImportFrom) and node.module is not None:
+        return tuple((alias.asname or alias.name, f"import_from:{node.module}:{alias.name}") for alias in node.names)
+    return ()
+
+
+def _binding_events(tree: ast.Module, names: set[str]) -> dict[str, list[tuple[int, int, str]]]:
+    events: dict[str, list[tuple[int, int, str]]] = {name: [] for name in names}
+    for node in _module_scope_nodes(tree):
+        for name, signature in _node_bindings(node):
+            if name in events:
+                events[name].append((getattr(node, "lineno", 0), getattr(node, "col_offset", 0), signature))
+    return events
+
+
+def _direct_reviewed_functions(tree: ast.Module, names: set[str]) -> dict[str, ast.FunctionDef]:
+    result: dict[str, ast.FunctionDef] = {}
+    for name in names:
+        matches = [node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == name]
+        if len(matches) != 1:
+            raise LegacyInventoryError(f"migrated test owner binding terminal binding requires one direct FunctionDef: {name}")
+        result[name] = matches[0]
+    return result
+
+
+def _marker_leaf(node: ast.AST) -> str:
+    value = node.func if isinstance(node, ast.Call) else node
+    if isinstance(value, ast.Attribute):
+        return value.attr
+    if isinstance(value, ast.Name):
+        return value.id
+    return ""
+
+
+def _validate_pytest_outcome(tree: ast.Module, selectors: set[str], functions: dict[str, ast.FunctionDef]) -> None:
+    forbidden = {"skip", "skipif", "xfail"}
+    if any(
+        _marker_leaf(candidate) in forbidden
+        for name in selectors
+        for decorator in functions[name].decorator_list
+        for candidate in ast.walk(decorator)
+    ):
+        raise LegacyInventoryError("migrated test pytest outcome is disabled by a reviewed-selector decorator")
+    for node in _module_scope_nodes(tree):
+        if isinstance(node, (ast.Assign, ast.Delete)):
+            targets = node.targets
+        elif isinstance(node, (ast.AnnAssign, ast.AugAssign)):
+            targets = [node.target]
+        else:
+            targets = []
+        bindings = _node_bindings(node)
+        if any(name == "pytestmark" for name, _ in bindings):
+            raise LegacyInventoryError("migrated test pytest outcome is disabled by module pytestmark")
+        if any(
+            isinstance(target, ast.Attribute) and target.attr == "pytestmark" and _dotted(target.value) in selectors for target in targets
+        ):
+            raise LegacyInventoryError("migrated test pytest outcome is disabled by function pytestmark")
+        if isinstance(node, ast.Call) and _call_leaf(node) in {"globals", "locals", "setattr", "exec"}:
+            raise LegacyInventoryError("migrated test terminal binding has opaque namespace mutation")
+        if any(name in {"__getattr__", "__dir__"} for name, _ in bindings):
+            raise LegacyInventoryError("migrated test terminal binding has opaque module namespace hooks")
+
+
+def _direct_semantic_event(tree: ast.Module, local_name: str, binding: str) -> tuple[int, int, str]:
+    matches = [
+        (node.lineno, node.col_offset, signature)
+        for node in tree.body
+        for name, signature in _node_bindings(node)
+        if name == local_name and signature == binding
+    ]
+    if len(matches) != 1:
+        raise LegacyInventoryError(f"migrated test semantic evidence terminal binding lacks one direct reviewed import: {local_name}")
+    return matches[0]
+
+
+def _validate_terminal_bindings(tree: ast.Module, evidence: ConsumerTerminalEvidence) -> dict[str, ast.FunctionDef]:
+    reviewed = (evidence,)
+    callable_names = {
+        name for item in reviewed for name in (item.successor_symbol, item.probe_symbol, item.binding_owner_symbol) if name is not None
+    }
+    semantic_bindings = {(item.semantic_local_name, item.semantic_binding) for item in reviewed}
+    if any(local is None or binding is None for local, binding in semantic_bindings):
+        raise LegacyInventoryError("migrated test terminal binding evidence is incomplete")
+    semantic_names = {local for local, _ in semantic_bindings if local is not None}
+    functions = _direct_reviewed_functions(tree, callable_names)
+    events = _binding_events(tree, callable_names | semantic_names)
+    for name, function in functions.items():
+        reviewed_event = (function.lineno, function.col_offset, "FunctionDef")
+        if not events[name] or events[name][-1] != reviewed_event:
+            raise LegacyInventoryError(f"migrated test terminal binding was replaced or removed: {name}")
+    for local_name, binding in semantic_bindings:
+        assert local_name is not None and binding is not None
+        reviewed_event = _direct_semantic_event(tree, local_name, binding)
+        if not events[local_name] or events[local_name][-1] != reviewed_event:
+            raise LegacyInventoryError(f"migrated test terminal binding replaced reviewed import: {local_name}")
+    selectors = {item.probe_symbol for item in reviewed if item.probe_symbol is not None}
+    _validate_pytest_outcome(tree, selectors, functions)
+    return functions
+
+
+def _normalized_ast(value: object) -> object:
+    if isinstance(value, ast.AST):
+        fields = tuple((field, _normalized_ast(item)) for field, item in ast.iter_fields(value) if field != "type_params")
+        return type(value).__name__, fields
+    if isinstance(value, list):
+        return tuple(_normalized_ast(item) for item in value)
+    return value
+
+
+def _callable_ast_digest(node: ast.FunctionDef | ast.AsyncFunctionDef) -> str:
+    return hashlib.sha256(repr(_normalized_ast(node)).encode()).hexdigest()
+
+
+def _references_binding(node: ast.FunctionDef | ast.AsyncFunctionDef, local_name: str) -> bool:
+    return any(isinstance(candidate, ast.Name) and candidate.id == local_name for candidate in ast.walk(node))
+
+
+def _canonical_relative_parts(relative: str) -> tuple[str, ...]:
+    parts = tuple(relative.split("/"))
+    if not relative or relative.startswith("/") or "\0" in relative or "\\" in relative or any(part in {"", ".", ".."} for part in parts):
+        raise LegacyInventoryError(f"migrated test successor path is not canonical: {relative}")
+    if len(parts[0]) == 2 and parts[0][1] == ":":
+        raise LegacyInventoryError(f"migrated test successor path is not canonical: {relative}")
+    return parts
+
+
+def _resolved_beneath_root(relative: str, root: Path) -> None:
+    try:
+        root_status = root.lstat()
+    except OSError as exc:
+        raise LegacyInventoryError("migrated test successor supplied root is not a real directory") from exc
+    if not stat.S_ISDIR(root_status.st_mode):
+        raise LegacyInventoryError("migrated test successor supplied root is not a real directory")
+    try:
+        resolved_root = root.resolve(strict=True)
+        resolved_candidate = (root / relative).resolve(strict=True)
+    except (OSError, RuntimeError) as exc:
+        raise LegacyInventoryError(f"migrated test successor is not readable: {relative}") from exc
+    if not resolved_candidate.is_relative_to(resolved_root):
+        raise LegacyInventoryError(f"migrated test successor is not a symlink-free file beneath the supplied root: {relative}")
+
+
+def _read_from_descriptor(descriptor: int, relative: str) -> bytes:
+    status = os.fstat(descriptor)
+    if not stat.S_ISREG(status.st_mode) or not status.st_mode & 0o444:
+        raise LegacyInventoryError(f"migrated test successor is not readable: {relative}")
+    chunks = []
+    while chunk := os.read(descriptor, 1024 * 1024):
+        chunks.append(chunk)
+    return b"".join(chunks)
+
+
+def _read_file_beneath_root(relative: str, *, root: Path) -> bytes:
+    parts = _canonical_relative_parts(relative)
+    _resolved_beneath_root(relative, root)
+    directory_flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC
+    file_flags = os.O_RDONLY | os.O_NONBLOCK | os.O_NOFOLLOW | os.O_CLOEXEC
+    descriptors = []
+    try:
+        descriptors.append(os.open(root, directory_flags))
+        for part in parts[:-1]:
+            descriptors.append(os.open(part, directory_flags, dir_fd=descriptors[-1]))
+        descriptors.append(os.open(parts[-1], file_flags, dir_fd=descriptors[-1]))
+        return _read_from_descriptor(descriptors[-1], relative)
+    except LegacyInventoryError:
+        raise
+    except OSError as exc:
+        if exc.errno in {errno.EACCES, errno.ENOENT, errno.EPERM}:
+            raise LegacyInventoryError(f"migrated test successor is not readable: {relative}") from exc
+        raise LegacyInventoryError(f"migrated test successor is not a symlink-free file beneath the supplied root: {relative}") from exc
+    finally:
+        for descriptor in reversed(descriptors):
+            os.close(descriptor)
+
+
+def _read_reviewed_successor_module(relative: str, *, root: Path) -> ast.Module:
+    reviewed = REVIEWED_SUCCESSOR_MODULES.get(relative)
+    if reviewed is None:
+        raise LegacyInventoryError(f"migrated test successor is outside module authority: {relative}")
+    content = _read_file_beneath_root(relative, root=root)
+    if not content:
+        raise LegacyInventoryError(f"migrated test successor must contain nonzero bytes: {relative}")
+    if hashlib.sha256(content).hexdigest() != reviewed.sha256:
+        raise LegacyInventoryError(f"migrated test successor module digest changed: {relative}")
+    try:
+        return ast.parse(content, filename=relative)
+    except (SyntaxError, UnicodeDecodeError) as exc:
+        raise LegacyInventoryError(f"migrated test successor is not parseable: {relative}") from exc
+
+
+def _validate_migrated_evidence(entry: LegacyInventoryEntry, evidence: ConsumerTerminalEvidence, *, root: Path) -> None:
+    assert evidence.successor_path and evidence.successor_symbol and evidence.semantic_binding and evidence.probe_symbol
+    assert evidence.successor_ast_sha256 and evidence.probe_ast_sha256
+    assert evidence.binding_owner_symbol and evidence.binding_owner_ast_sha256 and evidence.semantic_local_name
+    successor = _read_reviewed_successor_module(evidence.successor_path, root=root)
+    definitions = _validate_terminal_bindings(successor, evidence)
+    owner = definitions.get(evidence.successor_symbol)
+    probe = definitions.get(evidence.probe_symbol)
+    binding_owner = definitions.get(evidence.binding_owner_symbol)
+    anchors_present = all(_exact_anchor_present(anchor, successor) for anchor in evidence.capability_anchors)
+    callables = (owner, probe, binding_owner)
+    if (
+        entry.owner_boundary != "tests"
+        or not anchors_present
+        or not all(isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) for node in callables)
+    ):
+        raise LegacyInventoryError(f"migrated test owner binding is absent: {entry.entry_id}")
+    assert isinstance(owner, (ast.FunctionDef, ast.AsyncFunctionDef))
+    assert isinstance(probe, (ast.FunctionDef, ast.AsyncFunctionDef))
+    assert isinstance(binding_owner, (ast.FunctionDef, ast.AsyncFunctionDef))
+    digests = (_callable_ast_digest(owner), _callable_ast_digest(probe), _callable_ast_digest(binding_owner))
+    expected = (evidence.successor_ast_sha256, evidence.probe_ast_sha256, evidence.binding_owner_ast_sha256)
+    if digests != expected or not _references_binding(binding_owner, evidence.semantic_local_name):
+        raise LegacyInventoryError(f"migrated test semantic evidence does not match reviewed ownership: {entry.entry_id}")
+
+
+def _consumer_terminal_source_closure(entry: LegacyInventoryEntry, *, root: Path, tree: ast.Module) -> bool:
+    evidence = CONSUMER_TERMINAL_EVIDENCE.get(entry.entry_id)
+    if evidence is None:
+        return False
+    if (
+        evidence.stable_fields != _stable_entry_fields(entry)
+        or evidence.disposition != entry.disposition.value
+        or entry.entry_id != entry_identity(entry)
+    ):
+        raise LegacyInventoryError(f"consumer terminal evidence is absent or mismatched: {entry.entry_id}")
+    if evidence.closure_kind == "migrated_semantic_probe":
+        _validate_migrated_evidence(entry, evidence, root=root)
+        return True
+    present = tuple(anchor for anchor in evidence.absence_anchors if _retired_anchor_present(entry, anchor, tree))
+    if present:
+        raise LegacyInventoryError(f"retired consumer capability remains live: {entry.entry_id}:{present}")
+    return True
+
+
 def _approved_terminal_source_closure(entry: LegacyInventoryEntry, *, root: Path, tree: ast.Module) -> bool:
+    if _consumer_terminal_source_closure(entry, root=root, tree=tree):
+        return True
     if _benchmark_terminal_source_closure(entry, root=root, tree=tree):
         return True
     approved = _APPROVED_TERMINAL_SOURCE_CLOSURES.get(entry.entry_id) is entry.disposition

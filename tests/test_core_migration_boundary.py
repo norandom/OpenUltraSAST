@@ -151,8 +151,10 @@ def test_migration_phase_separates_compatibility_implementation_from_consumers(t
 def test_cutover_requires_terminal_inventory_and_structural_zero(tmp_path: Path) -> None:
     clean = _write(tmp_path, "clean.py", "VALUE = 1\n")
     frozen = load_migration_inventory(INVENTORY)
+    opened = replace(frozen.entries[0], disposition=MigrationDisposition.OPEN)
+    open_inventory = replace(frozen, entries=(opened, *frozen.entries[1:]))
     open_report = inspect_legacy_boundary(
-        (clean,), frozen_inventory=frozen, expected_scope=(clean,), root=tmp_path, phase=BoundaryPhase.POST_DELETION
+        (clean,), frozen_inventory=open_inventory, expected_scope=(clean,), root=tmp_path, phase=BoundaryPhase.POST_DELETION
     )
     closed = _closed_inventory()
     migration_report = inspect_legacy_boundary((clean,), frozen_inventory=frozen, candidate_inventory=closed, root=tmp_path)
@@ -175,7 +177,7 @@ def test_cutover_requires_terminal_inventory_and_structural_zero(tmp_path: Path)
     )
 
     with pytest.raises(LegacyBoundaryError, match="open inventory"):
-        _require_cutover(open_report, frozen=frozen, candidate=frozen, root=tmp_path, isolated_scope=(clean,))
+        _require_cutover(open_report, frozen=open_inventory, candidate=open_inventory, root=tmp_path, isolated_scope=(clean,))
     with pytest.raises(LegacyBoundaryError, match="post-deletion"):
         _require_cutover(migration_report, frozen=frozen, candidate=closed, root=tmp_path, isolated_scope=(clean,))
     _require_cutover(clean_report, frozen=frozen, candidate=closed, root=tmp_path, isolated_scope=(clean,))
@@ -286,7 +288,11 @@ def test_repository_scope_proves_nonzero_inputs_before_reporting_sites() -> None
     assert report.files_read == len(paths) > 0
     assert report.bytes_read > 0
     assert report.legacy_import_sites
-    assert report.open_inventory_entries
+    assert report.open_inventory_entries == ()
+    assert report.consumer_legacy_import_sites == ()
+    assert report.consumer_legacy_writer_sites == ()
+    assert report.forbidden_dynamic_sites == ()
+    assert report.compatibility_implementation_sites
 
 
 def test_cutover_rejects_positive_but_incomplete_repository_scope() -> None:

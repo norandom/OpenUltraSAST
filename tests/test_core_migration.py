@@ -138,6 +138,16 @@ def test_legacy_decoder_has_no_compatibility_or_v2_domain_dependency() -> None:
 
 
 def test_legacy_reader_is_not_reexported_from_the_public_core_api() -> None:
-    import openultrasast.core as core
+    path = REPO / "src/openultrasast/core/__init__.py"
+    content = path.read_bytes()
+    assert content, "the public-boundary instrument must read nonzero package bytes"
+    tree = ast.parse(content, filename=str(path.relative_to(REPO)))
+    exported = {
+        value.value
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Assign)
+        for value in ast.walk(node.value)
+        if isinstance(value, ast.Constant) and isinstance(value.value, str)
+    }
 
-    assert not ({"LegacyArtifact", "decode_legacy_artifact", "read_legacy_artifact"} & set(core.__all__))
+    assert not ({"LegacyArtifact", "decode_legacy_artifact", "read_legacy_artifact"} & exported)

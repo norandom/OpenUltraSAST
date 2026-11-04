@@ -59,19 +59,12 @@ def test_reader_audit_covers_direct_legacy_submodule_bindings(
 
 
 def test_reader_audit_covers_real_direct_legacy_submodule_reads() -> None:
-    expected = {
-        ("tests/test_core_contract.py", "module_attr:openultrasast.core.verdict:__all__"),
-    }
     paths = tuple(REPO / path for path in ("tests/test_core_budget_v2.py", "tests/test_core_contract.py", "tests/test_core_probes.py"))
 
     report = audit_legacy_readers(paths)
 
     assert report.files_read == 3 and report.bytes_read > 0
-    assert expected <= set(report.capabilities)
-    assert not any(
-        capability.startswith(("module_attr:openultrasast.core.budget:", "module_attr:openultrasast.core.probes:"))
-        for _path, capability in report.capabilities
-    )
+    assert report.capabilities == ()
 
 
 def test_frozen_inventory_resolves_nonzero_sources_and_targets() -> None:
@@ -81,9 +74,9 @@ def test_frozen_inventory_resolves_nonzero_sources_and_targets() -> None:
     inventory = load_migration_inventory(INVENTORY)
 
     assert inventory.entries
-    assert sum(entry.disposition is MigrationDisposition.OPEN for entry in inventory.entries) == 155
-    assert sum(entry.disposition is MigrationDisposition.V2_MIGRATED for entry in inventory.entries) == 25
-    assert sum(entry.disposition is MigrationDisposition.RETIRED for entry in inventory.entries) == 18
+    assert sum(entry.disposition is MigrationDisposition.OPEN for entry in inventory.entries) == 0
+    assert sum(entry.disposition is MigrationDisposition.V2_MIGRATED for entry in inventory.entries) == 65
+    assert sum(entry.disposition is MigrationDisposition.RETIRED for entry in inventory.entries) == 133
     assert all(entry.entry_id == entry_identity(entry) for entry in inventory.entries)
     validate_inventory_sources(inventory, root=REPO)
 
@@ -174,33 +167,16 @@ def test_inventory_registers_the_active_legacy_probe_writer() -> None:
 
 def test_independent_reader_audit_matches_split_inventory_capabilities() -> None:
     report = audit_legacy_readers(tracked_python())
-    inventory = load_migration_inventory(INVENTORY)
-    reader_entries = tuple(entry for entry in inventory.entries if entry.dependency_kind.value == "reader")
-    registered = {(entry.path, anchor) for entry in reader_entries for anchor in entry.capability_anchors}
-    current = set(report.capabilities)
-    open_registered = {
-        (entry.path, anchor)
-        for entry in reader_entries
-        if entry.disposition is MigrationDisposition.OPEN
-        for anchor in entry.capability_anchors
-    }
 
     assert report.files_read > 0 and report.bytes_read > 0
-    assert ("tests/test_core_probes.py", "top_level:ProbeResult") in report.capabilities
-    assert all(len(entry.capability_anchors) == 1 for entry in reader_entries)
-    assert current <= registered, "the frozen inventory may never grow to admit a new reader"
-    for path, _anchor in open_registered - current:
-        source = (REPO / path).read_bytes()
-        assert source, f"migration shim instrument must read nonzero bytes from {path}"
-        if path in MIXED_V2_MODULES:
-            assert b"openultrasast.core.legacy_v1" not in source
-            continue
-        assert b"openultrasast.core.legacy_v1" in source, f"open reader disappeared without an explicit compatibility shim: {path}"
+    assert not any("legacy_v1" in capability for _path, capability in report.capabilities)
+    assert not any(path in {"tests/test_core_contract.py", "tests/test_core_probes.py"} for path, _capability in report.capabilities)
 
 
 def test_inventory_targets_require_exact_capability_anchors(tmp_path: Path) -> None:
     frozen = load_migration_inventory(INVENTORY)
-    entry = next(item for item in frozen.entries if item.disposition is MigrationDisposition.OPEN and item.symbol == "<module>")
+    terminal = next(item for item in frozen.entries if item.symbol == "<module>")
+    entry = replace(terminal, disposition=MigrationDisposition.OPEN)
     assert entry.capability_anchors
     substituted = tmp_path / entry.path
     substituted.parent.mkdir(parents=True)
@@ -221,10 +197,10 @@ def test_historical_artifact_manifest_pins_exact_nonzero_bytes() -> None:
 
 @pytest.mark.parametrize("terminal", (MigrationDisposition.V2_MIGRATED, MigrationDisposition.RETIRED))
 def test_inventory_entries_close_monotonically_without_identity_changes(terminal: MigrationDisposition) -> None:
-    frozen = load_migration_inventory(INVENTORY)
-    index = next(index for index, entry in enumerate(frozen.entries) if entry.disposition is MigrationDisposition.OPEN)
-    changed_entry = replace(frozen.entries[index], disposition=terminal)
-    candidate = replace(frozen, entries=(*frozen.entries[:index], changed_entry, *frozen.entries[index + 1 :]))
+    candidate = load_migration_inventory(INVENTORY)
+    index = next(index for index, entry in enumerate(candidate.entries) if entry.disposition is terminal)
+    open_entry = replace(candidate.entries[index], disposition=MigrationDisposition.OPEN)
+    frozen = replace(candidate, entries=(*candidate.entries[:index], open_entry, *candidate.entries[index + 1 :]))
 
     validate_inventory_transition(frozen, candidate)
 
@@ -282,7 +258,7 @@ def test_inventory_refuses_schema_and_status_mutations(tmp_path: Path, field: st
 
 def test_inventory_refuses_unreadable_zero_and_unknown_targets(tmp_path: Path) -> None:
     frozen = load_migration_inventory(INVENTORY)
-    original = next(entry for entry in frozen.entries if entry.disposition is MigrationDisposition.OPEN)
+    original = replace(frozen.entries[0], disposition=MigrationDisposition.OPEN)
 
     missing = replace(original, path="missing.py", symbol="<module>")
     missing = replace(missing, entry_id=entry_identity(missing))
