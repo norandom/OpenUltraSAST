@@ -16,15 +16,13 @@ import importlib
 import subprocess
 from typing import Any
 
-from pathlib import Path
-
 import pytest
 
 from openultrasast.hunt.producers import Context
 from openultrasast.hunt.prover import prove_change
 from openultrasast.mapping import analyze_entry_points
-from openultrasast.mapping.registry import _STRATEGIES, register
 from openultrasast.mapping.registration_sites import RegistrationSiteStrategy
+from openultrasast.mapping.registry import _STRATEGIES, register
 from openultrasast.preprocess import FileTarget, detect_language
 from openultrasast.semantic.ir import CallSite, FunctionIR
 from openultrasast.semantic.obligations.abstract_domain import (
@@ -34,10 +32,10 @@ from openultrasast.semantic.obligations.abstract_domain import (
 from openultrasast.semantic.obligations.cfg_dominance import CfgDominance
 from openultrasast.semantic.obligations.operations import Discharge, Operation
 from openultrasast.semantic.obligations.resolution import (
+    SymbolIndex,
     descendants_of,
     inherited_method,
     resolve_call,
-    SymbolIndex,
 )
 from openultrasast.semantic.obligations.summaries import (
     ExplorationBudget,
