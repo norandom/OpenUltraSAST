@@ -7,6 +7,7 @@
 | Completed groups 1–7 and 8.1 | Retained as regression substrate; their former requirement mappings do not count toward v2 coverage |
 | Previous task 8.2 | Permanently parked after admission NO-GO #3; no task below revives that arm |
 | Previous tasks 8.3–8.4 | Superseded by v2 consumer and proof conformance work; no rollout or live capability enablement is included |
+| Existing task 11.4 | Retained as blocked historical V2 validation; it is not a prerequisite for additive V3 tasks 12–18, which have explicit dependencies and their own compatibility gate |
 
 ## Task constraints
 
@@ -16,6 +17,9 @@
 - Historical v1 artifacts remain byte-identical. V2 creates a new baseline and is never trended against v1.
 - The parked authorization arm remains parked. Admission orchestration uses synthetic/reference inputs only and does not consume a live population.
 - Existing target facts may be schema-migrated without expanding vocabulary or behavior.
+- Tasks 12–18 are the current additive V3 implementation scope; completed groups 1–11 remain historical V2 implementation context.
+- V2 aggregate roots and public routes remain frozen; V3 uses a distinct schema and adds no converter or inferred projection.
+- Benchmark-owned storage, compare-and-swap, execution, access, retry, and workflow orchestration remain outside core and are exercised only through synthetic or in-memory boundaries.
 
 - [ ] 1. Establish migration-safe foundations
 - [x] 1.1 Freeze historical v1 artifacts and the reviewed migration inventory
@@ -437,6 +441,269 @@
   - Done when the complete suite passes, boundary/import censuses are clean, historical bytes are unchanged, and all declared adapter and consumer seams pass conformance.
   - _Requirements: 1.4, 10.4, 14.3, 15.3, 15.4_
   - _Depends: 10.7_
+  - _Blocked: Benchmark population governance conflict: the permanent unseen-pool reservation guard and the later spent/retired training-only pilot policy disagree. The benchmark owner must approve the authoritative lifecycle and replacement/retirement plan before the full suite can pass._
+
+## Evaluation-admission V3 amendment
+
+Tasks 12–18 implement Requirements 16–20 as an additive predecessor for the approved
+valid-detection-benchmark design. Existing groups 1–11 remain the historical V2
+implementation record. The unresolved downstream-governance item 11.4 is not reopened and
+is not a prerequisite for this V3 stream; V3 tasks depend explicitly on completed V2
+contract work and use synthetic/in-memory workflow boundaries only.
+
+- [ ] 12. Preserve V2 admission and establish V3 measurement foundations
+- [ ] 12.1 (P) Freeze representative V2 admission behavior
+  - Pin accepted canonical bytes, digests, decisions, validation failures, report output, and authoritative replay output for representative V2 admissions.
+  - Prove every frozen fixture is readable and nonzero before treating a stable result as compatibility evidence.
+  - Keep pooled V2 evidence replayable only under V2 and add no converter or inferred V3 projection.
+  - Done when a byte, digest, decision, failure-order, or replay mutation fails the compatibility suite while the current V2 fixtures pass unchanged.
+  - _Requirements: 16.1, 16.2, 16.3, 16.4_
+  - _Boundary: V2 Admission Compatibility_
+  - _Depends: 8.9, 8.10_
+- [ ] 12.2 Extract version-neutral metric arithmetic without changing V2
+  - Isolate only the closed standard-metric algebra and Wilson calculation; keep every serialized V2 identity and validator in its existing owner.
+  - Route V2 through the shared arithmetic and compare all frozen V2 outputs byte-for-byte.
+  - Expose the same pure arithmetic to V3 without accepting a V2 policy, result, or report as a V3 value.
+  - Done when both versions use one arithmetic implementation and the complete V2 compatibility fixture remains unchanged.
+  - _Requirements: 16.2, 18.6_
+  - _Boundary: Version-Neutral Metric Algebra_
+  - _Depends: 12.1_
+- [ ] 12.3 Define exact arm-scope measurement and sufficiency contracts
+  - Represent one canonical arm-and-scope key for every policy, threshold, sufficiency rule, metric, gate, and decision.
+  - Bind exact denominator algebra, fixed Wilson intervals, sample counts, minimum sizes, interval precision, and rational aggregate weights.
+  - Include every arm identity input that must start a new baseline when changed, including judgment vocabulary, analyzer, facts, configuration, registered budget, execution, outcome mapping, and combination rule.
+  - Refuse duplicate, unsorted, unknown, cross-key, non-finite, or incomplete values through exact closed validation.
+  - Done when canonical contract tests accept one complete component and combined-arm configuration and reject every single-field identity or arm-scope mismatch.
+  - _Requirements: 16.1, 16.4, 16.5, 18.1, 18.6, 18.7_
+  - _Boundary: Evaluation Measurement_
+  - _Depends: 12.2_
+- [ ] 12.4 Establish distinct V3 version-boundary primitives
+  - Reserve the exact evaluation-admission V3 schema identity and version-routing primitives without changing any V2 public name or route.
+  - Make V3 contracts exact-type only and prohibit V2-to-V3 conversion, subclass acceptance, and mixed-version child relationships as each later root is introduced.
+  - Define the shared non-authorizing marker for feasibility, insufficiency, raw reports, aggregates, incomplete arm results, and other partial values; leave complete root decoding to facade integration.
+  - Done when boundary tests preserve exact V2 routing, recognize only the reserved V3 identity on the V3 path, and prove that a representative partial V3 value has no authorization capability.
+  - _Requirements: 16.1, 16.3, 16.4, 16.6_
+  - _Boundary: Evaluation Version Compatibility_
+  - _Depends: 12.1, 12.3_
+
+- [ ] 13. Register reviewed multi-arm plans and exact preflight
+- [ ] 13.1 Define component, combined-arm, and declarative combination configurations
+  - Represent component and combined arm configurations with exact scopes, policies, thresholds, sufficiency rules, outcome mapping, and a closed declarative combination rule.
+  - Require component identities and a finite normalized decision table for every combined arm, with identical-component-candidate-only proof retention.
+  - Refuse missing components, duplicate arms, cross-key policies, and arbitrary executable combination behavior.
+  - Done when canonical component and combined configurations validate and every component, rule-row, policy, threshold, sufficiency, or outcome-mapping mutation changes the configuration identity.
+  - _Requirements: 16.5, 17.1, 17.2, 19.4_
+  - _Boundary: Evaluation Arm Configuration_
+  - _Depends: 12.3_
+- [ ] 13.2 Build the non-circular plan declaration, baselines, and expected slots
+  - Derive the complete label-blind plan declaration before constructing per-arm baselines so the plan and baselines cannot form a digest cycle.
+  - Bind each baseline to the population, freeze, input set, declaration, and exact arm configuration so any listed change creates a new baseline.
+  - Define expected observation slots for every planned arm and input without including ground-truth roles or labels.
+  - Done when plan reordering is canonical, every substantive mutation changes the declaration and affected baselines, and a combined arm cannot name an absent component.
+  - _Requirements: 16.5, 17.1, 17.2_
+  - _Boundary: Evaluation Plan_
+  - _Depends: 13.1_
+- [ ] 13.3 Validate the reviewed label-blind census and plan manifest
+  - Represent exact vulnerable/fixed scope capacities, ecosystem-specific ordinary-push capacities, semantic/model capacities, and deduplicated whole-population size without case labels.
+  - Require an independently reviewed plan payload that binds the population, input set, arm configurations, baselines, readiness, custody head, census, and expected slots.
+  - Resolve review evidence under the configured trust and byte limits and refuse self-review, copied attestations, exposed labels, missing scopes, or inconsistent population identities.
+  - Done when one reviewed multi-arm manifest validates with labels sealed and every review, census, scope, ordinary-ecosystem, or slot substitution is refused before feasibility.
+  - _Requirements: 17.1, 17.2, 17.3, 18.1, 18.3_
+  - _Boundary: Evaluation Plan Review_
+- [ ] 13.4 Derive feasibility independently for every planned arm and exact scope
+  - Produce exactly one feasibility row for the canonical product of planned arms and their claimed scopes.
+  - Recompute minimum sample size, threshold reachability, and Wilson interval precision from the reviewed label-blind census for each row.
+  - Derive shared spend eligibility only when every row is feasible; keep insufficiency and its reasons distinct from GO and NO-GO.
+  - Refuse missing, extra, duplicated, or caller-summarized rows and prevent preparation when one row is insufficient.
+  - Done when a single insufficient scope blocks the shared spend without opening labels, while the complete feasible plan yields one reproducible preflight digest.
+  - _Requirements: 17.3, 17.4, 20.2_
+  - _Boundary: Evaluation Feasibility_
+
+- [ ] 14. Seal planned observations and authorize one atomic spend
+- [ ] 14.1 Validate exact nonzero observations against every expected slot
+  - Represent label-blind observation headers that bind slot, arm, input, execution, registered budget, configuration, input-read evidence, stage-execution evidence, cases, and proof candidates.
+  - Resolve every sealed observation through trusted content references and prove its bytes are nonzero before accepting its header.
+  - Require one-to-one equality between expected slots and sealed observations; refuse missing, extra, changed, unreadable, cross-arm, cross-input, or duplicate values.
+  - Done when the complete slot set validates and each single-slot removal, swap, truncation, zero-byte value, or identity mutation is refused before authority.
+  - _Requirements: 17.5, 17.6, 20.8_
+  - _Boundary: Evaluation Observation_
+  - _Depends: 13.3_
+- [ ] 14.2 Validate reviewed attempt history, sealed access, and exact retries
+  - Bind each attempt event to the complete retry identity, closed access policy, raw-observation and diagnostic access counts, public status projection, disposition, review, and predecessor.
+  - Resolve the reviewed predecessor chain from its declared head and require every unspent attempt to have the identical population, plan, arms, inputs, configurations, budgets, and execution identities.
+  - Permit public pre-spend projection only for closed status codes, counts, and digests; any raw/diagnostic access or identity change produces a terminal development-opened or spent disposition.
+  - Enforce terminal monotonicity so a later sealed event cannot restore admission eligibility.
+  - Done when an unchanged all-sealed retry chain validates and broken, forked, changed, exposed, self-reviewed, or terminal-then-sealed histories cannot authorize.
+  - _Requirements: 17.10, 17.11, 17.12_
+  - _Boundary: Evaluation Attempt History_
+  - _Depends: 13.3_
+- [ ] 14.3 Validate the independently reviewed admission authority
+  - Bind the feasible plan to the exact sealed observation set, attempt-history head, current readiness, validation context, and current complete custody head.
+  - Require the admission-authority payload to be reviewed independently from its producer and resolve its review evidence before authorization.
+  - Revalidate feasibility, all observation bytes, attempt history, readiness, and custody immediately before producing authority.
+  - Refuse stale or restored availability, changed observations, missing review, and any difference from the reviewed plan rather than returning a partial authority.
+  - Done when one canonical authority is derived only from the complete reviewed graph and every stale, substituted, or incomplete source fails before spend.
+  - _Requirements: 17.5, 17.6, 17.8, 17.10, 17.11, 17.12_
+  - _Boundary: Evaluation Authority_
+  - _Depends: 13.4, 14.1, 14.2_
+- [ ] 14.4 Bind every planned arm to one preparation and custody receipt
+  - Construct one head-bound label-release request whose influenced artifact transitively commits to every planned baseline and exact authority.
+  - Validate only the exact monotonic available-to-spent successor and derive an explicit all-arm binding between preparation, receipt, and planned baselines.
+  - Reject subset preparations, missing or mismatched receipts, stale concurrent attempts, broken custody chains, and any later restoration of availability.
+  - Keep durable compare-and-swap and label release outside core while exercising the boundary with an in-memory custody port.
+  - Done when one receipt authorizes all and only the planned arms, concurrent/stale losers fail, and no partial spend is constructible.
+  - _Requirements: 17.7, 17.8, 17.9_
+  - _Boundary: Evaluation Shared Spend_
+  - _Depends: 14.3_
+
+- [ ] 15. Authenticate V3 case release, combinations, and proof continuity
+- [ ] 15.1 Build the arm-aware V3 case and independently reviewed release graph
+  - Bind each post-spend case to its arm-scope key, baseline, observation, underlying push, role, pair, result, evidence inputs, change inputs, input manifest, and proof-candidate identity.
+  - Bind one independently reviewed release to the plan, admission authority, preparation, exact shared spend, and complete canonical case set.
+  - Require exact planned-arm and released-case cardinality and exact V3 root types; refuse V2 releases and subclasses.
+  - Require nonzero read and required-stage execution evidence in every released case before it can enter scoring.
+  - Done when the complete V3 release validates and V2 substitution, missing arms, duplicate cases, wrong spend, or copied review fail before metric production.
+  - _Requirements: 19.1, 19.2, 19.3, 19.11, 20.8_
+  - _Boundary: Evaluation Release_
+  - _Depends: 14.4_
+- [ ] 15.2 Revalidate exact role, pair, scope, result, and input associations
+  - Recompute every case and binding digest from canonical evidence rather than accepting caller-supplied summaries.
+  - Require vulnerable/fixed roles and scoped pair identities to form exact pairs; prohibit pair identities on ordinary cases.
+  - Preserve the separately reviewed underlying-push identity for scoped projection and later whole-population deduplication.
+  - Refuse arm, scope, role, pair, observation, result, evidence, location, input, or manifest swaps before any count is derived.
+  - Done when a canonical multi-scope release passes and a mutation matrix proves every association mismatch is invalid rather than a failed quality gate.
+  - _Requirements: 18.2, 18.5, 19.2, 19.10_
+  - _Boundary: Released Case Validation_
+- [ ] 15.3 Replay combined-arm rules and preserve component observation lineage
+  - Recompute combined observation outcomes from the registered finite decision table and exact component observation digests.
+  - Preserve each component arm's observation identity and outcome independently of the combined result; defer completed metric, gate, decision, and report preservation to replay assembly.
+  - Refuse missing, extra, replaced, reordered, or contradictory component material and any combined arm whose lineage differs from the reviewed plan.
+  - Done when the registered combined arm replays deterministically from exact component observations and no component observation can hide another component's absence, contradiction, or lineage mismatch.
+  - _Requirements: 19.4, 19.5, 19.11_
+  - _Boundary: Combination Validation_
+  - _Depends: 15.1, 15.2_
+- [ ] 15.4 Enforce proof-candidate identity and prevent proof transfer
+  - Keep every label-blind proof candidate non-authoritative until the V3 release establishes its exact arm, family, scope, roles, inputs, and location.
+  - Apply proof-backed status only through the existing trusted differential-proof validator and the identical released candidate.
+  - Permit a combined arm to retain only a candidate already present in its named component observation; prevent creation, substitution, and cross-arm transfer.
+  - Preserve absent or inconclusive proof as not demonstrated and refuse role-swapped, cross-family, cross-scope, location, input, control, producer, receipt, or trust-policy mismatches.
+  - Done when valid released proof attaches once, absent proof remains non-demonstrated, and the complete transfer/mismatch matrix is refused.
+  - _Requirements: 19.6, 19.7, 19.8, 19.9, 19.10_
+  - _Boundary: Proof Continuity_
+  - _Depends: 15.3_
+
+- [ ] 16. Derive exact scoped metrics and completed reports
+- [ ] 16.1 Partition quality evidence by exact arm, family, and ecosystem
+  - Select vulnerable and fixed cases only from the independently released exact scope and derive pair correctness without cross-scope reuse.
+  - Derive precision only from findings and cases assigned to the same arm-scope key under its reviewed denominator policy.
+  - Preserve family decision vocabulary, neutral outcomes, evidence bases, model outcomes, and semantic coverage independently for each key.
+  - Done when a multi-arm, multi-scope case set yields isolated partitions and any cross-arm, cross-family, or cross-ecosystem contribution is refused.
+  - _Requirements: 18.1, 18.2, 18.4_
+  - _Boundary: Evaluation Scoped Metrics_
+  - _Depends: 15.2, 15.4_
+- [ ] 16.2 Project ordinary pushes by ecosystem and deduplicate whole coverage
+  - Count each eligible ordinary push once for every family claimed by the arm in the push's reviewed ecosystem and never in another ecosystem.
+  - Deduplicate one underlying push once in whole-population coverage even when it contributes to several verified scope denominators.
+  - Reconcile projected ordinary counts and global unique-push counts back to the reviewed census and released identities.
+  - Done when same-ecosystem multi-family projection produces the expected scoped counts, cross-ecosystem projection is absent, and whole coverage counts each push once.
+  - _Requirements: 18.3, 18.5_
+  - _Boundary: Evaluation Ordinary Projection_
+- [ ] 16.3 Produce the complete scoped metric set and reject post-spend invalidity
+  - Derive every standard metric for every arm-scope key using the fixed algebra and Wilson 95% calculation.
+  - Publish numerator, denominator, sample count, value, and interval bounds for each scoped metric.
+  - Treat a post-spend zero denominator, census difference, missing standard metric, or inconsistent projection as invalid evaluation evidence rather than insufficiency, GO, or NO-GO.
+  - Done when complete nonzero scoped metrics match independent count fixtures and every zero/mismatch mutation fails before report construction.
+  - _Requirements: 18.1, 18.6, 18.8_
+  - _Boundary: Evaluation Metric Derivation_
+- [ ] 16.4 Derive completed per-scope decisions and per-arm operational evidence
+  - Derive instrument, budget, readiness, and quality gates for every exact arm-scope result from canonical evidence.
+  - Emit GO or NO-GO only when the scope evaluation is complete; keep insufficiency, unread input, skipped stage, incomplete arm, and instrument impairment outside quality decisions.
+  - Preserve per-arm completed and deferred case identities, stage funnel, instrument/model failures, runtime, and closed degradation reasons separately from shared whole coverage.
+  - Require nonzero input reads and required-stage execution before accepting a clean-looking result.
+  - Done when every completed scope receives one reproducible decision and every incomplete or impaired fixture is refused without a quality decision.
+  - _Requirements: 20.1, 20.2, 20.3, 20.8_
+  - _Boundary: Evaluation Report_
+- [ ] 16.5 Derive optional aggregates that can never authorize
+  - Bind aggregate constituents, sample counts, canonical rational weights, and derived metric values to exact arm-scope metric identities.
+  - Require weights to be non-negative, canonical, one-to-one with constituents, and sum exactly to one through integer arithmetic.
+  - Exclude gates, GO/NO-GO, proof promotion, and every consumer-authorization capability from the aggregate contract.
+  - Done when a valid aggregate reproduces from its constituents and raw, incomplete, gated, decision-bearing, or differently weighted aggregates are refused as authorization evidence.
+  - _Requirements: 16.6, 18.7, 20.7_
+  - _Boundary: Evaluation Aggregate_
+
+- [ ] 17. Close complete replay and replay-only consumer authorization
+- [ ] 17.1 Assemble one complete replay over the shared evaluation graph
+  - Bind the reviewed plan, exact feasibility, reviewed admission authority, preparation, receipt, all-arm spend binding, attempt-history head, V3 release, cases, per-arm reports, combination lineages, shared whole coverage, and optional aggregate.
+  - Require exact equality between planned arms/scopes and case/report identities, including every component required by a combined arm.
+  - Prevent replay construction when any arm, scope, mandatory gate, custody binding, release, case, component, or lineage is missing or invalid.
+  - Done when the complete graph produces one deterministic replay digest and every omitted or substituted component prevents construction.
+  - _Requirements: 19.4, 19.5, 19.11, 20.4, 20.5_
+  - _Boundary: Evaluation Replay_
+  - _Depends: 15.3, 16.4, 16.5_
+- [ ] 17.2 Revalidate replay from canonical source artifacts and current trust state
+  - Resolve the complete attempt chain and observation/review content again, revalidate current custody, and rederive every identity, count, metric, gate, decision, report, lineage, and replay digest.
+  - Require exact equality with the carried values and refuse coordinated rehashing, stale external state, unknown/mixed versions, and partial roots.
+  - Make the validated complete replay the only value that may cross a V3 authorization boundary.
+  - Done when independent replay validation reproduces the original reports exactly and every source, summary, or trust-state mutation is refused.
+  - _Requirements: 16.6, 20.5, 20.6, 20.7, 20.8_
+  - _Boundary: Evaluation Replay Validation_
+- [ ] 17.3 Publish the integrated V3 preflight, authorization, scoring, and replay facade
+  - Wire the exact plan preflight, reviewed authority, shared-spend validation, score/replay, strict decoding, and replay validation through one public V3 contract surface.
+  - Preserve every V2 facade and import unchanged and expose no benchmark storage, execution, lifecycle, or presentation implementation from core.
+  - Reject wrong-phase values and make each returned artifact usable only by the next declared phase.
+  - Done when a client can execute the complete synthetic contract through the public V3 schema and V2/unknown/mixed artifacts fail at the first boundary.
+  - _Requirements: 16.1, 16.4, 20.4, 20.6_
+  - _Boundary: Evaluation Admission Facade Integration_
+  - _Depends: 17.1, 17.2_
+- [ ] 17.4 (P) Authorize fitted components only from one exact replayed arm-scope result
+  - Validate the complete V3 replay before selecting exactly one planned arm-scope result and require that completed result to be GO.
+  - Preserve existing reversed-pair probe replay, fitting lineage, exact model declaration, and disjoint resolved repository-holdout checks.
+  - Refuse V2 replay, raw arm report, aggregate, incomplete replay, missing/ambiguous key, NO-GO scope, or substituted fitted evidence.
+  - Done when a matching fitted component authorizes only from its exact GO scope and every partial, aggregate, cross-arm, or probe/holdout mutation fails.
+  - _Requirements: 13.2, 16.6, 20.7_
+  - _Boundary: Fitted Consumer V3_
+  - _Depends: 17.2_
+
+- [ ] 18. Validate the V3 predecessor end to end
+- [ ] 18.1 Run a synthetic multi-arm, multi-family evaluation through one shared spend
+  - Use at least two component arms and one combined arm across at least two families and two ecosystems with multi-scope fixes and representative ordinary pushes.
+  - Prove nonzero reads, reviewed plan, exact preflight, sealed observations, reviewed attempt history, one preparation/receipt, V3 release, scoped reports, complete replay, and exact fitted selection.
+  - Preserve component observations/results and verify ordinary projection plus shared whole-population deduplication in the completed replay.
+  - Done when the public V3 facade produces one validated replay with every planned arm/scope and no V2 or benchmark-owned implementation is used as a substitute.
+  - _Requirements: 16.1, 16.5, 17.1, 17.3, 17.5, 17.7, 18.1, 18.3, 18.5, 19.1, 19.4, 20.1, 20.4, 20.7, 20.8_
+  - _Boundary: V3 End-to-End Conformance_
+  - _Depends: 17.3, 17.4_
+- [ ] 18.2 (P) Run the adversarial pre-spend and compatibility matrix
+  - Exercise V2 byte/digest/replay stability, V2-as-V3, unknown/mixed/subclass schemas, baseline mutations, impossible scopes, missing slots, zero/unreadable observations, self-review, forked attempt history, identity changes, raw access, stale custody, and subset spend.
+  - Prove every measurement instrument reads nonzero fixture bytes and fails loudly on unread input.
+  - Verify insufficiency leaves custody available and no refused case reaches detector execution or label release in the synthetic boundary.
+  - Done when every pre-spend mutation fails at its owning layer, V2 remains unchanged, and no failure produces a clean-looking result or quality decision.
+  - _Requirements: 16.1, 16.2, 16.3, 16.4, 16.5, 16.6, 17.2, 17.4, 17.6, 17.8, 17.9, 17.10, 17.11, 17.12, 20.2, 20.8_
+  - _Boundary: V3 Pre-Spend and Compatibility Validation_
+  - _Depends: 17.3_
+- [ ] 18.3 (P) Run the adversarial post-spend, metric, combination, and replay matrix
+  - Exercise V2 release substitution, arm/scope/role/pair/result/input swaps, missing components, contradictory combinations, proof transfer, absent/inconclusive proof, cross-ecosystem ordinary projection, duplicate whole coverage, zero/mismatched denominators, missing gates, and incomplete reports/replay.
+  - Verify invalid post-spend evidence never becomes insufficiency, GO, NO-GO, aggregate authority, or consumer eligibility.
+  - Revalidate every complete replay from source artifacts and current custody rather than trusting carried summaries.
+  - Done when the valid control replay reproduces exactly and every post-spend mutation is refused before authorization without hiding another arm's status.
+  - _Requirements: 18.2, 18.4, 18.6, 18.7, 18.8, 19.2, 19.3, 19.5, 19.6, 19.7, 19.8, 19.9, 19.10, 19.11, 20.3, 20.5, 20.6, 20.7_
+  - _Boundary: V3 Post-Spend and Replay Validation_
+  - _Depends: 17.2, 17.4_
+- [ ] 18.4 Verify dependency boundaries, complexity caps, and bounded validation growth
+  - Verify dependency direction, no V2/V3 aggregate imports across the version boundary, standard-library-only core runtime, and absence of benchmark, analyzer, model-runtime, or proof-execution ownership in V3 modules.
+  - Enforce function and module complexity caps and measure validation growth over increasing arms, scopes, observations, attempt events, cases, and reports.
+  - Fail each measurement fixture unless its scoped inputs are readable and nonzero before interpreting timing, count, or clean-result output.
+  - Done when import/boundary checks are clean, amended code stays within complexity caps, and validation cost remains bounded by supplied artifact counts without weakening checks.
+  - _Requirements: 16.2, 20.6, 20.8_
+  - _Boundary: V3 Boundary and Performance Validation_
+  - _Depends: 18.1, 18.2, 18.3_
+- [ ] 18.5 Run the final compatibility, regression, and schema-export gate
+  - Run the V2 golden suite, every V3 unit/integration/adversarial suite, and the existing core regression suite without consuming a real admission population.
+  - Prove all fixtures are readable and nonzero and the exact `openultrasast.detection-core.evaluation-admission.v3` schema is publicly exported.
+  - Done when all gates pass, V2 outputs remain frozen, validation stays bounded by supplied artifacts, and the validated predecessor is ready for downstream benchmark task generation.
+  - _Requirements: 16.1, 16.2, 16.4, 20.6, 20.8_
+  - _Boundary: V3 Final Validation Integration_
+  - _Depends: 18.4_
 
 ## Implementation Notes
 
@@ -446,3 +713,4 @@
 - Task 10.6 debug established that exact-byte successor authority must require canonical repository-relative paths and strict resolved-root containment, including rejection of outside-root symlink targets, before module digests can prove closure.
 - Human review reopened Task 10.6 for one focused remediation cycle covering canonical path syntax, resolved-root containment/symlink refusal, and the task-local formatting gate.
 - Human review reopened Task 10.5 for one focused remediation cycle covering exact source-closure evidence, collision-resistant create-only attempt persistence, and complexity-cap conformance.
+- Task 11.4 debug established that the 73 reserved-repository references are a benchmark-governance specification conflict, not a detection-core or instrument defect; historical artifacts and the reservation guard must remain unchanged pending an owning-spec decision.

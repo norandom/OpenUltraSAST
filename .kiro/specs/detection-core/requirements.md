@@ -23,20 +23,32 @@ object and decision vocabulary and may use a bounded model program to answer res
 questions over that evidence. A staged readiness contract shall stop a family at the first
 failing semantic layer, before population-level admission is attempted.
 
+**Evaluation-admission V3 amendment, 2026-11-06:** the validated version-two admission
+contract pools all claimed scopes and represents one arm. The approved replacement benchmark
+requires a new contract that evaluates multiple component and combined arms under one population
+spend while preserving an independently interpretable result for every exact vulnerability-family
+and ecosystem scope. Existing version-two evidence remains historical and unchanged.
+
 ## Boundary Context
 
 - **In scope**: the family-neutral evidence, outcome, trace, coverage, provenance, budget,
   staged-readiness, admission, measurement, fact-pack, model-handoff, and consumer
-  contracts; family conformance requirements; failure-visible semantic-stage accounting.
+  contracts; family conformance requirements; failure-visible semantic-stage accounting;
+  and the versioned exact-scope, multi-arm evaluation-admission validation and replay contract.
 - **Out of scope**: vulnerability-family detection algorithms and prompt content;
   framework-specific fact content; model optimization; analysis of vendored dependency
   source; the pre-push transaction and rollout policy; proof execution; enabling a new
-  vulnerability family for users.
+  vulnerability family for users; population sourcing, curation, reservation, licensing,
+  and lifecycle; durable object-store or compare-and-swap adapters and bucket administration;
+  detector execution or isolation; observation storage, access enforcement, and retry
+  orchestration; workflow heartbeat and status presentation; and operator notifications.
 - **Adjacent expectations**: the existing deterministic analysis is an evidence producer,
   not a required complete prover; family-specific DSPy programs may consume the evidence
   packet under the model-handoff contract; proof-based blocking remains a separate
-  consumer. A parked arm remains parked unless a separately reviewed strategy creates a
-  new arm, baseline, and admission population.
+  consumer. Benchmark-owned workflows supply the reviewed population, lifecycle, custody,
+  sealed-observation, access-control, and post-spend release evidence that the core validates;
+  the core does not create or operate those workflows. A parked arm remains parked unless a
+  separately reviewed strategy creates a new arm, baseline, and admission population.
 
 ## Requirements
 
@@ -292,6 +304,80 @@ The detection core shall require one fixed measurement schema for every detectio
 5. When a later-stage metric is reported, the detection core shall include the results and
    digests of every prerequisite readiness stage.
 
+## Evaluation-Admission V3 Amendment
+
+Requirements 16–20 extend Requirements 12 and 15 for a new evaluation-admission contract. Requirements 1–15 and completed version-two evidence retain their existing meaning, identities, and validation behavior; the amendment does not reinterpret or upgrade them.
+
+### Requirement 16: Versioned evaluation-admission compatibility
+The detection core shall provide a new evaluation-admission contract for exact-scope, multi-arm qualification without changing the meaning or validation of historical admission artifacts.
+
+#### Acceptance Criteria
+1. When a new evaluation admission is requested, the detection core shall validate it under a distinct contract version and shall keep every earlier admission contract independently replayable.
+2. The detection core shall preserve the accepted bytes, digests, decisions, and replay behavior of existing version-two admission artifacts.
+3. If pooled version-two evidence is presented as exact-scope version-three evidence, the detection core shall refuse the conversion and shall require a new baseline evaluated under the new contract.
+4. If an admission artifact names an unknown, mixed, or incompatible contract version, the detection core shall refuse it rather than infer a compatible shape.
+5. When a population, evaluation plan, arm identity, claimed scope, denominator policy, threshold set, judgment vocabulary, analyzer identity, fact identity, configuration identity, registered budget, execution identity, outcome mapping, or combination rule changes, the detection core shall require a new baseline identity.
+6. The detection core shall prevent an insufficient result, impaired result, aggregate result, incomplete arm result, raw report, or other partial artifact from authorizing consumer use.
+
+### Requirement 17: Reviewed multi-arm plan and atomic spend authority
+The detection core shall bind every arm evaluated against one untouched population to a reviewed label-blind plan and one atomic admission spend.
+
+#### Acceptance Criteria
+1. When an evaluation plan is registered before label access, the detection core shall require a reviewed label-blind plan naming the population, input-set identity, every component arm, every combined arm, and every expected observation slot.
+2. When an arm enters an evaluation plan, the detection core shall require its immutable baseline identity, exact claimed family-and-ecosystem scopes, denominator policy, thresholds, sufficiency rules, outcome mapping, and combination lineage where applicable.
+3. When the label-blind plan is reviewed, the detection core shall evaluate threshold reachability and evidence sufficiency independently for every planned arm and exact claimed scope.
+4. If any planned arm or claimed scope cannot meet its registered minimum-size, threshold-reachability, or interval-precision rule, the detection core shall report that arm and scope as insufficient and shall refuse the shared population spend.
+5. When every planned observation is complete and before label access, the detection core shall require an admission authority reviewed independently from its producer that binds the feasible plan to the exact completed observation identities and the current population custody state.
+6. If an expected observation is absent, unreadable, changed, associated with another arm, input, or plan, or inconsistent with the feasible plan, the detection core shall refuse admission authorization.
+7. When shared labels are released, the detection core shall require one admission preparation, one exact monotonic population transition, and one resulting label-release receipt binding every planned arm.
+8. If the custody head is stale, the transition is not the exact available-to-spent successor, the receipt is absent or mismatched, or availability is later restored, the detection core shall refuse label release and scoring.
+9. The detection core shall not authorize a partial spend for a subset of planned arms or scopes.
+10. While the population remains unspent, the detection core shall permit admission reuse only when raw observations and population-specific diagnostics remain unavailable to detector development and only closed process status, counts, and digests are exposed.
+11. If raw observations or population-specific diagnostics are inspected, or an arm, plan, configuration, registered budget, or execution identity changes after an attempt, the detection core shall require a development or spent disposition and shall refuse that population for admission.
+12. When a pre-spend attempt is retried, the detection core shall accept the retry only under the exact unchanged population, plan, arms, inputs, configuration, registered budgets, and execution identities.
+
+### Requirement 18: Exact-scope denominators and whole-population coverage
+The detection core shall derive qualification independently for each arm's exact vulnerability-family and ecosystem scope while preserving separate whole-population coverage.
+
+#### Acceptance Criteria
+1. When quality is evaluated, the detection core shall derive one complete standard metric set for every exact arm, vulnerability-family, and ecosystem scope declared in the reviewed plan.
+2. When recall or pair correctness is derived for a scope, the detection core shall use only vulnerable and fixed cases independently verified for that exact family and ecosystem.
+3. When ordinary false alarms are derived for an arm, the detection core shall count each eligible ordinary push once for every family claimed by that arm in the push's reviewed ecosystem and shall not project it into another ecosystem.
+4. When precision is derived for a scope, the detection core shall use only findings and cases assigned to that exact arm, family, and ecosystem under the reviewed denominator policy.
+5. When one underlying push contributes to multiple verified scoped denominators, the detection core shall count it once in whole-population coverage.
+6. When a scoped metric is reported, the detection core shall include its numerator, denominator, value, sample count, and Wilson 95% interval under the fixed metric algebra.
+7. Where an overall aggregate is reported, the detection core shall identify its constituent arms and scopes, sample counts, and weighting and shall not attach a gate or authorization decision to the aggregate.
+8. If a post-spend scoped denominator is zero or differs from the reviewed label-blind census and feasible plan, the detection core shall refuse the evaluation as invalid rather than report insufficient, go, or no-go.
+
+### Requirement 19: Version-three case release, arm results, and proof binding
+The detection core shall validate post-spend evidence separately for every planned arm while preserving shared population custody and combination lineage.
+
+#### Acceptance Criteria
+1. When post-spend cases are released, the detection core shall require one version-three case-release graph reviewed independently from its producer and bound to the reviewed evaluation plan, shared spend, and exact completed observations.
+2. When a case is released for an arm, the detection core shall bind its arm identity, exact scope, role, pair identity, result, evidence, change inputs, reviewed input manifest, and release review.
+3. If a version-two case release is supplied to a version-three evaluation, the detection core shall refuse it rather than reinterpret it under the new contract.
+4. When a combined arm is evaluated, the detection core shall preserve every component arm's observations, metrics, gates, and decision and shall report the registered combination lineage.
+5. If a combined result omits, replaces, or contradicts a required component result, the detection core shall refuse the combined evaluation.
+6. While ground-truth roles remain sealed, the detection core shall treat every label-blind proof candidate as non-authoritative for demonstrated status.
+7. When a proof-backed status is derived after case release, the detection core shall require an exact validated proof attachment matching the released family, scope, pair roles, change inputs, finding location, differential record, control binding, producer, verification receipt, and trust policy.
+8. When a combined arm retains proof evidence, the detection core shall require the identical validated proof candidate from the matching component observation and shall prevent the combined arm from creating or transferring proof evidence.
+9. If proof is absent or inconclusive, the detection core shall retain the finding as not demonstrated.
+10. If a proof attachment is role-swapped, cross-family, cross-scope, location-mismatched, or bound to unrelated inputs or controls, the detection core shall refuse the attachment as invalid and shall not count it as demonstrated.
+11. The detection core shall not allow one planned arm's valid result to hide another planned arm's missing, invalid, or failed result.
+
+### Requirement 20: Complete evaluation reports and replay authority
+The detection core shall make the complete multi-arm evaluation replay the only admission artifact capable of authorizing downstream consumption.
+
+#### Acceptance Criteria
+1. When a planned arm completes evaluation, the detection core shall report one go or no-go decision for every exact claimed scope from that arm's validated instrument, budget, readiness, and quality gates.
+2. The detection core shall reserve go and no-go for completed quality evaluations and shall keep pre-spend insufficiency, unread input, skipped stages, incomplete arms, and other instrument failures distinct from quality decisions.
+3. When an evaluation report is produced, the detection core shall preserve per-arm scoped metrics separately from whole-population coverage, completed and deferred work, coverage funnels, instrument and model failures, runtime, and every degradation reason.
+4. When every planned arm has a valid report, the detection core shall produce one complete evaluation replay binding the reviewed plans, feasibility results, admission authority, shared custody transition and receipt, the version-three case-release graph, independently valid per-arm scoped reports, and combination lineage.
+5. If any planned arm report, mandatory gate, custody binding, case release, or replay component is missing or invalid, the detection core shall refuse evaluation completion.
+6. When an evaluation replay is validated, the detection core shall rederive identities, counts, metrics, gates, and decisions from the canonical source artifacts rather than trust caller-supplied summaries.
+7. When a consumer requests admission evidence, the detection core shall provide authorization only from a complete validated evaluation replay and shall not authorize from a per-arm report or aggregate alone.
+8. When a zero or clean-looking arm result is included, the detection core shall require nonzero input-read evidence and execution evidence for every required stage before accepting the replay.
+
 ## Out of Scope
 - The pre-push hook transaction, rollout policy, and capability registry.
 - Vulnerability-family algorithms, prompts, examples, and optimization programs.
@@ -300,3 +386,7 @@ The detection core shall require one fixed measurement schema for every detectio
 - Proof execution and sandbox orchestration.
 - Enabling a vulnerability family for advisory or blocking use.
 - Analysis-engine, frontend, graph, and family-internal implementation details.
+- Population sourcing, human curation, permanent reservation, licensing, and lifecycle operations.
+- Durable object-store or compare-and-swap adapter implementation, bucket administration, and retention configuration.
+- Detector execution and isolation, observation storage and access enforcement, and retry orchestration.
+- Workflow heartbeat and operator-status presentation, notification transport, and product rollout.

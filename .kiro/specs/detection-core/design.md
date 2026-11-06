@@ -18,6 +18,9 @@ Authorization remains parked and supplies regression evidence only. Historical v
 remain readable but are never rewritten or used as a v2 trend baseline. Live v1 contracts
 and serialization first move behind one explicit, deletable `legacy_v1` namespace; cutover
 is then proved by syntax and capability removal rather than runtime alias inference.
+The evaluation-admission amendment adds a separate V3 root for exact-scope, multi-arm
+qualification under one shared population spend. It preserves every V2 admission artifact
+and replay path without conversion or reinterpretation.
 
 ### Goals
 
@@ -34,6 +37,11 @@ is then proved by syntax and capability removal rather than runtime alias infere
   suites.
 - Make the v1 removal gate structural: every live v1 import and writer crosses an explicit
   compatibility namespace that is deleted at cutover.
+- Qualify every component and combined arm independently for each exact family/ecosystem
+  scope while binding all arms to one reviewed plan, one atomic spend, and one complete
+  replay.
+- Preserve V2 admission bytes, digests, decisions, and replay behavior as an immutable
+  compatibility contract.
 
 ### Non-Goals
 
@@ -44,6 +52,11 @@ is then proved by syntax and capability removal rather than runtime alias infere
 - Reviving or re-admitting the parked authorization arm.
 - Enabling any capability for advisory or blocking rollout.
 - Providing cross-language canonical signatures; v2 is a Python-runtime contract.
+- Converting pooled V2 admission evidence into V3 scoped evidence or treating a V2 report
+  as a V3 baseline.
+- Owning population lifecycle, durable CAS/object storage, observation access enforcement,
+  detector isolation, retry orchestration, workflow presentation, or rollout decisions for
+  the multi-arm benchmark.
 
 ## Boundary Commitments
 
@@ -65,6 +78,9 @@ is then proved by syntax and capability removal rather than runtime alias infere
 - A finite v1 migration and read-only historical decoder.
 - The temporary `legacy_v1` compatibility namespace, frozen migration inventory, and
   syntax-only cutover boundary that make v1 write capability removable.
+- The V3 evaluation plan, exact arm/scope baseline and policy schemas, per-scope
+  feasibility, sealed-observation authority validation, all-arm spend binding, V3 release,
+  scoped reports, complete replay, and replay-only consumer authorization.
 
 ### Out of Boundary
 
@@ -78,6 +94,9 @@ is then proved by syntax and capability removal rather than runtime alias infere
 - Push scoping policy, alert rendering, capability rollout, and BLOCK enablement.
 - Production vulnerability-family contracts, target-specific authority bundles, structural
   matchers, and match-artifact persistence. Those belong to the downstream family spec.
+- Benchmark-owned population lifecycle, object-store/CAS adapters, detector execution,
+  observation access enforcement, label joining, retries, workflow status, presentation,
+  notification, and rollout policy.
 
 ### Allowed Dependencies
 
@@ -104,6 +123,9 @@ is then proved by syntax and capability removal rather than runtime alias infere
 - Production imports name a core submodule or symbol explicitly. Module-valued or dynamic
   access to `openultrasast.core` is outside the migration contract because it would hide
   legacy use from a deletion-backed gate.
+- V3 evaluation modules may reuse version-neutral core canonical, review, custody,
+  readiness, evidence, proof, coverage, budget, and metric-arithmetic primitives. They do
+  not import V2 aggregate roots; V2 modules do not import V3 modules.
 
 ### Revalidation Triggers
 
@@ -121,6 +143,11 @@ is then proved by syntax and capability removal rather than runtime alias infere
   design review.
 - Adding a v1 compatibility export, migration-inventory entry, direct v1 serializer, or
   dynamic core import reopens the namespace-isolation design and blocks cutover.
+- Changing any V3 plan, observation-slot, retry/history, shared-spend, case-release,
+  proof-candidate, combination, scoped metric, aggregate, report, replay, or consumer
+  selection contract revalidates the benchmark and every V3 consumer.
+- Extracting or changing a version-neutral helper requires the frozen V2 canonical,
+  decision, failure, and replay suite to pass byte-for-byte.
 
 ## Architecture
 
@@ -138,6 +165,12 @@ exists in `benchmarks/valid/judge_pass.py`, but no core model handoff exists; on
 test explicitly prohibits a public model path. Production push and proof paths do not yet
 consume the core end to end. The migration therefore preserves reusable mechanisms while
 replacing the public domain model.
+
+The implemented V2 admission root is intentionally retained but structurally limited: one
+arm owns one baseline, every metric rule receives the complete claimed-scope tuple,
+feasibility pools capacity across those scopes, and one unscoped metric set produces one
+decision. Exact per-arm/per-family/per-ecosystem qualification therefore requires an
+additive V3 aggregate graph rather than an in-place V2 extension.
 
 ### Architecture Pattern and Boundary Map
 
@@ -2554,6 +2587,871 @@ Authorization conversion moves to `semantic/obligations/core_adapter.py`, where 
 map to the authorization family contract. Missing per-hop completeness remains incomplete.
 The DSPy and search adapters similarly map external typed records without leaking their
 dependencies into core.
+
+## Evaluation-Admission V3 Amendment
+
+Requirements 16–20 extend the implemented family-neutral core with a distinct exact-scope,
+multi-arm evaluation contract. This section is normative for V3; the earlier V2 measurement
+and admission design remains normative and unchanged for historical and compatibility use.
+
+### Boundary Commitments
+
+Detection-core owns the V3 canonical schemas, exact-type validators, reviewed-plan and
+observation-authority contracts, per-arm/per-scope feasibility and metric algebra, shared
+spend binding, V3 case release, component/combined lineage validation, scoped reports,
+complete replay, and consumer authorization. It preserves every V2 schema, byte, digest,
+decision, validator, and replay path unchanged.
+
+Detection-core does not own population sourcing or lifecycle, durable object storage or
+CAS, observation access enforcement, detector execution or isolation, retry orchestration,
+label joining, workflow status, notification, presentation, or rollout policy. The benchmark
+produces immutable reviewed lifecycle, observation, custody, and release artifacts; core
+validates them and derives no authority from an unreviewed workflow state.
+
+Allowed dependencies are Python 3.11 standard-library modules and existing version-neutral
+core primitives: canonical content references/resolution, independence review, custody,
+readiness, evidence validation, proof attachment, coverage, budget, and Wilson arithmetic.
+V3 modules never import V2 aggregate roots. V2 modules never import V3 modules. Adjacent
+benchmark and consumer code imports the public V3 facade.
+
+Downstream revalidation is required by a V3 schema or canonical-profile change; a change to
+plan, baseline, observation-slot, disposition/retry, shared-spend, release, proof-candidate,
+combination, denominator, gate, aggregate, or replay semantics; or any shared-helper change
+that alters frozen V2 output.
+
+### Architecture
+
+The selected pattern is parallel versioned aggregate roots with version-neutral internal
+helpers. V2 remains an independently replayable historical/live compatibility contract.
+V3 is a new baseline and has no conversion path from V2.
+
+The public root schema is exactly
+`openultrasast.detection-core.evaluation-admission.v3`. Strict decoding accepts only the
+registered V3 root schemas below; unknown versions, V2 roots, subclasses, and graphs whose
+children name a different version are refused without shape inference.
+
+```mermaid
+flowchart LR
+    Benchmark[Benchmark workflow] --> Plan[Reviewed plan]
+    Plan --> Feasibility[Exact scope feasibility]
+    Benchmark --> Observations[Sealed observations]
+    Feasibility --> Authority[Admission authority]
+    Observations --> Authority
+    Authority --> Custody[Shared custody transition]
+    Custody --> Release[V3 case release]
+    Release --> Reports[Scoped arm reports]
+    Reports --> Replay[Complete evaluation replay]
+    Replay --> Consumer[Consumer authorization]
+```
+
+Dependency direction:
+
+```text
+canonical, review, custody, readiness, evidence, proof, coverage, budget
+  → evaluation_measurement
+  → evaluation_plan
+  → evaluation_feasibility
+  → evaluation_observation
+  → evaluation_authority
+  → evaluation_release
+  → evaluation_metrics
+  → evaluation_report
+  → evaluation_replay
+  → evaluation_admission facade
+  → admission_fitted V3 consumer
+```
+
+### File Structure Plan
+
+New files:
+
+- `src/openultrasast/core/_metric_algebra.py` — version-neutral closed metric algebra
+  and Wilson arithmetic, created only after V2 golden fixtures lock current behavior;
+  contains no schema, serializer, aggregate root, or version dispatch.
+- `src/openultrasast/core/evaluation_measurement.py` — V3 arm/scope keys, arm
+  configuration and baseline identities, exact denominator policies, scoped thresholds,
+  sufficiency/precision rules, scoped metric results, and non-authorizing aggregates.
+- `src/openultrasast/core/evaluation_plan.py` — non-circular plan declaration, expected
+  observation slots, component/combined arm plans, V3 census, and independently reviewed
+  `EvaluationPlanManifestV3`.
+- `src/openultrasast/core/evaluation_feasibility.py` — per-arm/per-scope threshold,
+  minimum-size, and interval-precision witnesses and shared `may_spend` derivation.
+- `src/openultrasast/core/evaluation_observation.py` — sealed observation references,
+  reviewed resolver-backed attempt history, retry/disposition evidence, and
+  `EvaluationAdmissionManifestV3`.
+- `src/openultrasast/core/evaluation_authority.py` — post-observation revalidation,
+  `EvaluationAdmissionAuthorityV3`, shared preparation, and all-arm spend binding.
+- `src/openultrasast/core/evaluation_release.py` — arm-aware released-case bindings,
+  proof-candidate continuity, and independently reviewed `AdmissionCaseReleaseV3`.
+- `src/openultrasast/core/evaluation_metrics.py` — exact-scope case validation and metric
+  derivation, ordinary ecosystem projection, whole-push deduplication, and combination
+  preservation.
+- `src/openultrasast/core/evaluation_report.py` — completed per-scope decisions, per-arm
+  operational evidence, whole-population coverage, degradation reasons, and aggregates.
+- `src/openultrasast/core/evaluation_replay.py` — complete V3 graph construction and full
+  authoritative replay validation.
+- `src/openultrasast/core/evaluation_admission.py` — sole public V3 facade for preflight,
+  authorization, score/replay, strict decoding, and replay validation.
+
+Modified files:
+
+- `src/openultrasast/core/admission_fitted.py` — add a separate V3 consumer function that
+  accepts only a complete replay plus one exact arm/scope key; keep the V2 function exact.
+- `src/openultrasast/core/__init__.py` — expose the V3 facade without changing V2 names.
+- `tests/fixtures/detection_core/admission_v2/` — frozen accepted bytes, digests,
+  decisions, validation failures, and replay outputs.
+- `tests/test_core_admission_v2_compatibility.py` and
+  `tests/test_core_evaluation_*.py` — V2 stability and V3 contract/conformance suites.
+
+### System Flow
+
+```mermaid
+sequenceDiagram
+    participant Run as Benchmark workflow
+    participant Core as Detection core V3
+    participant Store as Observation resolver
+    participant Custody as Custody writer
+    participant Reviewer as Independent reviewer
+
+    Run->>Reviewer: Label blind plan payload
+    Reviewer-->>Run: Plan attestation
+    Run->>Core: EvaluationPlanManifestV3
+    Core-->>Run: EvaluationFeasibilityV3
+    Run->>Run: Execute every planned arm label blind
+    Run->>Store: Seal every expected observation
+    Run->>Reviewer: Plan observations and disposition payload
+    Reviewer-->>Run: Admission attestation
+    Run->>Core: EvaluationAdmissionManifestV3
+    Core->>Store: Resolve exact nonzero observations
+    Core-->>Run: EvaluationPreparationV3
+    Run->>Custody: Compare and swap shared request
+    Custody-->>Run: One spend receipt and labels
+    Run->>Reviewer: Arm case release payload
+    Reviewer-->>Run: V3 release attestation
+    Run->>Core: Receipt release and every arm case
+    Core-->>Run: EvaluationReplayV3
+```
+
+Any insufficient arm/scope ends before execution/spend. Missing, changed, unreadable, or
+unsealed observations end before preparation. After spend, missing or invalid cases,
+denominator mismatch, or incomplete arms invalidate the evaluation and cannot be reported
+as insufficiency, GO, or NO-GO. The custody writer remains external and releases labels
+only to the exact CAS winner.
+
+### Requirements Traceability
+
+| Requirement | Design realization |
+|---|---|
+| 16.1, 16.2, 16.3, 16.4 | Separate V3 facade, exact schema/type validators, no conversion, frozen V2 compatibility suite |
+| 16.5 | Plan declaration plus per-arm V3 baseline binds every listed identity and changes on any plan/configuration mutation |
+| 16.6 | Typed preflight/impairment/aggregate/report artifacts have no consumer-authority interface; only complete replay authorizes |
+| 17.1, 17.2 | Independently reviewed plan declaration, arm plans, component/combined lineage, and expected slots |
+| 17.3, 17.4 | Complete arm/scope feasibility product and shared `may_spend`; insufficiency prevents preparation |
+| 17.5, 17.6 | Independently reviewed admission manifest and exact resolved observation-slot equality |
+| 17.7, 17.8, 17.9 | One authority, preparation, CAS request/receipt, and all-arm spend binding; no subset construction |
+| 17.10, 17.11, 17.12 | Reviewed sealed/development/spent disposition and exact retry identity; only sealed unchanged retries validate |
+| 18.1, 18.2, 18.3, 18.4 | Full metric set for each `ArmScopeKey`; exact roles/scopes; ecosystem-only ordinary projection; exact precision |
+| 18.5 | `underlying_push_digest` deduplicates whole coverage independently from scoped projections |
+| 18.6, 18.7 | Scoped metric numerator/denominator/sample/Wilson fields and aggregate type without gate/decision |
+| 18.8 | Post-spend zero or census mismatch is validation failure before report construction |
+| 19.1, 19.2, 19.3 | Independently reviewed arm-aware V3 release bound to plan, observations, authority and shared spend; V2 type refused |
+| 19.4, 19.5 | Exact component observations/reports and deterministic combination lineage are mandatory and contradiction-checked |
+| 19.6, 19.7, 19.8, 19.9, 19.10 | Pre-release candidate is non-authoritative; post-release proof matches exact candidate/binding; no transfer or mismatch |
+| 19.11 | Planned-arm/report cardinality equality; no result can mask another arm |
+| 20.1, 20.2 | Completed result per arm/scope with GO/NO-GO; insufficiency, impairment, incomplete and invalid remain distinct |
+| 20.3 | Per-arm scoped metrics plus separate whole coverage, completed/deferred work, funnels, failures, runtime and degradations |
+| 20.4, 20.5, 20.6, 20.7 | Closed replay binds and rederives the full graph; missing components refuse completion; only replay authorizes |
+| 20.8 | Each arm/scope requires nonzero read receipts and required-stage execution evidence |
+
+### Components and Interfaces
+
+#### V3 identity, plan, and feasibility
+
+`ArmScopeKey` is the natural key for every scoped policy, threshold, metric, gate, and
+decision. An arm configuration carries the actual immutable policy objects and the
+identities listed in 16.5. `EvaluationPlanDeclarationV3` is hashed before arm baselines are
+constructed, avoiding a digest cycle. Each baseline binds the declaration digest and one
+arm-configuration digest.
+
+```python
+@dataclass(frozen=True, order=True)
+class ArmScopeKey:
+    arm_id: str
+    scope: ScopeKey
+
+class ArmKindV3(Enum):
+    COMPONENT = "component"
+    COMBINED = "combined"
+
+@dataclass(frozen=True)
+class ScopedMetricRuleV3:
+    key: ArmScopeKey
+    metric_id: MetricId
+    numerator: NumeratorKind
+    denominator: DenominatorKind
+    rule_digest: str
+
+@dataclass(frozen=True)
+class ScopedThresholdV3:
+    key: ArmScopeKey
+    metric_id: MetricId
+    statistic: Statistic
+    comparator: Comparator
+    target: float
+    threshold_digest: str
+
+@dataclass(frozen=True)
+class IntervalPrecisionRuleV3:
+    metric_id: MetricId
+    maximum_wilson_width: float
+    minimum_denominator: int
+    rule_digest: str
+
+@dataclass(frozen=True)
+class DenominatorPolicyV3:
+    key: ArmScopeKey
+    rules: tuple[ScopedMetricRuleV3, ...]
+    interval_method: IntervalMethod
+    policy_digest: str
+
+@dataclass(frozen=True)
+class ScopeSufficiencyRuleV3:
+    key: ArmScopeKey
+    minimum_pairs: int
+    minimum_ordinary_pushes: int
+    precision_rules: tuple[IntervalPrecisionRuleV3, ...]
+    rule_digest: str
+
+@dataclass(frozen=True)
+class ExactScopeCensusV3:
+    scope: ScopeKey
+    pair_count: int
+    vulnerable_side_count: int
+    fixed_side_count: int
+    semantic_site_capacity: int
+    model_call_capacity: int
+
+@dataclass(frozen=True)
+class EcosystemOrdinaryCensusV3:
+    ecosystem: str
+    ordinary_push_count: int
+
+@dataclass(frozen=True)
+class PopulationCensusV3:
+    population_digest: str
+    scope_rows: tuple[ExactScopeCensusV3, ...]
+    ordinary_rows: tuple[EcosystemOrdinaryCensusV3, ...]
+    whole_underlying_push_count: int
+    labels_exposed: bool
+    payload_digest: str
+    review: IndependenceAttestation
+    census_digest: str
+
+class CombinationOperatorV3(Enum):
+    DECLARATIVE_TABLE = "declarative_table"
+
+class ProofCandidatePolicyV3(Enum):
+    IDENTICAL_COMPONENT_ONLY = "identical_component_only"
+
+@dataclass(frozen=True)
+class CombinationDecisionRowV3:
+    component_outcomes: tuple[NeutralOutcome, ...]
+    combined_outcome: NeutralOutcome
+    row_digest: str
+
+@dataclass(frozen=True)
+class CombinationRuleV3:
+    combined_arm_id: str
+    component_arm_ids: tuple[str, ...]
+    operator: CombinationOperatorV3
+    decision_rows: tuple[CombinationDecisionRowV3, ...]
+    candidate_policy: ProofCandidatePolicyV3
+    rule_digest: str
+
+@dataclass(frozen=True)
+class CombinationLineageV3:
+    rule: CombinationRuleV3
+    component_observation_digests: tuple[str, ...]
+    retained_proof_candidate_digests: tuple[str, ...]
+    lineage_digest: str
+
+@dataclass(frozen=True)
+class ArmConfigurationV3:
+    arm_id: str
+    kind: ArmKindV3
+    exact_scopes: tuple[ScopeKey, ...]
+    denominator_policies: tuple[DenominatorPolicyV3, ...]
+    thresholds: tuple[ScopedThresholdV3, ...]
+    sufficiency_rules: tuple[ScopeSufficiencyRuleV3, ...]
+    judgment_vocabulary_digest: str
+    analyzer_identity: str
+    fact_set_digest: str
+    configuration_digest: str
+    registered_budget_digest: str
+    execution_identity: str
+    outcome_mapping_digest: str
+    combination_rule: CombinationRuleV3 | None
+    configuration_identity_digest: str
+
+@dataclass(frozen=True)
+class ExpectedObservationSlotV3:
+    slot_id: str
+    arm_id: str
+    input_identity_digest: str
+    execution_identity: str
+    slot_digest: str
+
+@dataclass(frozen=True)
+class EvaluationPlanDeclarationV3:
+    population_digest: str
+    freeze_digest: str
+    input_set_digest: str
+    arm_configurations: tuple[ArmConfigurationV3, ...]
+    expected_observation_slots: tuple[ExpectedObservationSlotV3, ...]
+    declaration_digest: str
+
+@dataclass(frozen=True)
+class EvaluationBaselineIdentityV3:
+    arm_id: str
+    plan_declaration_digest: str
+    population_digest: str
+    freeze_digest: str
+    input_set_digest: str
+    arm_configuration_digest: str
+    baseline_digest: str
+
+@dataclass(frozen=True)
+class EvaluationPlanManifestV3:
+    declaration: EvaluationPlanDeclarationV3
+    baselines: tuple[EvaluationBaselineIdentityV3, ...]
+    census: PopulationCensusV3
+    readiness_digests: tuple[str, ...]
+    custody_log_digest: str
+    payload_digest: str
+    review: IndependenceAttestation
+    manifest_digest: str
+
+class FeasibilityStatusV3(Enum):
+    FEASIBLE = "feasible"
+    INSUFFICIENT = "insufficient"
+
+@dataclass(frozen=True)
+class ThresholdFeasibilityV3:
+    threshold_digest: str
+    attainable: bool
+    witness_numerator: int
+    witness_denominator: int
+    witness_digest: str
+
+@dataclass(frozen=True)
+class SufficiencyResultV3:
+    rule_digest: str
+    minimum_size_passed: bool
+    interval_precision_passed: bool
+    reasons: tuple[str, ...]
+    result_digest: str
+
+@dataclass(frozen=True)
+class ScopeFeasibilityV3:
+    key: ArmScopeKey
+    threshold_witnesses: tuple[ThresholdFeasibilityV3, ...]
+    sufficiency_results: tuple[SufficiencyResultV3, ...]
+    status: FeasibilityStatusV3
+    reasons: tuple[str, ...]
+    result_digest: str
+
+@dataclass(frozen=True)
+class EvaluationFeasibilityV3:
+    plan_manifest_digest: str
+    rows: tuple[ScopeFeasibilityV3, ...]
+    may_spend: bool
+    feasibility_digest: str
+```
+
+The feasibility rows equal the canonical product of every arm and its exact claimed scopes.
+Every row rederives minimum sizes, threshold reachability, and interval precision from the
+reviewed label-blind census. `may_spend` is true only when every row is feasible.
+
+#### Observation authority and atomic spend
+
+```python
+class PreSpendDispositionV3(Enum):
+    SEALED = "sealed"
+    DEVELOPMENT_OPENED = "development_opened"
+    SPENT = "spent"
+
+class PublicStatusFieldV3(Enum):
+    STATUS_CODE = "status_code"
+    COUNT = "count"
+    DIGEST = "digest"
+
+@dataclass(frozen=True)
+class ObservationAccessPolicyV3:
+    allowed_public_fields: tuple[PublicStatusFieldV3, ...]
+    raw_observation_access_allowed: bool
+    population_diagnostic_access_allowed: bool
+    policy_digest: str
+
+@dataclass(frozen=True)
+class ObservationCaseRefV3:
+    case_id_digest: str
+    underlying_push_digest: str
+    result_digest: str
+    proof_candidate_digest: str | None
+
+@dataclass(frozen=True)
+class ArmObservationSetV3:
+    slot_digest: str
+    arm_id: str
+    input_identity_digest: str
+    execution_identity: str
+    registered_budget_digest: str
+    configuration_digest: str
+    input_read_evidence_digest: str
+    stage_execution_evidence_digest: str
+    cases: tuple[ObservationCaseRefV3, ...]
+    observation_digest: str
+
+@dataclass(frozen=True)
+class SealedObservationRefV3:
+    slot_digest: str
+    arm_id: str
+    input_identity_digest: str
+    execution_identity: str
+    registered_budget_digest: str
+    configuration_digest: str
+    observation: ContentRef
+    observation_digest: str
+    read_receipt_digest: str
+    ref_digest: str
+
+@dataclass(frozen=True)
+class AttemptIdentityV3:
+    population_digest: str
+    plan_declaration_digest: str
+    baseline_digests: tuple[str, ...]
+    input_set_digest: str
+    configuration_digests: tuple[str, ...]
+    registered_budget_digests: tuple[str, ...]
+    execution_identities: tuple[str, ...]
+    retry_identity_digest: str
+
+@dataclass(frozen=True)
+class AttemptEventV3:
+    attempt_identity: AttemptIdentityV3
+    disposition: PreSpendDispositionV3
+    access_policy: ObservationAccessPolicyV3
+    raw_observation_access_count: int
+    population_diagnostic_access_count: int
+    public_status_projection: ContentRef
+    predecessor_event_digest: str | None
+    payload_digest: str
+    review: IndependenceAttestation
+    event_digest: str
+
+@dataclass(frozen=True)
+class AttemptEventRefV3:
+    event: ContentRef
+    event_digest: str
+    ref_digest: str
+
+@dataclass(frozen=True)
+class AttemptHistoryV3:
+    population_digest: str
+    events: tuple[AttemptEventRefV3, ...]
+    head_event_digest: str
+    history_digest: str
+
+@dataclass(frozen=True)
+class EvaluationAdmissionManifestV3:
+    plan_manifest: EvaluationPlanManifestV3
+    feasibility_digest: str
+    observations: tuple[SealedObservationRefV3, ...]
+    readiness_digests: tuple[str, ...]
+    custody_log_digest: str
+    attempt_history: AttemptHistoryV3
+    payload_digest: str
+    review: IndependenceAttestation
+    manifest_digest: str
+
+@dataclass(frozen=True)
+class EvaluationAdmissionAuthorityV3:
+    admission_manifest_digest: str
+    plan_manifest_digest: str
+    baseline_digests: tuple[str, ...]
+    feasibility_digest: str
+    observation_set_digest: str
+    readiness_set_digest: str
+    validation_context_digest: str
+    custody_log_digest: str
+    attempt_history_head_digest: str
+    admission_review_digest: str
+    authority_digest: str
+
+@dataclass(frozen=True)
+class EvaluationPreparationV3:
+    authority: EvaluationAdmissionAuthorityV3
+    label_release_request: PopulationUseRequest
+    planned_baseline_digests: tuple[str, ...]
+    preparation_digest: str
+
+@dataclass(frozen=True)
+class EvaluationSpendBindingV3:
+    preparation_digest: str
+    receipt_digest: str
+    planned_baseline_digests: tuple[str, ...]
+    binding_digest: str
+```
+
+`EvaluationAdmissionManifestV3` is the externally produced, independently reviewed
+admission-authority artifact required by 17.5: its review subject is the complete payload
+digest, its producer and reviewer differ, and the payload binds the feasible plan, exact
+observations, the complete attempt-history head, readiness, and current custody head. The derived
+`EvaluationAdmissionAuthorityV3` is core's validated projection of that reviewed artifact;
+it carries the exact review digest and cannot exist without it.
+
+The admission manifest must contain exactly one observation reference for every expected
+slot. Validation resolves each content reference, proves nonzero bytes, parses its canonical
+`ArmObservationSetV3`, and checks arm, input, execution, budget, configuration, slot,
+input-read evidence, stage-execution evidence, case references, and observation
+identity. Core resolves every `AttemptEventRefV3`, validates its independent review and
+nonzero canonical bytes, and requires an exact predecessor chain ending at the declared
+head. Every unspent predecessor must carry the same rederived `AttemptIdentityV3`; a changed
+population, plan, baseline set, input set, configuration, registered budget, or execution
+identity requires a terminal development-opened or spent event. The access policy must
+prohibit raw-observation and population-diagnostic access, both access counts must be zero,
+and the resolved public projection may contain only closed status codes, counts, and
+digests. Any nonzero access count likewise requires a terminal development-opened or spent
+event. Terminal dispositions are monotonic, so no later sealed event can restore admission
+eligibility. Only a complete all-sealed identical-identity chain can authorize. The derived
+authority and replay both bind the history head; replay re-resolves the full chain. The
+authority also binds the independent admission-review digest and cannot be produced from a
+self-reviewed or unattested payload.
+
+The underlying `PopulationUseRequest` names the canonical evaluation-plan identity in its
+legacy `arm_id` field and the V3 authority digest as its influenced artifact. The authority
+transitively binds every baseline; `EvaluationSpendBindingV3` makes the relationship to the
+one exact receipt explicit. Core never performs the append or releases labels.
+
+#### V3 case release, combinations, and proof continuity
+
+```python
+@dataclass(frozen=True)
+class ProofCandidateIdentityV3:
+    component_arm_id: str
+    observation_digest: str
+    family_id: str
+    scope: ScopeKey
+    finding_location_digest: str
+    change_input_digest: str
+    candidate_digest: str
+
+@dataclass(frozen=True)
+class ReleasedArmCaseBindingV3:
+    key: ArmScopeKey
+    baseline_digest: str
+    observation_slot_digest: str
+    observation_digest: str
+    underlying_push_digest: str
+    case_id_digest: str
+    role: AdmissionCaseRole
+    pair_id_digest: str | None
+    case_result_digest: str
+    evidence_input_digests: tuple[str, ...]
+    change_input_digests: tuple[str, ...]
+    input_manifest_digest: str
+    proof_candidate_digest: str | None
+    binding_digest: str
+
+@dataclass(frozen=True)
+class AdmissionCaseReleaseV3:
+    plan_manifest_digest: str
+    admission_manifest_digest: str
+    authority_digest: str
+    preparation_digest: str
+    spend_binding_digest: str
+    bindings: tuple[ReleasedArmCaseBindingV3, ...]
+    payload_digest: str
+    review: IndependenceAttestation
+    release_digest: str
+
+@dataclass(frozen=True)
+class ArmAdmissionCaseResultV3:
+    key: ArmScopeKey
+    observation_slot_digest: str
+    observation_digest: str
+    underlying_push_digest: str
+    case_id_digest: str
+    role: AdmissionCaseRole
+    pair_id_digest: str | None
+    evidence_inputs: tuple[EvidenceValidationInput, ...]
+    claims: tuple[DefectClaim, ...]
+    satisfactions: tuple[BoundedSatisfaction, ...]
+    silence: tuple[BoundedSilence, ...]
+    proof_candidate: ProofCandidateIdentityV3 | None
+    proof_attachments: tuple[ProofAttachment, ...]
+    coverage: CoverageFunnel
+    input_manifest: InputManifest
+    input_receipts: tuple[InputReadReceipt, ...]
+    complexity: ChangeComplexity
+    budget: BudgetDerivation
+    total_reply_ms: int
+    result_digest: str
+
+@dataclass(frozen=True)
+class ArmAdmissionCasesV3:
+    arm_id: str
+    baseline_digest: str
+    cases: tuple[ArmAdmissionCaseResultV3, ...]
+    cases_digest: str
+```
+
+The release is the sole post-spend authority for arm, scope, role, pair, result, evidence,
+inputs, and proof-candidate association. It is an exact V3 type; V2 release values and
+subclasses are refused. Component arms retain their own cases, metrics, gates, and reports.
+A combined arm's `CombinationLineageV3` names every component arm, observation digest,
+combination rule, and retained candidate. The rule is a finite canonical decision table
+over normalized component observation outcomes with a fixed identical-candidate-only proof
+policy. Core replays the table; arbitrary combination code is not accepted. Missing, extra,
+replaced, or contradictory component material invalidates the combined evaluation.
+
+A proof candidate is non-authoritative before release. After release, the existing proof
+validator applies only when family, scope, pair roles, inputs, location, differential,
+control, producer, verification receipt, and trust policy match the released candidate.
+Absent or inconclusive proof preserves not-demonstrated status. A combined arm can retain
+only the identical candidate from a named component observation.
+
+#### Exact metrics, reports, and complete replay
+
+```python
+@dataclass(frozen=True)
+class ScopedMetricResultV3:
+    key: ArmScopeKey
+    metric_id: MetricId
+    numerator: int
+    denominator: int
+    sample_count: int
+    value: float | None
+    interval_method: IntervalMethod
+    interval_lower: float | None
+    interval_upper: float | None
+
+@dataclass(frozen=True)
+class ScopeAdmissionResultV3:
+    key: ArmScopeKey
+    metrics: tuple[ScopedMetricResultV3, ...]
+    instrument_gate: GateResult
+    budget_gate: GateResult
+    readiness_gate: GateResult
+    quality_gate: GateResult
+    decision: AdmissionDecision
+    result_digest: str
+
+class DegradationReasonV3(Enum):
+    INSTRUMENT = "instrument"
+    MODEL = "model"
+    BUDGET = "budget"
+    COVERAGE = "coverage"
+    DEFERRED = "deferred"
+
+@dataclass(frozen=True)
+class ArmOperationalEvidenceV3:
+    completed_count: int
+    deferred_count: int
+    completed_case_digests: tuple[str, ...]
+    deferred_case_digests: tuple[str, ...]
+    stage_funnel: CoverageFunnel
+    instrument_failures: tuple[str, ...]
+    model_failures: tuple[str, ...]
+    runtime_ms: int
+    degradation_reasons: tuple[DegradationReasonV3, ...]
+    evidence_digest: str
+
+@dataclass(frozen=True)
+class WholePopulationCoverageV3:
+    underlying_push_count: int
+    completed_underlying_push_count: int
+    deferred_underlying_push_count: int
+    coverage_digest: str
+
+@dataclass(frozen=True)
+class ArmEvaluationReportV3:
+    baseline: EvaluationBaselineIdentityV3
+    scoped_results: tuple[ScopeAdmissionResultV3, ...]
+    operational_evidence: ArmOperationalEvidenceV3
+    combination_lineage: CombinationLineageV3 | None
+    report_digest: str
+
+@dataclass(frozen=True)
+class AggregateWeightV3:
+    key: ArmScopeKey
+    numerator: int
+    denominator: int
+    weight_digest: str
+
+@dataclass(frozen=True)
+class EvaluationAggregateV3:
+    constituents: tuple[ArmScopeKey, ...]
+    sample_counts: tuple[int, ...]
+    weights: tuple[AggregateWeightV3, ...]
+    metrics: tuple[AggregateMetricV3, ...]
+    aggregate_digest: str
+
+@dataclass(frozen=True)
+class AggregateMetricV3:
+    metric_id: MetricId
+    weighted_value: float
+    constituent_metric_digests: tuple[str, ...]
+    metric_digest: str
+
+@dataclass(frozen=True)
+class EvaluationReplayV3:
+    plan_manifest: EvaluationPlanManifestV3
+    feasibility: EvaluationFeasibilityV3
+    admission_manifest: EvaluationAdmissionManifestV3
+    authority: EvaluationAdmissionAuthorityV3
+    preparation: EvaluationPreparationV3
+    receipt: PopulationUseReceipt
+    spend_binding: EvaluationSpendBindingV3
+    case_release: AdmissionCaseReleaseV3
+    cases_by_arm: tuple[ArmAdmissionCasesV3, ...]
+    reports: tuple[ArmEvaluationReportV3, ...]
+    combination_lineages: tuple[CombinationLineageV3, ...]
+    attempt_history_head_digest: str
+    whole_population_coverage: WholePopulationCoverageV3
+    aggregate: EvaluationAggregateV3 | None
+    replay_digest: str
+```
+
+Vulnerable/fixed recall and pair metrics use only independently verified cases from the
+exact `ArmScopeKey`. Precision uses only findings and cases assigned to the same key.
+An eligible ordinary push projects once into each family claimed by that arm in the push's
+reviewed ecosystem and never into another ecosystem. Whole coverage deduplicates by
+`underlying_push_digest`. Each standard metric carries numerator, denominator, sample count,
+value, and Wilson 95% bounds. A post-spend zero or census mismatch is invalid and prevents
+report construction.
+
+`EvaluationAggregateV3` deliberately has no gate or decision. Its weights are canonical
+non-negative rational values, sum exactly to one by integer cross-multiplication, and correspond one-to-one with its
+constituents and sample counts. A replay is constructible
+only when its report identities exactly equal all planned arms, every arm report contains
+all exact scopes, and every combined lineage preserves its components. Replay validation
+re-resolves current trust/custody state and rederives identities, counts, metrics, gates,
+decisions, reports, and replay equality.
+
+#### Public service interface
+
+```python
+def preflight_evaluation(
+    manifest: EvaluationPlanManifestV3,
+    context: AdmissionValidationContext,
+    resolver: ContentResolver,
+) -> EvaluationFeasibilityV3: ...
+
+def authorize_evaluation(
+    manifest: EvaluationAdmissionManifestV3,
+    feasibility: EvaluationFeasibilityV3,
+    context: AdmissionValidationContext,
+    custody: PopulationCustodyPort,
+    resolver: ContentResolver,
+) -> EvaluationPreparationV3: ...
+
+def score_and_replay(
+    admission_manifest: EvaluationAdmissionManifestV3,
+    feasibility: EvaluationFeasibilityV3,
+    preparation: EvaluationPreparationV3,
+    receipt: PopulationUseReceipt,
+    release: AdmissionCaseReleaseV3,
+    cases_by_arm: tuple[ArmAdmissionCasesV3, ...],
+    context: AdmissionValidationContext,
+    custody: PopulationCustodyPort,
+    resolver: ContentResolver,
+) -> EvaluationReplayV3: ...
+
+def validate_evaluation_replay(
+    replay: EvaluationReplayV3,
+    context: AdmissionValidationContext,
+    custody: PopulationCustodyPort,
+    resolver: ContentResolver,
+) -> tuple[ArmEvaluationReportV3, ...]: ...
+
+def authorize_fitted_component_v3(
+    evidence: FittedComponentEvidence,
+    probe_inputs: tuple[ProbeEvaluationInput, ...],
+    fitting_lineage: LineageManifest,
+    repository_holdout: RepositoryHoldoutReport,
+    replay: EvaluationReplayV3,
+    key: ArmScopeKey,
+    context: AdmissionValidationContext,
+    custody: PopulationCustodyPort,
+    resolver: ContentResolver,
+) -> None: ...
+```
+
+Preconditions require exact V3 root types and canonical ordering. The fitted consumer first
+validates the complete replay, selects exactly one planned arm/scope, requires its completed
+GO result, and refuses a raw arm report, aggregate, V2 replay, incomplete graph, or ambiguous
+selection. It then performs the unchanged fitted-component checks: it replays every probe,
+validates fitting lineage, proves the resolved training and repository-holdout populations
+are disjoint, binds the selected model declaration and component, and compares derived probe
+digests. V3 replaces only the admission evidence source; it does not weaken 13.2.
+
+### Error and Result Semantics
+
+- Pre-spend insufficiency is returned as `EvaluationFeasibilityV3` with
+  `may_spend=False`; no preparation can be constructed.
+- Unreadable observation bytes, unknown/mixed versions, stale custody, disposition change,
+  or incomplete slots are validation errors before spend.
+- After spend, missing cases/reports, invalid release/proof, denominator zero/mismatch,
+  skipped stages, or unread inputs invalidate completion. They do not become insufficiency
+  or quality decisions.
+- GO/NO-GO exists only inside completed `ScopeAdmissionResultV3` objects.
+- Aggregate and per-arm report objects have no consumer-authorization method.
+
+### Testing Strategy
+
+- V2 compatibility: freeze representative canonical bytes, digests, decisions, failures,
+  and replay; prove helper extraction and V3 imports do not change them (`16.1–16.4`).
+- Version/identity: reject V2-as-V3, unknown schemas, subclasses, mixed children, and every
+  single-field baseline mutation; require a new baseline (`16.3–16.6`).
+- Plan/feasibility: cover each arm/scope Cartesian row, threshold reachability,
+  minimum-size and interval precision, one insufficient row blocking all spend, and no arm
+  launch or label read (`17.1–17.4`).
+- Observation/authority: mutate, remove, swap, truncate, zero, or cross-bind every slot;
+  reject self-review, stale custody, broken/forked attempt history, raw-access disposition,
+  changed predecessor retry identity, and any sealed event after a terminal event
+  (`17.5–17.12`).
+- Atomic spend: prove one request/receipt/spend binding covers all planned baselines,
+  concurrent losers receive no labels, and no subset preparation is constructible
+  (`17.7–17.9`).
+- Exact metrics: exercise multi-family fixes, same-ecosystem ordinary projection,
+  cross-ecosystem refusal, exact precision, Wilson fields, whole-push deduplication,
+  aggregate weights/no decision, and post-spend zero/mismatch invalidity (`18.1–18.8`).
+- Release/combinations/proof: reject V2 release, role/pair/scope/arm/input/result swaps,
+  missing components, contradictory combined results, candidate fabrication/transfer, and
+  invalid attachments; retain absent proof as not demonstrated (`19.1–19.11`).
+- Reports/replay: derive every scoped GO/NO-GO, preserve whole operational evidence,
+  reject missing gate/arm/scope/custody/release/lineage, rederive all source values, and
+  authorize consumers only from complete replay (`20.1–20.8`).
+- Synthetic end to end: two component arms plus one combined arm over at least two families
+  and two ecosystems pass plan review, per-scope preflight, sealed observations, one shared
+  spend, V3 release, scoped reporting, complete replay, and exact fitted selection.
+
+### Migration Strategy
+
+1. Freeze V2 accepted outputs and failure behavior.
+2. Add V3 measurement identities, plan declaration, exact policies, and preflight.
+3. Add sealed observations, reviewed admission manifest, authority, and spend binding.
+4. Add V3 release, exact metrics, reports, and complete replay.
+5. Add the separate fitted-component V3 consumer and strict schema router.
+6. Run synthetic multi-arm conformance and independent validation.
+7. Unblock valid-detection-benchmark task generation only after the predecessor schema
+   `openultrasast.detection-core.evaluation-admission.v3` is exported and validated.
+
+There is no V2-to-V3 migration. Existing V2 artifacts remain replayable under V2; every V3
+evaluation starts a new baseline. Rollback removes the additive V3 facade/modules and leaves
+the frozen V2 path unchanged.
+
 
 ## Data Models
 

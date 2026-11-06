@@ -711,3 +711,365 @@ requirements approval.
   legacy imports and then proves those attributes are absent after cutover.
 - **Historical artifacts become unreadable:** frozen trace/report bytes and hashes continue
   through the independent read-only decoder before and after namespace deletion.
+
+---
+
+## Gap analysis: exact-scope multi-arm evaluation admission V3 (2026-11-06)
+
+### Scope, approval state, and instrument check
+
+- **Feature type:** complex brownfield contract extension. Requirements 16–20 add a new
+  evaluation-admission root beside the implemented V2 admission graph; they do not replace
+  the family-neutral evidence contracts in Requirements 1–15.
+- **Approval warning:** Requirements 16–20 are generated but not approved. This gap analysis
+  is permitted to inform review, but `design.md` cannot be regenerated until the requirements
+  are approved or `/kiro-spec-design detection-core -y` is invoked.
+- **Discovery method:** integration-focused source inspection of the admission contracts,
+  their tests, their only production authorization consumer, and the approved
+  `valid-detection-benchmark` consumer design. No external dependency research was needed:
+  the amendment is a standard-library Python contract, validation, and replay change.
+- **Instrument proof:** the requirements (32,917 bytes), current design (130,524 bytes),
+  existing research (45,818 bytes), approved valid-benchmark design (72,402 bytes), ten
+  primary admission/core modules (166,630 bytes), and the relevant admission/measurement
+  tests (270,157 bytes) were opened as nonzero inputs before interpreting gaps.
+
+### Current architecture and reusable assets
+
+The implemented V2 admission path is a closed canonical graph:
+
+`BaselineIdentity` → reviewed `AdmissionManifestV2` and census → context validation and
+pooled feasibility → one `AdmissionPreparation` → exact `AVAILABLE`-to-`SPENT` custody
+receipt → independently reviewed `AdmissionCaseRelease` → revalidated case results →
+one `AdmissionReportV2` → one `AdmissionReplay`.
+
+The following machinery is reusable without changing its meaning:
+
+- canonical JSON, content digests, closed-graph checks, exact-dataclass checks, and strict
+  enum/type validation;
+- `ScopeKey`, the fixed metric identifiers and algebra, Wilson 95% computation, readiness
+  validation, review-independence attestations, content resolution, and provenance checks;
+- the append-only custody log and exact monotonic `AVAILABLE`-to-`SPENT` receipt validation;
+- case evidence, input, budget, coverage, and proof-attachment validation after a V3 release
+  establishes the correct arm/scope association;
+- V2 report and replay rederivation, which must remain independently replayable and
+  byte-compatible.
+
+The reusable implementation is not the V2 aggregate root itself. V2 has one arm identity,
+assigns every metric rule the full claimed-scope tuple, pools capacities and cases across
+those scopes, derives one unscoped result per metric, and emits one arm-level decision. That
+shape cannot express the exact per-arm, family, and ecosystem claims required by V3.
+
+### Requirement-to-asset map
+
+| Requirement | Existing asset | Gap classification and impact |
+|---|---|---|
+| 16.1–16.4 Version isolation | Canonical schemas, exact-type replay validation, historical decoder patterns | **Missing / compatibility constraint:** no V3 root or explicit version dispatcher exists. Extending V2 dataclasses changes accepted bytes and digests; inferred conversion would make pooled evidence appear exact. |
+| 16.5 Baseline identity | `BaselineIdentity` binds one arm, population/freeze, scopes, facts, analyzer, configuration, denominator, thresholds, and outcomes | **Missing:** plan, input-set, sufficiency, registered budget, execution, observation-set, and combination-rule identities are absent. These must belong to a distinct V3 identity rather than changing V2. |
+| 16.6 Non-authorizing partial artifacts | V2 replay, not a raw report, authorizes fitted-component use | **Partial:** there is no V3 completion root or closed status distinction for insufficiency, impairment, aggregates, incomplete arm results, and raw per-arm reports. |
+| 17.1–17.4 Reviewed multi-arm preflight | Independent V2 manifest/census review and threshold feasibility | **Missing:** no reviewed plan containing every component/combined arm and observation slot; no per-arm/per-scope sufficiency rules; V2 feasibility sums capacities across selected scopes and therefore cannot veto the shared spend independently for each exact scope. |
+| 17.5–17.6 Post-observation authority | V2 authorization revalidates context, feasibility, readiness, and custody | **Missing:** no second reviewed manifest binding the feasible plan to exact sealed observation identities, no observation-byte resolution, and no all-slot completeness check immediately before spend. |
+| 17.7–17.9 Atomic shared spend | Exact V2 preparation and custody successor validation | **Constraint:** V2 `PopulationUseRequest` names one arm. No preparation/receipt binds every planned arm and scope, and no root rejects a partial subset while retaining one shared custody transition. |
+| 17.10–17.12 Confidential retry/disposition | Append-only custody and lineage policies | **Missing / adjacent boundary:** core lacks typed retry identity and development/spent disposition validation for raw-observation access. The benchmark owns access enforcement and lifecycle events; core must validate their immutable authority and exact retry identity, not implement storage or access control. |
+| 18.1–18.4 Exact scoped metrics | Fixed metric algebra, Wilson intervals, reviewed scope census, validated cases | **Missing:** `standard_metric_rules()` assigns all scopes to every rule; `MetricResult` and `AdmissionThreshold` have no scope key; context requires pooled rule scopes; feasibility and scoring derive once across the union. |
+| 18.3, 18.5 Ordinary projection and whole coverage | Case roles and an intermediate whole-population funnel | **Missing:** ordinary cases lack a stable underlying-push identity that permits once-per-family projection inside the reviewed ecosystem while deduplicating the same push once for whole coverage. Whole-population evidence is not preserved in the final V2 report. |
+| 18.6–18.8 Scoped reporting, aggregates, post-spend validity | Metric numerator/denominator/value/Wilson fields | **Partial:** metric arithmetic is reusable, but scope-qualified results and non-authorizing aggregate identities/weights do not exist. Post-spend zero or census mismatch must be invalid, not a zero-valued metric, insufficiency, GO, or NO-GO. |
+| 19.1–19.3 V3 case release | Strong independent V2 release with exact role/pair/result/evidence/input binding | **Missing:** `ReleasedCaseBinding` has no arm identity, and the release binds one V2 manifest and authorization. Exact V2/V3 type separation is required. |
+| 19.4–19.5 Combination lineage | No equivalent admission root | **Missing:** there is no graph preserving every component observation/report/gate while binding a combined arm to its registered deterministic lineage or detecting omission, replacement, and contradiction. |
+| 19.6–19.10 Proof continuity | Strong `ProofAttachment` validation | **Partial:** the proof contract can be reused after V3 release, but no label-blind proof-candidate identity is carried from the component observation to prevent a combined arm from creating or transferring proof evidence. |
+| 19.11 Arm independence | Exact V2 replay for one arm | **Missing:** no all-planned-arm cardinality and identity check prevents one valid report from hiding another arm's missing, invalid, or failed result. |
+| 20.1–20.2 Scoped decisions and failure classes | V2 mandatory gates and GO/NO-GO derivation | **Missing:** V2 emits one pooled arm decision. V3 needs a completed decision per exact scope and separate non-quality states for insufficiency, unread inputs, skipped stages, impairment, and incomplete arms. |
+| 20.3 Complete reports | `MeasurementRecordV2`; intermediate `AdmissionMetricEvidence` carries an extra whole funnel/runtime | **Partial:** completed/deferred work, whole coverage, degradation reasons, and complete instrument failures are not preserved in the final report; `_measurement()` currently supplies `instrument_failures=()`. |
+| 20.4–20.7 Complete replay authority | `AdmissionReplay` rederives one V2 report from authoritative inputs | **Missing:** no multi-arm replay binds both reviewed stages, shared feasibility/authority/custody/release, all independently valid scoped reports, and combination lineage. `admission_fitted.py` accepts only V2 `AdmissionReplay` and derives authorization from its single report. |
+| 20.8 Nonzero execution evidence | Coverage/input validation and clean-measurement checks | **Partial:** reusable case evidence exists, but V3 completion must require it independently for every arm and exact scope before accepting a clean-looking result. |
+
+### Concrete integration surfaces
+
+The V3 amendment affects these core responsibilities while retaining V2 definitions:
+
+- `src/openultrasast/core/measurement.py`: reusable scope and metric algebra; new V3
+  baseline, scope-qualified metric/policy/threshold, aggregate, and sufficiency contracts.
+- `src/openultrasast/core/admission_review.py`: new reviewed two-stage plan and admission
+  manifests with canonical per-arm plans and expected/actual observation bindings.
+- `src/openultrasast/core/admission_feasibility.py`: independent feasibility witnesses for
+  every arm and exact scope plus one shared non-spend result.
+- `src/openultrasast/core/admission_context.py`: V3 plan, identity, policy, readiness,
+  observation, and lineage validation without the V2 all-scopes-equal rule.
+- `src/openultrasast/core/admission_spend.py`: a distinct V3 authority/preparation binding
+  every planned arm and the current custody head; V2 functions remain unchanged.
+- `src/openultrasast/core/admission_case.py`: an arm-aware V3 case-release graph bound to
+  the plan, exact observations, authority, and shared receipt.
+- `src/openultrasast/core/admission_metrics.py`: exact-scope derivation, ordinary-push
+  projection within ecosystem, whole-population deduplication, and proof-candidate
+  continuity.
+- `src/openultrasast/core/admission_report.py`: independently valid per-arm/per-scope
+  reports, non-authorizing aggregates, and explicit non-quality failure classes.
+- `src/openultrasast/core/_admission_replay.py`: one closed `EvaluationReplayV3` containing
+  the complete shared graph and all planned reports.
+- `src/openultrasast/core/admission_fitted.py`: explicit version dispatch; V3 authorization
+  accepts only a complete validated evaluation replay and an exact arm/scope selection,
+  never a raw report or aggregate.
+- `tests/test_core_admission_*.py`, `tests/test_core_measurement*.py`, and frozen V2
+  fixtures: compatibility, exact-scope algebra, all-arm completeness, mixed-version
+  refusal, atomic-spend, proof-continuity, and replay conformance.
+
+The approved benchmark remains a downstream consumer. Its current
+`benchmarks/valid/admission_run.py`, `admission_scoring.py`, and `population_custody.py`
+are V2 single-arm paths and stay compatibility-only. Population lifecycle, durable object
+storage/CAS, observation access, detector execution, retry orchestration, and operator
+presentation remain benchmark-owned and are not implementation work for this amendment.
+
+### Implementation approach options
+
+#### Option A: extend V2 contracts in place
+
+Add arm/scope/plan fields to existing V2 identities, policies, manifests, releases,
+reports, and replay.
+
+- **Strengths:** smallest initial module count and direct reuse of current call paths.
+- **Risks / limitations:** changes canonical V2 bytes and digests, makes exact-type version
+  refusal ambiguous, overloads already dense single-arm modules, and risks accidental
+  projection of pooled evidence. It conflicts with 16.1–16.4.
+- **Effort / risk:** L / High; not a viable compatibility path unless Requirement 16 is
+  weakened, which is not recommended.
+
+#### Option B: create a fully parallel V3 stack and facade
+
+Introduce an independent `evaluation_admission` facade and V3 modules for identity, plan,
+feasibility, authority, release, metrics, reports, and replay.
+
+- **Strengths:** clearest public version boundary, exact-type refusal, and protection of V2
+  bytes and behavior; components are testable in isolation.
+- **Risks / limitations:** duplicates canonical validation, custody, readiness, proof, and
+  metric plumbing unless reuse is disciplined; two large stacks increase maintenance cost.
+- **Effort / risk:** XL / Medium-High.
+
+#### Option C: parallel V3 public roots with version-neutral internal helpers
+
+Keep V2 and V3 aggregate roots, facades, schemas, and validators exact and separate. Reuse
+or extract only helpers whose inputs and outputs have no serialized V2 identity, such as
+Wilson arithmetic, review validation, custody-chain checks, proof validation, and canonical
+collection validation.
+
+- **Strengths:** preserves strict version boundaries and V2 replay while avoiding avoidable
+  duplication; aligns with the current closed-graph and ports-and-adapters pattern.
+- **Risks / limitations:** helper extraction can still change V2 behavior if performed
+  before compatibility fixtures lock accepted bytes and errors; dependency direction and
+  exact-type tests must be explicit.
+- **Effort / risk:** XL / High.
+- **Design-phase candidate:** this offers the best balance, using Option B-style public
+  separation. It remains a candidate until the design review resolves the research items
+  below.
+
+### Complexity and risk
+
+- **Effort: XL (2+ weeks).** The amendment adds two-stage review, exact-scope algebra,
+  multi-arm completeness, one shared spend, a new release graph, per-arm reports, consumer
+  dispatch, and a closed replay root across multiple existing contract modules.
+- **Risk: High.** The main failure modes are silent V2 behavior drift, pooled-to-scoped
+  misinterpretation, partial-arm authorization, stale observation/custody acceptance,
+  ordinary-push double counting, and an aggregate or raw report becoming an authorization
+  token.
+
+### Design-phase recommendations and research needed
+
+1. Freeze representative accepted V2 canonical bytes, digests, decisions, validation
+   failures, and replay outputs before extracting helpers. Treat any change as a regression.
+2. Define one explicit V3 facade/schema family and refuse unknown, mixed, subclassed, or
+   substituted V2/V3 roots at every public boundary.
+3. Resolve the exact V3 module split and aggregate roots: per-arm plan, reviewed plan
+   manifest, observation binding, admission authority/preparation, V3 release, scoped
+   report, and evaluation replay.
+4. Define the observation-slot identity and content-resolution contract, including how an
+   observation proves arm, input, execution, budget, configuration, and plan identity
+   without exposing raw diagnostics before spend.
+5. Define a stable underlying-push identity for ordinary projection and whole-population
+   deduplication, including multi-family fixes and ecosystem review authority.
+6. Define sufficiency and interval-precision rules as reviewed per-arm/per-scope contracts,
+   separate from post-spend invalidity and completed GO/NO-GO gates.
+7. Define the benchmark-supplied retry/development disposition evidence that core validates;
+   do not move durable lifecycle, access enforcement, or CAS implementation into core.
+8. Define component-to-combined observation lineage and proof-candidate identity so a
+   combined arm can retain only the identical component candidate and cannot suppress a
+   component report.
+9. Define V3 fitted-component consumption as complete-replay validation plus exact arm/scope
+   selection. Per-arm reports, aggregates, incomplete roots, and V2 artifacts cannot
+   authorize a V3 consumer.
+10. Derive the V3 conformance suite from 16.1–20.8: frozen V2 compatibility; unknown/mixed
+    version refusal; per-arm/per-scope feasibility; missing observation and stale custody
+    refusal; one atomic spend; exact ordinary projection/dedup; post-spend zero invalidity;
+    proof continuity; all-arm completion; and nonzero input/stage execution evidence.
+
+### Gap conclusion
+
+The current implementation provides strong canonical validation, custody, evidence,
+metric, proof, and replay primitives, but its V2 admission root is structurally unable to
+represent an exact-scope multi-arm evaluation. The gap is therefore an additive versioned
+contract and replay graph, not a correction to the V2 metric formula. The design should
+retain V2 unchanged, introduce exact V3 roots, and reuse only version-neutral internals.
+Design generation remains blocked on approval of Requirements 16–20.
+
+---
+
+## Design discovery and synthesis: evaluation-admission V3 (2026-11-06)
+
+### Summary
+
+- **Feature:** detection-core evaluation-admission V3 amendment.
+- **Discovery scope:** complex integration and immutable-contract version extension.
+- **Selected pattern:** parallel V3 public aggregate roots with reuse limited to
+  version-neutral canonical, review, custody, proof, readiness, and metric primitives.
+- **Key findings:** V2 aggregate roots cannot be generalized without changing their bytes;
+  the V3 plan needs a non-circular declaration/baseline identity; and one complete replay,
+  rather than a report or aggregate, must be the only downstream authorization source.
+
+### Research log
+
+#### Version and canonicalization boundary
+
+- **Context:** 16.1–16.4 require historical V2 bytes, digests, decisions, and replay to
+  remain unchanged while V3 refuses mixed or inferred shapes.
+- **Sources consulted:** current V2 canonical and admission modules, frozen-dataclass and
+  exact-type patterns in the repository, Python 3.11 JSON documentation, and RFC 8785.
+- **Finding:** the existing sorted-key compact JSON profile is sufficient for the current
+  single-Python-runtime contract. Adopting JCS would create a second canonical profile and
+  risk changing V2 bytes without satisfying an additional requirement.
+- **Implication:** `evaluation_admission.py` is the only V3 facade. V3 validators require
+  exact dataclass types and exact V3 schema constants. A read router may select a validator
+  by schema but never converts V2 to V3.
+
+#### Non-circular plan and baseline identity
+
+- **Context:** every arm needs an immutable baseline, and a change to the evaluation plan
+  must start a new baseline without making the plan and baseline digests recursive.
+- **Finding:** a reviewed plan declaration can be hashed before baseline construction. It
+  contains the population, input set, arm configurations, combination rules, and expected
+  observation slots. Each arm baseline then binds that declaration digest and its exact arm
+  configuration digest.
+- **Implication:** any plan or arm mutation changes the declaration and therefore every arm
+  baseline, while the plan manifest can embed the derived baselines without a digest cycle.
+
+#### Two-stage review and shared spend
+
+- **Context:** arithmetic feasibility happens before detector execution; spend authority
+  requires every exact sealed observation and the current custody head afterwards.
+- **Finding:** one manifest cannot safely serve both moments. The second authority must
+  resolve observation bytes and bind the earlier feasible plan rather than repeat or
+  summarize it.
+- **Implication:** `EvaluationPlanManifestV3` supports label-blind preflight;
+  `EvaluationAdmissionManifestV3` binds exact sealed observations and retry/disposition
+  evidence. `EvaluationAdmissionAuthorityV3` is constructible only when both validate.
+
+#### Existing custody reuse
+
+- **Context:** 17.7–17.9 require one atomic population transition binding all arms, while
+  the existing custody graph already validates an exact monotonic transition.
+- **Finding:** the existing request/receipt can remain unchanged if its influenced artifact
+  is the V3 authority digest, which transitively commits to every planned baseline. A V3
+  spend binding makes that transitive relationship explicit inside the replay.
+- **Implication:** no second custody implementation is introduced. The benchmark remains
+  the CAS writer and label releaser; core builds and validates the authority, preparation,
+  receipt binding, and replay relationship.
+
+#### Exact-scope projection and whole coverage
+
+- **Context:** one underlying push may contribute to several verified family scopes while
+  whole-population coverage must count it once.
+- **Finding:** case identity alone is insufficient because vulnerable and fixed sides and
+  several arm/scope projections can refer to the same push.
+- **Implication:** V3 release bindings carry a separate `underlying_push_digest` and exact
+  `ArmScopeKey`. Scoped metrics project from arm/scope bindings; whole coverage deduplicates
+  only by the underlying push identity. Ordinary projection is limited to families claimed
+  by the arm in the push's reviewed ecosystem.
+
+#### Combination and proof continuity
+
+- **Context:** a combined arm must preserve component results and cannot manufacture or
+  transfer demonstrated proof.
+- **Finding:** proof validation alone establishes attachment correctness but does not prove
+  candidate continuity from a component observation to a combined observation.
+- **Implication:** label-blind observations and released bindings carry a stable
+  proof-candidate digest. Combination lineage names exact component observation digests;
+  the combined arm may retain only an identical candidate named by a component.
+
+### Architecture pattern evaluation
+
+| Option | Description | Strengths | Risks / limitations | Decision |
+|---|---|---|---|---|
+| Extend V2 roots | Add plan, arm and scope fields to current types | Smallest initial file count | Changes V2 bytes and permits pooled/scoped ambiguity | Rejected |
+| Fully parallel V3 implementation | Duplicate the entire validation stack | Strong version separation | Duplicates custody, proof, review and metric machinery | Rejected |
+| Parallel V3 roots plus neutral helpers | Separate public schemas and aggregates; share only identity-neutral primitives | Preserves V2 and avoids duplicate trusted logic | Helper extraction needs frozen V2 regression evidence | Selected |
+
+### Design decisions
+
+#### Decision: one V3 facade and exact roots
+
+- `evaluation_admission.py` exports preflight, authorization, score/replay, and replay
+  validation. V2 admission entry points remain unchanged.
+- V3 modules do not import V2 aggregate roots. `admission_fitted.py` exposes a separate V3
+  consumer function rather than broadening the V2 function's accepted graph.
+
+#### Decision: plan declaration precedes baselines
+
+- `EvaluationPlanDeclarationV3` owns population, freeze, input set, arm configurations,
+  expected observation slots, and combination declarations.
+- `EvaluationBaselineIdentityV3` binds the declaration digest and one arm configuration.
+  The reviewed manifest embeds both and proves the exact canonical derivation.
+
+#### Decision: insufficiency is a pre-spend result, not a quality decision
+
+- `EvaluationFeasibilityV3` contains exactly one row per declared arm/scope and derives one
+  `may_spend` value. Any insufficient row makes it false and prevents preparation.
+- GO and NO-GO occur only in completed post-spend scope reports. Instrument impairment,
+  unread inputs, skipped stages, incomplete arms, and invalid post-spend denominators never
+  map to those decisions.
+
+#### Decision: reports are evidence; the complete replay is authority
+
+- Per-arm scoped reports and optional aggregates are serializable evidence but cannot
+  authorize consumers.
+- `EvaluationReplayV3` binds both reviewed manifests, feasibility, authority, preparation,
+  shared receipt, spend binding, V3 release, exact cases, all planned reports, and
+  combination lineage. Validation rederives the graph and exact planned-arm cardinality.
+
+#### Decision: aggregate has no decision field
+
+- An aggregate identifies constituents, sample counts, weights, and derived values. Its
+  type contains neither gates nor authorization decisions, preventing an aggregate from
+  being mistaken for an admission result.
+
+### Synthesis
+
+- **Generalization:** expected observation slots, arm/scope keys, and complete replay
+  cardinality are three applications of one closed-plan principle: later artifacts must be
+  an exact projection of the reviewed plan, never a caller-selected subset.
+- **Build versus adopt:** reuse the existing Python canonical, custody, review, readiness,
+  proof, and Wilson primitives. Do not adopt a new serializer, workflow engine, object-store
+  client, or transaction library because persistence and orchestration stay downstream.
+- **Simplification:** use the existing custody request/receipt transitively through a V3
+  authority and explicit spend binding; do not create a second custody state machine.
+  Keep lifecycle/access enforcement outside core and validate only immutable disposition
+  evidence supplied by the benchmark.
+
+### Risks and mitigations
+
+- **V2 drift during helper extraction:** freeze canonical V2 bytes, digests, decisions,
+  failures, and replay outputs before extraction; run them after every shared-helper change.
+- **Partial-arm authorization:** derive report and replay cardinality from the plan and make
+  the complete replay the sole consumer input.
+- **Observation substitution:** resolve nonzero bytes and require an exact one-to-one slot,
+  arm, input, execution, budget, configuration, and digest match before authority.
+- **Ordinary-push double counting:** separate scoped projection keys from the deduplicated
+  underlying-push identity.
+- **Combined proof fabrication:** require component observation lineage and identical
+  proof-candidate identity before accepting a retained attachment.
+- **Core absorbing benchmark workflow:** keep storage, CAS, access enforcement, retries,
+  detector isolation, label joining, status, and presentation explicitly out of boundary.
+
+### References
+
+- [Python 3.11 JSON documentation](https://docs.python.org/3.11/library/json.html) —
+  deterministic sorted-key compact serialization controls used by the existing profile.
+- [RFC 8785](https://www.rfc-editor.org/rfc/rfc8785.html) — evaluated but not adopted;
+  cross-runtime canonical signatures are outside the current boundary.
+- [Approved valid-detection-benchmark design](../valid-detection-benchmark/design.md) —
+  downstream V3 consumer contract and ownership boundary.
