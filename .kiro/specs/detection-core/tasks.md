@@ -452,7 +452,7 @@ is not a prerequisite for this V3 stream; V3 tasks depend explicitly on complete
 contract work and use synthetic/in-memory workflow boundaries only.
 
 - [ ] 12. Preserve V2 admission and establish V3 measurement foundations
-- [ ] 12.1 (P) Freeze representative V2 admission behavior
+- [x] 12.1 (P) Freeze representative V2 admission behavior
   - Pin accepted canonical bytes, digests, decisions, validation failures, report output, and authoritative replay output for representative V2 admissions.
   - Prove every frozen fixture is readable and nonzero before treating a stable result as compatibility evidence.
   - Keep pooled V2 evidence replayable only under V2 and add no converter or inferred V3 projection.
@@ -707,6 +707,7 @@ contract work and use synthetic/in-memory workflow boundaries only.
 
 ## Implementation Notes
 
+- Task 12.1 froze three representative V2 admissions and exact failure precedence; shared-helper work must keep the committed bytes, SHA-256 identities, decisions, and authoritative replay output unchanged.
 - The frozen migration inventory is a reviewed worklist with stable identities, not a semantic-use census. It may only close entries as `v2_migrated` or `retired`; it never grows, deletes entries, or proves absence by interpreting Python flow.
 - Cutover is proved by explicit syntax checks plus deletion of the compatibility and v1 write capability. No task extends the discarded alias/data-flow interpreter.
 - Task 10.5 debug established that executable owner probes cannot compensate for blanket source-closure acceptance; resumed hunt attempts also require collision-resistant attempt identity and create-only persistence before handoff validation is authoritative.
