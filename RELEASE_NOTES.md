@@ -16,7 +16,9 @@ a new admission population.
   to obtain the first archived DOI for this repository.
 
 The existing authorization arm remains parked after its recorded NO-GO result. Detection-core task 11.4 remains
-blocked on benchmark lifecycle governance and is not represented as completed by this prerelease.
+blocked on benchmark lifecycle governance and is not represented as completed by this prerelease. The prerelease
+workflow therefore excludes only its named 73-reference reservation assertion; stable releases continue to require
+the complete test suite.
 
 # v2.0.1 (2026-10-02)
 
