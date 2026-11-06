@@ -323,9 +323,7 @@ def _validate_disclosure(content: bytes) -> None:
         "conflicts": tuple(conflicts),
         "resolved": True,
     }
-    expected = canonical.canonical_record_bytes(
-        canonical_value, known_schema_versions=(AUTHORITY_CONFLICT_DISCLOSURE_SCHEMA,)
-    )
+    expected = canonical.canonical_record_bytes(canonical_value, known_schema_versions=(AUTHORITY_CONFLICT_DISCLOSURE_SCHEMA,))
     if content != expected:
         raise EntryFactAuthorityError("authority conflict disclosure bytes are not canonical")
 

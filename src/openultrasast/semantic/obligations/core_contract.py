@@ -48,9 +48,7 @@ def _build_contract() -> family.FamilyContract:
                 (semantics.RelationStatus.INCOMPLETE, semantics.RelationStatus.UNRESOLVED),
             ),
         ),
-        residual_questions=(
-            family.ResidualQuestion("is_path_authorized", required, ("unguarded", "discharged", "indeterminate")),
-        ),
+        residual_questions=(family.ResidualQuestion("is_path_authorized", required, ("unguarded", "discharged", "indeterminate")),),
         indeterminate_reasons=("missing_constraint_relation", "ambiguous_constraint_relation"),
     )
 

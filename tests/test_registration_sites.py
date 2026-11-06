@@ -95,9 +95,7 @@ def test_multiple_entries_are_deterministic() -> None:
     first = strategy.recognize(_target(), JAVA_EXACT)
     second = strategy.recognize(_target(), JAVA_EXACT)
     assert first == second
-    assert [entry.function_name for entry in first] == sorted(
-        entry.function_name or "" for entry in first
-    )
+    assert [entry.function_name for entry in first] == sorted(entry.function_name or "" for entry in first)
 
 
 def test_registry_dispatch_stamps_strategy_provenance() -> None:

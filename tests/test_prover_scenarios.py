@@ -150,16 +150,18 @@ def _function(name: str, calls: tuple[str, ...] = ()) -> FunctionIR:
         start_line=1,
         end_line=9,
         binds=(),
-        calls=tuple(
-            CallSite(call_name, 3 + offset, (), (), (), False, offset)
-            for offset, call_name in enumerate(calls)
-        ),
+        calls=tuple(CallSite(call_name, 3 + offset, (), (), (), False, offset) for offset, call_name in enumerate(calls)),
     )
 
 
 def _operation() -> Operation:
     return Operation(
-        "src/C.java", 8, "handle", "protected_read", "f:op", "book",
+        "src/C.java",
+        8,
+        "handle",
+        "protected_read",
+        "f:op",
+        "book",
         ("path_guard",),
     )
 
@@ -169,8 +171,15 @@ def _witness(
     authority: AuthorityRef | None = None,
 ) -> Discharge:
     return Discharge(
-        "src/C.java", 3, "handle", "path_guard", "f:guard", "call",
-        "statement", resource=resource, authority=authority,
+        "src/C.java",
+        3,
+        "handle",
+        "path_guard",
+        "f:guard",
+        "call",
+        "statement",
+        resource=resource,
+        authority=authority,
     )
 
 
@@ -270,10 +279,7 @@ def test_ambiguous_receiver_stays_a_candidate_set() -> None:
     target = resolve_call(call, module="src/A.java", index=index)
     assert not target.completeness.is_complete
     assert len(target.targets) == 2
-    assert any(
-        reason.endswith("receiver_type_unknown")
-        for reason in target.completeness.reasons
-    )
+    assert any(reason.endswith("receiver_type_unknown") for reason in target.completeness.reasons)
 
 
 def test_recursion_resolves_completely() -> None:
@@ -299,12 +305,8 @@ def test_budget_cutoff_records_its_reason() -> None:
     from openultrasast.semantic.obligations.resolution import SymbolId
 
     index = SymbolIndex.build((("src/M.java", MUTUAL_JAVA, "java"),))
-    functions = {
-        "src/M.java": (_function("a", ("b",)), _function("b", ("a",)))
-    }
-    callee = SymbolId(
-        module="src/M.java", enclosing_type="C", name="b", signature=None
-    )
+    functions = {"src/M.java": (_function("a", ("b",)), _function("b", ("a",)))}
+    callee = SymbolId(module="src/M.java", enclosing_type="C", name="b", signature=None)
     summaries = monotone_summaries(
         functions,
         index,
@@ -312,7 +314,4 @@ def test_budget_cutoff_records_its_reason() -> None:
         budget=ExplorationBudget(depth=1),
     )
     by_name = {summary.symbol.name: summary for summary in summaries}
-    assert any(
-        reason.endswith("depth_cutoff")
-        for reason in by_name["a"].completeness.reasons
-    )
+    assert any(reason.endswith("depth_cutoff") for reason in by_name["a"].completeness.reasons)
