@@ -74,10 +74,10 @@ class CombinationRuleV3:
         _text(self.combined_arm_id, "combined_arm_id")
         if (
             type(self.component_arm_ids) is not tuple
-            or not self.component_arm_ids
+            or len(self.component_arm_ids) < 2
             or any(type(item) is not str or not item for item in self.component_arm_ids)
         ):
-            raise EvaluationMeasurementError("component arm ids must be a nonempty tuple")
+            raise EvaluationMeasurementError("component arm ids must contain at least two exact identities")
         canonical_ids = tuple(sorted(set(self.component_arm_ids)))
         if self.component_arm_ids != canonical_ids or self.combined_arm_id in self.component_arm_ids:
             raise EvaluationMeasurementError("component arm ids must be unique and in canonical order")
