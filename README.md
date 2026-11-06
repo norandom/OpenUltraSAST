@@ -1,6 +1,6 @@
 # OpenUltraSAST
 
-[![Zenodo](https://img.shields.io/badge/Zenodo-OpenUltraSAST-1682D4?logo=zenodo)](https://zenodo.org/account/settings/github/repository/norandom/OpenUltraSAST)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24012764.svg)](https://doi.org/10.5281/zenodo.24012764)
 
 OpenUltraSAST is an experimental static security analyser. It aims to check security on
 repositories it has never seen. It scans a checkout or the commits a `git push` would publish. It

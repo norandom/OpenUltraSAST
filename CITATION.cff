@@ -7,6 +7,7 @@ authors:
     given-names: "M"
 version: "2.1.0-alpha.1"
 date-released: 2026-11-06
+doi: "10.5281/zenodo.24012765"
 abstract: >-
   An experimental static security analyser for evidence-gated analysis of
   repositories and Git pushes, including pattern rules, syntax overlays, code
