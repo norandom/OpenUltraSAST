@@ -495,7 +495,7 @@ contract work and use synthetic/in-memory workflow boundaries only.
   - _Requirements: 16.5, 17.1, 17.2, 19.4_
   - _Boundary: Evaluation Arm Configuration_
   - _Depends: 12.3_
-- [ ] 13.2 Build the non-circular plan declaration, baselines, and expected slots
+- [x] 13.2 Build the non-circular plan declaration, baselines, and expected slots
   - Derive the complete label-blind plan declaration before constructing per-arm baselines so the plan and baselines cannot form a digest cycle.
   - Bind each baseline to the population, freeze, input set, declaration, and exact arm configuration so any listed change creates a new baseline.
   - Define expected observation slots for every planned arm and input without including ground-truth roles or labels.
@@ -712,6 +712,7 @@ contract work and use synthetic/in-memory workflow boundaries only.
 - Task 12.3 established exact V3 arm/scope measurement, sufficiency, immutable arm-identity, scoped Wilson-result, and rational aggregate-weight contracts behind an acyclic public facade; all malformed public-factory inputs fail through `EvaluationMeasurementError` before arithmetic.
 - Task 12.4 reserved the exact V3 evaluation-admission identity, added closed extensible V3 contract routing, and made partial artifacts structurally non-authorizing across inheritance, wrapped aliases, and post-definition/shared-base mutation while leaving V2 routes unchanged.
 - Task 13.1 closed the arm-configuration gap by requiring at least two canonical non-self component identities for a combined arm and proving its complete finite decision table, proof-retention policy, and every configuration input remain digest-bound without executable behavior.
+- Task 13.2 established a label-blind non-circular plan declaration, an authoritative canonical input-set identity and complete arm-by-input slot product, exact component-kind lineage, and one declaration-derived baseline per arm.
 - The frozen migration inventory is a reviewed worklist with stable identities, not a semantic-use census. It may only close entries as `v2_migrated` or `retired`; it never grows, deletes entries, or proves absence by interpreting Python flow.
 - Cutover is proved by explicit syntax checks plus deletion of the compatibility and v1 write capability. No task extends the discarded alias/data-flow interpreter.
 - Task 10.5 debug established that executable owner probes cannot compensate for blanket source-closure acceptance; resumed hunt attempts also require collision-resistant attempt identity and create-only persistence before handoff validation is authoritative.
