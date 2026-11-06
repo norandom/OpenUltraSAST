@@ -503,7 +503,7 @@ contract work and use synthetic/in-memory workflow boundaries only.
   - _Requirements: 16.5, 17.1, 17.2_
   - _Boundary: Evaluation Plan_
   - _Depends: 13.1_
-- [ ] 13.3 Validate the reviewed label-blind census and plan manifest
+- [x] 13.3 Validate the reviewed label-blind census and plan manifest
   - Represent exact vulnerable/fixed scope capacities, ecosystem-specific ordinary-push capacities, semantic/model capacities, and deduplicated whole-population size without case labels.
   - Require an independently reviewed plan payload that binds the population, input set, arm configurations, baselines, readiness, custody head, census, and expected slots.
   - Resolve review evidence under the configured trust and byte limits and refuse self-review, copied attestations, exposed labels, missing scopes, or inconsistent population identities.
@@ -713,6 +713,7 @@ contract work and use synthetic/in-memory workflow boundaries only.
 - Task 12.4 reserved the exact V3 evaluation-admission identity, added closed extensible V3 contract routing, and made partial artifacts structurally non-authorizing across inheritance, wrapped aliases, and post-definition/shared-base mutation while leaving V2 routes unchanged.
 - Task 13.1 closed the arm-configuration gap by requiring at least two canonical non-self component identities for a combined arm and proving its complete finite decision table, proof-retention policy, and every configuration input remain digest-bound without executable behavior.
 - Task 13.2 established a label-blind non-circular plan declaration, an authoritative canonical input-set identity and complete arm-by-input slot product, exact component-kind lineage, and one declaration-derived baseline per arm.
+- Task 13.3 added exact label-sealed scope/ecosystem census contracts and an independently reviewed plan manifest that binds the declaration, baselines, census, readiness, custody, and bounded trust-resolved review evidence before feasibility.
 - The frozen migration inventory is a reviewed worklist with stable identities, not a semantic-use census. It may only close entries as `v2_migrated` or `retired`; it never grows, deletes entries, or proves absence by interpreting Python flow.
 - Cutover is proved by explicit syntax checks plus deletion of the compatibility and v1 write capability. No task extends the discarded alias/data-flow interpreter.
 - Task 10.5 debug established that executable owner probes cannot compensate for blanket source-closure acceptance; resumed hunt attempts also require collision-resistant attempt identity and create-only persistence before handoff validation is authoritative.

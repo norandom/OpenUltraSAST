@@ -7,13 +7,14 @@ from dataclasses import dataclass
 from typing import ClassVar
 
 from openultrasast.core import canonical
-from openultrasast.core.evaluation_measurement import ArmConfigurationV3, ArmKindV3
+from openultrasast.core.evaluation_measurement import ArmConfigurationV3, ArmKindV3, ScopeKey
 from openultrasast.core.evaluation_version import (
     EVALUATION_ADMISSION_V3_SCHEMA,
     EvaluationV3Contract,
     NonAuthorizingV3,
     require_exact_v3_contract,
 )
+from openultrasast.core.factpack import IndependenceAttestation, ReviewIndependencePolicy
 
 _DIGEST = re.compile(r"[0-9a-f]{64}")
 _PLAN_VALUE_SCHEMA = "openultrasast.detection-core.evaluation-plan-value.v3"
@@ -47,6 +48,11 @@ def _bind_digest(value: object, field: str, expected: str) -> None:
     _digest(actual, field)
     if actual != expected:
         raise EvaluationPlanError(f"{field} does not match canonical content")
+
+
+def _exact_plan_value(value: object, expected_type: type[object], field: str) -> None:
+    if type(value) is not expected_type:
+        raise EvaluationPlanError(f"{field} must use exact {expected_type.__name__}")
 
 
 def _slot_id(arm_id: str, input_identity_digest: str) -> str:
@@ -297,13 +303,139 @@ def validate_evaluation_baselines(declaration: EvaluationPlanDeclarationV3, base
         raise EvaluationPlanError("baselines do not match the canonical declaration-derived set")
 
 
+@dataclass(frozen=True, order=True)
+class ExactScopeCensusV3(EvaluationV3Contract, NonAuthorizingV3):
+    """Label-blind vulnerable/fixed and instrument capacity for one exact scope."""
+
+    __evaluation_v3_contract_schema__: ClassVar[str] = EVALUATION_ADMISSION_V3_SCHEMA
+    scope: ScopeKey
+    pair_count: int
+    vulnerable_side_count: int
+    fixed_side_count: int
+    semantic_site_capacity: int
+    model_call_capacity: int
+
+    def __post_init__(self) -> None:
+        from openultrasast.core._evaluation_plan_review import validate_exact_scope_census_shape
+
+        require_exact_v3_contract(self, ExactScopeCensusV3, field="exact scope census")
+        validate_exact_scope_census_shape(self)
+
+
+@dataclass(frozen=True, order=True)
+class EcosystemOrdinaryCensusV3(EvaluationV3Contract, NonAuthorizingV3):
+    """Label-blind ordinary-push capacity for one reviewed ecosystem."""
+
+    __evaluation_v3_contract_schema__: ClassVar[str] = EVALUATION_ADMISSION_V3_SCHEMA
+    ecosystem: str
+    ordinary_push_count: int
+
+    def __post_init__(self) -> None:
+        from openultrasast.core._evaluation_plan_review import validate_ordinary_census_shape
+
+        require_exact_v3_contract(self, EcosystemOrdinaryCensusV3, field="ecosystem ordinary census")
+        validate_ordinary_census_shape(self)
+
+
+@dataclass(frozen=True)
+class PopulationCensusV3(EvaluationV3Contract, NonAuthorizingV3):
+    """Independently reviewed, label-sealed capacities for one population."""
+
+    __evaluation_v3_contract_schema__: ClassVar[str] = EVALUATION_ADMISSION_V3_SCHEMA
+    population_digest: str
+    scope_rows: tuple[ExactScopeCensusV3, ...]
+    ordinary_rows: tuple[EcosystemOrdinaryCensusV3, ...]
+    whole_underlying_push_count: int
+    labels_exposed: bool
+    payload_digest: str
+    review: IndependenceAttestation
+    census_digest: str
+
+    def __post_init__(self) -> None:
+        from openultrasast.core._evaluation_plan_review import validate_population_census_shape
+
+        require_exact_v3_contract(self, PopulationCensusV3, field="population census")
+        validate_population_census_shape(self)
+
+
+@dataclass(frozen=True)
+class EvaluationPlanManifestV3(EvaluationV3Contract, NonAuthorizingV3):
+    """Reviewed plan, baseline, census, readiness, and custody binding."""
+
+    __evaluation_v3_contract_schema__: ClassVar[str] = EVALUATION_ADMISSION_V3_SCHEMA
+    declaration: EvaluationPlanDeclarationV3
+    baselines: tuple[EvaluationBaselineIdentityV3, ...]
+    census: PopulationCensusV3
+    readiness_digests: tuple[str, ...]
+    custody_log_digest: str
+    payload_digest: str
+    review: IndependenceAttestation
+    manifest_digest: str
+
+    def __post_init__(self) -> None:
+        from openultrasast.core._evaluation_plan_review import validate_plan_manifest_shape
+
+        require_exact_v3_contract(self, EvaluationPlanManifestV3, field="evaluation plan manifest")
+        validate_plan_manifest_shape(self)
+
+
+def derive_evaluation_census_payload_digest(census: PopulationCensusV3) -> str:
+    from openultrasast.core._evaluation_plan_review import census_payload_digest
+
+    _exact_plan_value(census, PopulationCensusV3, "population census")
+    return census_payload_digest(census)
+
+
+def derive_evaluation_census_digest(census: PopulationCensusV3) -> str:
+    from openultrasast.core._evaluation_plan_review import census_digest
+
+    _exact_plan_value(census, PopulationCensusV3, "population census")
+    return census_digest(census)
+
+
+def derive_evaluation_plan_manifest_payload_digest(manifest: EvaluationPlanManifestV3) -> str:
+    from openultrasast.core._evaluation_plan_review import manifest_payload_digest
+
+    _exact_plan_value(manifest, EvaluationPlanManifestV3, "evaluation plan manifest")
+    return manifest_payload_digest(manifest)
+
+
+def derive_evaluation_plan_manifest_digest(manifest: EvaluationPlanManifestV3) -> str:
+    from openultrasast.core._evaluation_plan_review import manifest_digest
+
+    _exact_plan_value(manifest, EvaluationPlanManifestV3, "evaluation plan manifest")
+    return manifest_digest(manifest)
+
+
+def validate_reviewed_evaluation_plan(
+    census: PopulationCensusV3,
+    manifest: EvaluationPlanManifestV3,
+    policy: ReviewIndependencePolicy,
+    resolver: canonical.ContentResolver,
+) -> None:
+    from openultrasast.core._evaluation_plan_review import validate_reviewed_plan
+
+    _exact_plan_value(census, PopulationCensusV3, "population census")
+    _exact_plan_value(manifest, EvaluationPlanManifestV3, "evaluation plan manifest")
+    validate_reviewed_plan(census, manifest, policy, resolver)
+
+
 __all__ = [
     "EvaluationBaselineIdentityV3",
     "EvaluationPlanDeclarationV3",
     "EvaluationPlanError",
+    "EvaluationPlanManifestV3",
+    "EcosystemOrdinaryCensusV3",
+    "ExactScopeCensusV3",
     "ExpectedObservationSlotV3",
+    "PopulationCensusV3",
     "create_evaluation_plan_declaration",
     "derive_evaluation_baselines",
     "derive_evaluation_input_set_digest",
+    "derive_evaluation_census_digest",
+    "derive_evaluation_census_payload_digest",
+    "derive_evaluation_plan_manifest_digest",
+    "derive_evaluation_plan_manifest_payload_digest",
     "validate_evaluation_baselines",
+    "validate_reviewed_evaluation_plan",
 ]
