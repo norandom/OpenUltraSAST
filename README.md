@@ -1,5 +1,7 @@
 # OpenUltraSAST
 
+[![Zenodo](https://img.shields.io/badge/Zenodo-OpenUltraSAST-1682D4?logo=zenodo)](https://zenodo.org/account/settings/github/repository/norandom/OpenUltraSAST)
+
 OpenUltraSAST is an experimental static security analyser. It aims to check security on
 repositories it has never seen. It scans a checkout or the commits a `git push` would publish. It
 distinguishes what it can prove from what it suspects.
@@ -28,7 +30,7 @@ The site is published at <https://norandom.github.io/OpenUltraSAST/>. Its source
 
 ## Status
 
-**v2.0.1, state as of 2026-10-08.** The pre-push safety net is **not yet released**. Blocking on
+**v2.1.0-alpha.1 checkpoint, state as of 2026-11-06.** The pre-push safety net is **not yet released**. Blocking on
 the static analyser by hand is **NO-GO** against every M4 gate, and the project no longer tries to
 meet those gates that way.
 

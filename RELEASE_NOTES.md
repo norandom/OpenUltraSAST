@@ -1,3 +1,23 @@
+# v2.1.0-alpha.1 (2026-11-06)
+
+This is an intermediate archival prerelease: a citable checkpoint for the generalized detection-core work. It
+does not enable a blocking pre-push capability, claim useful unseen-repository detection performance, or consume
+a new admission population.
+
+- **General detection core.** Adds family-neutral evidence, provenance, semantic-transition, readiness, budget,
+  model-corroboration, proof, measurement, admission, replay, and fitted-consumer contracts with strict canonical
+  identities and failure-visible validation.
+- **Reviewed family knowledge.** Migrates access-control entry knowledge behind reviewed fact-pack authority and
+  publishes the corresponding family conformance handoff without making that family a release gate.
+- **Next evaluation boundary specified.** The additive evaluation-admission V3 and valid-detection-benchmark
+  specifications define exact arm-and-scope denominators, atomic spend authority, complete replay, and durable
+  benchmark custody. These are approved implementation plans, not shipped benchmark orchestration.
+- **Citation metadata.** Adds `CITATION.cff` with M Ciepluch as the author and a Zenodo badge. The prerelease exists
+  to obtain the first archived DOI for this repository.
+
+The existing authorization arm remains parked after its recorded NO-GO result. Detection-core task 11.4 remains
+blocked on benchmark lifecycle governance and is not represented as completed by this prerelease.
+
 # v2.0.1 (2026-10-02)
 
 v2.0.0 was tagged but never published: its release job stopped at the format check (see below). v2.0.1 is
