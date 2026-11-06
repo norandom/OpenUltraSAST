@@ -10,12 +10,13 @@ from enum import Enum
 
 from openultrasast.core import canonical
 from openultrasast.core._closed_graph import closed_graph_problem
+from openultrasast.core._metric_algebra import metric_algebra as _shared_metric_algebra
+from openultrasast.core._metric_algebra import metric_values as _shared_metric_values
 
 BASELINE_IDENTITY_SCHEMA = "openultrasast.detection-core.baseline-identity.v2"
 DENOMINATOR_POLICY_SCHEMA = "openultrasast.detection-core.denominator-policy.v2"
 IDENTITY_SET_SCHEMA = "openultrasast.detection-core.identity-set.v2"
 _DIGEST = re.compile(r"[0-9a-f]{64}")
-_WILSON_Z_95 = 1.959963984540054
 
 
 class MeasurementContractError(ValueError):
@@ -231,35 +232,9 @@ class Comparator(Enum):
     AT_MOST = "at_most"
 
 
-_ALGEBRA = {
-    MetricId.PAIRED_CORRECTNESS: (NumeratorKind.CORRECT_PAIRS, DenominatorKind.PAIRS, Comparator.AT_LEAST),
-    MetricId.VULNERABLE_RECALL: (
-        NumeratorKind.VULNERABLE_VIOLATION_CASES,
-        DenominatorKind.VULNERABLE_SIDES,
-        Comparator.AT_LEAST,
-    ),
-    MetricId.FIXED_FALSE_ALARM_RATE: (
-        NumeratorKind.FIXED_DEFECT_CASES,
-        DenominatorKind.FIXED_SIDES,
-        Comparator.AT_MOST,
-    ),
-    MetricId.ORDINARY_FALSE_ALARMS_PER_100: (
-        NumeratorKind.ORDINARY_DEFECT_CASES,
-        DenominatorKind.ORDINARY_CASES,
-        Comparator.AT_MOST,
-    ),
-    MetricId.PRECISION: (NumeratorKind.TRUE_DEFECT_CASES, DenominatorKind.ALL_DEFECT_CASES, Comparator.AT_LEAST),
-    MetricId.SEMANTIC_STAGE_COVERAGE: (
-        NumeratorKind.SITES_RECOGNIZED,
-        DenominatorKind.SITES_CONSIDERED,
-        Comparator.AT_LEAST,
-    ),
-    MetricId.MODEL_SUCCESS_RATE: (
-        NumeratorKind.SUCCESSFUL_MODEL_CALLS,
-        DenominatorKind.MODEL_CALLS,
-        Comparator.AT_LEAST,
-    ),
-}
+def _metric_algebra(metric_id: MetricId) -> tuple[NumeratorKind, DenominatorKind, Comparator]:
+    numerator, denominator, comparator = _shared_metric_algebra(metric_id.value)
+    return NumeratorKind(numerator), DenominatorKind(denominator), Comparator(comparator)
 
 
 @dataclass(frozen=True)
@@ -279,7 +254,11 @@ class MetricRule:
 
 def standard_metric_rules(scopes: tuple[ScopeKey, ...]) -> tuple[MetricRule, ...]:
     _canonical_scopes(scopes, "metric scopes")
-    return tuple(MetricRule(metric, scopes, _ALGEBRA[metric][0], _ALGEBRA[metric][1]) for metric in MetricId)
+    rules = []
+    for metric in MetricId:
+        numerator, denominator, _ = _metric_algebra(metric)
+        rules.append(MetricRule(metric, scopes, numerator, denominator))
+    return tuple(rules)
 
 
 def _rule_value(value: MetricRule) -> canonical.JsonValue:
@@ -315,7 +294,7 @@ def _validate_policy(value: DenominatorPolicy) -> None:
         raise MeasurementContractError("each standard metric must occur exactly once in canonical order")
     for rule in value.rules:
         rule.__post_init__()
-        expected_numerator, expected_denominator, _ = _ALGEBRA[rule.metric_id]
+        expected_numerator, expected_denominator, _ = _metric_algebra(rule.metric_id)
         if (rule.numerator, rule.denominator) != (expected_numerator, expected_denominator):
             raise MeasurementContractError("metric rule violates the fixed algebra")
     if value.interval_method is not IntervalMethod.WILSON_95:
@@ -365,28 +344,9 @@ class MetricResult:
 def _validate_rule(rule: MetricRule) -> None:
     if not isinstance(rule, MetricRule):
         raise MeasurementContractError("rule must be a MetricRule")
-    expected = _ALGEBRA[rule.metric_id]
+    expected = _metric_algebra(rule.metric_id)
     if (rule.numerator, rule.denominator) != expected[:2]:
         raise MeasurementContractError("metric rule violates the fixed algebra")
-
-
-def _wilson(numerator: int, denominator: int) -> tuple[float, float]:
-    proportion = numerator / denominator
-    z_squared = _WILSON_Z_95 * _WILSON_Z_95
-    denominator_term = 1.0 + z_squared / denominator
-    center = (proportion + z_squared / (2.0 * denominator)) / denominator_term
-    margin = (_WILSON_Z_95 / denominator_term) * math.sqrt(
-        proportion * (1.0 - proportion) / denominator + z_squared / (4.0 * denominator * denominator)
-    )
-    return center - margin, center + margin
-
-
-def _metric_values(metric_id: MetricId, numerator: int, denominator: int) -> tuple[float | None, float | None, float | None]:
-    if denominator == 0:
-        return None, None, None
-    lower, upper = _wilson(numerator, denominator)
-    scale = 100.0 if metric_id is MetricId.ORDINARY_FALSE_ALARMS_PER_100 else 1.0
-    return (numerator / denominator) * scale, lower * scale, upper * scale
 
 
 def _canonical_metric_float(actual: object, expected: float | None) -> bool:
@@ -405,7 +365,7 @@ def _validate_result(result: MetricResult) -> None:
     if result.interval_method is not IntervalMethod.WILSON_95:
         raise MeasurementContractError("interval method must be Wilson 95%")
     actual = (result.value, result.interval_lower, result.interval_upper)
-    expected = _metric_values(result.metric_id, numerator, denominator)
+    expected = _shared_metric_values(result.metric_id.value, numerator, denominator)
     if not all(_canonical_metric_float(item, expected[index]) for index, item in enumerate(actual)):
         raise MeasurementContractError("metric values do not match the fixed Wilson algebra")
 
@@ -416,7 +376,7 @@ def evaluate_metric(rule: MetricRule, *, numerator: int, denominator: int) -> Me
     denominator = _count(denominator, "denominator")
     if numerator > denominator:
         raise MeasurementContractError("numerator must not exceed denominator")
-    value, lower, upper = _metric_values(rule.metric_id, numerator, denominator)
+    value, lower, upper = _shared_metric_values(rule.metric_id.value, numerator, denominator)
     return MetricResult(rule.metric_id, numerator, denominator, value, IntervalMethod.WILSON_95, lower, upper)
 
 
@@ -447,7 +407,7 @@ def metric_passes(result: MetricResult, statistic: Statistic, comparator: Compar
     if not isinstance(comparator, Comparator):
         raise MeasurementContractError("comparator must use the closed enum")
     target = _finite(target, "target")
-    required = _ALGEBRA[result.metric_id][2]
+    required = _metric_algebra(result.metric_id)[2]
     if comparator is not required:
         raise MeasurementContractError("comparator direction violates the fixed metric algebra")
     value = _statistic_value(result, statistic)

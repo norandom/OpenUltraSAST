@@ -460,7 +460,7 @@ contract work and use synthetic/in-memory workflow boundaries only.
   - _Requirements: 16.1, 16.2, 16.3, 16.4_
   - _Boundary: V2 Admission Compatibility_
   - _Depends: 8.9, 8.10_
-- [ ] 12.2 Extract version-neutral metric arithmetic without changing V2
+- [x] 12.2 Extract version-neutral metric arithmetic without changing V2
   - Isolate only the closed standard-metric algebra and Wilson calculation; keep every serialized V2 identity and validator in its existing owner.
   - Route V2 through the shared arithmetic and compare all frozen V2 outputs byte-for-byte.
   - Expose the same pure arithmetic to V3 without accepting a V2 policy, result, or report as a V3 value.
@@ -708,6 +708,7 @@ contract work and use synthetic/in-memory workflow boundaries only.
 ## Implementation Notes
 
 - Task 12.1 froze three representative V2 admissions and exact failure precedence; shared-helper work must keep the committed bytes, SHA-256 identities, decisions, and authoritative replay output unchanged.
+- Task 12.2 moved the seven closed metric identities and bit-exact Wilson arithmetic into `_metric_algebra.py`; V2 retains all schemas, validators, serialization, and error ownership.
 - The frozen migration inventory is a reviewed worklist with stable identities, not a semantic-use census. It may only close entries as `v2_migrated` or `retired`; it never grows, deletes entries, or proves absence by interpreting Python flow.
 - Cutover is proved by explicit syntax checks plus deletion of the compatibility and v1 write capability. No task extends the discarded alias/data-flow interpreter.
 - Task 10.5 debug established that executable owner probes cannot compensate for blanket source-closure acceptance; resumed hunt attempts also require collision-resistant attempt identity and create-only persistence before handoff validation is authoritative.
