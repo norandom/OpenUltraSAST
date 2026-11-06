@@ -468,7 +468,7 @@ contract work and use synthetic/in-memory workflow boundaries only.
   - _Requirements: 16.2, 18.6_
   - _Boundary: Version-Neutral Metric Algebra_
   - _Depends: 12.1_
-- [ ] 12.3 Define exact arm-scope measurement and sufficiency contracts
+- [x] 12.3 Define exact arm-scope measurement and sufficiency contracts
   - Represent one canonical arm-and-scope key for every policy, threshold, sufficiency rule, metric, gate, and decision.
   - Bind exact denominator algebra, fixed Wilson intervals, sample counts, minimum sizes, interval precision, and rational aggregate weights.
   - Include every arm identity input that must start a new baseline when changed, including judgment vocabulary, analyzer, facts, configuration, registered budget, execution, outcome mapping, and combination rule.
@@ -709,6 +709,7 @@ contract work and use synthetic/in-memory workflow boundaries only.
 
 - Task 12.1 froze three representative V2 admissions and exact failure precedence; shared-helper work must keep the committed bytes, SHA-256 identities, decisions, and authoritative replay output unchanged.
 - Task 12.2 moved the seven closed metric identities and bit-exact Wilson arithmetic into `_metric_algebra.py`; V2 retains all schemas, validators, serialization, and error ownership.
+- Task 12.3 established exact V3 arm/scope measurement, sufficiency, immutable arm-identity, scoped Wilson-result, and rational aggregate-weight contracts behind an acyclic public facade; all malformed public-factory inputs fail through `EvaluationMeasurementError` before arithmetic.
 - The frozen migration inventory is a reviewed worklist with stable identities, not a semantic-use census. It may only close entries as `v2_migrated` or `retired`; it never grows, deletes entries, or proves absence by interpreting Python flow.
 - Cutover is proved by explicit syntax checks plus deletion of the compatibility and v1 write capability. No task extends the discarded alias/data-flow interpreter.
 - Task 10.5 debug established that executable owner probes cannot compensate for blanket source-closure acceptance; resumed hunt attempts also require collision-resistant attempt identity and create-only persistence before handoff validation is authoritative.
