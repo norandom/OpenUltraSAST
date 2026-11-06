@@ -451,7 +451,7 @@ implementation record. The unresolved downstream-governance item 11.4 is not reo
 is not a prerequisite for this V3 stream; V3 tasks depend explicitly on completed V2
 contract work and use synthetic/in-memory workflow boundaries only.
 
-- [ ] 12. Preserve V2 admission and establish V3 measurement foundations
+- [x] 12. Preserve V2 admission and establish V3 measurement foundations
 - [x] 12.1 (P) Freeze representative V2 admission behavior
   - Pin accepted canonical bytes, digests, decisions, validation failures, report output, and authoritative replay output for representative V2 admissions.
   - Prove every frozen fixture is readable and nonzero before treating a stable result as compatibility evidence.
@@ -477,7 +477,7 @@ contract work and use synthetic/in-memory workflow boundaries only.
   - _Requirements: 16.1, 16.4, 16.5, 18.1, 18.6, 18.7_
   - _Boundary: Evaluation Measurement_
   - _Depends: 12.2_
-- [ ] 12.4 Establish distinct V3 version-boundary primitives
+- [x] 12.4 Establish distinct V3 version-boundary primitives
   - Reserve the exact evaluation-admission V3 schema identity and version-routing primitives without changing any V2 public name or route.
   - Make V3 contracts exact-type only and prohibit V2-to-V3 conversion, subclass acceptance, and mixed-version child relationships as each later root is introduced.
   - Define the shared non-authorizing marker for feasibility, insufficiency, raw reports, aggregates, incomplete arm results, and other partial values; leave complete root decoding to facade integration.
@@ -710,6 +710,7 @@ contract work and use synthetic/in-memory workflow boundaries only.
 - Task 12.1 froze three representative V2 admissions and exact failure precedence; shared-helper work must keep the committed bytes, SHA-256 identities, decisions, and authoritative replay output unchanged.
 - Task 12.2 moved the seven closed metric identities and bit-exact Wilson arithmetic into `_metric_algebra.py`; V2 retains all schemas, validators, serialization, and error ownership.
 - Task 12.3 established exact V3 arm/scope measurement, sufficiency, immutable arm-identity, scoped Wilson-result, and rational aggregate-weight contracts behind an acyclic public facade; all malformed public-factory inputs fail through `EvaluationMeasurementError` before arithmetic.
+- Task 12.4 reserved the exact V3 evaluation-admission identity, added closed extensible V3 contract routing, and made partial artifacts structurally non-authorizing across inheritance, wrapped aliases, and post-definition/shared-base mutation while leaving V2 routes unchanged.
 - The frozen migration inventory is a reviewed worklist with stable identities, not a semantic-use census. It may only close entries as `v2_migrated` or `retired`; it never grows, deletes entries, or proves absence by interpreting Python flow.
 - Cutover is proved by explicit syntax checks plus deletion of the compatibility and v1 write capability. No task extends the discarded alias/data-flow interpreter.
 - Task 10.5 debug established that executable owner probes cannot compensate for blanket source-closure acceptance; resumed hunt attempts also require collision-resistant attempt identity and create-only persistence before handoff validation is authoritative.
