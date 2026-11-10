@@ -486,7 +486,7 @@ contract work and use synthetic/in-memory workflow boundaries only.
   - _Boundary: Evaluation Version Compatibility_
   - _Depends: 12.1, 12.3_
 
-- [ ] 13. Register reviewed multi-arm plans and exact preflight
+- [x] 13. Register reviewed multi-arm plans and exact preflight
 - [x] 13.1 Define component, combined-arm, and declarative combination configurations
   - Represent component and combined arm configurations with exact scopes, policies, thresholds, sufficiency rules, outcome mapping, and a closed declarative combination rule.
   - Require component identities and a finite normalized decision table for every combined arm, with identical-component-candidate-only proof retention.
@@ -510,9 +510,10 @@ contract work and use synthetic/in-memory workflow boundaries only.
   - Done when one reviewed multi-arm manifest validates with labels sealed and every review, census, scope, ordinary-ecosystem, or slot substitution is refused before feasibility.
   - _Requirements: 17.1, 17.2, 17.3, 18.1, 18.3_
   - _Boundary: Evaluation Plan Review_
-- [ ] 13.4 Derive feasibility independently for every planned arm and exact scope
+- [x] 13.4 Derive feasibility independently for every planned arm and exact scope
   - Produce exactly one feasibility row for the canonical product of planned arms and their claimed scopes.
-  - Recompute minimum sample size, threshold reachability, and Wilson interval precision from the reviewed label-blind census for each row.
+  - Derive each metric's witness from the exact-scope pair, vulnerable-side, fixed-side, semantic-site, and model-call capacities plus only the same-ecosystem ordinary capacity; preserve the fixed V2 precision fallback of vulnerable-over-vulnerable, otherwise zero-over-one when false-positive capacity exists, otherwise zero-over-zero.
+  - Evaluate registered thresholds, minimum denominators, and Wilson-width rules from that same witness through the fixed metric algebra; treat a zero denominator as insufficiency and never as GO or NO-GO.
   - Derive shared spend eligibility only when every row is feasible; keep insufficiency and its reasons distinct from GO and NO-GO.
   - Refuse missing, extra, duplicated, or caller-summarized rows and prevent preparation when one row is insufficient.
   - Done when a single insufficient scope blocks the shared spend without opening labels, while the complete feasible plan yields one reproducible preflight digest.
@@ -714,6 +715,7 @@ contract work and use synthetic/in-memory workflow boundaries only.
 - Task 13.1 closed the arm-configuration gap by requiring at least two canonical non-self component identities for a combined arm and proving its complete finite decision table, proof-retention policy, and every configuration input remain digest-bound without executable behavior.
 - Task 13.2 established a label-blind non-circular plan declaration, an authoritative canonical input-set identity and complete arm-by-input slot product, exact component-kind lineage, and one declaration-derived baseline per arm.
 - Task 13.3 added exact label-sealed scope/ecosystem census contracts and an independently reviewed plan manifest that binds the declaration, baselines, census, readiness, custody, and bounded trust-resolved review evidence before feasibility.
+- Task 13.4 revalidates the reviewed manifest before deriving one exact arm/scope feasibility row, preserves the V2 reachability witnesses and same-ecosystem ordinary capacity, and keeps insufficiency and zero denominators outside GO/NO-GO while blocking shared spend.
 - The frozen migration inventory is a reviewed worklist with stable identities, not a semantic-use census. It may only close entries as `v2_migrated` or `retired`; it never grows, deletes entries, or proves absence by interpreting Python flow.
 - Cutover is proved by explicit syntax checks plus deletion of the compatibility and v1 write capability. No task extends the discarded alias/data-flow interpreter.
 - Task 10.5 debug established that executable owner probes cannot compensate for blanket source-closure acceptance; resumed hunt attempts also require collision-resistant attempt identity and create-only persistence before handoff validation is authoritative.

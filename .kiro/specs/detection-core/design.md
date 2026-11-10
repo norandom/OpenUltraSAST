@@ -2972,6 +2972,20 @@ The feasibility rows equal the canonical product of every arm and its exact clai
 Every row rederives minimum sizes, threshold reachability, and interval precision from the
 reviewed label-blind census. `may_spend` is true only when every row is feasible.
 
+Feasibility uses the shipped V2 jointly-optimal reachability arithmetic independently for
+each exact `ArmScopeKey`; it does not predict a post-spend quality result. Denominator
+capacities map to the row's pair, vulnerable-side, fixed-side, semantic-site, and model-call
+capacities, while ordinary capacity comes only from the ordinary census row for that exact
+scope's ecosystem. The reachable witness is `(capacity, capacity)` for at-least metrics and
+`(0, capacity)` for fixed or ordinary false-alarm metrics. Precision uses
+`(vulnerable_side_count, vulnerable_side_count)` when vulnerable capacity is nonzero,
+otherwise `(0, 1)` when fixed-side or same-ecosystem ordinary capacity is nonzero, and
+otherwise `(0, 0)`. Each threshold is evaluated from that witness through the fixed metric
+algebra and its registered statistic/comparator. Each interval-precision rule uses the same
+witness, requires its registered minimum denominator, and compares the derived Wilson 95%
+width with the registered maximum. A zero-denominator witness is unattainable and therefore
+insufficient. These are pre-spend feasibility facts only: they never produce GO or NO-GO.
+
 #### Observation authority and atomic spend
 
 ```python
