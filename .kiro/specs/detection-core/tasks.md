@@ -529,7 +529,7 @@ contract work and use synthetic/in-memory workflow boundaries only.
   - _Requirements: 17.5, 17.6, 20.8_
   - _Boundary: Evaluation Observation_
   - _Depends: 13.3_
-- [ ] 14.2 Validate reviewed attempt history, sealed access, and exact retries
+- [x] 14.2 Validate reviewed attempt history, sealed access, and exact retries
   - Bind each attempt event to the complete retry identity, closed access policy, raw-observation and diagnostic access counts, public status projection, disposition, review, and predecessor.
   - Resolve the reviewed predecessor chain from its declared head and require every unspent attempt to have the identical population, plan, arms, inputs, configurations, budgets, and execution identities.
   - Permit public pre-spend projection only for closed status codes, counts, and digests; any raw/diagnostic access or identity change produces a terminal development-opened or spent disposition.
@@ -717,6 +717,7 @@ contract work and use synthetic/in-memory workflow boundaries only.
 - Task 13.3 added exact label-sealed scope/ecosystem census contracts and an independently reviewed plan manifest that binds the declaration, baselines, census, readiness, custody, and bounded trust-resolved review evidence before feasibility.
 - Task 13.4 revalidates the reviewed manifest before deriving one exact arm/scope feasibility row, preserves the V2 reachability witnesses and same-ecosystem ordinary capacity, and keeps insufficiency and zero denominators outside GO/NO-GO while blocking shared spend.
 - Task 14.1 added strict canonical, nonzero, label-blind observation records and sealed references whose trusted resolved bytes, read/stage evidence, configuration identities, and complete slot set must match the reviewed plan before authority.
+- Task 14.2 added strict canonical reviewed attempt events and exact predecessor-chain validation so only unchanged, closed-access, all-sealed retry histories remain eligible before authority.
 - The frozen migration inventory is a reviewed worklist with stable identities, not a semantic-use census. It may only close entries as `v2_migrated` or `retired`; it never grows, deletes entries, or proves absence by interpreting Python flow.
 - Cutover is proved by explicit syntax checks plus deletion of the compatibility and v1 write capability. No task extends the discarded alias/data-flow interpreter.
 - Task 10.5 debug established that executable owner probes cannot compensate for blanket source-closure acceptance; resumed hunt attempts also require collision-resistant attempt identity and create-only persistence before handoff validation is authoritative.
