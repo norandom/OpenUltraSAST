@@ -558,7 +558,7 @@ contract work and use synthetic/in-memory workflow boundaries only.
   - _Depends: 14.3_
 
 - [ ] 15. Authenticate V3 case release, combinations, and proof continuity
-- [ ] 15.1 Build the arm-aware V3 case and independently reviewed release graph
+- [x] 15.1 Build the arm-aware V3 case and independently reviewed release graph
   - Bind each post-spend case to its arm-scope key, baseline, observation, underlying push, role, pair, result, evidence inputs, change inputs, input manifest, and proof-candidate identity.
   - Bind one independently reviewed release to the plan, admission authority, preparation, exact shared spend, and complete canonical case set.
   - Require exact planned-arm and released-case cardinality and exact V3 root types; refuse V2 releases and subclasses.
@@ -720,6 +720,7 @@ contract work and use synthetic/in-memory workflow boundaries only.
 - Task 14.2 added strict canonical reviewed attempt events and exact predecessor-chain validation so only unchanged, closed-access, all-sealed retry histories remain eligible before authority.
 - Task 14.3 added an independently reviewed V3 admission manifest and revalidates feasibility, observation bytes, sealed attempts, readiness, context, and current available custody before deriving one exact pre-spend authority.
 - Task 14.4 validates the complete manifest/authority/preparation graph before external CAS and again after append, so only the current direct available-to-spent receipt can bind every planned baseline and self-consistent subset authorities remain unspendable.
+- Task 15.1 added exact V3 arm-case and independently reviewed release contracts that rebind the complete plan-to-spend graph, trusted observations, case cardinality, and nonzero read/execution evidence before metrics.
 - The frozen migration inventory is a reviewed worklist with stable identities, not a semantic-use census. It may only close entries as `v2_migrated` or `retired`; it never grows, deletes entries, or proves absence by interpreting Python flow.
 - Cutover is proved by explicit syntax checks plus deletion of the compatibility and v1 write capability. No task extends the discarded alias/data-flow interpreter.
 - Task 10.5 debug established that executable owner probes cannot compensate for blanket source-closure acceptance; resumed hunt attempts also require collision-resistant attempt identity and create-only persistence before handoff validation is authoritative.
