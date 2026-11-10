@@ -520,7 +520,7 @@ contract work and use synthetic/in-memory workflow boundaries only.
   - _Requirements: 17.3, 17.4, 20.2_
   - _Boundary: Evaluation Feasibility_
 
-- [ ] 14. Seal planned observations and authorize one atomic spend
+- [x] 14. Seal planned observations and authorize one atomic spend
 - [x] 14.1 Validate exact nonzero observations against every expected slot
   - Represent label-blind observation headers that bind slot, arm, input, execution, registered budget, configuration, input-read evidence, stage-execution evidence, cases, and proof candidates.
   - Resolve every sealed observation through trusted content references and prove its bytes are nonzero before accepting its header.
@@ -547,7 +547,7 @@ contract work and use synthetic/in-memory workflow boundaries only.
   - _Requirements: 17.5, 17.6, 17.8, 17.10, 17.11, 17.12_
   - _Boundary: Evaluation Authority_
   - _Depends: 13.4, 14.1, 14.2_
-- [ ] 14.4 Bind every planned arm to one preparation and custody receipt
+- [x] 14.4 Bind every planned arm to one preparation and custody receipt
   - Construct one head-bound label-release request whose influenced artifact transitively commits to every planned baseline and exact authority.
   - Validate only the exact monotonic available-to-spent successor and derive an explicit all-arm binding between preparation, receipt, and planned baselines.
   - Reject subset preparations, missing or mismatched receipts, stale concurrent attempts, broken custody chains, and any later restoration of availability.
@@ -719,6 +719,7 @@ contract work and use synthetic/in-memory workflow boundaries only.
 - Task 14.1 added strict canonical, nonzero, label-blind observation records and sealed references whose trusted resolved bytes, read/stage evidence, configuration identities, and complete slot set must match the reviewed plan before authority.
 - Task 14.2 added strict canonical reviewed attempt events and exact predecessor-chain validation so only unchanged, closed-access, all-sealed retry histories remain eligible before authority.
 - Task 14.3 added an independently reviewed V3 admission manifest and revalidates feasibility, observation bytes, sealed attempts, readiness, context, and current available custody before deriving one exact pre-spend authority.
+- Task 14.4 validates the complete manifest/authority/preparation graph before external CAS and again after append, so only the current direct available-to-spent receipt can bind every planned baseline and self-consistent subset authorities remain unspendable.
 - The frozen migration inventory is a reviewed worklist with stable identities, not a semantic-use census. It may only close entries as `v2_migrated` or `retired`; it never grows, deletes entries, or proves absence by interpreting Python flow.
 - Cutover is proved by explicit syntax checks plus deletion of the compatibility and v1 write capability. No task extends the discarded alias/data-flow interpreter.
 - Task 10.5 debug established that executable owner probes cannot compensate for blanket source-closure acceptance; resumed hunt attempts also require collision-resistant attempt identity and create-only persistence before handoff validation is authoritative.
