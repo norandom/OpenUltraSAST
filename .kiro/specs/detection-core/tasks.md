@@ -538,7 +538,7 @@ contract work and use synthetic/in-memory workflow boundaries only.
   - _Requirements: 17.10, 17.11, 17.12_
   - _Boundary: Evaluation Attempt History_
   - _Depends: 13.3_
-- [ ] 14.3 Validate the independently reviewed admission authority
+- [x] 14.3 Validate the independently reviewed admission authority
   - Bind the feasible plan to the exact sealed observation set, attempt-history head, current readiness, validation context, and current complete custody head.
   - Require the admission-authority payload to be reviewed independently from its producer and resolve its review evidence before authorization.
   - Revalidate feasibility, all observation bytes, attempt history, readiness, and custody immediately before producing authority.
@@ -718,6 +718,7 @@ contract work and use synthetic/in-memory workflow boundaries only.
 - Task 13.4 revalidates the reviewed manifest before deriving one exact arm/scope feasibility row, preserves the V2 reachability witnesses and same-ecosystem ordinary capacity, and keeps insufficiency and zero denominators outside GO/NO-GO while blocking shared spend.
 - Task 14.1 added strict canonical, nonzero, label-blind observation records and sealed references whose trusted resolved bytes, read/stage evidence, configuration identities, and complete slot set must match the reviewed plan before authority.
 - Task 14.2 added strict canonical reviewed attempt events and exact predecessor-chain validation so only unchanged, closed-access, all-sealed retry histories remain eligible before authority.
+- Task 14.3 added an independently reviewed V3 admission manifest and revalidates feasibility, observation bytes, sealed attempts, readiness, context, and current available custody before deriving one exact pre-spend authority.
 - The frozen migration inventory is a reviewed worklist with stable identities, not a semantic-use census. It may only close entries as `v2_migrated` or `retired`; it never grows, deletes entries, or proves absence by interpreting Python flow.
 - Cutover is proved by explicit syntax checks plus deletion of the compatibility and v1 write capability. No task extends the discarded alias/data-flow interpreter.
 - Task 10.5 debug established that executable owner probes cannot compensate for blanket source-closure acceptance; resumed hunt attempts also require collision-resistant attempt identity and create-only persistence before handoff validation is authoritative.
