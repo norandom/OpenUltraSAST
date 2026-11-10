@@ -521,7 +521,7 @@ contract work and use synthetic/in-memory workflow boundaries only.
   - _Boundary: Evaluation Feasibility_
 
 - [ ] 14. Seal planned observations and authorize one atomic spend
-- [ ] 14.1 Validate exact nonzero observations against every expected slot
+- [x] 14.1 Validate exact nonzero observations against every expected slot
   - Represent label-blind observation headers that bind slot, arm, input, execution, registered budget, configuration, input-read evidence, stage-execution evidence, cases, and proof candidates.
   - Resolve every sealed observation through trusted content references and prove its bytes are nonzero before accepting its header.
   - Require one-to-one equality between expected slots and sealed observations; refuse missing, extra, changed, unreadable, cross-arm, cross-input, or duplicate values.
@@ -716,6 +716,7 @@ contract work and use synthetic/in-memory workflow boundaries only.
 - Task 13.2 established a label-blind non-circular plan declaration, an authoritative canonical input-set identity and complete arm-by-input slot product, exact component-kind lineage, and one declaration-derived baseline per arm.
 - Task 13.3 added exact label-sealed scope/ecosystem census contracts and an independently reviewed plan manifest that binds the declaration, baselines, census, readiness, custody, and bounded trust-resolved review evidence before feasibility.
 - Task 13.4 revalidates the reviewed manifest before deriving one exact arm/scope feasibility row, preserves the V2 reachability witnesses and same-ecosystem ordinary capacity, and keeps insufficiency and zero denominators outside GO/NO-GO while blocking shared spend.
+- Task 14.1 added strict canonical, nonzero, label-blind observation records and sealed references whose trusted resolved bytes, read/stage evidence, configuration identities, and complete slot set must match the reviewed plan before authority.
 - The frozen migration inventory is a reviewed worklist with stable identities, not a semantic-use census. It may only close entries as `v2_migrated` or `retired`; it never grows, deletes entries, or proves absence by interpreting Python flow.
 - Cutover is proved by explicit syntax checks plus deletion of the compatibility and v1 write capability. No task extends the discarded alias/data-flow interpreter.
 - Task 10.5 debug established that executable owner probes cannot compensate for blanket source-closure acceptance; resumed hunt attempts also require collision-resistant attempt identity and create-only persistence before handoff validation is authoritative.
