@@ -612,7 +612,7 @@ contract work and use synthetic/in-memory workflow boundaries only.
   - _Boundary: Proof Continuity_
   - _Depends: 15.5_
 
-- [ ] 16. Derive exact scoped metrics and completed reports
+- [x] 16. Derive exact scoped metrics and completed reports
 - [x] 16.1 Partition quality evidence by exact arm, family, and ecosystem
   - Select vulnerable and fixed cases only from the independently released exact scope and derive pair correctness without cross-scope reuse.
   - Derive precision only from findings and cases assigned to the same arm-scope key under its reviewed denominator policy.
@@ -643,7 +643,7 @@ contract work and use synthetic/in-memory workflow boundaries only.
   - Done when every completed scope receives one reproducible decision and every incomplete or impaired fixture is refused without a quality decision.
   - _Requirements: 20.1, 20.2, 20.3, 20.8_
   - _Boundary: Evaluation Report_
-- [ ] 16.5 Derive optional aggregates that can never authorize
+- [x] 16.5 Derive optional aggregates that can never authorize
   - Bind aggregate constituents, sample counts, canonical rational weights, and derived metric values to exact arm-scope metric identities.
   - Require weights to be non-negative, canonical, one-to-one with constituents, and sum exactly to one through integer arithmetic.
   - Exclude gates, GO/NO-GO, proof promotion, and every consumer-authorization capability from the aggregate contract.
@@ -750,6 +750,7 @@ contract work and use synthetic/in-memory workflow boundaries only.
 - Task 16.2 reconciles exact ordinary-push identity sets within each reviewed ecosystem, refuses cross-ecosystem reuse, and derives whole-population coverage from the globally deduplicated released push union.
 - Task 16.3 derives the complete seven-metric bundle with fixed algebra and Wilson intervals only after exact census and released-lineage reconciliation, treating zero denominators, missing metrics, or inconsistent projections as invalid evidence.
 - Task 16.4 emits non-authorizing completed scope reports only after canonical gate, operational, observation, release, and combination-lineage replay; incomplete or impaired measurement remains outside GO/NO-GO.
+- Task 16.5 derives optional aggregates only from complete canonical scoped metrics using exact rational weights and reproducible constituent identities, while exposing no gate, decision, proof, or authorization capability.
 - The frozen migration inventory is a reviewed worklist with stable identities, not a semantic-use census. It may only close entries as `v2_migrated` or `retired`; it never grows, deletes entries, or proves absence by interpreting Python flow.
 - Cutover is proved by explicit syntax checks plus deletion of the compatibility and v1 write capability. No task extends the discarded alias/data-flow interpreter.
 - Task 10.5 debug established that executable owner probes cannot compensate for blanket source-closure acceptance; resumed hunt attempts also require collision-resistant attempt identity and create-only persistence before handoff validation is authoritative.
