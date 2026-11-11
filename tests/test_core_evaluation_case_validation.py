@@ -209,11 +209,7 @@ def _bundle(*, authority_case=None, projection_mutation: str | None = None):
                 if projection_mutation == "case_input":
                     case_input = _digest("coordinated-other-case-input")
                 elif projection_mutation == "outcome":
-                    outcome = (
-                        NeutralOutcome.VIOLATION
-                        if outcome is not NeutralOutcome.VIOLATION
-                        else NeutralOutcome.SATISFIED
-                    )
+                    outcome = NeutralOutcome.VIOLATION if outcome is not NeutralOutcome.VIOLATION else NeutralOutcome.SATISFIED
                 elif projection_mutation == "source":
                     sources = (_digest("coordinated-other-record"),)
                 else:  # pragma: no cover - fixture misuse
@@ -459,9 +455,7 @@ def test_canonical_release_binding_requires_planned_projection_policy(
     substituted_policy: CaseOutcomeProjectionPolicyV3,
 ) -> None:
     bundle = _bundle()
-    configurations = {
-        item.arm_id: item for item in bundle[3].plan_manifest.declaration.arm_configurations
-    }
+    configurations = {item.arm_id: item for item in bundle[3].plan_manifest.declaration.arm_configurations}
     configuration = next(item for item in configurations.values() if item.kind is kind)
     group = next(item for item in bundle[2] if item.arm_id == configuration.arm_id)
     case = group.cases[0]

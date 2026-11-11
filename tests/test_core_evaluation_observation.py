@@ -146,9 +146,7 @@ def test_observation_case_policy_must_equal_planned_arm_policy(
     changed_observation = replace(original, cases=(changed_case,), observation_digest="")
     changed_ref, changed_content = _seal(changed_observation, f"wrong-policy-{arm_id}")
     changed_sealed = sealed[:index] + (changed_ref,) + sealed[index + 1 :]
-    changed_resolver = InMemoryContentResolver(
-        {**resolver.artifacts, changed_ref.observation.artifact_id: changed_content}
-    )
+    changed_resolver = InMemoryContentResolver({**resolver.artifacts, changed_ref.observation.artifact_id: changed_content})
 
     with pytest.raises(EvaluationObservationError, match="policy"):
         _validate(declaration, changed_sealed, changed_resolver)

@@ -130,9 +130,10 @@ def test_component_projection_refuses_record_subclasses_and_source_changes() -> 
         derive_component_case_outcome_projection((tampered,))
 
     changed = _case_record("base", NeutralOutcome.SATISFIED, change="change-b")
-    assert derive_component_case_outcome_projection((record,)).case_input_digest != derive_component_case_outcome_projection(
-        (changed,)
-    ).case_input_digest
+    assert (
+        derive_component_case_outcome_projection((record,)).case_input_digest
+        != derive_component_case_outcome_projection((changed,)).case_input_digest
+    )
 
 
 def test_case_input_derivation_refuses_self_consistent_invalid_nested_change_identity() -> None:

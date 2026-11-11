@@ -27,9 +27,7 @@ def _projection(
 ) -> CaseOutcomeProjectionV3:
     return CaseOutcomeProjectionV3(
         case_input,
-        CaseOutcomeProjectionPolicyV3.DECLARATIVE_COMBINATION_TABLE
-        if combined
-        else CaseOutcomeProjectionPolicyV3.UNANIMOUS_EVIDENCE,
+        CaseOutcomeProjectionPolicyV3.DECLARATIVE_COMBINATION_TABLE if combined else CaseOutcomeProjectionPolicyV3.UNANIMOUS_EVIDENCE,
         sources,
         outcome,
         "",
@@ -99,9 +97,7 @@ def test_combination_replay_joins_exact_cases_in_registered_component_order() ->
     rule = next(item.combination_rule for item in declaration.arm_configurations if item.arm_id == "arm-combined")
     assert rule is not None
     expected_row = next(
-        item
-        for item in rule.decision_rows
-        if item.component_outcomes == (NeutralOutcome.SATISFIED, NeutralOutcome.VIOLATION)
+        item for item in rule.decision_rows if item.component_outcomes == (NeutralOutcome.SATISFIED, NeutralOutcome.VIOLATION)
     )
 
     assert lineage.rule == rule

@@ -181,12 +181,7 @@ def _component_observations(rule: CombinationRuleV3, cases: tuple[CombinedCaseOu
         digest
         for arm_id in rule.component_arm_ids
         for digest in sorted(
-            {
-                component.observation_digest
-                for case in cases
-                for component in case.components
-                if component.component_arm_id == arm_id
-            }
+            {component.observation_digest for case in cases for component in case.components if component.component_arm_id == arm_id}
         )
     )
 
@@ -263,18 +258,12 @@ def _validate_inputs(
     if type(declaration) is not EvaluationPlanDeclarationV3:
         raise CombinationValidationError("combination declaration must use exact EvaluationPlanDeclarationV3")
     declaration.__post_init__()
-    if (
-        type(bindings) is not tuple
-        or not bindings
-        or any(type(item) is not ReleasedArmCaseBindingV3 for item in bindings)
-    ):
+    if type(bindings) is not tuple or not bindings or any(type(item) is not ReleasedArmCaseBindingV3 for item in bindings):
         raise CombinationValidationError("combination bindings must be a nonempty exact tuple")
     rows = bindings
     for item in rows:
         item.__post_init__()
-    order = tuple(
-        sorted(rows, key=lambda item: (item.key.arm_id, item.key.scope.family_id, item.key.scope.ecosystem, item.case_id_digest))
-    )
+    order = tuple(sorted(rows, key=lambda item: (item.key.arm_id, item.key.scope.family_id, item.key.scope.ecosystem, item.case_id_digest)))
     if rows != order:
         raise CombinationValidationError("combination bindings must use canonical release order")
     configurations = {item.arm_id: item for item in declaration.arm_configurations}

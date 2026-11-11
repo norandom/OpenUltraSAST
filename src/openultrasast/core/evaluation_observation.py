@@ -435,10 +435,7 @@ def validate_evaluation_observations(
         _validate_header(reference, slot, configurations[slot.arm_id])
         observation = _resolve_observation(reference, resolver, trusted_store_identities, maximum_bytes)
         _validate_resolved(reference, observation)
-        if any(
-            case.outcome_projection.policy is not configurations[slot.arm_id].case_outcome_policy
-            for case in observation.cases
-        ):
+        if any(case.outcome_projection.policy is not configurations[slot.arm_id].case_outcome_policy for case in observation.cases):
             raise EvaluationObservationError("observation case outcome projection policy differs from the planned arm")
         resolved.append(observation)
     return tuple(resolved)

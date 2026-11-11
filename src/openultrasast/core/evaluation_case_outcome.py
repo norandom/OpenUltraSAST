@@ -19,9 +19,7 @@ from openultrasast.core.provenance import ProvenanceStamp
 
 _DIGEST = re.compile(r"[0-9a-f]{64}")
 _SCHEMA = "openultrasast.detection-core.evaluation-case-outcome.v3"
-_PROJECTION_FIELDS = frozenset(
-    {"case_input_digest", "policy", "source_outcome_digests", "normalized_outcome", "projection_digest"}
-)
+_PROJECTION_FIELDS = frozenset({"case_input_digest", "policy", "source_outcome_digests", "normalized_outcome", "projection_digest"})
 
 
 class CaseOutcomeProjectionError(ValueError):
