@@ -230,6 +230,24 @@ def _validate_fitting_lineage(
     context: AdmissionValidationContext,
     custody: PopulationCustodyPort,
 ) -> None:
+    _validate_fitting_lineage_for_population(
+        evidence,
+        lineage,
+        program,
+        replay.report.identity.population_digest,
+        context,
+        custody,
+    )
+
+
+def _validate_fitting_lineage_for_population(
+    evidence: FittedComponentEvidence,
+    lineage: LineageManifest,
+    program: ModelProgramDeclaration,
+    protected_population_digest: str,
+    context: AdmissionValidationContext,
+    custody: PopulationCustodyPort,
+) -> None:
     if type(lineage) is not LineageManifest or lineage.manifest_digest != evidence.fitting_lineage_manifest_digest:
         raise FittedComponentAuthorizationError("fitting lineage does not match fitted evidence")
     program_lineages = tuple(item for item in context.evidence.lineages if item.manifest_digest == program.lineage_manifest_digest)
@@ -248,7 +266,7 @@ def _validate_fitting_lineage(
         lineage,
         evidence.component_digest,
         (expectation,),
-        replay.report.identity.population_digest,
+        protected_population_digest,
         False,
         custody,
         context.evidence.custody_policy,
