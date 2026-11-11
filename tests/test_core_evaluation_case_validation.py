@@ -12,8 +12,9 @@ from test_core_evaluation_observation import _seal
 from test_core_evaluation_plan import _digest
 from test_core_evaluation_plan_review import _attestation
 from test_core_evaluation_spend import _bind, _prepare, _spend
+from test_core_model import _application_case
 
-from openultrasast.core import admission_context, canonical, evidence, family, provenance, validation
+from openultrasast.core import admission_context, canonical, evidence, family, model_apply, provenance, validation
 from openultrasast.core._admission_funnel import derive_case_funnel
 from openultrasast.core.admission_case import (
     AdmissionCaseRole,
@@ -69,6 +70,39 @@ from openultrasast.core.measurement import ScopeKey as LegacyScopeKey
 from openultrasast.core.verdict import BoundedSilence, derive_verdict_outputs
 
 
+def _model_evidence_input(record, named, contract, model_context, model_programs, model_lineages):
+    application = _application_case(contract=contract, record=record)
+    derived = model_apply.apply_model_result(
+        record,
+        contract,
+        application.request,
+        application.result,
+        application.resolver,
+        model_context.port,
+        model_context.context.evidence.custody_policy,
+    )
+    model_programs[application.request.program.declaration_digest] = application.request.program
+    model_lineages[application.request.lineage.manifest_digest] = application.request.lineage
+    return validation.make_evidence_validation_input(
+        record=derived,
+        named_inputs=named,
+        model_request=application.request,
+        model_result=application.result,
+    )
+
+
+def _rebind_named_inputs(value, reference, contract_reference, contract_digest):
+    inputs = []
+    for item in value.named_inputs.inputs:
+        if item.role is provenance.ProvenanceInputRole.CHANGE_INPUT:
+            item = replace(item, identity=reference.content_digest, content=reference)
+        elif item.role is provenance.ProvenanceInputRole.FAMILY_CONTRACT:
+            item = replace(item, identity=contract_digest, content=contract_reference)
+        inputs.append(item)
+    exact = tuple(inputs)
+    return provenance.NamedInputs(exact, provenance.derive_named_inputs_digest(exact))
+
+
 def _distinct_evidence_input(
     value,
     case_index: int,
@@ -78,6 +112,9 @@ def _distinct_evidence_input(
     suffix: str = "",
     outcome: NeutralOutcome | None = None,
     shared_change: bool = False,
+    model_context=None,
+    model_programs=None,
+    model_lineages=None,
 ):
     label = f"v3-case-input-{case_index}" if shared_change else f"v3-case-input-{case_index}{suffix}"
     content = canonical.canonical_bytes(label)
@@ -105,17 +142,11 @@ def _distinct_evidence_input(
         packet_digest=evidence.derive_packet_digest(packet),
     )
     record = evidence.EvidenceRecord(packet, decision, "")
-    inputs = []
-    for item in value.named_inputs.inputs:
-        if item.role is provenance.ProvenanceInputRole.CHANGE_INPUT:
-            item = replace(item, identity=reference.content_digest, content=reference)
-        elif item.role is provenance.ProvenanceInputRole.FAMILY_CONTRACT:
-            item = replace(item, identity=contract_digest, content=contract_reference)
-        inputs.append(item)
-    inputs = tuple(inputs)
-    named = provenance.NamedInputs(inputs, provenance.derive_named_inputs_digest(inputs))
+    named = _rebind_named_inputs(value, reference, contract_reference, contract_digest)
     artifacts = {**change_resolver.artifacts, **contract_resolver.artifacts}
-    return validation.make_evidence_validation_input(record=record, named_inputs=named), artifacts
+    if model_context is None:
+        return validation.make_evidence_validation_input(record=record, named_inputs=named), artifacts
+    return _model_evidence_input(record, named, contract, model_context, model_programs, model_lineages), artifacts
 
 
 def _contract_catalog_context(context_case):
@@ -151,7 +182,14 @@ def _contract_catalog_context(context_case):
     return replace(context_case, context=context)
 
 
-def _rekey_configuration(configuration, scope: ScopeKey, *, minimum_ordinary_pushes=None, relaxed_precision=False):
+def _rekey_configuration(
+    configuration,
+    scope: ScopeKey,
+    *,
+    minimum_pairs=None,
+    minimum_ordinary_pushes=None,
+    relaxed_precision=False,
+):
     key = ArmScopeKey(configuration.arm_id, scope)
     policies = tuple(
         replace(
@@ -167,6 +205,7 @@ def _rekey_configuration(configuration, scope: ScopeKey, *, minimum_ordinary_pus
         replace(
             row,
             key=key,
+            minimum_pairs=(row.minimum_pairs if minimum_pairs is None else minimum_pairs),
             minimum_ordinary_pushes=(row.minimum_ordinary_pushes if minimum_ordinary_pushes is None else minimum_ordinary_pushes),
             precision_rules=tuple(
                 replace(
@@ -191,9 +230,22 @@ def _rekey_configuration(configuration, scope: ScopeKey, *, minimum_ordinary_pus
     )
 
 
-def _reviewed_scoped_census(plan, scopes, *, ordinary_count=None, whole_count=None):
+def _reviewed_scoped_census(plan, scopes, *, ordinary_count=None, whole_count=None, scope_counts=None):
     template_row = plan.census.scope_rows[0]
     scope_rows = tuple(replace(template_row, scope=scope) for scope in sorted(set(scopes.values())))
+    if scope_counts is not None:
+        pairs, vulnerable, fixed, sites, model_calls = scope_counts
+        scope_rows = tuple(
+            replace(
+                row,
+                pair_count=pairs,
+                vulnerable_side_count=vulnerable,
+                fixed_side_count=fixed,
+                semantic_site_capacity=sites,
+                model_call_capacity=model_calls,
+            )
+            for row in scope_rows
+        )
     ecosystems = tuple(sorted({scope.ecosystem for scope in scopes.values()}))
     per_ecosystem = plan.census.whole_underlying_push_count // len(ecosystems) if ordinary_count is None else ordinary_count
     ordinary_rows = tuple(EcosystemOrdinaryCensusV3(ecosystem, per_ecosystem) for ecosystem in ecosystems)
@@ -219,23 +271,46 @@ def _reviewed_scoped_census(plan, scopes, *, ordinary_count=None, whole_count=No
     return replace(census_reviewed, census_digest=derive_evaluation_census_digest(census_reviewed))
 
 
+def _scoped_configurations(plan, scopes, minimum_pairs, minimum_ordinary_pushes, relaxed_precision):
+    return tuple(
+        _rekey_configuration(
+            row,
+            scopes[row.arm_id],
+            minimum_pairs=minimum_pairs,
+            minimum_ordinary_pushes=minimum_ordinary_pushes,
+            relaxed_precision=relaxed_precision,
+        )
+        for row in plan.declaration.arm_configurations
+    )
+
+
+def _review_plan_draft(plan_draft, review):
+    payload = derive_evaluation_plan_manifest_payload_digest(plan_draft)
+    reviewed = replace(
+        plan_draft,
+        payload_digest=payload,
+        review=_attestation(payload, review.producer_identity, review.reviewer_identity, review.conflict_disclosure),
+    )
+    return replace(reviewed, manifest_digest=derive_evaluation_plan_manifest_digest(reviewed))
+
+
 def _reviewed_scoped_plan(
     plan,
     scopes,
     *,
     ordinary_count=None,
     whole_count=None,
+    scope_counts=None,
+    minimum_pairs=None,
     minimum_ordinary_pushes=None,
     relaxed_precision=False,
 ):
-    configurations = tuple(
-        _rekey_configuration(
-            row,
-            scopes[row.arm_id],
-            minimum_ordinary_pushes=minimum_ordinary_pushes,
-            relaxed_precision=relaxed_precision,
-        )
-        for row in plan.declaration.arm_configurations
+    configurations = _scoped_configurations(
+        plan,
+        scopes,
+        minimum_pairs,
+        minimum_ordinary_pushes,
+        relaxed_precision,
     )
     inputs = tuple(sorted({slot.input_identity_digest for slot in plan.declaration.expected_observation_slots}))
     declaration = create_evaluation_plan_declaration(
@@ -249,22 +324,17 @@ def _reviewed_scoped_plan(
         plan,
         declaration=declaration,
         baselines=derive_evaluation_baselines(declaration),
-        census=_reviewed_scoped_census(plan, scopes, ordinary_count=ordinary_count, whole_count=whole_count),
+        census=_reviewed_scoped_census(
+            plan,
+            scopes,
+            ordinary_count=ordinary_count,
+            whole_count=whole_count,
+            scope_counts=scope_counts,
+        ),
         payload_digest="0" * 64,
         manifest_digest="0" * 64,
     )
-    payload = derive_evaluation_plan_manifest_payload_digest(plan_draft)
-    plan_reviewed = replace(
-        plan_draft,
-        payload_digest=payload,
-        review=_attestation(
-            payload,
-            plan.review.producer_identity,
-            plan.review.reviewer_identity,
-            plan.review.conflict_disclosure,
-        ),
-    )
-    return replace(plan_reviewed, manifest_digest=derive_evaluation_plan_manifest_digest(plan_reviewed))
+    return _review_plan_draft(plan_draft, plan.review)
 
 
 def _scoped_authority_case(
@@ -272,6 +342,8 @@ def _scoped_authority_case(
     *,
     ordinary_count=None,
     whole_count=None,
+    scope_counts=None,
+    minimum_pairs=None,
     minimum_ordinary_pushes=None,
     relaxed_precision=False,
 ):
@@ -282,6 +354,8 @@ def _scoped_authority_case(
         scopes,
         ordinary_count=ordinary_count,
         whole_count=whole_count,
+        scope_counts=scope_counts,
+        minimum_pairs=minimum_pairs,
         minimum_ordinary_pushes=minimum_ordinary_pushes,
         relaxed_precision=relaxed_precision,
     )
@@ -336,7 +410,19 @@ def _contract_for_scope(context_case, scope: ScopeKey, *, family_version: str | 
     return matches[0]
 
 
-def _case_evidence_inputs(original, index, arm_id, scope, context_case, evidence_mutation, summary_mutation, aligned_combination_cases):
+def _case_evidence_inputs(
+    original,
+    index,
+    arm_id,
+    scope,
+    context_case,
+    evidence_mutation,
+    summary_mutation,
+    aligned_combination_cases,
+    model_evidence,
+    model_programs,
+    model_lineages,
+):
     contract = _contract_for_scope(context_case, scope)
     ecosystem = scope.ecosystem
     if evidence_mutation == "python_under_javascript" and arm_id == "arm-b" and index == 0:
@@ -354,6 +440,9 @@ def _case_evidence_inputs(original, index, arm_id, scope, context_case, evidence
         suffix=f"-{arm_id}",
         outcome=outcome,
         shared_change=aligned_combination_cases,
+        model_context=context_case if model_evidence else None,
+        model_programs=model_programs,
+        model_lineages=model_lineages,
     )
     evidence_inputs = (evidence_input,)
     if evidence_mutation == "mixed_contracts" and arm_id == "arm-a" and index == 0:
@@ -416,6 +505,9 @@ def _draft_case(
     evidence_mutation,
     summary_mutation,
     aligned_combination_cases,
+    model_evidence,
+    model_programs,
+    model_lineages,
 ):
     scope = configuration.exact_scopes[0]
     evidence_inputs, artifacts, contract = _case_evidence_inputs(
@@ -427,6 +519,9 @@ def _draft_case(
         evidence_mutation,
         summary_mutation,
         aligned_combination_cases,
+        model_evidence,
+        model_programs,
+        model_lineages,
     )
     legacy = replace(
         original,
@@ -522,11 +617,20 @@ def _mutated_summary_case(draft_cases, mutation):
 
 
 def _draft_cases(
-    setup, authority_case, configurations, projection_mutation, evidence_mutation, summary_mutation, aligned_combination_cases
+    setup,
+    authority_case,
+    configurations,
+    projection_mutation,
+    evidence_mutation,
+    summary_mutation,
+    aligned_combination_cases,
+    model_evidence,
 ):
     first_component_arm = next(item.arm_id for item in configurations.values() if item.kind is ArmKindV3.COMPONENT)
     draft_cases = {}
     extra_artifacts = {}
+    model_programs = {}
+    model_lineages = {}
     for arm_id, configuration in configurations.items():
         cases = []
         for index, original in enumerate(setup.cases):
@@ -541,11 +645,19 @@ def _draft_cases(
                 evidence_mutation,
                 summary_mutation,
                 aligned_combination_cases,
+                model_evidence,
+                model_programs,
+                model_lineages,
             )
             cases.append(case)
             extra_artifacts.update(artifacts)
         draft_cases[arm_id] = tuple(cases)
-    return _mutated_summary_case(draft_cases, summary_mutation), extra_artifacts
+    return (
+        _mutated_summary_case(draft_cases, summary_mutation),
+        extra_artifacts,
+        tuple(model_programs[key] for key in sorted(model_programs)),
+        tuple(model_lineages[key] for key in sorted(model_lineages)),
+    )
 
 
 def _align_combined_case_projections(draft_cases, configurations):
@@ -697,6 +809,30 @@ def _sealed_observations(manifest, configurations, draft_cases, artifacts):
     return tuple(sealed), tuple(observations), observation_by_arm
 
 
+def _with_model_context(authority_case, model_programs, model_lineages):
+    context_case = authority_case[0]
+    old = context_case.context.evidence
+    evidence_context = validation.make_evidence_validation_context(
+        family_catalog=old.family_catalog,
+        fact_packs=old.fact_packs,
+        model_programs=tuple(sorted({*old.model_programs, *model_programs}, key=lambda item: item.declaration_digest)),
+        lineages=tuple(sorted({*old.lineages, *model_lineages}, key=lambda item: item.manifest_digest)),
+        fact_review_policy=old.fact_review_policy,
+        provenance_trust_policy=old.provenance_trust_policy,
+        custody_policy=old.custody_policy,
+    )
+    context = admission_context.make_admission_validation_context(
+        evidence=evidence_context,
+        admission_review_policy=context_case.context.admission_review_policy,
+        proof_trust_policy=context_case.context.proof_trust_policy,
+    )
+    return (replace(context_case, context=context), *authority_case[1:])
+
+
+def _reviewed_case(authority_case, manifest, observations, resolver):
+    return authority_case[0], manifest, authority_case[2], authority_case[3], observations, resolver
+
+
 def _bundle(
     *,
     authority_case=None,
@@ -705,12 +841,13 @@ def _bundle(
     summary_mutation: str | None = None,
     shared_underlying_by_ecosystem: bool = False,
     aligned_combination_cases: bool = False,
+    model_evidence: bool = False,
 ):
     setup = _setup()
     authority_case = authority_case or _reference_authority_case()
     manifest = authority_case[1]
     configurations = {item.arm_id: item for item in manifest.plan_manifest.declaration.arm_configurations}
-    draft_cases, extra_artifacts = _draft_cases(
+    draft_cases, extra_artifacts, model_programs, model_lineages = _draft_cases(
         setup,
         authority_case,
         configurations,
@@ -718,7 +855,10 @@ def _bundle(
         evidence_mutation,
         summary_mutation,
         aligned_combination_cases,
+        model_evidence,
     )
+    if model_evidence:
+        authority_case = _with_model_context(authority_case, model_programs, model_lineages)
     if aligned_combination_cases:
         draft_cases = _align_combined_case_projections(draft_cases, configurations)
     if shared_underlying_by_ecosystem:
@@ -729,14 +869,7 @@ def _bundle(
 
     manifest = _reviewed_manifest(manifest, sealed, setup)
     resolver = InMemoryContentResolver(artifacts)
-    reviewed_case = (
-        authority_case[0],
-        manifest,
-        authority_case[2],
-        authority_case[3],
-        observations,
-        resolver,
-    )
+    reviewed_case = _reviewed_case(authority_case, manifest, observations, resolver)
     authority, preparation = _prepare(reviewed_case)
     receipt = _spend(reviewed_case, preparation)
     spend = _bind(reviewed_case, preparation, receipt)

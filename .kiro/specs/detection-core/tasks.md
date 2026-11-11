@@ -660,7 +660,7 @@ contract work and use synthetic/in-memory workflow boundaries only.
   - _Requirements: 19.4, 19.5, 19.11, 20.4, 20.5_
   - _Boundary: Evaluation Replay_
   - _Depends: 15.5, 16.4, 16.5_
-- [ ] 17.2 Revalidate replay from canonical source artifacts and current trust state
+- [x] 17.2 Revalidate replay from canonical source artifacts and current trust state
   - Resolve the complete attempt chain and observation/review content again, revalidate current custody, and rederive every identity, count, metric, gate, decision, report, lineage, and replay digest.
   - Require exact equality with the carried values and refuse coordinated rehashing, stale external state, unknown/mixed versions, and partial roots.
   - Make the validated complete replay the only value that may cross a V3 authorization boundary.
@@ -752,6 +752,7 @@ contract work and use synthetic/in-memory workflow boundaries only.
 - Task 16.4 emits non-authorizing completed scope reports only after canonical gate, operational, observation, release, and combination-lineage replay; incomplete or impaired measurement remains outside GO/NO-GO.
 - Task 16.5 derives optional aggregates only from complete canonical scoped metrics using exact rational weights and reproducible constituent identities, while exposing no gate, decision, proof, or authorization capability.
 - Task 17.1 assembles one deterministic non-authorizing replay from the complete source-rooted plan-to-report graph, rederiving reports, whole coverage, release bindings, and combination lineage while rejecting partial, forged, or noncanonical inputs.
+- Task 17.2 independently resolves canonical artifacts and current trust/custody state, rederives the complete V3 graph and replay digest, and rejects stale, partial, mixed-version, or coordinated caller-rehashed evidence before authorization.
 - The frozen migration inventory is a reviewed worklist with stable identities, not a semantic-use census. It may only close entries as `v2_migrated` or `retired`; it never grows, deletes entries, or proves absence by interpreting Python flow.
 - Cutover is proved by explicit syntax checks plus deletion of the compatibility and v1 write capability. No task extends the discarded alias/data-flow interpreter.
 - Task 10.5 debug established that executable owner probes cannot compensate for blanket source-closure acceptance; resumed hunt attempts also require collision-resistant attempt identity and create-only persistence before handoff validation is authoritative.

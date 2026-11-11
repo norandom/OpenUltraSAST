@@ -13,13 +13,46 @@ from openultrasast.core._admission_gates import GateResult
 from openultrasast.core.admission_report import AdmissionDecision
 from openultrasast.core.custody import derive_population_use_receipt_digest
 from openultrasast.core.evaluation_aggregate import derive_evaluation_aggregate_v3
+from openultrasast.core.evaluation_combination import derive_combination_lineages_v3
 from openultrasast.core.evaluation_measurement import AggregateWeightV3, MetricId
-from openultrasast.core.evaluation_ordinary_projection import WholePopulationProjectionV3
+from openultrasast.core.evaluation_metric_derivation import derive_scoped_metrics_v3
+from openultrasast.core.evaluation_ordinary_projection import WholePopulationProjectionV3, project_ordinary_pushes_v3
 from openultrasast.core.evaluation_report import derive_completed_evaluation_reports_v3
 
 
-def _inputs(*, aggregate: bool = True):
-    bundle = _bundle(
+def _canonical_sources(bundle, groups, plan):
+    context_case = bundle[5][0]
+    common = (
+        bundle[3],
+        bundle[6],
+        bundle[7],
+        bundle[8],
+        bundle[9],
+        bundle[1],
+        groups,
+        context_case.context,
+        context_case.port,
+        bundle[4],
+    )
+    metrics = derive_scoped_metrics_v3(*common)
+    projection = project_ordinary_pushes_v3(*common).whole_population
+    lineages = derive_combination_lineages_v3(plan.declaration, bundle[1].bindings)
+    return metrics, projection, lineages
+
+
+def _aggregate(metrics, aggregate):
+    if not aggregate:
+        return None
+    keys = tuple(sorted({metric.key for metric in metrics}))
+    weights = tuple(AggregateWeightV3(key, 1, len(keys), "") for key in keys)
+    samples = tuple(
+        next(metric.sample_count for metric in metrics if metric.key == key and metric.metric_id is MetricId.PRECISION) for key in keys
+    )
+    return derive_evaluation_aggregate_v3(metrics, samples, weights)
+
+
+def _inputs(*, aggregate: bool = True, bundle=None, canonical_sources: bool = False):
+    bundle = bundle or _bundle(
         authority_case=_reference_authority_case(),
         aligned_combination_cases=True,
         shared_underlying_by_ecosystem=True,
@@ -33,6 +66,8 @@ def _inputs(*, aggregate: bool = True):
     lineages = _canonical_lineages(bundle)
     pushes = tuple(sorted({case.underlying_push_digest for group in groups for case in group.cases}))
     projection = WholePopulationProjectionV3(pushes, len(pushes), "")
+    if canonical_sources:
+        metrics, projection, lineages = _canonical_sources(bundle, groups, plan)
     reports, whole = derive_completed_evaluation_reports_v3(
         plan,
         groups,
@@ -42,12 +77,7 @@ def _inputs(*, aggregate: bool = True):
         lineages,
         projection,
     )
-    keys = tuple(sorted({metric.key for metric in metrics}))
-    weights = tuple(AggregateWeightV3(key, 1, len(keys), "") for key in keys)
-    samples = tuple(
-        next(metric.sample_count for metric in metrics if metric.key == key and metric.metric_id is MetricId.PRECISION) for key in keys
-    )
-    summary = derive_evaluation_aggregate_v3(metrics, samples, weights) if aggregate else None
+    summary = _aggregate(metrics, aggregate)
     from openultrasast.core.evaluation_replay import EvaluationReplayReportSourceV3
 
     source = EvaluationReplayReportSourceV3(metrics, readiness, observations, projection, "")
