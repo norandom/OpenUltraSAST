@@ -693,7 +693,7 @@ contract work and use synthetic/in-memory workflow boundaries only.
   - _Requirements: 16.1, 16.5, 17.1, 17.3, 17.5, 17.7, 18.1, 18.3, 18.5, 19.1, 19.4, 20.1, 20.4, 20.7, 20.8_
   - _Boundary: V3 End-to-End Conformance_
   - _Depends: 17.3, 17.4_
-- [ ] 18.2 (P) Run the adversarial pre-spend and compatibility matrix
+- [x] 18.2 (P) Run the adversarial pre-spend and compatibility matrix
   - Exercise V2 byte/digest/replay stability, V2-as-V3, unknown/mixed/subclass schemas, baseline mutations, impossible scopes, missing slots, zero/unreadable observations, self-review, forked attempt history, identity changes, raw access, stale custody, and subset spend.
   - Prove every measurement instrument reads nonzero fixture bytes and fails loudly on unread input.
   - Verify insufficiency leaves custody available and no refused case reaches detector execution or label release in the synthetic boundary.
@@ -756,6 +756,7 @@ contract work and use synthetic/in-memory workflow boundaries only.
 - Task 17.3 publishes one fail-closed V3 phase facade with closed-field validation for every public root and nested input, strict version routing, current-state replay validation, and an additive export that preserves the frozen V2 surface.
 - Task 17.4 validates the complete replay before authorizing one exact GO arm-scope fitted component and recursively closes fitted, probe, lineage, and holdout evidence while preserving V2 consumer behavior.
 - Task 18.1 proves the public V3 facade end to end across two component arms, one combined arm, two family/ecosystem scopes, one shared spend, complete replay validation, ordinary projection/whole deduplication, and exact fitted GO selection.
+- Task 18.2 proves exact owning-layer pre-spend and version refusals with a connected synthetic downstream driver, loud input-read instrumentation, frozen V2 outputs, custody-preserving insufficiency, and zero detector/label/result/quality effects after rejection.
 - The frozen migration inventory is a reviewed worklist with stable identities, not a semantic-use census. It may only close entries as `v2_migrated` or `retired`; it never grows, deletes entries, or proves absence by interpreting Python flow.
 - Cutover is proved by explicit syntax checks plus deletion of the compatibility and v1 write capability. No task extends the discarded alias/data-flow interpreter.
 - Task 10.5 debug established that executable owner probes cannot compensate for blanket source-closure acceptance; resumed hunt attempts also require collision-resistant attempt identity and create-only persistence before handoff validation is authoritative.
