@@ -15,6 +15,7 @@ from openultrasast.core.evaluation_measurement import (
     ArmConfigurationV3,
     ArmKindV3,
     ArmScopeKey,
+    CaseOutcomeProjectionPolicyV3,
     CombinationDecisionRowV3,
     CombinationOperatorV3,
     CombinationRuleV3,
@@ -109,6 +110,11 @@ def _configuration(
         registered_budget_digest=_digest("budget"),
         execution_identity="container@sha256:abc",
         outcome_mapping_digest=_digest("outcomes"),
+        case_outcome_policy=(
+            CaseOutcomeProjectionPolicyV3.DECLARATIVE_COMBINATION_TABLE
+            if kind is ArmKindV3.COMBINED
+            else CaseOutcomeProjectionPolicyV3.UNANIMOUS_EVIDENCE
+        ),
         combination_rule=combination_rule,
         configuration_identity_digest="",
     )

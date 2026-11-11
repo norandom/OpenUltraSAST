@@ -3,6 +3,7 @@
 from openultrasast.core._evaluation_arm_configuration import (
     ArmConfigurationV3,
     ArmKindV3,
+    CaseOutcomeProjectionPolicyV3,
     CombinationDecisionRowV3,
     CombinationOperatorV3,
     CombinationRuleV3,
@@ -37,6 +38,7 @@ __all__ = [
     "ArmConfigurationV3",
     "ArmKindV3",
     "ArmScopeKey",
+    "CaseOutcomeProjectionPolicyV3",
     "CombinationDecisionRowV3",
     "CombinationOperatorV3",
     "CombinationRuleV3",

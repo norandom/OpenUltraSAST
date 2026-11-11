@@ -9,6 +9,7 @@ from itertools import product
 from openultrasast.core import canonical
 from openultrasast.core._evaluation_measurement_contracts import (
     ArmScopeKey,
+    CaseOutcomeProjectionPolicyV3,
     DenominatorPolicyV3,
     EvaluationMeasurementError,
     MetricId,
@@ -132,6 +133,7 @@ class ArmConfigurationV3:
     registered_budget_digest: str
     execution_identity: str
     outcome_mapping_digest: str
+    case_outcome_policy: CaseOutcomeProjectionPolicyV3
     combination_rule: CombinationRuleV3 | None
     configuration_identity_digest: str
 
@@ -188,9 +190,16 @@ class ArmConfigurationV3:
         _text(self.execution_identity, "execution identity")
 
     def _validate_combination(self) -> None:
-        if self.kind is ArmKindV3.COMPONENT and self.combination_rule is not None:
-            raise EvaluationMeasurementError("component arm must not carry a combination rule")
+        if type(self.case_outcome_policy) is not CaseOutcomeProjectionPolicyV3:
+            raise EvaluationMeasurementError("case outcome policy must use the closed CaseOutcomeProjectionPolicyV3 enum")
+        if self.kind is ArmKindV3.COMPONENT:
+            if self.case_outcome_policy is not CaseOutcomeProjectionPolicyV3.UNANIMOUS_EVIDENCE:
+                raise EvaluationMeasurementError("component arm must use unanimous evidence outcome projection")
+            if self.combination_rule is not None:
+                raise EvaluationMeasurementError("component arm must not carry a combination rule")
         if self.kind is ArmKindV3.COMBINED:
+            if self.case_outcome_policy is not CaseOutcomeProjectionPolicyV3.DECLARATIVE_COMBINATION_TABLE:
+                raise EvaluationMeasurementError("combined arm must use declarative combination-table outcome projection")
             if type(self.combination_rule) is not CombinationRuleV3:
                 raise EvaluationMeasurementError("combined arm requires a combination rule")
             self.combination_rule.__post_init__()
@@ -214,6 +223,7 @@ def derive_arm_configuration_identity_digest(value: ArmConfigurationV3) -> str:
         "registered_budget_digest": value.registered_budget_digest,
         "execution_identity": value.execution_identity,
         "outcome_mapping_digest": value.outcome_mapping_digest,
+        "case_outcome_policy": value.case_outcome_policy.value,
         "combination_rule_digest": None if value.combination_rule is None else value.combination_rule.rule_digest,
     }
     return canonical.content_digest(_value("arm_configuration", payload))
@@ -225,6 +235,7 @@ __all__ = [
     "CombinationDecisionRowV3",
     "CombinationOperatorV3",
     "CombinationRuleV3",
+    "CaseOutcomeProjectionPolicyV3",
     "ProofCandidatePolicyV3",
     "derive_arm_configuration_identity_digest",
 ]

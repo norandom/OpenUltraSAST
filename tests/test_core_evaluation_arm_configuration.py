@@ -12,6 +12,7 @@ from openultrasast.core.evaluation_measurement import (
     ArmConfigurationV3,
     ArmKindV3,
     ArmScopeKey,
+    CaseOutcomeProjectionPolicyV3,
     CombinationDecisionRowV3,
     CombinationOperatorV3,
     CombinationRuleV3,
@@ -27,6 +28,7 @@ from openultrasast.core.evaluation_measurement import (
     ScopeKey,
     ScopeSufficiencyRuleV3,
     Statistic,
+    derive_arm_configuration_identity_digest,
     standard_scoped_metric_rules,
 )
 
@@ -108,6 +110,7 @@ def _configuration(
         registered_budget_digest=_digest("budget"),
         execution_identity="container@sha256:abc",
         outcome_mapping_digest=_digest(outcome_mapping),
+        case_outcome_policy=CaseOutcomeProjectionPolicyV3.DECLARATIVE_COMBINATION_TABLE,
         combination_rule=_rule() if combination_rule is None else combination_rule,
         configuration_identity_digest="",
     )
@@ -199,3 +202,31 @@ def test_identical_component_candidate_policy_is_the_only_proof_retention_policy
     assert rule.candidate_policy is ProofCandidatePolicyV3.IDENTICAL_COMPONENT_ONLY
     with pytest.raises(EvaluationMeasurementError, match="closed operator and candidate policy"):
         replace(rule, candidate_policy=object(), rule_digest="")
+
+
+def test_arm_kind_requires_its_exact_outcome_projection_policy() -> None:
+    combined = _configuration()
+    with pytest.raises(EvaluationMeasurementError, match="combined arm must use declarative"):
+        replace(
+            combined,
+            case_outcome_policy=CaseOutcomeProjectionPolicyV3.UNANIMOUS_EVIDENCE,
+            configuration_identity_digest="",
+        )
+
+    component = replace(
+        combined,
+        kind=ArmKindV3.COMPONENT,
+        case_outcome_policy=CaseOutcomeProjectionPolicyV3.UNANIMOUS_EVIDENCE,
+        combination_rule=None,
+        configuration_identity_digest="",
+    )
+    with pytest.raises(EvaluationMeasurementError, match="component arm must use unanimous"):
+        replace(
+            component,
+            case_outcome_policy=CaseOutcomeProjectionPolicyV3.DECLARATIVE_COMBINATION_TABLE,
+            configuration_identity_digest="",
+        )
+
+    original_identity = component.configuration_identity_digest
+    object.__setattr__(component, "case_outcome_policy", CaseOutcomeProjectionPolicyV3.DECLARATIVE_COMBINATION_TABLE)
+    assert derive_arm_configuration_identity_digest(component) != original_identity

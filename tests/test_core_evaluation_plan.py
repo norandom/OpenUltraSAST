@@ -12,6 +12,7 @@ from openultrasast.core.evaluation_measurement import (
     ArmConfigurationV3,
     ArmKindV3,
     ArmScopeKey,
+    CaseOutcomeProjectionPolicyV3,
     CombinationDecisionRowV3,
     CombinationOperatorV3,
     CombinationRuleV3,
@@ -99,6 +100,11 @@ def _configuration(arm_id: str, *, combined: bool = False, configuration: str = 
         _digest("budget"),
         "container@sha256:abc",
         _digest("outcomes"),
+        (
+            CaseOutcomeProjectionPolicyV3.DECLARATIVE_COMBINATION_TABLE
+            if combined
+            else CaseOutcomeProjectionPolicyV3.UNANIMOUS_EVIDENCE
+        ),
         _combination_rule() if combined else None,
         "",
     )
@@ -209,6 +215,7 @@ def test_combined_arm_cannot_use_another_combined_arm_as_a_component() -> None:
     nested = replace(
         arm_a,
         kind=ArmKindV3.COMBINED,
+        case_outcome_policy=CaseOutcomeProjectionPolicyV3.DECLARATIVE_COMBINATION_TABLE,
         combination_rule=nested_rule,
         configuration_identity_digest="",
     )

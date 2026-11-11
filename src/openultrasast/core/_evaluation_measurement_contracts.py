@@ -114,6 +114,11 @@ class Comparator(Enum):
     AT_MOST = "at_most"
 
 
+class CaseOutcomeProjectionPolicyV3(Enum):
+    UNANIMOUS_EVIDENCE = "unanimous_evidence"
+    DECLARATIVE_COMBINATION_TABLE = "declarative_combination_table"
+
+
 @dataclass(frozen=True, order=True)
 class ScopeKey:
     family_id: str
@@ -411,6 +416,7 @@ def validate_aggregate_weights(
 __all__ = [
     "AggregateWeightV3",
     "ArmScopeKey",
+    "CaseOutcomeProjectionPolicyV3",
     "Comparator",
     "DenominatorKind",
     "DenominatorPolicyV3",
