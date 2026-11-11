@@ -18,6 +18,11 @@ from openultrasast.core.budget import BudgetDerivation, ChangeComplexity
 from openultrasast.core.coverage import CoverageFunnel, InputManifest, InputReadReceipt, validate_instrument
 from openultrasast.core.custody import PopulationCustodyPort, PopulationUseReceipt
 from openultrasast.core.evaluation_authority import EvaluationAdmissionAuthorityV3, EvaluationAdmissionManifestV3
+from openultrasast.core.evaluation_case_outcome import (
+    CaseOutcomeProjectionError,
+    CaseOutcomeProjectionV3,
+    case_outcome_projection_value,
+)
 from openultrasast.core.evaluation_measurement import ArmScopeKey, ScopeKey
 from openultrasast.core.evaluation_spend import (
     EvaluationPreparationV3,
@@ -140,6 +145,8 @@ class ArmAdmissionCaseResultV3(EvaluationV3Contract, NonAuthorizingV3):
     observation_digest: str
     underlying_push_digest: str
     case_id_digest: str
+    case_input_digest: str
+    outcome_projection: CaseOutcomeProjectionV3
     role: AdmissionCaseRole
     pair_id_digest: str | None
     evidence_inputs: tuple[EvidenceValidationInput, ...]
@@ -168,8 +175,23 @@ def _validate_case_identity(value: ArmAdmissionCaseResultV3) -> None:
     if type(value.key) is not ArmScopeKey:
         raise EvaluationReleaseError("case key must use exact ArmScopeKey")
     value.key.__post_init__()
-    for field in ("observation_slot_digest", "observation_digest", "underlying_push_digest", "case_id_digest", "result_digest"):
+    for field in (
+        "observation_slot_digest",
+        "observation_digest",
+        "underlying_push_digest",
+        "case_id_digest",
+        "case_input_digest",
+        "result_digest",
+    ):
         _digest(getattr(value, field), field)
+    if type(value.outcome_projection) is not CaseOutcomeProjectionV3:
+        raise EvaluationReleaseError("case outcome projection must use exact CaseOutcomeProjectionV3")
+    try:
+        value.outcome_projection.__post_init__()
+    except CaseOutcomeProjectionError as exc:
+        raise EvaluationReleaseError("case outcome projection is malformed") from exc
+    if value.outcome_projection.case_input_digest != value.case_input_digest:
+        raise EvaluationReleaseError("case outcome projection input identity does not match its released case")
     if type(value.role) is not AdmissionCaseRole:
         raise EvaluationReleaseError("case role must use exact AdmissionCaseRole")
     if value.pair_id_digest is not None:
@@ -227,6 +249,8 @@ def _binding_value(value: ReleasedArmCaseBindingV3) -> dict[str, canonical.JsonV
         "observation_digest": value.observation_digest,
         "underlying_push_digest": value.underlying_push_digest,
         "case_id_digest": value.case_id_digest,
+        "case_input_digest": value.case_input_digest,
+        "outcome_projection": case_outcome_projection_value(value.outcome_projection),
         "role": value.role.value,
         "pair_id_digest": value.pair_id_digest,
         "case_result_digest": value.case_result_digest,
@@ -246,6 +270,8 @@ class ReleasedArmCaseBindingV3(EvaluationV3Contract, NonAuthorizingV3):
     observation_digest: str
     underlying_push_digest: str
     case_id_digest: str
+    case_input_digest: str
+    outcome_projection: CaseOutcomeProjectionV3
     role: AdmissionCaseRole
     pair_id_digest: str | None
     case_result_digest: str
@@ -266,10 +292,19 @@ class ReleasedArmCaseBindingV3(EvaluationV3Contract, NonAuthorizingV3):
             "observation_digest",
             "underlying_push_digest",
             "case_id_digest",
+            "case_input_digest",
             "case_result_digest",
             "input_manifest_digest",
         ):
             _digest(getattr(self, field), field)
+        if type(self.outcome_projection) is not CaseOutcomeProjectionV3:
+            raise EvaluationReleaseError("binding outcome projection must use exact CaseOutcomeProjectionV3")
+        try:
+            self.outcome_projection.__post_init__()
+        except CaseOutcomeProjectionError as exc:
+            raise EvaluationReleaseError("binding outcome projection is malformed") from exc
+        if self.outcome_projection.case_input_digest != self.case_input_digest:
+            raise EvaluationReleaseError("binding outcome projection input identity does not match its case")
         if self.pair_id_digest is not None:
             _digest(self.pair_id_digest, "pair identity digest")
         _digests(self.evidence_input_digests, "evidence input digest")
@@ -298,6 +333,8 @@ def derive_released_arm_case_binding(case: ArmAdmissionCaseResultV3, plan: objec
         case.observation_digest,
         case.underlying_push_digest,
         case.case_id_digest,
+        case.case_input_digest,
+        case.outcome_projection,
         case.role,
         case.pair_id_digest,
         case.result_digest,
@@ -314,7 +351,15 @@ def _arm_cases_value(value: ArmAdmissionCasesV3) -> canonical.JsonValue:
         "schema_version": _ARM_CASES_SCHEMA,
         "arm_id": value.arm_id,
         "baseline_digest": value.baseline_digest,
-        "case_result_digests": tuple(item.result_digest for item in value.cases),
+        "case_identities": tuple(
+            {
+                "case_id_digest": item.case_id_digest,
+                "case_input_digest": item.case_input_digest,
+                "outcome_projection_digest": item.outcome_projection.projection_digest,
+                "result_digest": item.result_digest,
+            }
+            for item in value.cases
+        ),
     }
 
 
@@ -339,6 +384,9 @@ class ArmAdmissionCasesV3(EvaluationV3Contract, NonAuthorizingV3):
         order = tuple(sorted(self.cases, key=lambda item: (item.key.scope.family_id, item.key.scope.ecosystem, item.case_id_digest)))
         if self.cases != order or len({item.case_id_digest for item in self.cases}) != len(self.cases):
             raise EvaluationReleaseError("arm cases must be unique and canonical")
+        case_input_keys = tuple((item.key, item.case_input_digest) for item in self.cases)
+        if len(set(case_input_keys)) != len(case_input_keys):
+            raise EvaluationReleaseError("arm-scope case input identities must be unique")
         _bind(self, "cases_digest", canonical.content_digest(_arm_cases_value(self)))
 
 
@@ -412,6 +460,9 @@ class AdmissionCaseReleaseV3(EvaluationV3Contract, NonAuthorizingV3):
         )
         if self.bindings != order or len({(item.key.arm_id, item.case_id_digest) for item in self.bindings}) != len(self.bindings):
             raise EvaluationReleaseError("release bindings must be unique and canonical")
+        case_input_keys = tuple((item.key, item.case_input_digest) for item in self.bindings)
+        if len(set(case_input_keys)) != len(case_input_keys):
+            raise EvaluationReleaseError("release arm-scope case input identities must be unique")
         if type(self.review) is not IndependenceAttestation:
             raise EvaluationReleaseError("release review must use exact IndependenceAttestation")
         self.review.__post_init__()

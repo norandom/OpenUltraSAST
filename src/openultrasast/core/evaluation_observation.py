@@ -8,6 +8,12 @@ from dataclasses import dataclass
 from typing import ClassVar
 
 from openultrasast.core import canonical
+from openultrasast.core.evaluation_case_outcome import (
+    CaseOutcomeProjectionError,
+    CaseOutcomeProjectionV3,
+    case_outcome_projection_from_value,
+    case_outcome_projection_value,
+)
 from openultrasast.core.evaluation_measurement import ArmConfigurationV3
 from openultrasast.core.evaluation_plan import EvaluationPlanDeclarationV3, ExpectedObservationSlotV3
 from openultrasast.core.evaluation_version import (
@@ -22,7 +28,16 @@ _ZERO_DIGEST = "0" * 64
 _OBSERVATION_SCHEMA = "openultrasast.detection-core.evaluation-observation.v3"
 _OBSERVATION_IDENTITY_SCHEMA = "openultrasast.detection-core.evaluation-observation-identity.v3"
 _REFERENCE_IDENTITY_SCHEMA = "openultrasast.detection-core.sealed-observation-reference.v3"
-_CASE_FIELDS = frozenset({"case_id_digest", "underlying_push_digest", "result_digest", "proof_candidate_digest"})
+_CASE_FIELDS = frozenset(
+    {
+        "case_id_digest",
+        "case_input_digest",
+        "underlying_push_digest",
+        "result_digest",
+        "outcome_projection",
+        "proof_candidate_digest",
+    }
+)
 _OBSERVATION_FIELDS = frozenset(
     {
         "schema_version",
@@ -85,15 +100,26 @@ class ObservationCaseRefV3(EvaluationV3Contract, NonAuthorizingV3):
 
     __evaluation_v3_contract_schema__: ClassVar[str] = EVALUATION_ADMISSION_V3_SCHEMA
     case_id_digest: str
+    case_input_digest: str
     underlying_push_digest: str
     result_digest: str
+    outcome_projection: CaseOutcomeProjectionV3
     proof_candidate_digest: str | None
 
     def __post_init__(self) -> None:
         require_exact_v3_contract(self, ObservationCaseRefV3, field="observation case reference")
         _digest(self.case_id_digest, "case identity digest")
+        _digest(self.case_input_digest, "case input digest")
         _digest(self.underlying_push_digest, "underlying push digest")
         _digest(self.result_digest, "case result digest")
+        if type(self.outcome_projection) is not CaseOutcomeProjectionV3:
+            raise EvaluationObservationError("case outcome projection must use exact CaseOutcomeProjectionV3")
+        try:
+            self.outcome_projection.__post_init__()
+        except CaseOutcomeProjectionError as exc:
+            raise EvaluationObservationError("case outcome projection is malformed") from exc
+        if self.outcome_projection.case_input_digest != self.case_input_digest:
+            raise EvaluationObservationError("case outcome projection input identity does not match its observation case")
         if self.proof_candidate_digest is not None:
             _digest(self.proof_candidate_digest, "proof candidate digest")
 
@@ -101,17 +127,21 @@ class ObservationCaseRefV3(EvaluationV3Contract, NonAuthorizingV3):
 def _case_value(value: ObservationCaseRefV3) -> canonical.JsonValue:
     return {
         "case_id_digest": value.case_id_digest,
+        "case_input_digest": value.case_input_digest,
         "underlying_push_digest": value.underlying_push_digest,
         "result_digest": value.result_digest,
+        "outcome_projection": case_outcome_projection_value(value.outcome_projection),
         "proof_candidate_digest": value.proof_candidate_digest,
     }
 
 
-def _case_order(value: ObservationCaseRefV3) -> tuple[str, str, str, str]:
+def _case_order(value: ObservationCaseRefV3) -> tuple[str, str, str, str, str, str]:
     return (
         value.case_id_digest,
+        value.case_input_digest,
         value.underlying_push_digest,
         value.result_digest,
+        value.outcome_projection.projection_digest,
         value.proof_candidate_digest or "",
     )
 
@@ -268,8 +298,10 @@ def _decode_case(value: object) -> ObservationCaseRefV3:
         proof_candidate = _digest(proof_candidate, "proof candidate digest")
     return ObservationCaseRefV3(
         _digest(value["case_id_digest"], "case identity digest"),
+        _digest(value["case_input_digest"], "case input digest"),
         _digest(value["underlying_push_digest"], "underlying push digest"),
         _digest(value["result_digest"], "case result digest"),
+        case_outcome_projection_from_value(value["outcome_projection"]),
         proof_candidate,
     )
 
@@ -403,6 +435,11 @@ def validate_evaluation_observations(
         _validate_header(reference, slot, configurations[slot.arm_id])
         observation = _resolve_observation(reference, resolver, trusted_store_identities, maximum_bytes)
         _validate_resolved(reference, observation)
+        if any(
+            case.outcome_projection.policy is not configurations[slot.arm_id].case_outcome_policy
+            for case in observation.cases
+        ):
+            raise EvaluationObservationError("observation case outcome projection policy differs from the planned arm")
         resolved.append(observation)
     return tuple(resolved)
 

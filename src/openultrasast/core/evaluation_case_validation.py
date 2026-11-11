@@ -21,6 +21,11 @@ from openultrasast.core.budget import BudgetGateFailure, check_budget
 from openultrasast.core.coverage import derive_input_manifest_digest, validate_instrument
 from openultrasast.core.custody import PopulationCustodyPort
 from openultrasast.core.evaluation_authority import EvaluationAdmissionManifestV3, _validate_manifest_review
+from openultrasast.core.evaluation_case_outcome import (
+    CaseOutcomeProjectionError,
+    derive_component_case_outcome_projection,
+)
+from openultrasast.core.evaluation_measurement import ArmConfigurationV3, ArmKindV3
 from openultrasast.core.evaluation_observation import validate_evaluation_observations
 from openultrasast.core.evaluation_release import (
     AdmissionCaseReleaseV3,
@@ -78,18 +83,28 @@ def _validated_inputs(
 def _canonical_binding(
     case: ArmAdmissionCaseResultV3,
     baseline_digest: str,
+    configuration: ArmConfigurationV3,
     context: AdmissionValidationContext,
     custody: PopulationCustodyPort,
     resolver: canonical.ContentResolver,
 ) -> ReleasedArmCaseBindingV3:
     case.__post_init__()
+    if case.outcome_projection.policy is not configuration.case_outcome_policy:
+        raise EvaluationReleaseError("released case outcome projection policy differs from the planned arm")
     legacy = _legacy_case(case)
     if case.input_manifest.manifest_digest != derive_input_manifest_digest(case.input_manifest.tracked_input_ids):
         raise EvaluationReleaseError("released input manifest digest cannot be re-derived")
     validate_instrument(case.input_manifest, case.input_receipts)
     if case.result_digest != derive_admission_case_result_digest(legacy):
         raise EvaluationReleaseError("released case result digest cannot be re-derived")
-    evidence, changes, _ = _validated_inputs(case, context, custody, resolver)
+    evidence, changes, records = _validated_inputs(case, context, custody, resolver)
+    if configuration.kind is ArmKindV3.COMPONENT:
+        try:
+            projection = derive_component_case_outcome_projection(records)
+        except CaseOutcomeProjectionError as exc:
+            raise EvaluationReleaseError("released component outcome projection cannot be re-derived") from exc
+        if (case.case_input_digest, case.outcome_projection) != (projection.case_input_digest, projection):
+            raise EvaluationReleaseError("released component outcome projection differs from validated evidence")
     candidate_digest = None
     if case.proof_candidate is not None:
         candidate = case.proof_candidate
@@ -107,6 +122,8 @@ def _canonical_binding(
         case.observation_digest,
         case.underlying_push_digest,
         case.case_id_digest,
+        case.case_input_digest,
+        case.outcome_projection,
         case.role,
         case.pair_id_digest,
         case.result_digest,
@@ -179,13 +196,18 @@ def validate_released_case_associations_v3(
         cases = tuple(case for group in groups for case in group.cases)
         _validate_pairs(cases)
         configurations = {item.arm_id: item for item in manifest.plan_manifest.declaration.arm_configurations}
+        case_input_keys = tuple((case.key, case.case_input_digest) for case in cases)
+        if len(set(case_input_keys)) != len(case_input_keys):
+            raise EvaluationReleaseError("released arm-scope case input identities must be unique")
         derived_values = []
         for arm_id, group in group_map.items():
             claimed = set(configurations[arm_id].exact_scopes)
             for case in group.cases:
                 observation, reference = observed[(arm_id, case.case_id_digest)]
                 _validate_case_observation(case, observation, reference, claimed)
-                derived_values.append(_canonical_binding(case, group.baseline_digest, context, custody, resolver))
+                derived_values.append(
+                    _canonical_binding(case, group.baseline_digest, configurations[arm_id], context, custody, resolver)
+                )
         derived = tuple(
             sorted(
                 derived_values,

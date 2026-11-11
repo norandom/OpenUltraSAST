@@ -152,10 +152,20 @@ def _validate_case_observation(
         observation.observation_digest,
         reference.underlying_push_digest,
         reference.result_digest,
+        reference.case_input_digest,
+        reference.outcome_projection,
         reference.proof_candidate_digest,
     )
     candidate = case.proof_candidate.candidate_digest if case.proof_candidate is not None else None
-    actual = (case.observation_slot_digest, case.observation_digest, case.underlying_push_digest, case.result_digest, candidate)
+    actual = (
+        case.observation_slot_digest,
+        case.observation_digest,
+        case.underlying_push_digest,
+        case.result_digest,
+        case.case_input_digest,
+        case.outcome_projection,
+        candidate,
+    )
     if actual != expected:
         raise EvaluationReleaseError("released case differs from its exact sealed observation")
 

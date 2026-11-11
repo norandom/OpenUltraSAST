@@ -584,7 +584,7 @@ contract work and use synthetic/in-memory workflow boundaries only.
   - _Requirements: 16.5, 19.2, 19.4, 19.5_
   - _Boundary: Case Outcome Projection Contract_
   - _Depends: 15.1, 15.2_
-- [ ] 15.4 Bind case-input and outcome projections through observation and release
+- [x] 15.4 Bind case-input and outcome projections through observation and release
   - Bind each sealed observation case, released case, and released binding to the exact derived `case_input_digest` and `CaseOutcomeProjectionV3`.
   - Independently rederive the case-input identity and unanimous component projection from canonical released evidence, then require exact equality with the trusted sealed observation and reviewed release.
   - Refuse substituted, reordered, duplicated, or self-consistently rehashed projection/case-input material before scoring; enforce uniqueness for every released `(ArmScopeKey, case_input_digest)`.
@@ -743,6 +743,7 @@ contract work and use synthetic/in-memory workflow boundaries only.
 - Task 15.2 authenticates the reviewed multi-scope release and sealed observation graph before rederiving every case association, so fully rehashed result, push, pair, input, and cross-scope substitutions fail before metrics.
 - Task 15.3 debug established that combination replay lacked a canonical authenticated component-outcome projection. The approved amendment inserts the fail-closed projection contract as Task 15.3, observation/release integration as Task 15.4, per-case table replay as Task 15.5, and proof continuity as Task 15.6.
 - Task 15.3 projection derivation validates exact packet, decision, and provenance roots bottom-up before hashing change-input correlation; malformed, subclassed, or self-consistently rehashed nested aggregates fail through the contract-owned error boundary.
+- Task 15.4 seals case-input/projection identity through observations and releases, rederives component projections only after full evidence validation, and requires each projection policy to match the reviewed arm configuration before authority.
 - The frozen migration inventory is a reviewed worklist with stable identities, not a semantic-use census. It may only close entries as `v2_migrated` or `retired`; it never grows, deletes entries, or proves absence by interpreting Python flow.
 - Cutover is proved by explicit syntax checks plus deletion of the compatibility and v1 write capability. No task extends the discarded alias/data-flow interpreter.
 - Task 10.5 debug established that executable owner probes cannot compensate for blanket source-closure acceptance; resumed hunt attempts also require collision-resistant attempt identity and create-only persistence before handoff validation is authoritative.

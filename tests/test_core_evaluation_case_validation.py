@@ -6,7 +6,7 @@ from dataclasses import replace
 
 import pytest
 import test_core_evaluation_authority as authority_fixtures
-from detection_core_fixtures import InMemoryContentResolver
+from detection_core_fixtures import InMemoryContentResolver, stored_artifact
 from test_core_admission_release import _setup
 from test_core_evaluation_authority import _authority_case
 from test_core_evaluation_observation import _seal
@@ -14,14 +14,23 @@ from test_core_evaluation_plan import _digest
 from test_core_evaluation_plan_review import _attestation
 from test_core_evaluation_spend import _bind, _prepare, _spend
 
-from openultrasast.core import canonical
+from openultrasast.core import canonical, evidence, provenance, validation
 from openultrasast.core.admission_case import AdmissionCaseRole, derive_admission_case_result_digest
 from openultrasast.core.evaluation_authority import (
     derive_evaluation_admission_manifest_digest,
     derive_evaluation_admission_manifest_payload_digest,
 )
-from openultrasast.core.evaluation_case_validation import validate_released_case_associations_v3
-from openultrasast.core.evaluation_measurement import ArmScopeKey, ScopeKey
+from openultrasast.core.evaluation_case_outcome import (
+    CaseOutcomeProjectionV3,
+    derive_component_case_outcome_projection,
+)
+from openultrasast.core.evaluation_case_validation import _canonical_binding, validate_released_case_associations_v3
+from openultrasast.core.evaluation_measurement import (
+    ArmKindV3,
+    ArmScopeKey,
+    CaseOutcomeProjectionPolicyV3,
+    ScopeKey,
+)
 from openultrasast.core.evaluation_observation import ArmObservationSetV3, ObservationCaseRefV3
 from openultrasast.core.evaluation_plan import (
     EcosystemOrdinaryCensusV3,
@@ -45,7 +54,25 @@ from openultrasast.core.evaluation_release import (
     derive_released_arm_case_binding,
     validate_admission_case_release_v3,
 )
+from openultrasast.core.evidence import NeutralOutcome
 from openultrasast.core.measurement import ScopeKey as LegacyScopeKey
+
+
+def _distinct_evidence_input(value, case_index: int):
+    content = canonical.canonical_bytes(f"v3-case-input-{case_index}")
+    reference, resolver = stored_artifact(content, artifact_id=f"v3-case-input-{case_index}")
+    stamp = replace(value.record.packet.provenance, change_input_digest=reference.content_digest)
+    packet = replace(value.record.packet, provenance=stamp)
+    decision = replace(value.record.decision, packet_digest=evidence.derive_packet_digest(packet))
+    record = evidence.EvidenceRecord(packet, decision, "")
+    inputs = tuple(
+        replace(item, identity=reference.content_digest, content=reference)
+        if item.role is provenance.ProvenanceInputRole.CHANGE_INPUT
+        else item
+        for item in value.named_inputs.inputs
+    )
+    named = provenance.NamedInputs(inputs, provenance.derive_named_inputs_digest(inputs))
+    return validation.make_evidence_validation_input(record=record, named_inputs=named), resolver.artifacts
 
 
 def _rekey_configuration(configuration, scope: ScopeKey):
@@ -141,24 +168,63 @@ def _multi_scope_authority_case():
         authority_fixtures._reviewed_plan = original
 
 
-def _bundle(*, authority_case=None):
+def _bundle(*, authority_case=None, projection_mutation: str | None = None):
     setup = _setup()
     authority_case = authority_case or _authority_case()
     manifest = authority_case[1]
     configurations = {item.arm_id: item for item in manifest.plan_manifest.declaration.arm_configurations}
+    first_component_arm = next(item.arm_id for item in configurations.values() if item.kind is ArmKindV3.COMPONENT)
     draft_cases = {}
+    extra_artifacts = {}
     for arm_id, configuration in configurations.items():
         scope = configuration.exact_scopes[0]
         cases = []
         for index, original in enumerate(setup.cases):
+            evidence_input, input_artifacts = _distinct_evidence_input(original.evidence_inputs[0], index)
+            extra_artifacts.update(input_artifacts)
             legacy = replace(
                 original,
                 case_id_digest=_digest(f"v3-association-{arm_id}-{index}"),
                 scope=LegacyScopeKey(scope.family_id, scope.ecosystem),
                 pair_id_digest=None if original.role is AdmissionCaseRole.ORDINARY else _digest(f"v3-pair-{arm_id}"),
+                evidence_inputs=(evidence_input,),
                 result_digest="0" * 64,
             )
             legacy = replace(legacy, result_digest=derive_admission_case_result_digest(legacy))
+            component_projection = derive_component_case_outcome_projection((evidence_input.record,))
+            projection = component_projection
+            if configuration.kind is ArmKindV3.COMBINED:
+                assert configuration.combination_rule is not None
+                projection = CaseOutcomeProjectionV3(
+                    component_projection.case_input_digest,
+                    CaseOutcomeProjectionPolicyV3.DECLARATIVE_COMBINATION_TABLE,
+                    tuple(component_projection.projection_digest for _ in configuration.combination_rule.component_arm_ids),
+                    component_projection.normalized_outcome,
+                    "",
+                )
+            elif arm_id == first_component_arm and index == 0 and projection_mutation is not None:
+                case_input = projection.case_input_digest
+                outcome = projection.normalized_outcome
+                sources = projection.source_outcome_digests
+                if projection_mutation == "case_input":
+                    case_input = _digest("coordinated-other-case-input")
+                elif projection_mutation == "outcome":
+                    outcome = (
+                        NeutralOutcome.VIOLATION
+                        if outcome is not NeutralOutcome.VIOLATION
+                        else NeutralOutcome.SATISFIED
+                    )
+                elif projection_mutation == "source":
+                    sources = (_digest("coordinated-other-record"),)
+                else:  # pragma: no cover - fixture misuse
+                    raise AssertionError(f"unknown projection mutation: {projection_mutation}")
+                projection = CaseOutcomeProjectionV3(
+                    case_input,
+                    CaseOutcomeProjectionPolicyV3.UNANIMOUS_EVIDENCE,
+                    sources,
+                    outcome,
+                    "",
+                )
             change = legacy.evidence_inputs[0].record.packet.provenance.change_input_digest
             candidate = ProofCandidateIdentityV3(
                 arm_id,
@@ -177,6 +243,8 @@ def _bundle(*, authority_case=None):
                     candidate.observation_digest,
                     _digest(f"underlying-push-{arm_id}-{index}"),
                     legacy.case_id_digest,
+                    projection.case_input_digest,
+                    projection,
                     legacy.role,
                     legacy.pair_id_digest,
                     legacy.evidence_inputs,
@@ -198,7 +266,7 @@ def _bundle(*, authority_case=None):
 
     sealed = []
     observations = []
-    artifacts = {**authority_case[5].artifacts, **setup.resolver.artifacts}
+    artifacts = {**authority_case[5].artifacts, **setup.resolver.artifacts, **extra_artifacts}
     observation_by_arm = {}
     seen_arms = set()
     for index, slot in enumerate(manifest.plan_manifest.declaration.expected_observation_slots):
@@ -210,8 +278,10 @@ def _bundle(*, authority_case=None):
                     (
                         ObservationCaseRefV3(
                             case.case_id_digest,
+                            case.case_input_digest,
                             case.underlying_push_digest,
                             case.result_digest,
+                            case.outcome_projection,
                             case.proof_candidate.candidate_digest if case.proof_candidate is not None else None,
                         )
                         for case in draft_cases[slot.arm_id]
@@ -375,6 +445,68 @@ def _replace_case_and_release(bundle, changed):
 def test_canonical_scoped_pair_and_ordinary_case_validate() -> None:
     bundle = _bundle()
     assert _validate(bundle) == bundle[1].bindings
+
+
+@pytest.mark.parametrize(
+    ("kind", "substituted_policy"),
+    (
+        (ArmKindV3.COMPONENT, CaseOutcomeProjectionPolicyV3.DECLARATIVE_COMBINATION_TABLE),
+        (ArmKindV3.COMBINED, CaseOutcomeProjectionPolicyV3.UNANIMOUS_EVIDENCE),
+    ),
+)
+def test_canonical_release_binding_requires_planned_projection_policy(
+    kind: ArmKindV3,
+    substituted_policy: CaseOutcomeProjectionPolicyV3,
+) -> None:
+    bundle = _bundle()
+    configurations = {
+        item.arm_id: item for item in bundle[3].plan_manifest.declaration.arm_configurations
+    }
+    configuration = next(item for item in configurations.values() if item.kind is kind)
+    group = next(item for item in bundle[2] if item.arm_id == configuration.arm_id)
+    case = group.cases[0]
+    sources = case.outcome_projection.source_outcome_digests
+    if substituted_policy is CaseOutcomeProjectionPolicyV3.UNANIMOUS_EVIDENCE:
+        sources = tuple(dict.fromkeys(sources))
+    projection = CaseOutcomeProjectionV3(
+        case.case_input_digest,
+        substituted_policy,
+        sources,
+        case.outcome_projection.normalized_outcome,
+        "",
+    )
+    changed = replace(case, outcome_projection=projection)
+    reviewed_case = bundle[5][0]
+
+    with pytest.raises(EvaluationReleaseError, match="policy"):
+        _canonical_binding(
+            changed,
+            group.baseline_digest,
+            configuration,
+            reviewed_case.context,
+            reviewed_case.port,
+            bundle[4],
+        )
+
+
+@pytest.mark.parametrize("mutation", ("case_input", "outcome", "source"))
+def test_coordinated_observation_release_projection_rehash_cannot_replace_validated_evidence(mutation: str) -> None:
+    bundle = _bundle(projection_mutation=mutation)
+    with pytest.raises(EvaluationReleaseError, match="component outcome projection|validated evidence"):
+        _validate(bundle)
+
+
+def test_released_arm_scope_case_input_identity_is_unique() -> None:
+    bundle = _bundle()
+    group = next(item for item in bundle[2] if len(item.cases) > 1)
+    donor, target = group.cases[:2]
+    duplicate = replace(
+        target,
+        case_input_digest=donor.case_input_digest,
+        outcome_projection=donor.outcome_projection,
+    )
+    with pytest.raises(EvaluationReleaseError, match="case input identities must be unique"):
+        replace(group, cases=(donor, duplicate) + group.cases[2:], cases_digest="")
 
 
 def test_release_review_is_subject_bound_and_resolves_nonzero_disclosure() -> None:

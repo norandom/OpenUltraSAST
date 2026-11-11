@@ -26,6 +26,7 @@ from openultrasast.core.evaluation_release import (
     validate_admission_case_release_v3,
 )
 from openultrasast.core.evaluation_version import NonAuthorizingV3
+from openultrasast.core.evidence import NeutralOutcome
 
 
 def _release_case():
@@ -61,6 +62,8 @@ def _release_case():
                 observation.observation_digest,
                 observed.underlying_push_digest,
                 observed.case_id_digest,
+                observed.case_input_digest,
+                observed.outcome_projection,
                 template.role,
                 template.pair_id_digest,
                 template.evidence_inputs,
@@ -156,6 +159,8 @@ def test_release_contracts_are_exact_v3_non_authorizing_values() -> None:
             "observation_digest",
             "underlying_push_digest",
             "case_id_digest",
+            "case_input_digest",
+            "outcome_projection",
             "role",
             "pair_id_digest",
             "evidence_inputs",
@@ -180,6 +185,8 @@ def test_release_contracts_are_exact_v3_non_authorizing_values() -> None:
             "observation_digest",
             "underlying_push_digest",
             "case_id_digest",
+            "case_input_digest",
+            "outcome_projection",
             "role",
             "pair_id_digest",
             "case_result_digest",
@@ -255,6 +262,25 @@ def test_each_released_binding_association_is_exact(field: str, value: object) -
     bundle = _release_case()
     release = bundle[-1]
     changed_binding = replace(release.bindings[0], **{field: value}, binding_digest="")
+    changed = _resign(replace(release, bindings=(changed_binding,) + release.bindings[1:]))
+    with pytest.raises(EvaluationReleaseError, match="binding|canonical|case"):
+        _validate(bundle, release=changed)
+
+
+def test_release_binding_case_input_and_projection_are_exact() -> None:
+    bundle = _release_case()
+    release = bundle[-1]
+    binding = release.bindings[0]
+    with pytest.raises(EvaluationReleaseError, match="input identity"):
+        replace(binding, case_input_digest=_digest("other-case-input"), binding_digest="")
+
+    outcome = (
+        NeutralOutcome.VIOLATION
+        if binding.outcome_projection.normalized_outcome is not NeutralOutcome.VIOLATION
+        else NeutralOutcome.SATISFIED
+    )
+    projection = replace(binding.outcome_projection, normalized_outcome=outcome, projection_digest="")
+    changed_binding = replace(binding, outcome_projection=projection, binding_digest="")
     changed = _resign(replace(release, bindings=(changed_binding,) + release.bindings[1:]))
     with pytest.raises(EvaluationReleaseError, match="binding|canonical|case"):
         _validate(bundle, release=changed)

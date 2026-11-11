@@ -19,6 +19,9 @@ from openultrasast.core.provenance import ProvenanceStamp
 
 _DIGEST = re.compile(r"[0-9a-f]{64}")
 _SCHEMA = "openultrasast.detection-core.evaluation-case-outcome.v3"
+_PROJECTION_FIELDS = frozenset(
+    {"case_input_digest", "policy", "source_outcome_digests", "normalized_outcome", "projection_digest"}
+)
 
 
 class CaseOutcomeProjectionError(ValueError):
@@ -82,6 +85,43 @@ class CaseOutcomeProjectionV3(EvaluationV3Contract, NonAuthorizingV3):
             "normalized_outcome": self.normalized_outcome.value,
         }
         _bind(self, "projection_digest", canonical.content_digest(_value("case_outcome_projection", payload)))
+
+
+def case_outcome_projection_value(value: CaseOutcomeProjectionV3) -> dict[str, canonical.JsonValue]:
+    """Return the exact nested canonical value used by observation and release contracts."""
+
+    if type(value) is not CaseOutcomeProjectionV3:
+        raise CaseOutcomeProjectionError("projection must use exact CaseOutcomeProjectionV3")
+    value.__post_init__()
+    return {
+        "case_input_digest": value.case_input_digest,
+        "policy": value.policy.value,
+        "source_outcome_digests": value.source_outcome_digests,
+        "normalized_outcome": value.normalized_outcome.value,
+        "projection_digest": value.projection_digest,
+    }
+
+
+def case_outcome_projection_from_value(value: object) -> CaseOutcomeProjectionV3:
+    """Decode the exact nested projection value without accepting aliases or extra fields."""
+
+    if type(value) is not dict or frozenset(value) != _PROJECTION_FIELDS:
+        raise CaseOutcomeProjectionError("projection must use the exact canonical field set")
+    sources = value["source_outcome_digests"]
+    if type(sources) is not list:
+        raise CaseOutcomeProjectionError("projection source outcome digests must be a canonical array")
+    try:
+        policy = CaseOutcomeProjectionPolicyV3(value["policy"])
+        outcome = NeutralOutcome(value["normalized_outcome"])
+    except (TypeError, ValueError) as exc:
+        raise CaseOutcomeProjectionError("projection contains an unknown closed value") from exc
+    return CaseOutcomeProjectionV3(
+        _digest(value["case_input_digest"], "case input digest"),
+        policy,
+        tuple(_digest(item, "source outcome digest") for item in sources),
+        outcome,
+        _digest(value["projection_digest"], "projection digest"),
+    )
 
 
 def _canonical_records(records: object) -> tuple[EvidenceRecord, ...]:
@@ -148,6 +188,8 @@ __all__ = [
     "CaseOutcomeProjectionError",
     "CaseOutcomeProjectionPolicyV3",
     "CaseOutcomeProjectionV3",
+    "case_outcome_projection_from_value",
+    "case_outcome_projection_value",
     "derive_case_input_digest",
     "derive_component_case_outcome_projection",
 ]

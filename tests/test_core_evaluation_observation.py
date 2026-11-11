@@ -10,6 +10,8 @@ from detection_core_fixtures import InMemoryContentResolver, stored_artifact
 from test_core_evaluation_plan import _declaration, _digest
 
 from openultrasast.core import canonical
+from openultrasast.core.evaluation_case_outcome import CaseOutcomeProjectionV3
+from openultrasast.core.evaluation_measurement import CaseOutcomeProjectionPolicyV3
 from openultrasast.core.evaluation_observation import (
     ArmObservationSetV3,
     EvaluationObservationError,
@@ -20,16 +22,34 @@ from openultrasast.core.evaluation_observation import (
     validate_evaluation_observations,
 )
 from openultrasast.core.evaluation_version import NonAuthorizingV3
+from openultrasast.core.evidence import NeutralOutcome
+
+
+def _projection(
+    case_number: int | str,
+    policy: CaseOutcomeProjectionPolicyV3 = CaseOutcomeProjectionPolicyV3.UNANIMOUS_EVIDENCE,
+) -> CaseOutcomeProjectionV3:
+    case_input = _digest(f"case-input-{case_number}")
+    return CaseOutcomeProjectionV3(
+        case_input,
+        policy,
+        (_digest(f"record-{case_number}"),),
+        NeutralOutcome.SATISFIED,
+        "",
+    )
 
 
 def _observation(slot, configuration, *, case_number: int | None = None) -> ArmObservationSetV3:
     cases = ()
     if case_number is not None:
+        projection = _projection(case_number, configuration.case_outcome_policy)
         cases = (
             ObservationCaseRefV3(
                 _digest(f"case-{case_number}"),
+                projection.case_input_digest,
                 _digest(f"push-{case_number}"),
                 _digest(f"result-{case_number}"),
+                projection,
                 _digest(f"proof-{case_number}"),
             ),
         )
@@ -97,11 +117,55 @@ def test_complete_canonical_slot_set_resolves_nonzero_observations() -> None:
     assert all(observation.stage_execution_evidence_digest != "0" * 64 for observation in observations)
 
 
+@pytest.mark.parametrize(
+    ("arm_id", "substituted_policy"),
+    (
+        ("arm-a", CaseOutcomeProjectionPolicyV3.DECLARATIVE_COMBINATION_TABLE),
+        ("arm-combined", CaseOutcomeProjectionPolicyV3.UNANIMOUS_EVIDENCE),
+    ),
+)
+def test_observation_case_policy_must_equal_planned_arm_policy(
+    arm_id: str,
+    substituted_policy: CaseOutcomeProjectionPolicyV3,
+) -> None:
+    declaration, observations, sealed, resolver = _bundle()
+    index = next(index for index, item in enumerate(observations) if item.arm_id == arm_id and item.cases)
+    original = observations[index]
+    original_case = original.cases[0]
+    sources = original_case.outcome_projection.source_outcome_digests
+    if substituted_policy is CaseOutcomeProjectionPolicyV3.UNANIMOUS_EVIDENCE:
+        sources = tuple(dict.fromkeys(sources))
+    projection = CaseOutcomeProjectionV3(
+        original_case.case_input_digest,
+        substituted_policy,
+        sources,
+        original_case.outcome_projection.normalized_outcome,
+        "",
+    )
+    changed_case = replace(original_case, outcome_projection=projection)
+    changed_observation = replace(original, cases=(changed_case,), observation_digest="")
+    changed_ref, changed_content = _seal(changed_observation, f"wrong-policy-{arm_id}")
+    changed_sealed = sealed[:index] + (changed_ref,) + sealed[index + 1 :]
+    changed_resolver = InMemoryContentResolver(
+        {**resolver.artifacts, changed_ref.observation.artifact_id: changed_content}
+    )
+
+    with pytest.raises(EvaluationObservationError, match="policy"):
+        _validate(declaration, changed_sealed, changed_resolver)
+
+
 def test_observation_contracts_are_exact_v3_non_authorizing_and_label_blind() -> None:
     case_fields = {item.name for item in fields(ObservationCaseRefV3)}
     observation_fields = {item.name for item in fields(ArmObservationSetV3)}
     sealed_fields = {item.name for item in fields(SealedObservationRefV3)}
-    assert case_fields == {"case_id_digest", "underlying_push_digest", "result_digest", "proof_candidate_digest"}
+    assert case_fields == {
+        "case_id_digest",
+        "case_input_digest",
+        "underlying_push_digest",
+        "result_digest",
+        "outcome_projection",
+        "proof_candidate_digest",
+    }
     assert observation_fields == {
         "slot_digest",
         "arm_id",
@@ -140,6 +204,26 @@ def test_canonical_round_trip_preserves_clean_and_proof_candidate_observations()
         assert json.dumps(json.loads(encoded), sort_keys=True, separators=(",", ":")).encode() == encoded
         assert not hasattr(observation, "authorize")
         assert all(not hasattr(case, "demonstrated") for case in observation.cases)
+
+
+def test_observation_case_projection_is_exact_and_nested_decoder_is_closed() -> None:
+    _, observations, _, _ = _bundle()
+    observation = next(item for item in observations if item.cases)
+    case = observation.cases[0]
+    with pytest.raises(EvaluationObservationError, match="input identity"):
+        replace(case, case_input_digest=_digest("unrelated-case-input"))
+
+    document = json.loads(encode_arm_observation_set(observation))
+    document["cases"][0]["outcome_projection"]["unexpected"] = "field"
+    changed = json.dumps(document, sort_keys=True, separators=(",", ":")).encode()
+    with pytest.raises(EvaluationObservationError, match="malformed|field"):
+        decode_arm_observation_set(changed)
+
+    document = json.loads(encode_arm_observation_set(observation))
+    document["cases"][0]["outcome_projection"]["projection_digest"] = _digest("tampered-projection")
+    changed = json.dumps(document, sort_keys=True, separators=(",", ":")).encode()
+    with pytest.raises(EvaluationObservationError, match="malformed|canonical"):
+        decode_arm_observation_set(changed)
 
 
 @pytest.mark.parametrize("mutation", ("missing", "duplicate", "extra", "reordered"))
@@ -258,8 +342,19 @@ def test_digest_case_order_duplicate_cases_and_zero_evidence_are_refused() -> No
     declaration, observations, _, _ = _bundle()
     slot = declaration.expected_observation_slots[0]
     configuration = declaration.arm_configurations[0]
-    first = ObservationCaseRefV3(_digest("case-a"), _digest("push-a"), _digest("result-a"), None)
-    second = ObservationCaseRefV3(_digest("case-b"), _digest("push-b"), _digest("result-b"), _digest("proof-b"))
+    first_projection = _projection("a")
+    second_projection = _projection("b")
+    first = ObservationCaseRefV3(
+        _digest("case-a"), first_projection.case_input_digest, _digest("push-a"), _digest("result-a"), first_projection, None
+    )
+    second = ObservationCaseRefV3(
+        _digest("case-b"),
+        second_projection.case_input_digest,
+        _digest("push-b"),
+        _digest("result-b"),
+        second_projection,
+        _digest("proof-b"),
+    )
     base = observations[0]
     with pytest.raises(EvaluationObservationError, match="canonical"):
         replace(base, cases=(second, first), observation_digest="")
@@ -283,7 +378,16 @@ def test_digest_case_order_duplicate_cases_and_zero_evidence_are_refused() -> No
             configuration.configuration_identity_digest,
             _digest("read"),
             _digest("stages"),
-            (CaseSubclass(first.case_id_digest, first.underlying_push_digest, first.result_digest, None),),
+            (
+                CaseSubclass(
+                    first.case_id_digest,
+                    first.case_input_digest,
+                    first.underlying_push_digest,
+                    first.result_digest,
+                    first.outcome_projection,
+                    None,
+                ),
+            ),
             "",
         )
 
