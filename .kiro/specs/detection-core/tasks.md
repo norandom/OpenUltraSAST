@@ -567,7 +567,7 @@ contract work and use synthetic/in-memory workflow boundaries only.
   - _Requirements: 19.1, 19.2, 19.3, 19.11, 20.8_
   - _Boundary: Evaluation Release_
   - _Depends: 14.4_
-- [ ] 15.2 Revalidate exact role, pair, scope, result, and input associations
+- [x] 15.2 Revalidate exact role, pair, scope, result, and input associations
   - Recompute every case and binding digest from canonical evidence rather than accepting caller-supplied summaries.
   - Require vulnerable/fixed roles and scoped pair identities to form exact pairs; prohibit pair identities on ordinary cases.
   - Preserve the separately reviewed underlying-push identity for scoped projection and later whole-population deduplication.
@@ -721,6 +721,7 @@ contract work and use synthetic/in-memory workflow boundaries only.
 - Task 14.3 added an independently reviewed V3 admission manifest and revalidates feasibility, observation bytes, sealed attempts, readiness, context, and current available custody before deriving one exact pre-spend authority.
 - Task 14.4 validates the complete manifest/authority/preparation graph before external CAS and again after append, so only the current direct available-to-spent receipt can bind every planned baseline and self-consistent subset authorities remain unspendable.
 - Task 15.1 added exact V3 arm-case and independently reviewed release contracts that rebind the complete plan-to-spend graph, trusted observations, case cardinality, and nonzero read/execution evidence before metrics.
+- Task 15.2 authenticates the reviewed multi-scope release and sealed observation graph before rederiving every case association, so fully rehashed result, push, pair, input, and cross-scope substitutions fail before metrics.
 - The frozen migration inventory is a reviewed worklist with stable identities, not a semantic-use census. It may only close entries as `v2_migrated` or `retired`; it never grows, deletes entries, or proves absence by interpreting Python flow.
 - Cutover is proved by explicit syntax checks plus deletion of the compatibility and v1 write capability. No task extends the discarded alias/data-flow interpreter.
 - Task 10.5 debug established that executable owner probes cannot compensate for blanket source-closure acceptance; resumed hunt attempts also require collision-resistant attempt identity and create-only persistence before handoff validation is authoritative.

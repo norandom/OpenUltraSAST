@@ -108,7 +108,7 @@ class ProofCandidateIdentityV3(EvaluationV3Contract, NonAuthorizingV3):
         _digest(self.candidate_digest, "candidate digest")
 
 
-def _candidate_value(value: ProofCandidateIdentityV3) -> canonical.JsonValue:
+def _candidate_value(value: ProofCandidateIdentityV3) -> dict[str, canonical.JsonValue]:
     return {
         "schema_version": _CANDIDATE_SCHEMA,
         "component_arm_id": value.component_arm_id,
@@ -119,6 +119,17 @@ def _candidate_value(value: ProofCandidateIdentityV3) -> canonical.JsonValue:
         "change_input_digest": value.change_input_digest,
         "candidate_digest": value.candidate_digest,
     }
+
+
+def derive_proof_candidate_identity_digest(value: ProofCandidateIdentityV3) -> str:
+    """Recompute the pre-observation candidate identity without creating a digest cycle."""
+    if type(value) is not ProofCandidateIdentityV3:
+        raise EvaluationReleaseError("candidate must use exact ProofCandidateIdentityV3")
+    value.__post_init__()
+    payload = dict(_candidate_value(value))
+    payload.pop("candidate_digest")
+    payload.pop("observation_digest")
+    return canonical.content_digest(payload)
 
 
 @dataclass(frozen=True)
@@ -446,6 +457,7 @@ __all__ = [
     "ReleasedArmCaseBindingV3",
     "derive_admission_case_release_digest_v3",
     "derive_admission_case_release_payload_digest_v3",
+    "derive_proof_candidate_identity_digest",
     "derive_released_arm_case_binding",
     "validate_admission_case_release_v3",
 ]
