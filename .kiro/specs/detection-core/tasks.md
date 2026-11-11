@@ -593,7 +593,7 @@ contract work and use synthetic/in-memory workflow boundaries only.
   - _Requirements: 17.5, 19.1, 19.2, 19.5, 20.8_
   - _Boundary: Case Outcome Projection Integration_
   - _Depends: 15.3_
-- [ ] 15.5 Replay combined-arm rules per case and preserve component lineage
+- [x] 15.5 Replay combined-arm rules per case and preserve component lineage
   - Join exactly one released case from every named component arm by exact `(ScopeKey, case_input_digest)` and require identical complete case sets.
   - Order component projections only by the registered `component_arm_ids`, replay the complete finite decision table, and authenticate the selected row, combined outcome, and combined projection for every case.
   - Preserve each component arm's observation, case, projection, normalized outcome, and optional candidate independently of the combined result; bind each lineage row one-to-one to the combined arm's own sealed and released case and observation.
@@ -744,6 +744,7 @@ contract work and use synthetic/in-memory workflow boundaries only.
 - Task 15.3 debug established that combination replay lacked a canonical authenticated component-outcome projection. The approved amendment inserts the fail-closed projection contract as Task 15.3, observation/release integration as Task 15.4, per-case table replay as Task 15.5, and proof continuity as Task 15.6.
 - Task 15.3 projection derivation validates exact packet, decision, and provenance roots bottom-up before hashing change-input correlation; malformed, subclassed, or self-consistently rehashed nested aggregates fail through the contract-owned error boundary.
 - Task 15.4 seals case-input/projection identity through observations and releases, rederives component projections only after full evidence validation, and requires each projection policy to match the reviewed arm configuration before authority.
+- Task 15.5 derives non-authorizing per-case combination lineage only from canonical released bindings, requires identical scope/input case sets, and replays the registered complete table in exact component-arm order while retaining every contributing identity.
 - The frozen migration inventory is a reviewed worklist with stable identities, not a semantic-use census. It may only close entries as `v2_migrated` or `retired`; it never grows, deletes entries, or proves absence by interpreting Python flow.
 - Cutover is proved by explicit syntax checks plus deletion of the compatibility and v1 write capability. No task extends the discarded alias/data-flow interpreter.
 - Task 10.5 debug established that executable owner probes cannot compensate for blanket source-closure acceptance; resumed hunt attempts also require collision-resistant attempt identity and create-only persistence before handoff validation is authoritative.
