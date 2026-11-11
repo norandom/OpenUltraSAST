@@ -1,4 +1,4 @@
-"""Structural ownership tests for the final v2-only core namespace."""
+"""Structural ownership tests for the migration-safe core namespace."""
 
 from __future__ import annotations
 
@@ -84,12 +84,14 @@ def test_historical_decoder_stays_independent_and_read_only() -> None:
     assert {"write", "serialize", "to_v2", "compare_identity"}.isdisjoint(exports)
 
 
-def test_top_level_api_publishes_only_canonical_v2_modules() -> None:
+def test_top_level_api_adds_v3_facade_without_changing_v2_modules() -> None:
     tree = _tree(CORE / "__init__.py")
     modules = {node.module for node in tree.body if isinstance(node, ast.ImportFrom)}
+    public = _literal_all(tree)
 
     assert modules == {"openultrasast.core"}
-    assert _literal_all(tree) == ("admission", "consumer", "verdict")
+    assert public == ("admission", "consumer", "evaluation_admission", "verdict")
+    assert tuple(name for name in public if name != "evaluation_admission") == ("admission", "consumer", "verdict")
     assert not _defined(tree)
 
 
