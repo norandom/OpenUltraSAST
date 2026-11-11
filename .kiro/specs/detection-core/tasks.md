@@ -652,7 +652,7 @@ contract work and use synthetic/in-memory workflow boundaries only.
   - _Boundary: Evaluation Aggregate_
 
 - [ ] 17. Close complete replay and replay-only consumer authorization
-- [ ] 17.1 Assemble one complete replay over the shared evaluation graph
+- [x] 17.1 Assemble one complete replay over the shared evaluation graph
   - Bind the reviewed plan, exact feasibility, reviewed admission authority, preparation, receipt, all-arm spend binding, attempt-history head, V3 release, cases, per-arm reports, combination lineages, shared whole coverage, and optional aggregate.
   - Require exact equality between planned arms/scopes and case/report identities, including every component required by a combined arm.
   - Prevent replay construction when any arm, scope, mandatory gate, custody binding, release, case, component, or lineage is missing or invalid.
@@ -751,6 +751,7 @@ contract work and use synthetic/in-memory workflow boundaries only.
 - Task 16.3 derives the complete seven-metric bundle with fixed algebra and Wilson intervals only after exact census and released-lineage reconciliation, treating zero denominators, missing metrics, or inconsistent projections as invalid evidence.
 - Task 16.4 emits non-authorizing completed scope reports only after canonical gate, operational, observation, release, and combination-lineage replay; incomplete or impaired measurement remains outside GO/NO-GO.
 - Task 16.5 derives optional aggregates only from complete canonical scoped metrics using exact rational weights and reproducible constituent identities, while exposing no gate, decision, proof, or authorization capability.
+- Task 17.1 assembles one deterministic non-authorizing replay from the complete source-rooted plan-to-report graph, rederiving reports, whole coverage, release bindings, and combination lineage while rejecting partial, forged, or noncanonical inputs.
 - The frozen migration inventory is a reviewed worklist with stable identities, not a semantic-use census. It may only close entries as `v2_migrated` or `retired`; it never grows, deletes entries, or proves absence by interpreting Python flow.
 - Cutover is proved by explicit syntax checks plus deletion of the compatibility and v1 write capability. No task extends the discarded alias/data-flow interpreter.
 - Task 10.5 debug established that executable owner probes cannot compensate for blanket source-closure acceptance; resumed hunt attempts also require collision-resistant attempt identity and create-only persistence before handoff validation is authoritative.
