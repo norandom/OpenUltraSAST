@@ -7,6 +7,7 @@ from collections.abc import Sequence
 from contextlib import suppress
 
 from openultrasast.core import canonical
+from openultrasast.core._admission_funnel import derive_case_funnel
 from openultrasast.core._evaluation_release_validation import (
     _group_maps,
     _validate_case_observation,
@@ -15,6 +16,7 @@ from openultrasast.core._evaluation_release_validation import (
 from openultrasast.core.admission_case import (
     AdmissionCaseRole,
     derive_admission_case_result_digest,
+    derive_case_coverage_digest,
 )
 from openultrasast.core.admission_context import AdmissionValidationContext, _validate_context
 from openultrasast.core.budget import BudgetGateFailure, check_budget
@@ -36,9 +38,12 @@ from openultrasast.core.evaluation_release import (
     _legacy_case,
     derive_proof_candidate_identity_digest,
 )
-from openultrasast.core.evidence import EvidenceRecord
+from openultrasast.core.evidence import EvidenceBasis, EvidenceRecord
+from openultrasast.core.family import FamilyContract
+from openultrasast.core.family_catalog import resolve_contract
 from openultrasast.core.provenance import ProvenanceInputRole
 from openultrasast.core.validation import derive_evidence_validation_input_digest, validate_evidence_input
+from openultrasast.core.verdict import derive_verdict_outputs
 
 
 def _validated_inputs(
@@ -61,6 +66,7 @@ def _validated_inputs(
         evidence.append(value.input_digest)
         changes.add(named[0])
     validated = tuple(records)
+    contract = _validate_exact_case_contract(case, validated, context)
     if len({item.record_id for item in validated}) != len(validated):
         raise EvaluationReleaseError("released evidence inputs repeat a record identity")
     scopes = {item.packet.scope for item in validated}
@@ -75,9 +81,65 @@ def _validated_inputs(
     actual_complexity = (case.complexity.change_id, case.complexity.changed_regions, case.complexity.transition_count)
     if actual_complexity != expected_complexity:
         raise EvaluationReleaseError("released case complexity differs from validated evidence")
+    _validate_canonical_case_outputs(case, validated, contract)
     with suppress(BudgetGateFailure):
         check_budget(case.complexity, case.total_reply_ms, case.budget, resolver)
     return tuple(sorted(evidence)), tuple(sorted(changes)), validated
+
+
+def _validate_exact_case_contract(
+    case: ArmAdmissionCaseResultV3,
+    records: tuple[EvidenceRecord, ...],
+    context: AdmissionValidationContext,
+) -> FamilyContract:
+    contract_digests = {
+        digest for record in records for digest in (record.packet.family_contract_digest, record.packet.provenance.family_contract_digest)
+    }
+    if len(contract_digests) != 1:
+        raise EvaluationReleaseError("released case evidence must use one exact family contract digest")
+    contract_digest = next(iter(contract_digests))
+    try:
+        contract = resolve_contract(
+            context.evidence.family_catalog,
+            case.key.scope.family_id,
+            contract_digest,
+            case.key.scope.ecosystem,
+        )
+    except (LookupError, TypeError, ValueError) as exc:
+        raise EvaluationReleaseError("released case scope does not resolve its exact family contract") from exc
+    expected_scope = (case.key.scope.family_id, case.key.scope.ecosystem, contract_digest)
+    for record in records:
+        packet = record.packet
+        actual_scope = (packet.family_id, packet.ecosystem, packet.family_contract_digest)
+        if actual_scope != expected_scope or packet.provenance.family_contract_digest != contract_digest:
+            raise EvaluationReleaseError("validated evidence family, ecosystem, or contract differs from its released case scope")
+    return contract
+
+
+def _validate_canonical_case_outputs(
+    case: ArmAdmissionCaseResultV3,
+    records: tuple[EvidenceRecord, ...],
+    contract: FamilyContract,
+) -> None:
+    if any(claim.basis is EvidenceBasis.EXECUTION_BACKED for claim in case.claims):
+        raise EvaluationReleaseError("released base verdict claims must remain non-execution-backed")
+    legacy = _legacy_case(case)
+    try:
+        pending_coverage_digest = canonical.content_digest("admission-coverage-pending")
+        base_outputs = derive_verdict_outputs(records, contract, pending_coverage_digest)
+        funnel = derive_case_funnel(legacy, records, len(base_outputs.defects))
+        coverage_digest = derive_case_coverage_digest(legacy.case_id_digest, legacy.scope, funnel)
+        outputs = derive_verdict_outputs(records, contract, coverage_digest)
+    except (AttributeError, LookupError, TypeError, ValueError) as exc:
+        raise EvaluationReleaseError("released case verdict or coverage cannot be canonically re-derived") from exc
+    if case.claims != outputs.defects:
+        raise EvaluationReleaseError("released case claims differ from the canonical base verdict")
+    if case.satisfactions != outputs.satisfactions:
+        raise EvaluationReleaseError("released case satisfactions differ from the canonical base verdict")
+    if case.silence != outputs.silence:
+        raise EvaluationReleaseError("released case silence differs from the canonical coverage-bound verdict")
+    if case.coverage != funnel:
+        raise EvaluationReleaseError("released case coverage funnel differs from validated evidence")
 
 
 def _canonical_binding(

@@ -613,7 +613,7 @@ contract work and use synthetic/in-memory workflow boundaries only.
   - _Depends: 15.5_
 
 - [ ] 16. Derive exact scoped metrics and completed reports
-- [ ] 16.1 Partition quality evidence by exact arm, family, and ecosystem
+- [x] 16.1 Partition quality evidence by exact arm, family, and ecosystem
   - Select vulnerable and fixed cases only from the independently released exact scope and derive pair correctness without cross-scope reuse.
   - Derive precision only from findings and cases assigned to the same arm-scope key under its reviewed denominator policy.
   - Preserve family decision vocabulary, neutral outcomes, evidence bases, model outcomes, and semantic coverage independently for each key.
@@ -746,6 +746,7 @@ contract work and use synthetic/in-memory workflow boundaries only.
 - Task 15.4 seals case-input/projection identity through observations and releases, rederives component projections only after full evidence validation, and requires each projection policy to match the reviewed arm configuration before authority.
 - Task 15.5 derives non-authorizing per-case combination lineage only from canonical released bindings, requires identical scope/input case sets, and replays the registered complete table in exact component-arm order while retaining every contributing identity.
 - Task 15.6 binds proof application to the exact independently reviewed plan and release, derives combined retention only from complete released component lineage, and validates absent or inconclusive proof without permitting candidate creation, substitution, or transfer.
+- Task 16.1 revalidates exact released record scope and canonically rederives verdicts and coverage before producing non-authorizing arm-family-ecosystem partitions, preventing packet, claim, satisfaction, silence, funnel, pair, and precision evidence from crossing scope boundaries.
 - The frozen migration inventory is a reviewed worklist with stable identities, not a semantic-use census. It may only close entries as `v2_migrated` or `retired`; it never grows, deletes entries, or proves absence by interpreting Python flow.
 - Cutover is proved by explicit syntax checks plus deletion of the compatibility and v1 write capability. No task extends the discarded alias/data-flow interpreter.
 - Task 10.5 debug established that executable owner probes cannot compensate for blanket source-closure acceptance; resumed hunt attempts also require collision-resistant attempt identity and create-only persistence before handoff validation is authoritative.
