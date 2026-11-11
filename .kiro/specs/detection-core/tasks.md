@@ -651,7 +651,7 @@ contract work and use synthetic/in-memory workflow boundaries only.
   - _Requirements: 16.6, 18.7, 20.7_
   - _Boundary: Evaluation Aggregate_
 
-- [ ] 17. Close complete replay and replay-only consumer authorization
+- [x] 17. Close complete replay and replay-only consumer authorization
 - [x] 17.1 Assemble one complete replay over the shared evaluation graph
   - Bind the reviewed plan, exact feasibility, reviewed admission authority, preparation, receipt, all-arm spend binding, attempt-history head, V3 release, cases, per-arm reports, combination lineages, shared whole coverage, and optional aggregate.
   - Require exact equality between planned arms/scopes and case/report identities, including every component required by a combined arm.
@@ -667,7 +667,7 @@ contract work and use synthetic/in-memory workflow boundaries only.
   - Done when independent replay validation reproduces the original reports exactly and every source, summary, or trust-state mutation is refused.
   - _Requirements: 16.6, 20.5, 20.6, 20.7, 20.8_
   - _Boundary: Evaluation Replay Validation_
-- [ ] 17.3 Publish the integrated V3 preflight, authorization, scoring, and replay facade
+- [x] 17.3 Publish the integrated V3 preflight, authorization, scoring, and replay facade
   - Wire the exact plan preflight, reviewed authority, shared-spend validation, score/replay, strict decoding, and replay validation through one public V3 contract surface.
   - Preserve every V2 facade and import unchanged and expose no benchmark storage, execution, lifecycle, or presentation implementation from core.
   - Reject wrong-phase values and make each returned artifact usable only by the next declared phase.
@@ -753,6 +753,7 @@ contract work and use synthetic/in-memory workflow boundaries only.
 - Task 16.5 derives optional aggregates only from complete canonical scoped metrics using exact rational weights and reproducible constituent identities, while exposing no gate, decision, proof, or authorization capability.
 - Task 17.1 assembles one deterministic non-authorizing replay from the complete source-rooted plan-to-report graph, rederiving reports, whole coverage, release bindings, and combination lineage while rejecting partial, forged, or noncanonical inputs.
 - Task 17.2 independently resolves canonical artifacts and current trust/custody state, rederives the complete V3 graph and replay digest, and rejects stale, partial, mixed-version, or coordinated caller-rehashed evidence before authorization.
+- Task 17.3 publishes one fail-closed V3 phase facade with closed-field validation for every public root and nested input, strict version routing, current-state replay validation, and an additive export that preserves the frozen V2 surface.
 - The frozen migration inventory is a reviewed worklist with stable identities, not a semantic-use census. It may only close entries as `v2_migrated` or `retired`; it never grows, deletes entries, or proves absence by interpreting Python flow.
 - Cutover is proved by explicit syntax checks plus deletion of the compatibility and v1 write capability. No task extends the discarded alias/data-flow interpreter.
 - Task 10.5 debug established that executable owner probes cannot compensate for blanket source-closure acceptance; resumed hunt attempts also require collision-resistant attempt identity and create-only persistence before handoff validation is authoritative.

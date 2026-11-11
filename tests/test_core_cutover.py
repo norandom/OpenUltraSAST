@@ -23,6 +23,7 @@ REMOVED_PATHS = (
     CORE / "verdict_v2.py",
 )
 CANONICAL_V2_MODULES = ("admission", "consumer", "verdict")
+PUBLIC_CORE_MODULES = ("admission", "consumer", "evaluation_admission", "verdict")
 OLD_TOP_LEVEL = (
     "AdmissionManifest",
     "Budget",
@@ -102,22 +103,25 @@ def test_fresh_interpreter_rejects_old_imports_and_loads_canonical_v2() -> None:
         "openultrasast.core." + "consumer_v2",
         "openultrasast.core." + "verdict_v2",
     )
-    canonical = tuple(f"openultrasast.core.{name}" for name in CANONICAL_V2_MODULES)
+    canonical = tuple(f"openultrasast.core.{name}" for name in PUBLIC_CORE_MODULES)
     result = _fresh_import_probe(*old_modules, *canonical)
 
     assert result["old_top_level"] == []
+    assert tuple(result["all"]) == PUBLIC_CORE_MODULES
     assert set(CANONICAL_V2_MODULES) <= set(result["all"])
     modules = result["modules"]
     assert isinstance(modules, dict)
     assert all(modules[name] is None for name in old_modules)
     assert "AdmissionManifestV2" in modules[canonical[0]]
     assert "consume_records" in modules[canonical[1]]
-    assert "derive_verdict_outputs" in modules[canonical[2]]
+    assert "preflight_evaluation" in modules[canonical[2]]
+    assert "derive_verdict_outputs" in modules[canonical[3]]
 
 
-def test_public_v2_surface_has_no_frozen_v1_names() -> None:
+def test_public_surface_is_the_exact_additive_v3_surface_with_unchanged_v2_subset() -> None:
     exports = _module_exports(CORE / "__init__.py")
 
+    assert exports == PUBLIC_CORE_MODULES
     assert set(CANONICAL_V2_MODULES) <= set(exports)
     assert set(OLD_TOP_LEVEL).isdisjoint(exports)
 

@@ -215,7 +215,8 @@ def test_cutover_refuses_empty_scope_and_migration_compatibility(tmp_path: Path)
 
 def test_complete_frozen_top_level_surface_is_reported_and_star_is_forbidden(tmp_path: Path) -> None:
     exports = static_top_level_exports(REPO)
-    assert exports == ("admission", "consumer", "verdict")
+    assert exports == ("admission", "consumer", "evaluation_admission", "verdict")
+    assert {"admission", "consumer", "verdict"} <= set(exports)
     assert set(exports).isdisjoint(FROZEN_TOP_LEVEL_V1)
     assert len(FROZEN_TOP_LEVEL_V1) == 38
     imports = ", ".join(FROZEN_TOP_LEVEL_V1)

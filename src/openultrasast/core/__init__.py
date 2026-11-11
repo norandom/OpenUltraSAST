@@ -1,5 +1,5 @@
-"""Family-neutral detection-core v2 public surface."""
+"""Family-neutral detection-core public surfaces."""
 
-from openultrasast.core import admission, consumer, verdict
+from openultrasast.core import admission, consumer, evaluation_admission, verdict
 
-__all__ = ["admission", "consumer", "verdict"]
+__all__ = ["admission", "consumer", "evaluation_admission", "verdict"]
