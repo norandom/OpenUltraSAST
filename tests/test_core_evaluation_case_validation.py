@@ -150,7 +150,7 @@ def _contract_catalog_context(context_case):
     return replace(context_case, context=context)
 
 
-def _rekey_configuration(configuration, scope: ScopeKey):
+def _rekey_configuration(configuration, scope: ScopeKey, *, minimum_ordinary_pushes=None, relaxed_precision=False):
     key = ArmScopeKey(configuration.arm_id, scope)
     policies = tuple(
         replace(
@@ -162,7 +162,24 @@ def _rekey_configuration(configuration, scope: ScopeKey):
         for policy in configuration.denominator_policies
     )
     thresholds = tuple(replace(row, key=key, threshold_digest="") for row in configuration.thresholds)
-    sufficiency = tuple(replace(row, key=key, rule_digest="") for row in configuration.sufficiency_rules)
+    sufficiency = tuple(
+        replace(
+            row,
+            key=key,
+            minimum_ordinary_pushes=(row.minimum_ordinary_pushes if minimum_ordinary_pushes is None else minimum_ordinary_pushes),
+            precision_rules=tuple(
+                replace(
+                    precision,
+                    maximum_wilson_width=100.0 if relaxed_precision else precision.maximum_wilson_width,
+                    minimum_denominator=1 if relaxed_precision else precision.minimum_denominator,
+                    rule_digest="",
+                )
+                for precision in row.precision_rules
+            ),
+            rule_digest="",
+        )
+        for row in configuration.sufficiency_rules
+    )
     return replace(
         configuration,
         exact_scopes=(scope,),
@@ -173,16 +190,17 @@ def _rekey_configuration(configuration, scope: ScopeKey):
     )
 
 
-def _reviewed_scoped_census(plan, scopes):
+def _reviewed_scoped_census(plan, scopes, *, ordinary_count=None, whole_count=None):
     template_row = plan.census.scope_rows[0]
     scope_rows = tuple(replace(template_row, scope=scope) for scope in sorted(set(scopes.values())))
     ecosystems = tuple(sorted({scope.ecosystem for scope in scopes.values()}))
-    ordinary_count = plan.census.whole_underlying_push_count // len(ecosystems)
-    ordinary_rows = tuple(EcosystemOrdinaryCensusV3(ecosystem, ordinary_count) for ecosystem in ecosystems)
+    per_ecosystem = plan.census.whole_underlying_push_count // len(ecosystems) if ordinary_count is None else ordinary_count
+    ordinary_rows = tuple(EcosystemOrdinaryCensusV3(ecosystem, per_ecosystem) for ecosystem in ecosystems)
     census_draft = replace(
         plan.census,
         scope_rows=scope_rows,
         ordinary_rows=ordinary_rows,
+        whole_underlying_push_count=(plan.census.whole_underlying_push_count if whole_count is None else whole_count),
         payload_digest="0" * 64,
         census_digest="0" * 64,
     )
@@ -200,8 +218,24 @@ def _reviewed_scoped_census(plan, scopes):
     return replace(census_reviewed, census_digest=derive_evaluation_census_digest(census_reviewed))
 
 
-def _reviewed_scoped_plan(plan, scopes):
-    configurations = tuple(_rekey_configuration(row, scopes[row.arm_id]) for row in plan.declaration.arm_configurations)
+def _reviewed_scoped_plan(
+    plan,
+    scopes,
+    *,
+    ordinary_count=None,
+    whole_count=None,
+    minimum_ordinary_pushes=None,
+    relaxed_precision=False,
+):
+    configurations = tuple(
+        _rekey_configuration(
+            row,
+            scopes[row.arm_id],
+            minimum_ordinary_pushes=minimum_ordinary_pushes,
+            relaxed_precision=relaxed_precision,
+        )
+        for row in plan.declaration.arm_configurations
+    )
     inputs = tuple(sorted({slot.input_identity_digest for slot in plan.declaration.expected_observation_slots}))
     declaration = create_evaluation_plan_declaration(
         population_digest=plan.declaration.population_digest,
@@ -214,7 +248,7 @@ def _reviewed_scoped_plan(plan, scopes):
         plan,
         declaration=declaration,
         baselines=derive_evaluation_baselines(declaration),
-        census=_reviewed_scoped_census(plan, scopes),
+        census=_reviewed_scoped_census(plan, scopes, ordinary_count=ordinary_count, whole_count=whole_count),
         payload_digest="0" * 64,
         manifest_digest="0" * 64,
     )
@@ -232,10 +266,24 @@ def _reviewed_scoped_plan(plan, scopes):
     return replace(plan_reviewed, manifest_digest=derive_evaluation_plan_manifest_digest(plan_reviewed))
 
 
-def _scoped_authority_case(scopes):
+def _scoped_authority_case(
+    scopes,
+    *,
+    ordinary_count=None,
+    whole_count=None,
+    minimum_ordinary_pushes=None,
+    relaxed_precision=False,
+):
     context_case, plan, readiness = authority_fixtures._reviewed_plan()
     context_case = _contract_catalog_context(context_case)
-    multi_plan = _reviewed_scoped_plan(plan, scopes)
+    multi_plan = _reviewed_scoped_plan(
+        plan,
+        scopes,
+        ordinary_count=ordinary_count,
+        whole_count=whole_count,
+        minimum_ordinary_pushes=minimum_ordinary_pushes,
+        relaxed_precision=relaxed_precision,
+    )
     original = authority_fixtures._reviewed_plan
     authority_fixtures._reviewed_plan = lambda: (context_case, multi_plan, readiness)
     try:
@@ -256,6 +304,20 @@ def _multi_scope_authority_case():
             "arm-b": ScopeKey("reference-family", "javascript"),
             "arm-combined": ScopeKey("reference-family", "python"),
         }
+    )
+
+
+def _ordinary_projection_authority_case():
+    return _scoped_authority_case(
+        {
+            "arm-a": ScopeKey("reference-family", "python"),
+            "arm-b": ScopeKey("reference-family", "javascript"),
+            "arm-combined": ScopeKey("reference-family", "python"),
+        },
+        ordinary_count=1,
+        whole_count=6,
+        minimum_ordinary_pushes=1,
+        relaxed_precision=True,
     )
 
 
@@ -583,6 +645,7 @@ def _bundle(
     projection_mutation: str | None = None,
     evidence_mutation: str | None = None,
     summary_mutation: str | None = None,
+    shared_underlying_by_ecosystem: bool = False,
 ):
     setup = _setup()
     authority_case = authority_case or _reference_authority_case()
@@ -591,6 +654,14 @@ def _bundle(
     draft_cases, extra_artifacts = _draft_cases(
         setup, authority_case, configurations, projection_mutation, evidence_mutation, summary_mutation
     )
+    if shared_underlying_by_ecosystem:
+        draft_cases = {
+            arm_id: tuple(
+                replace(case, underlying_push_digest=_digest(f"underlying-push-{case.key.scope.ecosystem}-{index}"))
+                for index, case in enumerate(cases)
+            )
+            for arm_id, cases in draft_cases.items()
+        }
 
     artifacts = {**authority_case[5].artifacts, **setup.resolver.artifacts, **extra_artifacts}
     sealed, observations, observation_by_arm = _sealed_observations(manifest, configurations, draft_cases, artifacts)

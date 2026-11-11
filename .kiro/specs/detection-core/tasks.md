@@ -621,7 +621,7 @@ contract work and use synthetic/in-memory workflow boundaries only.
   - _Requirements: 18.1, 18.2, 18.4_
   - _Boundary: Evaluation Scoped Metrics_
   - _Depends: 15.4, 15.6_
-- [ ] 16.2 Project ordinary pushes by ecosystem and deduplicate whole coverage
+- [x] 16.2 Project ordinary pushes by ecosystem and deduplicate whole coverage
   - Count each eligible ordinary push once for every family claimed by the arm in the push's reviewed ecosystem and never in another ecosystem.
   - Deduplicate one underlying push once in whole-population coverage even when it contributes to several verified scope denominators.
   - Reconcile projected ordinary counts and global unique-push counts back to the reviewed census and released identities.
@@ -747,6 +747,7 @@ contract work and use synthetic/in-memory workflow boundaries only.
 - Task 15.5 derives non-authorizing per-case combination lineage only from canonical released bindings, requires identical scope/input case sets, and replays the registered complete table in exact component-arm order while retaining every contributing identity.
 - Task 15.6 binds proof application to the exact independently reviewed plan and release, derives combined retention only from complete released component lineage, and validates absent or inconclusive proof without permitting candidate creation, substitution, or transfer.
 - Task 16.1 revalidates exact released record scope and canonically rederives verdicts and coverage before producing non-authorizing arm-family-ecosystem partitions, preventing packet, claim, satisfaction, silence, funnel, pair, and precision evidence from crossing scope boundaries.
+- Task 16.2 reconciles exact ordinary-push identity sets within each reviewed ecosystem, refuses cross-ecosystem reuse, and derives whole-population coverage from the globally deduplicated released push union.
 - The frozen migration inventory is a reviewed worklist with stable identities, not a semantic-use census. It may only close entries as `v2_migrated` or `retired`; it never grows, deletes entries, or proves absence by interpreting Python flow.
 - Cutover is proved by explicit syntax checks plus deletion of the compatibility and v1 write capability. No task extends the discarded alias/data-flow interpreter.
 - Task 10.5 debug established that executable owner probes cannot compensate for blanket source-closure acceptance; resumed hunt attempts also require collision-resistant attempt identity and create-only persistence before handoff validation is authoritative.
