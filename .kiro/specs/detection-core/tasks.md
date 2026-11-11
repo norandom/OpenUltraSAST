@@ -557,7 +557,7 @@ contract work and use synthetic/in-memory workflow boundaries only.
   - _Boundary: Evaluation Shared Spend_
   - _Depends: 14.3_
 
-- [ ] 15. Authenticate V3 case release, combinations, and proof continuity
+- [x] 15. Authenticate V3 case release, combinations, and proof continuity
 - [x] 15.1 Build the arm-aware V3 case and independently reviewed release graph
   - Bind each post-spend case to its arm-scope key, baseline, observation, underlying push, role, pair, result, evidence inputs, change inputs, input manifest, and proof-candidate identity.
   - Bind one independently reviewed release to the plan, admission authority, preparation, exact shared spend, and complete canonical case set.
@@ -602,7 +602,7 @@ contract work and use synthetic/in-memory workflow boundaries only.
   - _Requirements: 19.4, 19.5, 19.11_
   - _Boundary: Combination Validation_
   - _Depends: 15.4_
-- [ ] 15.6 Enforce proof-candidate identity and prevent proof transfer
+- [x] 15.6 Enforce proof-candidate identity and prevent proof transfer
   - Keep every label-blind proof candidate non-authoritative until the V3 release establishes its exact arm, family, scope, roles, inputs, and location.
   - Apply proof-backed status only through the existing trusted differential-proof validator and the identical released candidate.
   - Permit a combined arm to retain only a candidate already present in its named component observation; prevent creation, substitution, and cross-arm transfer.
@@ -745,6 +745,7 @@ contract work and use synthetic/in-memory workflow boundaries only.
 - Task 15.3 projection derivation validates exact packet, decision, and provenance roots bottom-up before hashing change-input correlation; malformed, subclassed, or self-consistently rehashed nested aggregates fail through the contract-owned error boundary.
 - Task 15.4 seals case-input/projection identity through observations and releases, rederives component projections only after full evidence validation, and requires each projection policy to match the reviewed arm configuration before authority.
 - Task 15.5 derives non-authorizing per-case combination lineage only from canonical released bindings, requires identical scope/input case sets, and replays the registered complete table in exact component-arm order while retaining every contributing identity.
+- Task 15.6 binds proof application to the exact independently reviewed plan and release, derives combined retention only from complete released component lineage, and validates absent or inconclusive proof without permitting candidate creation, substitution, or transfer.
 - The frozen migration inventory is a reviewed worklist with stable identities, not a semantic-use census. It may only close entries as `v2_migrated` or `retired`; it never grows, deletes entries, or proves absence by interpreting Python flow.
 - Cutover is proved by explicit syntax checks plus deletion of the compatibility and v1 write capability. No task extends the discarded alias/data-flow interpreter.
 - Task 10.5 debug established that executable owner probes cannot compensate for blanket source-closure acceptance; resumed hunt attempts also require collision-resistant attempt identity and create-only persistence before handoff validation is authoritative.

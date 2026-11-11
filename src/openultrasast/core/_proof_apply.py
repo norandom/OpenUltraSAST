@@ -40,7 +40,7 @@ def _validate_claim_binding(claim: DefectClaim, attachment: ProofAttachment) -> 
         raise ProofValidationError("proof attachment does not match the exact claim location")
 
 
-def _validate_change_and_outcome(record: EvidenceRecord, proof: DifferentialProofRecord) -> None:
+def _validate_change_binding(record: EvidenceRecord, proof: DifferentialProofRecord) -> None:
     change = record.packet.provenance.change_input_digest
     if proof.affected.input_digest != change or proof.control.affected_change_input_digest != change:
         raise ProofValidationError("affected proof input does not match the evidence change input")
@@ -48,8 +48,14 @@ def _validate_change_and_outcome(record: EvidenceRecord, proof: DifferentialProo
         raise ProofValidationError("safe proof input does not match the reviewed control")
     if proof.affected.input_digest == proof.safe.input_digest:
         raise ProofValidationError("affected and safe proof inputs must be distinct")
-    if proof.outcome is not ProofOutcome.DEMONSTRATED or not proof.affected.observed or proof.safe.observed:
-        raise ProofValidationError("only demonstrated affected-only behavior can upgrade evidence basis")
+
+
+def _proof_is_demonstrated(proof: DifferentialProofRecord) -> bool:
+    if proof.outcome is ProofOutcome.INCONCLUSIVE:
+        return False
+    if proof.outcome is ProofOutcome.DEMONSTRATED and proof.affected.observed and not proof.safe.observed:
+        return True
+    raise ProofValidationError("only demonstrated affected-only behavior can upgrade evidence basis")
 
 
 def _validate_trust(
@@ -126,10 +132,14 @@ def attach_differential_proof(
         raise ProofValidationError("proof application requires a DefectClaim and ProofAttachment")
     if not isinstance(policy, ProofTrustPolicy):
         raise ProofValidationError("proof application requires a ProofTrustPolicy")
+    # Preserve the V2 attachment contract's eligibility-first rejection order.
     _validate_claim_binding(claim, attachment)
-    _validate_change_and_outcome(claim.record, attachment.proof)
-    producer_digest = _validate_trust(attachment.proof, attachment.verification, policy)
-    _resolve_artifacts(attachment.proof, attachment.verification, policy, resolver)
+    _validate_change_binding(claim.record, attachment.proof)
+    if not _proof_is_demonstrated(attachment.proof):
+        raise ProofValidationError("only demonstrated affected-only behavior can upgrade evidence basis")
+    demonstrated, producer_digest = _validate_differential_proof(claim, attachment, policy, resolver)
+    if not demonstrated:
+        raise ProofValidationError("only demonstrated affected-only behavior can upgrade evidence basis")
     decision = replace(
         claim.record.decision,
         basis=EvidenceBasis.EXECUTION_BACKED,
@@ -139,4 +149,33 @@ def attach_differential_proof(
     return DefectClaim(record, EvidenceBasis.EXECUTION_BACKED, claim.location, claim.change_anchor)
 
 
-__all__ = ["attach_differential_proof"]
+def _validate_differential_proof(
+    claim: DefectClaim,
+    attachment: ProofAttachment,
+    policy: ProofTrustPolicy,
+    resolver: canonical.ContentResolver,
+) -> tuple[bool, str]:
+    if not isinstance(claim, DefectClaim) or not isinstance(attachment, ProofAttachment):
+        raise ProofValidationError("proof validation requires a DefectClaim and ProofAttachment")
+    if not isinstance(policy, ProofTrustPolicy):
+        raise ProofValidationError("proof validation requires a ProofTrustPolicy")
+    _validate_claim_binding(claim, attachment)
+    _validate_change_binding(claim.record, attachment.proof)
+    producer_digest = _validate_trust(attachment.proof, attachment.verification, policy)
+    _resolve_artifacts(attachment.proof, attachment.verification, policy, resolver)
+    return _proof_is_demonstrated(attachment.proof), producer_digest
+
+
+def validate_differential_proof(
+    claim: DefectClaim,
+    attachment: ProofAttachment,
+    policy: ProofTrustPolicy,
+    resolver: canonical.ContentResolver,
+) -> bool:
+    """Validate one trusted attachment and report whether it demonstrates affected-only behavior."""
+
+    demonstrated, _ = _validate_differential_proof(claim, attachment, policy, resolver)
+    return demonstrated
+
+
+__all__ = ["attach_differential_proof", "validate_differential_proof"]

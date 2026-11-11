@@ -329,6 +329,18 @@ def attach_differential_proof(
     return apply_proof(claim, attachment, policy, resolver)
 
 
+def validate_differential_proof(
+    claim: DefectClaim,
+    attachment: ProofAttachment,
+    policy: ProofTrustPolicy,
+    resolver: canonical.ContentResolver,
+) -> bool:
+    """Validate trusted proof material without requiring it to demonstrate a defect."""
+    from openultrasast.core._proof_apply import validate_differential_proof as validate_proof
+
+    return validate_proof(claim, attachment, policy, resolver)
+
+
 __all__ = [
     "ControlBinding",
     "DIFFERENTIAL_PROOF_SCHEMA",
@@ -341,5 +353,6 @@ __all__ = [
     "ProofValidationError",
     "ProofVerificationReceipt",
     "attach_differential_proof",
+    "validate_differential_proof",
     "derive_producer_identity_digest",
 ]

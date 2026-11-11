@@ -105,16 +105,7 @@ def _canonical_binding(
             raise EvaluationReleaseError("released component outcome projection cannot be re-derived") from exc
         if (case.case_input_digest, case.outcome_projection) != (projection.case_input_digest, projection):
             raise EvaluationReleaseError("released component outcome projection differs from validated evidence")
-    candidate_digest = None
-    if case.proof_candidate is not None:
-        candidate = case.proof_candidate
-        expected = (case.key.arm_id, case.observation_digest, case.key.scope.family_id, case.key.scope)
-        actual = (candidate.component_arm_id, candidate.observation_digest, candidate.family_id, candidate.scope)
-        if actual != expected or candidate.change_input_digest not in changes:
-            raise EvaluationReleaseError("proof candidate differs from its released case associations")
-        if candidate.candidate_digest != derive_proof_candidate_identity_digest(candidate):
-            raise EvaluationReleaseError("proof candidate identity cannot be re-derived")
-        candidate_digest = candidate.candidate_digest
+    candidate_digest = _validated_candidate_digest(case, configuration, changes)
     return ReleasedArmCaseBindingV3(
         case.key,
         baseline_digest,
@@ -133,6 +124,25 @@ def _canonical_binding(
         candidate_digest,
         "",
     )
+
+
+def _validated_candidate_digest(
+    case: ArmAdmissionCaseResultV3,
+    configuration: ArmConfigurationV3,
+    changes: tuple[str, ...],
+) -> str | None:
+    candidate = case.proof_candidate
+    if candidate is None:
+        return None
+    expected_scope = (case.key.scope.family_id, case.key.scope)
+    if (candidate.family_id, candidate.scope) != expected_scope or candidate.change_input_digest not in changes:
+        raise EvaluationReleaseError("proof candidate differs from its released case associations")
+    component_origin = (candidate.component_arm_id, candidate.observation_digest)
+    if configuration.kind is ArmKindV3.COMPONENT and component_origin != (case.key.arm_id, case.observation_digest):
+        raise EvaluationReleaseError("component proof candidate differs from its released observation")
+    if candidate.candidate_digest != derive_proof_candidate_identity_digest(candidate):
+        raise EvaluationReleaseError("proof candidate identity cannot be re-derived")
+    return candidate.candidate_digest
 
 
 def _validate_pairs(cases: tuple[ArmAdmissionCaseResultV3, ...]) -> None:
@@ -205,9 +215,7 @@ def validate_released_case_associations_v3(
             for case in group.cases:
                 observation, reference = observed[(arm_id, case.case_id_digest)]
                 _validate_case_observation(case, observation, reference, claimed)
-                derived_values.append(
-                    _canonical_binding(case, group.baseline_digest, configurations[arm_id], context, custody, resolver)
-                )
+                derived_values.append(_canonical_binding(case, group.baseline_digest, configurations[arm_id], context, custody, resolver))
         derived = tuple(
             sorted(
                 derived_values,
