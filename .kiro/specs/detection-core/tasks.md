@@ -685,7 +685,7 @@ contract work and use synthetic/in-memory workflow boundaries only.
   - _Depends: 17.2_
 
 - [ ] 18. Validate the V3 predecessor end to end
-- [ ] 18.1 Run a synthetic multi-arm, multi-family evaluation through one shared spend
+- [x] 18.1 Run a synthetic multi-arm, multi-family evaluation through one shared spend
   - Use at least two component arms and one combined arm across at least two families and two ecosystems with multi-scope fixes and representative ordinary pushes.
   - Prove nonzero reads, reviewed plan, exact preflight, sealed observations, reviewed attempt history, one preparation/receipt, V3 release, scoped reports, complete replay, and exact fitted selection.
   - Preserve component observations/results and verify ordinary projection plus shared whole-population deduplication in the completed replay.
@@ -755,6 +755,7 @@ contract work and use synthetic/in-memory workflow boundaries only.
 - Task 17.2 independently resolves canonical artifacts and current trust/custody state, rederives the complete V3 graph and replay digest, and rejects stale, partial, mixed-version, or coordinated caller-rehashed evidence before authorization.
 - Task 17.3 publishes one fail-closed V3 phase facade with closed-field validation for every public root and nested input, strict version routing, current-state replay validation, and an additive export that preserves the frozen V2 surface.
 - Task 17.4 validates the complete replay before authorizing one exact GO arm-scope fitted component and recursively closes fitted, probe, lineage, and holdout evidence while preserving V2 consumer behavior.
+- Task 18.1 proves the public V3 facade end to end across two component arms, one combined arm, two family/ecosystem scopes, one shared spend, complete replay validation, ordinary projection/whole deduplication, and exact fitted GO selection.
 - The frozen migration inventory is a reviewed worklist with stable identities, not a semantic-use census. It may only close entries as `v2_migrated` or `retired`; it never grows, deletes entries, or proves absence by interpreting Python flow.
 - Cutover is proved by explicit syntax checks plus deletion of the compatibility and v1 write capability. No task extends the discarded alias/data-flow interpreter.
 - Task 10.5 debug established that executable owner probes cannot compensate for blanket source-closure acceptance; resumed hunt attempts also require collision-resistant attempt identity and create-only persistence before handoff validation is authoritative.

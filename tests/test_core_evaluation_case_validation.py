@@ -155,6 +155,7 @@ def _contract_catalog_context(context_case):
         template,
         replace(template, family_version="2", ecosystems=("javascript",)),
         replace(template, family_id="other-family"),
+        replace(template, family_id="other-family", family_version="2", ecosystems=("javascript",)),
         replace(template, family_version="3"),
     )
     entries = tuple(
@@ -508,8 +509,9 @@ def _draft_case(
     model_evidence,
     model_programs,
     model_lineages,
+    scope=None,
 ):
-    scope = configuration.exact_scopes[0]
+    scope = scope or configuration.exact_scopes[0]
     evidence_inputs, artifacts, contract = _case_evidence_inputs(
         original,
         index,
@@ -542,7 +544,7 @@ def _draft_case(
     component = derive_component_case_outcome_projection(tuple(item.record for item in evidence_inputs))
     projection = _case_projection(configuration, component, arm_id, index, first_component_arm, projection_mutation)
     candidate = _proof_candidate(legacy, arm_id, scope, index)
-    return _arm_case_result(legacy, candidate, configuration, projection, arm_id, index), artifacts
+    return _arm_case_result(legacy, candidate, configuration, projection, arm_id, index, scope), artifacts
 
 
 def _proof_candidate(legacy, arm_id, scope, index):
@@ -559,8 +561,8 @@ def _proof_candidate(legacy, arm_id, scope, index):
     return replace(candidate, candidate_digest=derive_proof_candidate_identity_digest(candidate))
 
 
-def _arm_case_result(legacy, candidate, configuration, projection, arm_id, index):
-    scope = configuration.exact_scopes[0]
+def _arm_case_result(legacy, candidate, configuration, projection, arm_id, index, scope=None):
+    scope = scope or configuration.exact_scopes[0]
     return ArmAdmissionCaseResultV3(
         ArmScopeKey(arm_id, scope),
         _digest(f"pre-slot-{arm_id}"),
@@ -625,6 +627,7 @@ def _draft_cases(
     summary_mutation,
     aligned_combination_cases,
     model_evidence,
+    all_configuration_scopes,
 ):
     first_component_arm = next(item.arm_id for item in configurations.values() if item.kind is ArmKindV3.COMPONENT)
     draft_cases = {}
@@ -633,7 +636,12 @@ def _draft_cases(
     model_lineages = {}
     for arm_id, configuration in configurations.items():
         cases = []
-        for index, original in enumerate(setup.cases):
+        scoped_cases = tuple(
+            (scope, original)
+            for scope in (configuration.exact_scopes if all_configuration_scopes else configuration.exact_scopes[:1])
+            for original in setup.cases
+        )
+        for index, (scope, original) in enumerate(scoped_cases):
             case, artifacts = _draft_case(
                 original,
                 index,
@@ -648,6 +656,7 @@ def _draft_cases(
                 model_evidence,
                 model_programs,
                 model_lineages,
+                scope,
             )
             cases.append(case)
             extra_artifacts.update(artifacts)
@@ -742,7 +751,12 @@ def _released_groups(draft_cases, observation_by_arm, manifest):
             for case in cases
         )
         baseline = next(item.baseline_digest for item in manifest.plan_manifest.baselines if item.arm_id == arm_id)
-        ordered = tuple(sorted(finalized, key=lambda item: item.case_id_digest))
+        ordered = tuple(
+            sorted(
+                finalized,
+                key=lambda item: (item.key.scope.family_id, item.key.scope.ecosystem, item.case_id_digest),
+            )
+        )
         groups.append(ArmAdmissionCasesV3(arm_id, baseline, ordered, ""))
     return tuple(sorted(groups, key=lambda item: item.arm_id))
 
@@ -842,6 +856,7 @@ def _bundle(
     shared_underlying_by_ecosystem: bool = False,
     aligned_combination_cases: bool = False,
     model_evidence: bool = False,
+    all_configuration_scopes: bool = False,
 ):
     setup = _setup()
     authority_case = authority_case or _reference_authority_case()
@@ -856,6 +871,7 @@ def _bundle(
         summary_mutation,
         aligned_combination_cases,
         model_evidence,
+        all_configuration_scopes,
     )
     if model_evidence:
         authority_case = _with_model_context(authority_case, model_programs, model_lineages)

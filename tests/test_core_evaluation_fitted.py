@@ -171,8 +171,9 @@ def _permissive_plan(plan, scopes, configuration_digest):
     return _review_plan_draft(draft, plan.review)
 
 
-def _probe(bundle, program):
-    supplied = bundle[2][0].cases[0].evidence_inputs[0]
+def _probe(bundle, program, key=None):
+    selected = next(case for case in bundle[2][0].cases if key is None or case.key == key)
+    supplied = selected.evidence_inputs[0]
     record = supplied.record
     contract = resolve_contract(
         bundle[5][0].context.evidence.family_catalog,
