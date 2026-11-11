@@ -1073,3 +1073,61 @@ Design generation remains blocked on approval of Requirements 16–20.
   cross-runtime canonical signatures are outside the current boundary.
 - [Approved valid-detection-benchmark design](../valid-detection-benchmark/design.md) —
   downstream V3 consumer contract and ownership boundary.
+
+---
+
+## 2026-11-11 Per-Case Outcome Projection Amendment
+
+### Context and evidence
+
+Task 15.3 could not replay `CombinationDecisionRowV3` without inventing an aggregation
+rule. The decision table consumes one `NeutralOutcome` for every named component arm, but
+the authenticated V3 graph stopped at opaque case and result digests. A released case may
+contain several `EvidenceValidationInput` records whose `EvidenceRecord.decision.outcome`
+values disagree, while neither `ObservationCaseRefV3` nor `ReleasedArmCaseBindingV3`
+carried a normalized outcome. A self-consistent caller could therefore choose an outcome
+after observation sealing without contradicting the approved schema.
+
+The downstream `valid-detection-benchmark` design confirms that the intended grain is one
+outcome per `case_input_digest`: `ArmObservationV1` is a per-case record, and combined arms
+must retain every contributing component result. It does not define `ArmOutcome`, a
+normalization rule, or a contradiction policy. Those family-neutral semantics therefore
+belong in detection-core and must be validated before the benchmark consumes them.
+
+### Options considered
+
+| Option | Description | Result |
+|---|---|---|
+| Observation-level aggregation | Collapse every case in one arm observation to one outcome | Rejected: destroys per-case lineage and requires undeclared precedence across unrelated cases |
+| Opaque outcome-mapping digest | Keep only `outcome_mapping_digest` and let the caller supply table inputs | Rejected: the mapping identity is authenticated but its application and mixed-record behavior are not replayable |
+| Per-case authenticated projection | Bind a shared case-input identity, exact source-outcome digests, closed policy, normalized outcome, and projection digest before spend | Selected: makes table inputs explicit, replayable, and compatible with the downstream per-case contract |
+
+### Selected semantics
+
+- A component case uses the closed `UNANIMOUS_EVIDENCE` policy. It must contain at least
+  one exact evidence record, and every record must carry the same `NeutralOutcome`.
+- Mixed evidence-record outcomes are invalid evaluation evidence. They never become an
+  implicit majority, precedence result, `INDETERMINATE`, insufficiency, GO, or NO-GO.
+- The component projection binds `case_input_digest`, the canonical evidence-record
+  digests, policy, normalized outcome, and its own digest. Core derives the case-input
+  identity from the canonical nonempty set of validated change-input digests; it is not
+  caller-selected correlation metadata. The observation seals it, the released case
+  carries it, and release validation independently rederives both identities from
+  canonical evidence.
+- A combined case joins the named components by exact `(ScopeKey, case_input_digest)`.
+  Every named component must contribute exactly one case. Component order comes only from
+  `CombinationRuleV3.component_arm_ids`, and the corresponding complete decision-table row
+  determines the combined outcome.
+- Combined lineage retains each component observation, case, outcome projection, outcome,
+  and optional proof candidate independently. Missing, duplicate, extra, reordered,
+  substituted, cross-scope, or contradictory material is invalid.
+- A future non-unanimous projection requires a new named, digest-bound policy and schema
+  review. No generic callback or executable aggregation code enters the core.
+
+### Compatibility and downstream effects
+
+This amendment changes additive, not-yet-exported V3 observation and release digests. V3
+fixtures from Tasks 14 and 15 must be regenerated and their complete authority/spend/release
+graphs revalidated. V2 schemas, bytes, digests, failures, and replay stay frozen. After the
+V3 predecessor is complete, `valid-detection-benchmark` must consume the core projection
+and remove any local ownership of outcome normalization.

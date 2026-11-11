@@ -1,7 +1,7 @@
 {
   "feature_name": "detection-core",
   "created_at": "2026-10-30T13:55:30Z",
-  "updated_at": "2026-11-10T06:56:01Z",
+  "updated_at": "2026-11-11T08:22:15Z",
   "language": "en",
   "phase": "tasks-generated",
   "approvals": {
@@ -19,5 +19,5 @@
     }
   },
   "ready_for_implementation": true,
-  "approval_note": "2026-11-10: The maintainer approved the regenerated merge-mode task plan after the feasibility witness amendment. Requirements, design, and tasks remain approved; Task 13.4 and plan/preflight group 13 have now passed independent implementation review and fresh verification."
+  "approval_note": "2026-11-11: The maintainer approved the fail-closed per-case outcome amendment after Task 15.3 debug exposed an unauthenticated combination input. The amended design derives and revalidates case-input identity, seals unanimous component outcomes, binds combined case lineage, and splits implementation into Tasks 15.3-15.6; requirements, design, and regenerated tasks remain approved after independent review."
 }

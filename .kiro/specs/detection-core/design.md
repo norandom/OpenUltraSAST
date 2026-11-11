@@ -2651,9 +2651,11 @@ canonical, review, custody, readiness, evidence, proof, coverage, budget
   → evaluation_measurement
   → evaluation_plan
   → evaluation_feasibility
+  → evaluation_case_outcome
   → evaluation_observation
   → evaluation_authority
   → evaluation_release
+  → evaluation_combination
   → evaluation_metrics
   → evaluation_report
   → evaluation_replay
@@ -2676,6 +2678,9 @@ New files:
   `EvaluationPlanManifestV3`.
 - `src/openultrasast/core/evaluation_feasibility.py` — per-arm/per-scope threshold,
   minimum-size, and interval-precision witnesses and shared `may_spend` derivation.
+- `src/openultrasast/core/evaluation_case_outcome.py` — closed per-case outcome-projection
+  policies, authenticated projection records, unanimous component normalization, and
+  source-digest rederivation.
 - `src/openultrasast/core/evaluation_observation.py` — sealed observation references,
   reviewed resolver-backed attempt history, retry/disposition evidence, and
   `EvaluationAdmissionManifestV3`.
@@ -2683,6 +2688,8 @@ New files:
   `EvaluationAdmissionAuthorityV3`, shared preparation, and all-arm spend binding.
 - `src/openultrasast/core/evaluation_release.py` — arm-aware released-case bindings,
   proof-candidate continuity, and independently reviewed `AdmissionCaseReleaseV3`.
+- `src/openultrasast/core/evaluation_combination.py` — exact per-case component joins,
+  finite-table replay, combined outcome projections, and component-preserving lineage.
 - `src/openultrasast/core/evaluation_metrics.py` — exact-scope case validation and metric
   derivation, ordinary ecosystem projection, whole-push deduplication, and combination
   preservation.
@@ -2717,8 +2724,10 @@ sequenceDiagram
     Reviewer-->>Run: Plan attestation
     Run->>Core: EvaluationPlanManifestV3
     Core-->>Run: EvaluationFeasibilityV3
-    Run->>Run: Execute every planned arm label blind
-    Run->>Store: Seal every expected observation
+    Run->>Run: Execute component arms label blind
+    Run->>Store: Seal component observations
+    Run->>Core: Derive combined cases from sealed component projections
+    Run->>Store: Seal combined observations
     Run->>Reviewer: Plan observations and disposition payload
     Reviewer-->>Run: Admission attestation
     Run->>Core: EvaluationAdmissionManifestV3
@@ -2732,7 +2741,9 @@ sequenceDiagram
     Core-->>Run: EvaluationReplayV3
 ```
 
-Any insufficient arm/scope ends before execution/spend. Missing, changed, unreadable, or
+Combined-arm observations are deterministic projections of the named component cases; no
+detector is rerun and no caller-supplied aggregate outcome is accepted. Any insufficient
+arm/scope ends before execution/spend. Missing, changed, unreadable, or
 unsealed observations end before preparation. After spend, missing or invalid cases,
 denominator mismatch, or incomplete arms invalidate the evaluation and cannot be reported
 as insufficiency, GO, or NO-GO. The custody writer remains external and releases labels
@@ -2743,7 +2754,7 @@ only to the exact CAS winner.
 | Requirement | Design realization |
 |---|---|
 | 16.1, 16.2, 16.3, 16.4 | Separate V3 facade, exact schema/type validators, no conversion, frozen V2 compatibility suite |
-| 16.5 | Plan declaration plus per-arm V3 baseline binds every listed identity and changes on any plan/configuration mutation |
+| 16.5 | Plan declaration plus per-arm V3 baseline binds every listed identity, including the closed case-outcome projection policy, and changes on any plan/configuration mutation |
 | 16.6 | Typed preflight/impairment/aggregate/report artifacts have no consumer-authority interface; only complete replay authorizes |
 | 17.1, 17.2 | Independently reviewed plan declaration, arm plans, component/combined lineage, and expected slots |
 | 17.3, 17.4 | Complete arm/scope feasibility product and shared `may_spend`; insufficiency prevents preparation |
@@ -2755,7 +2766,7 @@ only to the exact CAS winner.
 | 18.6, 18.7 | Scoped metric numerator/denominator/sample/Wilson fields and aggregate type without gate/decision |
 | 18.8 | Post-spend zero or census mismatch is validation failure before report construction |
 | 19.1, 19.2, 19.3 | Independently reviewed arm-aware V3 release bound to plan, observations, authority and shared spend; V2 type refused |
-| 19.4, 19.5 | Exact component observations/reports and deterministic combination lineage are mandatory and contradiction-checked |
+| 19.4, 19.5 | Exact per-case outcome projections are sealed and release-rederived; complete component cases join by scope/input identity and deterministic table lineage is mandatory and contradiction-checked |
 | 19.6, 19.7, 19.8, 19.9, 19.10 | Pre-release candidate is non-authoritative; post-release proof matches exact candidate/binding; no transfer or mismatch |
 | 19.11 | Planned-arm/report cardinality equality; no result can mask another arm |
 | 20.1, 20.2 | Completed result per arm/scope with GO/NO-GO; insufficiency, impairment, incomplete and invalid remain distinct |
@@ -2853,6 +2864,18 @@ class CombinationOperatorV3(Enum):
 class ProofCandidatePolicyV3(Enum):
     IDENTICAL_COMPONENT_ONLY = "identical_component_only"
 
+class CaseOutcomeProjectionPolicyV3(Enum):
+    UNANIMOUS_EVIDENCE = "unanimous_evidence"
+    DECLARATIVE_COMBINATION_TABLE = "declarative_combination_table"
+
+@dataclass(frozen=True)
+class CaseOutcomeProjectionV3:
+    case_input_digest: str
+    policy: CaseOutcomeProjectionPolicyV3
+    source_outcome_digests: tuple[str, ...]
+    normalized_outcome: NeutralOutcome
+    projection_digest: str
+
 @dataclass(frozen=True)
 class CombinationDecisionRowV3:
     component_outcomes: tuple[NeutralOutcome, ...]
@@ -2869,10 +2892,34 @@ class CombinationRuleV3:
     rule_digest: str
 
 @dataclass(frozen=True)
+class ComponentCaseOutcomeV3:
+    component_arm_id: str
+    scope: ScopeKey
+    case_input_digest: str
+    case_id_digest: str
+    observation_digest: str
+    outcome_projection_digest: str
+    normalized_outcome: NeutralOutcome
+    proof_candidate_digest: str | None
+    component_digest: str
+
+@dataclass(frozen=True)
+class CombinedCaseOutcomeV3:
+    key: ArmScopeKey
+    case_id_digest: str
+    case_input_digest: str
+    observation_digest: str
+    components: tuple[ComponentCaseOutcomeV3, ...]
+    decision_row_digest: str
+    normalized_outcome: NeutralOutcome
+    retained_proof_candidate_digest: str | None
+    combined_projection_digest: str
+
+@dataclass(frozen=True)
 class CombinationLineageV3:
     rule: CombinationRuleV3
     component_observation_digests: tuple[str, ...]
-    retained_proof_candidate_digests: tuple[str, ...]
+    combined_cases: tuple[CombinedCaseOutcomeV3, ...]
     lineage_digest: str
 
 @dataclass(frozen=True)
@@ -2890,6 +2937,7 @@ class ArmConfigurationV3:
     registered_budget_digest: str
     execution_identity: str
     outcome_mapping_digest: str
+    case_outcome_policy: CaseOutcomeProjectionPolicyV3
     combination_rule: CombinationRuleV3 | None
     configuration_identity_digest: str
 
@@ -2968,6 +3016,30 @@ class EvaluationFeasibilityV3:
     feasibility_digest: str
 ```
 
+Every component configuration must select `UNANIMOUS_EVIDENCE`; every combined
+configuration must select `DECLARATIVE_COMBINATION_TABLE` and carry its complete
+`CombinationRuleV3`. The selected policy is part of the arm configuration and baseline
+identity. `outcome_mapping_digest` still identifies the family-specific mapping into the
+closed neutral vocabulary; it does not authorize aggregation across evidence records.
+
+A component `CaseOutcomeProjectionV3` has a nonempty canonical
+`source_outcome_digests` tuple containing the exact evidence-record digests. Validation
+re-resolves those records and requires every `EvidenceRecord.decision.outcome` to be the
+same exact `NeutralOutcome`. Mixed outcomes are invalid evidence and do not fall back to a
+majority, precedence rule, `INDETERMINATE`, insufficiency, or a gate decision. A combined
+projection instead uses the ordered component projection digests as its sources and is
+valid only when its outcome is the exact registered decision-table result. Adding any
+other projection behavior requires a new named policy and a baseline-changing schema
+amendment.
+
+`case_input_digest` is not caller-selected correlation metadata. Core derives it as the
+canonical content digest of the nonempty, unique, sorted tuple of
+`EvidenceRecord.packet.provenance.change_input_digest` values after full evidence-input
+validation and exact equality with each named change input. The sealed observation,
+released case, released binding, and projection must all carry that exact derived value.
+Release validation rederives it from canonical evidence before any cross-arm join. Thus
+two arms correlate only when they processed the same authenticated change-input set.
+
 The feasibility rows equal the canonical product of every arm and its exact claimed scopes.
 Every row rederives minimum sizes, threshold reachability, and interval precision from the
 reviewed label-blind census. `may_spend` is true only when every row is feasible.
@@ -3009,8 +3081,10 @@ class ObservationAccessPolicyV3:
 @dataclass(frozen=True)
 class ObservationCaseRefV3:
     case_id_digest: str
+    case_input_digest: str
     underlying_push_digest: str
     result_digest: str
+    outcome_projection: CaseOutcomeProjectionV3
     proof_candidate_digest: str | None
 
 @dataclass(frozen=True)
@@ -3168,6 +3242,8 @@ class ReleasedArmCaseBindingV3:
     observation_digest: str
     underlying_push_digest: str
     case_id_digest: str
+    case_input_digest: str
+    outcome_projection: CaseOutcomeProjectionV3
     role: AdmissionCaseRole
     pair_id_digest: str | None
     case_result_digest: str
@@ -3196,6 +3272,8 @@ class ArmAdmissionCaseResultV3:
     observation_digest: str
     underlying_push_digest: str
     case_id_digest: str
+    case_input_digest: str
+    outcome_projection: CaseOutcomeProjectionV3
     role: AdmissionCaseRole
     pair_id_digest: str | None
     evidence_inputs: tuple[EvidenceValidationInput, ...]
@@ -3220,14 +3298,32 @@ class ArmAdmissionCasesV3:
     cases_digest: str
 ```
 
-The release is the sole post-spend authority for arm, scope, role, pair, result, evidence,
-inputs, and proof-candidate association. It is an exact V3 type; V2 release values and
-subclasses are refused. Component arms retain their own cases, metrics, gates, and reports.
-A combined arm's `CombinationLineageV3` names every component arm, observation digest,
-combination rule, and retained candidate. The rule is a finite canonical decision table
-over normalized component observation outcomes with a fixed identical-candidate-only proof
-policy. Core replays the table; arbitrary combination code is not accepted. Missing, extra,
-replaced, or contradictory component material invalidates the combined evaluation.
+The release is the sole post-spend authority for arm, scope, shared case input, role, pair,
+result, outcome projection, evidence, inputs, and proof-candidate association. It is an
+exact V3 type; V2 release values and subclasses are refused. For a component case, release
+validation independently rederives `outcome_projection` from the canonical evidence
+records and requires exact equality with both the sealed observation case and released
+binding. It also rederives `case_input_digest` from the canonical nonempty change-input
+digest set and requires exact equality through those same artifacts. This prevents a
+self-consistent post-seal outcome or case-correlation substitution.
+
+Component arms retain their own cases, metrics, gates, and reports. Combination operates
+per case, never per observation set: for every combined scope, core joins exactly one case
+from every named component arm by `(ScopeKey, case_input_digest)`. The participating case
+sets must be identical and complete, and release validation rejects duplicate
+`(ArmScopeKey, case_input_digest)` keys before replay. Component order is exactly
+`CombinationRuleV3.component_arm_ids`; callers cannot select or reorder table inputs.
+`CombinedCaseOutcomeV3` authenticates every contributing observation, case, projection,
+neutral outcome, selected table row, combined outcome, and retained candidate. The
+combined projection uses those ordered component projection digests as its sources.
+`CombinationLineageV3` binds all such cases and the exact component observation set.
+Each combined lineage row also carries the combined case's own `case_id_digest` and
+`observation_digest`, which must equal exactly one sealed and released combined case with
+the same key, derived `case_input_digest`, and combined projection; neither side may exist
+without the other.
+Arbitrary combination code is not accepted. Missing, extra, duplicate, replaced,
+reordered, cross-scope, cross-input, or contradictory component material invalidates the
+combined evaluation rather than producing a quality decision.
 
 A proof candidate is non-authoritative before release. After release, the existing proof
 validator applies only when family, scope, pair roles, inputs, location, differential,
@@ -3416,9 +3512,10 @@ digests. V3 replaces only the admission evidence source; it does not weaken 13.2
   `may_spend=False`; no preparation can be constructed.
 - Unreadable observation bytes, unknown/mixed versions, stale custody, disposition change,
   or incomplete slots are validation errors before spend.
-- After spend, missing cases/reports, invalid release/proof, denominator zero/mismatch,
-  skipped stages, or unread inputs invalidate completion. They do not become insufficiency
-  or quality decisions.
+- After spend, missing cases/reports, empty or mixed component evidence outcomes, invalid
+  projection/combination/release/proof, denominator zero/mismatch, skipped stages, or
+  unread inputs invalidate completion. They do not become insufficiency or quality
+  decisions.
 - GO/NO-GO exists only inside completed `ScopeAdmissionResultV3` objects.
 - Aggregate and per-arm report objects have no consumer-authorization method.
 
@@ -3442,8 +3539,10 @@ digests. V3 replaces only the admission evidence source; it does not weaken 13.2
   cross-ecosystem refusal, exact precision, Wilson fields, whole-push deduplication,
   aggregate weights/no decision, and post-spend zero/mismatch invalidity (`18.1–18.8`).
 - Release/combinations/proof: reject V2 release, role/pair/scope/arm/input/result swaps,
-  missing components, contradictory combined results, candidate fabrication/transfer, and
-  invalid attachments; retain absent proof as not demonstrated (`19.1–19.11`).
+  empty or mixed evidence outcomes, sealed/released projection mismatch, cross-arm
+  case-input substitution, incomplete or duplicate component case sets, every reordered or
+  incorrect decision-table row, candidate fabrication/transfer, and invalid attachments;
+  retain absent proof as not demonstrated (`19.1–19.11`).
 - Reports/replay: derive every scoped GO/NO-GO, preserve whole operational evidence,
   reject missing gate/arm/scope/custody/release/lineage, rederive all source values, and
   authorize consumers only from complete replay (`20.1–20.8`).
@@ -3456,11 +3555,13 @@ digests. V3 replaces only the admission evidence source; it does not weaken 13.2
 1. Freeze V2 accepted outputs and failure behavior.
 2. Add V3 measurement identities, plan declaration, exact policies, and preflight.
 3. Add sealed observations, reviewed admission manifest, authority, and spend binding.
-4. Add V3 release, exact metrics, reports, and complete replay.
+4. Add authenticated per-case outcome projection, V3 release, exact per-case combination,
+   metrics, reports, and complete replay.
 5. Add the separate fitted-component V3 consumer and strict schema router.
 6. Run synthetic multi-arm conformance and independent validation.
 7. Unblock valid-detection-benchmark task generation only after the predecessor schema
-   `openultrasast.detection-core.evaluation-admission.v3` is exported and validated.
+   `openultrasast.detection-core.evaluation-admission.v3` is exported and validated; the
+   benchmark consumes core projections and does not define a second normalization policy.
 
 There is no V2-to-V3 migration. Existing V2 artifacts remain replayable under V2; every V3
 evaluation starts a new baseline. Rollback removes the additive V3 facade/modules and leaves

@@ -575,15 +575,34 @@ contract work and use synthetic/in-memory workflow boundaries only.
   - Done when a canonical multi-scope release passes and a mutation matrix proves every association mismatch is invalid rather than a failed quality gate.
   - _Requirements: 18.2, 18.5, 19.2, 19.10_
   - _Boundary: Released Case Validation_
-- [ ] 15.3 Replay combined-arm rules and preserve component observation lineage
-  - Recompute combined observation outcomes from the registered finite decision table and exact component observation digests.
-  - Preserve each component arm's observation identity and outcome independently of the combined result; defer completed metric, gate, decision, and report preservation to replay assembly.
-  - Refuse missing, extra, replaced, reordered, or contradictory component material and any combined arm whose lineage differs from the reviewed plan.
-  - Done when the registered combined arm replays deterministically from exact component observations and no component observation can hide another component's absence, contradiction, or lineage mismatch.
+- [ ] 15.3 Define the closed per-case outcome projection contract
+  - Add exact `UNANIMOUS_EVIDENCE` and `DECLARATIVE_COMBINATION_TABLE` policies; require component and combined configurations respectively to use the matching kind-specific policy and bind it into configuration and baseline identity.
+  - Derive `case_input_digest` only from the canonical nonempty set of validated change-input digests, never from caller-selected correlation metadata.
+  - Define one canonical projection containing the derived case-input identity, exact source-outcome digests, policy, normalized `NeutralOutcome`, and projection digest.
+  - For component cases, require at least one evidence record and exact outcome unanimity; refuse empty or mixed outcomes rather than selecting a majority, precedence result, indeterminate outcome, insufficiency, GO, or NO-GO.
+  - Done when the policy/configuration and projection module derives deterministic identities and its unit mutation matrix rejects kind-policy mismatch, source changes, empty evidence, and every mixed-outcome permutation while V2 remains unchanged.
+  - _Requirements: 16.5, 19.2, 19.4, 19.5_
+  - _Boundary: Case Outcome Projection Contract_
+  - _Depends: 15.1, 15.2_
+- [ ] 15.4 Bind case-input and outcome projections through observation and release
+  - Bind each sealed observation case, released case, and released binding to the exact derived `case_input_digest` and `CaseOutcomeProjectionV3`.
+  - Independently rederive the case-input identity and unanimous component projection from canonical released evidence, then require exact equality with the trusted sealed observation and reviewed release.
+  - Refuse substituted, reordered, duplicated, or self-consistently rehashed projection/case-input material before scoring; enforce uniqueness for every released `(ArmScopeKey, case_input_digest)`.
+  - Regenerate V3 observation/release fixtures and revalidate the complete authority, preparation, spend, and release graph while preserving every frozen V2 byte and digest.
+  - Done when each released component case has one sealed and independently rederived normalized outcome, every observation/release mutation fails before combination, and the broader V3 trust graph remains valid.
+  - _Requirements: 17.5, 19.1, 19.2, 19.5, 20.8_
+  - _Boundary: Case Outcome Projection Integration_
+  - _Depends: 15.3_
+- [ ] 15.5 Replay combined-arm rules per case and preserve component lineage
+  - Join exactly one released case from every named component arm by exact `(ScopeKey, case_input_digest)` and require identical complete case sets.
+  - Order component projections only by the registered `component_arm_ids`, replay the complete finite decision table, and authenticate the selected row, combined outcome, and combined projection for every case.
+  - Preserve each component arm's observation, case, projection, normalized outcome, and optional candidate independently of the combined result; bind each lineage row one-to-one to the combined arm's own sealed and released case and observation.
+  - Refuse missing, extra, duplicate, replaced, reordered, cross-scope, cross-input, or contradictory component material and any combined arm whose lineage differs from the reviewed plan.
+  - Done when every registered combined case replays deterministically from exact component projections and no component case can hide another component's absence, contradiction, or lineage mismatch.
   - _Requirements: 19.4, 19.5, 19.11_
   - _Boundary: Combination Validation_
-  - _Depends: 15.1, 15.2_
-- [ ] 15.4 Enforce proof-candidate identity and prevent proof transfer
+  - _Depends: 15.4_
+- [ ] 15.6 Enforce proof-candidate identity and prevent proof transfer
   - Keep every label-blind proof candidate non-authoritative until the V3 release establishes its exact arm, family, scope, roles, inputs, and location.
   - Apply proof-backed status only through the existing trusted differential-proof validator and the identical released candidate.
   - Permit a combined arm to retain only a candidate already present in its named component observation; prevent creation, substitution, and cross-arm transfer.
@@ -591,7 +610,7 @@ contract work and use synthetic/in-memory workflow boundaries only.
   - Done when valid released proof attaches once, absent proof remains non-demonstrated, and the complete transfer/mismatch matrix is refused.
   - _Requirements: 19.6, 19.7, 19.8, 19.9, 19.10_
   - _Boundary: Proof Continuity_
-  - _Depends: 15.3_
+  - _Depends: 15.5_
 
 - [ ] 16. Derive exact scoped metrics and completed reports
 - [ ] 16.1 Partition quality evidence by exact arm, family, and ecosystem
@@ -601,7 +620,7 @@ contract work and use synthetic/in-memory workflow boundaries only.
   - Done when a multi-arm, multi-scope case set yields isolated partitions and any cross-arm, cross-family, or cross-ecosystem contribution is refused.
   - _Requirements: 18.1, 18.2, 18.4_
   - _Boundary: Evaluation Scoped Metrics_
-  - _Depends: 15.2, 15.4_
+  - _Depends: 15.4, 15.6_
 - [ ] 16.2 Project ordinary pushes by ecosystem and deduplicate whole coverage
   - Count each eligible ordinary push once for every family claimed by the arm in the push's reviewed ecosystem and never in another ecosystem.
   - Deduplicate one underlying push once in whole-population coverage even when it contributes to several verified scope denominators.
@@ -640,7 +659,7 @@ contract work and use synthetic/in-memory workflow boundaries only.
   - Done when the complete graph produces one deterministic replay digest and every omitted or substituted component prevents construction.
   - _Requirements: 19.4, 19.5, 19.11, 20.4, 20.5_
   - _Boundary: Evaluation Replay_
-  - _Depends: 15.3, 16.4, 16.5_
+  - _Depends: 15.5, 16.4, 16.5_
 - [ ] 17.2 Revalidate replay from canonical source artifacts and current trust state
   - Resolve the complete attempt chain and observation/review content again, revalidate current custody, and rederive every identity, count, metric, gate, decision, report, lineage, and replay digest.
   - Require exact equality with the carried values and refuse coordinated rehashing, stale external state, unknown/mixed versions, and partial roots.
@@ -683,7 +702,7 @@ contract work and use synthetic/in-memory workflow boundaries only.
   - _Boundary: V3 Pre-Spend and Compatibility Validation_
   - _Depends: 17.3_
 - [ ] 18.3 (P) Run the adversarial post-spend, metric, combination, and replay matrix
-  - Exercise V2 release substitution, arm/scope/role/pair/result/input swaps, missing components, contradictory combinations, proof transfer, absent/inconclusive proof, cross-ecosystem ordinary projection, duplicate whole coverage, zero/mismatched denominators, missing gates, and incomplete reports/replay.
+  - Exercise V2 release substitution, arm/scope/role/pair/result/input swaps, empty or mixed evidence outcomes, case-input/projection substitutions, missing or duplicate component cases, contradictory combinations, proof transfer, absent/inconclusive proof, cross-ecosystem ordinary projection, duplicate whole coverage, zero/mismatched denominators, missing gates, and incomplete reports/replay.
   - Verify invalid post-spend evidence never becomes insufficiency, GO, NO-GO, aggregate authority, or consumer eligibility.
   - Revalidate every complete replay from source artifacts and current custody rather than trusting carried summaries.
   - Done when the valid control replay reproduces exactly and every post-spend mutation is refused before authorization without hiding another arm's status.
@@ -722,6 +741,7 @@ contract work and use synthetic/in-memory workflow boundaries only.
 - Task 14.4 validates the complete manifest/authority/preparation graph before external CAS and again after append, so only the current direct available-to-spent receipt can bind every planned baseline and self-consistent subset authorities remain unspendable.
 - Task 15.1 added exact V3 arm-case and independently reviewed release contracts that rebind the complete plan-to-spend graph, trusted observations, case cardinality, and nonzero read/execution evidence before metrics.
 - Task 15.2 authenticates the reviewed multi-scope release and sealed observation graph before rederiving every case association, so fully rehashed result, push, pair, input, and cross-scope substitutions fail before metrics.
+- Task 15.3 debug established that combination replay lacked a canonical authenticated component-outcome projection. The approved amendment inserts the fail-closed projection contract as Task 15.3, observation/release integration as Task 15.4, per-case table replay as Task 15.5, and proof continuity as Task 15.6.
 - The frozen migration inventory is a reviewed worklist with stable identities, not a semantic-use census. It may only close entries as `v2_migrated` or `retired`; it never grows, deletes entries, or proves absence by interpreting Python flow.
 - Cutover is proved by explicit syntax checks plus deletion of the compatibility and v1 write capability. No task extends the discarded alias/data-flow interpreter.
 - Task 10.5 debug established that executable owner probes cannot compensate for blanket source-closure acceptance; resumed hunt attempts also require collision-resistant attempt identity and create-only persistence before handoff validation is authoritative.
