@@ -77,8 +77,9 @@ def _distinct_evidence_input(
     *,
     suffix: str = "",
     outcome: NeutralOutcome | None = None,
+    shared_change: bool = False,
 ):
-    label = f"v3-case-input-{case_index}{suffix}"
+    label = f"v3-case-input-{case_index}" if shared_change else f"v3-case-input-{case_index}{suffix}"
     content = canonical.canonical_bytes(label)
     reference, change_resolver = stored_artifact(content, artifact_id=label)
     contract_content = canonical.canonical_bytes(family._contract_value(contract))
@@ -335,7 +336,7 @@ def _contract_for_scope(context_case, scope: ScopeKey, *, family_version: str | 
     return matches[0]
 
 
-def _case_evidence_inputs(original, index, arm_id, scope, context_case, evidence_mutation, summary_mutation):
+def _case_evidence_inputs(original, index, arm_id, scope, context_case, evidence_mutation, summary_mutation, aligned_combination_cases):
     contract = _contract_for_scope(context_case, scope)
     ecosystem = scope.ecosystem
     if evidence_mutation == "python_under_javascript" and arm_id == "arm-b" and index == 0:
@@ -346,7 +347,13 @@ def _case_evidence_inputs(original, index, arm_id, scope, context_case, evidence
     satisfied = summary_mutation in {"omitted_satisfaction", "substituted_satisfaction"} and arm_id == "arm-a" and index == 0
     outcome = NeutralOutcome.SATISFIED if satisfied else None
     evidence_input, artifacts = _distinct_evidence_input(
-        original.evidence_inputs[0], index, contract, ecosystem, suffix=f"-{arm_id}", outcome=outcome
+        original.evidence_inputs[0],
+        index,
+        contract,
+        ecosystem,
+        suffix=f"-{arm_id}",
+        outcome=outcome,
+        shared_change=aligned_combination_cases,
     )
     evidence_inputs = (evidence_input,)
     if evidence_mutation == "mixed_contracts" and arm_id == "arm-a" and index == 0:
@@ -408,10 +415,18 @@ def _draft_case(
     projection_mutation,
     evidence_mutation,
     summary_mutation,
+    aligned_combination_cases,
 ):
     scope = configuration.exact_scopes[0]
     evidence_inputs, artifacts, contract = _case_evidence_inputs(
-        original, index, arm_id, scope, authority_case[0], evidence_mutation, summary_mutation
+        original,
+        index,
+        arm_id,
+        scope,
+        authority_case[0],
+        evidence_mutation,
+        summary_mutation,
+        aligned_combination_cases,
     )
     legacy = replace(
         original,
@@ -431,6 +446,11 @@ def _draft_case(
     legacy = _canonical_legacy_case(legacy, contract, verdict_records)
     component = derive_component_case_outcome_projection(tuple(item.record for item in evidence_inputs))
     projection = _case_projection(configuration, component, arm_id, index, first_component_arm, projection_mutation)
+    candidate = _proof_candidate(legacy, arm_id, scope, index)
+    return _arm_case_result(legacy, candidate, configuration, projection, arm_id, index), artifacts
+
+
+def _proof_candidate(legacy, arm_id, scope, index):
     change = legacy.evidence_inputs[0].record.packet.provenance.change_input_digest
     candidate = ProofCandidateIdentityV3(
         arm_id,
@@ -441,8 +461,7 @@ def _draft_case(
         change,
         "0" * 64,
     )
-    candidate = replace(candidate, candidate_digest=derive_proof_candidate_identity_digest(candidate))
-    return _arm_case_result(legacy, candidate, configuration, projection, arm_id, index), artifacts
+    return replace(candidate, candidate_digest=derive_proof_candidate_identity_digest(candidate))
 
 
 def _arm_case_result(legacy, candidate, configuration, projection, arm_id, index):
@@ -502,7 +521,9 @@ def _mutated_summary_case(draft_cases, mutation):
     return {**draft_cases, "arm-a": (changed,) + draft_cases["arm-a"][1:]}
 
 
-def _draft_cases(setup, authority_case, configurations, projection_mutation, evidence_mutation, summary_mutation):
+def _draft_cases(
+    setup, authority_case, configurations, projection_mutation, evidence_mutation, summary_mutation, aligned_combination_cases
+):
     first_component_arm = next(item.arm_id for item in configurations.values() if item.kind is ArmKindV3.COMPONENT)
     draft_cases = {}
     extra_artifacts = {}
@@ -519,11 +540,48 @@ def _draft_cases(setup, authority_case, configurations, projection_mutation, evi
                 projection_mutation,
                 evidence_mutation,
                 summary_mutation,
+                aligned_combination_cases,
             )
             cases.append(case)
             extra_artifacts.update(artifacts)
         draft_cases[arm_id] = tuple(cases)
     return _mutated_summary_case(draft_cases, summary_mutation), extra_artifacts
+
+
+def _align_combined_case_projections(draft_cases, configurations):
+    aligned = dict(draft_cases)
+    for configuration in configurations.values():
+        if configuration.kind is not ArmKindV3.COMBINED:
+            continue
+        rule = configuration.combination_rule
+        assert rule is not None
+        combined = []
+        for index, case in enumerate(draft_cases[configuration.arm_id]):
+            components = tuple(draft_cases[arm_id][index] for arm_id in rule.component_arm_ids)
+            case_inputs = {item.case_input_digest for item in (*components, case)}
+            assert len(case_inputs) == 1
+            outcomes = tuple(item.outcome_projection.normalized_outcome for item in components)
+            row = next(item for item in rule.decision_rows if item.component_outcomes == outcomes)
+            projection = CaseOutcomeProjectionV3(
+                case.case_input_digest,
+                CaseOutcomeProjectionPolicyV3.DECLARATIVE_COMBINATION_TABLE,
+                tuple(item.outcome_projection.projection_digest for item in components),
+                row.combined_outcome,
+                "",
+            )
+            combined.append(replace(case, outcome_projection=projection))
+        aligned[configuration.arm_id] = tuple(combined)
+    return aligned
+
+
+def _shared_underlying_digests(draft_cases):
+    return {
+        arm_id: tuple(
+            replace(case, underlying_push_digest=_digest(f"underlying-push-{case.key.scope.ecosystem}-{index}"))
+            for index, case in enumerate(cases)
+        )
+        for arm_id, cases in draft_cases.items()
+    }
 
 
 def _case_refs(cases):
@@ -646,22 +704,25 @@ def _bundle(
     evidence_mutation: str | None = None,
     summary_mutation: str | None = None,
     shared_underlying_by_ecosystem: bool = False,
+    aligned_combination_cases: bool = False,
 ):
     setup = _setup()
     authority_case = authority_case or _reference_authority_case()
     manifest = authority_case[1]
     configurations = {item.arm_id: item for item in manifest.plan_manifest.declaration.arm_configurations}
     draft_cases, extra_artifacts = _draft_cases(
-        setup, authority_case, configurations, projection_mutation, evidence_mutation, summary_mutation
+        setup,
+        authority_case,
+        configurations,
+        projection_mutation,
+        evidence_mutation,
+        summary_mutation,
+        aligned_combination_cases,
     )
+    if aligned_combination_cases:
+        draft_cases = _align_combined_case_projections(draft_cases, configurations)
     if shared_underlying_by_ecosystem:
-        draft_cases = {
-            arm_id: tuple(
-                replace(case, underlying_push_digest=_digest(f"underlying-push-{case.key.scope.ecosystem}-{index}"))
-                for index, case in enumerate(cases)
-            )
-            for arm_id, cases in draft_cases.items()
-        }
+        draft_cases = _shared_underlying_digests(draft_cases)
 
     artifacts = {**authority_case[5].artifacts, **setup.resolver.artifacts, **extra_artifacts}
     sealed, observations, observation_by_arm = _sealed_observations(manifest, configurations, draft_cases, artifacts)

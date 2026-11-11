@@ -635,7 +635,7 @@ contract work and use synthetic/in-memory workflow boundaries only.
   - Done when complete nonzero scoped metrics match independent count fixtures and every zero/mismatch mutation fails before report construction.
   - _Requirements: 18.1, 18.6, 18.8_
   - _Boundary: Evaluation Metric Derivation_
-- [ ] 16.4 Derive completed per-scope decisions and per-arm operational evidence
+- [x] 16.4 Derive completed per-scope decisions and per-arm operational evidence
   - Derive instrument, budget, readiness, and quality gates for every exact arm-scope result from canonical evidence.
   - Emit GO or NO-GO only when the scope evaluation is complete; keep insufficiency, unread input, skipped stage, incomplete arm, and instrument impairment outside quality decisions.
   - Preserve per-arm completed and deferred case identities, stage funnel, instrument/model failures, runtime, and closed degradation reasons separately from shared whole coverage.
@@ -749,6 +749,7 @@ contract work and use synthetic/in-memory workflow boundaries only.
 - Task 16.1 revalidates exact released record scope and canonically rederives verdicts and coverage before producing non-authorizing arm-family-ecosystem partitions, preventing packet, claim, satisfaction, silence, funnel, pair, and precision evidence from crossing scope boundaries.
 - Task 16.2 reconciles exact ordinary-push identity sets within each reviewed ecosystem, refuses cross-ecosystem reuse, and derives whole-population coverage from the globally deduplicated released push union.
 - Task 16.3 derives the complete seven-metric bundle with fixed algebra and Wilson intervals only after exact census and released-lineage reconciliation, treating zero denominators, missing metrics, or inconsistent projections as invalid evidence.
+- Task 16.4 emits non-authorizing completed scope reports only after canonical gate, operational, observation, release, and combination-lineage replay; incomplete or impaired measurement remains outside GO/NO-GO.
 - The frozen migration inventory is a reviewed worklist with stable identities, not a semantic-use census. It may only close entries as `v2_migrated` or `retired`; it never grows, deletes entries, or proves absence by interpreting Python flow.
 - Cutover is proved by explicit syntax checks plus deletion of the compatibility and v1 write capability. No task extends the discarded alias/data-flow interpreter.
 - Task 10.5 debug established that executable owner probes cannot compensate for blanket source-closure acceptance; resumed hunt attempts also require collision-resistant attempt identity and create-only persistence before handoff validation is authoritative.
