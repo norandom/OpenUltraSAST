@@ -701,7 +701,7 @@ contract work and use synthetic/in-memory workflow boundaries only.
   - _Requirements: 16.1, 16.2, 16.3, 16.4, 16.5, 16.6, 17.2, 17.4, 17.6, 17.8, 17.9, 17.10, 17.11, 17.12, 20.2, 20.8_
   - _Boundary: V3 Pre-Spend and Compatibility Validation_
   - _Depends: 17.3_
-- [ ] 18.3 (P) Run the adversarial post-spend, metric, combination, and replay matrix
+- [x] 18.3 (P) Run the adversarial post-spend, metric, combination, and replay matrix
   - Exercise V2 release substitution, arm/scope/role/pair/result/input swaps, empty or mixed evidence outcomes, case-input/projection substitutions, missing or duplicate component cases, contradictory combinations, proof transfer, absent/inconclusive proof, cross-ecosystem ordinary projection, duplicate whole coverage, zero/mismatched denominators, missing gates, and incomplete reports/replay.
   - Verify invalid post-spend evidence never becomes insufficiency, GO, NO-GO, aggregate authority, or consumer eligibility.
   - Revalidate every complete replay from source artifacts and current custody rather than trusting carried summaries.
@@ -757,6 +757,7 @@ contract work and use synthetic/in-memory workflow boundaries only.
 - Task 17.4 validates the complete replay before authorizing one exact GO arm-scope fitted component and recursively closes fitted, probe, lineage, and holdout evidence while preserving V2 consumer behavior.
 - Task 18.1 proves the public V3 facade end to end across two component arms, one combined arm, two family/ecosystem scopes, one shared spend, complete replay validation, ordinary projection/whole deduplication, and exact fitted GO selection.
 - Task 18.2 proves exact owning-layer pre-spend and version refusals with a connected synthetic downstream driver, loud input-read instrumentation, frozen V2 outputs, custody-preserving insufficiency, and zero detector/label/result/quality effects after rejection.
+- Task 18.3 proves exact owner-layer post-spend refusals across release, projection, combination, proof, metrics, reports, replay, current source/custody, aggregate, and fitted boundaries with connected authorization-effect instrumentation and all-arm visibility.
 - The frozen migration inventory is a reviewed worklist with stable identities, not a semantic-use census. It may only close entries as `v2_migrated` or `retired`; it never grows, deletes entries, or proves absence by interpreting Python flow.
 - Cutover is proved by explicit syntax checks plus deletion of the compatibility and v1 write capability. No task extends the discarded alias/data-flow interpreter.
 - Task 10.5 debug established that executable owner probes cannot compensate for blanket source-closure acceptance; resumed hunt attempts also require collision-resistant attempt identity and create-only persistence before handoff validation is authoritative.
