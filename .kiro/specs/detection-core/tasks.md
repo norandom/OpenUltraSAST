@@ -684,7 +684,7 @@ contract work and use synthetic/in-memory workflow boundaries only.
   - _Boundary: Fitted Consumer V3_
   - _Depends: 17.2_
 
-- [ ] 18. Validate the V3 predecessor end to end
+- [x] 18. Validate the V3 predecessor end to end
 - [x] 18.1 Run a synthetic multi-arm, multi-family evaluation through one shared spend
   - Use at least two component arms and one combined arm across at least two families and two ecosystems with multi-scope fixes and representative ordinary pushes.
   - Prove nonzero reads, reviewed plan, exact preflight, sealed observations, reviewed attempt history, one preparation/receipt, V3 release, scoped reports, complete replay, and exact fitted selection.
@@ -717,7 +717,7 @@ contract work and use synthetic/in-memory workflow boundaries only.
   - _Requirements: 16.2, 20.6, 20.8_
   - _Boundary: V3 Boundary and Performance Validation_
   - _Depends: 18.1, 18.2, 18.3_
-- [ ] 18.5 Run the final compatibility, regression, and schema-export gate
+- [x] 18.5 Run the final compatibility, regression, and schema-export gate
   - Run the V2 golden suite, every V3 unit/integration/adversarial suite, and the existing core regression suite without consuming a real admission population.
   - Prove all fixtures are readable and nonzero and the exact `openultrasast.detection-core.evaluation-admission.v3` schema is publicly exported.
   - Done when all gates pass, V2 outputs remain frozen, validation stays bounded by supplied artifacts, and the validated predecessor is ready for downstream benchmark task generation.
@@ -759,6 +759,7 @@ contract work and use synthetic/in-memory workflow boundaries only.
 - Task 18.2 proves exact owning-layer pre-spend and version refusals with a connected synthetic downstream driver, loud input-read instrumentation, frozen V2 outputs, custody-preserving insufficiency, and zero detector/label/result/quality effects after rejection.
 - Task 18.3 proves exact owner-layer post-spend refusals across release, projection, combination, proof, metrics, reports, replay, current source/custody, aggregate, and fitted boundaries with connected authorization-effect instrumentation and all-arm visibility.
 - Task 18.4 enforces exact dependency and ownership boundaries across absolute, relative, package-root, wildcard, and near-prefix imports; validates genuine 1/2/4 replay-graph growth with connected bounded operation counts; and keeps all V3 validators within complexity caps.
+- Task 18.5 closes the V3 predecessor with a non-circular classified input census, measured synthetic in-memory runtime provenance, exact frozen-V2/V3/core regression inventories, and the public schema export, without consuming a real admission population.
 - The frozen migration inventory is a reviewed worklist with stable identities, not a semantic-use census. It may only close entries as `v2_migrated` or `retired`; it never grows, deletes entries, or proves absence by interpreting Python flow.
 - Cutover is proved by explicit syntax checks plus deletion of the compatibility and v1 write capability. No task extends the discarded alias/data-flow interpreter.
 - Task 10.5 debug established that executable owner probes cannot compensate for blanket source-closure acceptance; resumed hunt attempts also require collision-resistant attempt identity and create-only persistence before handoff validation is authoritative.
