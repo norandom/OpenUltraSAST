@@ -209,47 +209,50 @@ class CombinationLineageV3(EvaluationV3Contract, NonAuthorizingV3):
         if type(self.rule) is not CombinationRuleV3:
             raise CombinationValidationError("lineage rule must use exact CombinationRuleV3")
         self.rule.__post_init__()
-        if (
-            type(self.combined_cases) is not tuple
-            or not self.combined_cases
-            or any(type(item) is not CombinedCaseOutcomeV3 for item in self.combined_cases)
-        ):
-            raise CombinationValidationError("lineage combined cases must be a nonempty exact tuple")
-        for item in self.combined_cases:
-            item.__post_init__()
-            if item.key.arm_id != self.rule.combined_arm_id:
-                raise CombinationValidationError("lineage combined case belongs to another arm")
-            if tuple(component.component_arm_id for component in item.components) != self.rule.component_arm_ids:
-                raise CombinationValidationError("lineage components differ from the registered rule")
-            decision = _decision_row(self.rule, item.components)
-            if (item.decision_row_digest, item.normalized_outcome) != (decision.row_digest, decision.combined_outcome):
-                raise CombinationValidationError("lineage combined outcome differs from deterministic table replay")
-            projection = CaseOutcomeProjectionV3(
-                item.case_input_digest,
-                CaseOutcomeProjectionPolicyV3.DECLARATIVE_COMBINATION_TABLE,
-                tuple(component.outcome_projection_digest for component in item.components),
-                decision.combined_outcome,
-                "",
-            )
-            if item.combined_projection_digest != projection.projection_digest:
-                raise CombinationValidationError("lineage combined projection differs from deterministic table replay")
-        order = tuple(
-            sorted(
-                self.combined_cases,
-                key=lambda item: (item.key.scope.family_id, item.key.scope.ecosystem, item.case_input_digest),
-            )
-        )
-        keys = tuple((item.key.scope, item.case_input_digest) for item in self.combined_cases)
-        if self.combined_cases != order or len(set(keys)) != len(keys):
-            raise CombinationValidationError("lineage combined cases must be unique and canonical")
-        expected_observations = _component_observations(self.rule, self.combined_cases)
-        if type(self.component_observation_digests) is not tuple or self.component_observation_digests != expected_observations:
-            raise CombinationValidationError("lineage component observation set is incomplete or non-canonical")
-        if len(set(self.component_observation_digests)) != len(self.component_observation_digests):
-            raise CombinationValidationError("lineage component observations must be unique across arms")
-        for digest in self.component_observation_digests:
-            _digest(digest, "component observation digest")
+        _validate_lineage_cases(self.rule, self.combined_cases)
+        _validate_lineage_observations(self.rule, self.combined_cases, self.component_observation_digests)
         _bind(self, "lineage_digest", canonical.content_digest(_value("combination_lineage", _lineage_payload(self))))
+
+
+def _validate_lineage_case(rule: CombinationRuleV3, item: CombinedCaseOutcomeV3) -> None:
+    item.__post_init__()
+    if item.key.arm_id != rule.combined_arm_id:
+        raise CombinationValidationError("lineage combined case belongs to another arm")
+    if tuple(component.component_arm_id for component in item.components) != rule.component_arm_ids:
+        raise CombinationValidationError("lineage components differ from the registered rule")
+    decision = _decision_row(rule, item.components)
+    if (item.decision_row_digest, item.normalized_outcome) != (decision.row_digest, decision.combined_outcome):
+        raise CombinationValidationError("lineage combined outcome differs from deterministic table replay")
+    projection = CaseOutcomeProjectionV3(
+        item.case_input_digest,
+        CaseOutcomeProjectionPolicyV3.DECLARATIVE_COMBINATION_TABLE,
+        tuple(component.outcome_projection_digest for component in item.components),
+        decision.combined_outcome,
+        "",
+    )
+    if item.combined_projection_digest != projection.projection_digest:
+        raise CombinationValidationError("lineage combined projection differs from deterministic table replay")
+
+
+def _validate_lineage_cases(rule: CombinationRuleV3, cases: object) -> None:
+    if type(cases) is not tuple or not cases or any(type(item) is not CombinedCaseOutcomeV3 for item in cases):
+        raise CombinationValidationError("lineage combined cases must be a nonempty exact tuple")
+    for item in cases:
+        _validate_lineage_case(rule, item)
+    order = tuple(sorted(cases, key=lambda item: (item.key.scope.family_id, item.key.scope.ecosystem, item.case_input_digest)))
+    keys = tuple((item.key.scope, item.case_input_digest) for item in cases)
+    if cases != order or len(set(keys)) != len(keys):
+        raise CombinationValidationError("lineage combined cases must be unique and canonical")
+
+
+def _validate_lineage_observations(rule: CombinationRuleV3, cases: tuple[CombinedCaseOutcomeV3, ...], observations: object) -> None:
+    expected = _component_observations(rule, cases)
+    if type(observations) is not tuple or observations != expected:
+        raise CombinationValidationError("lineage component observation set is incomplete or non-canonical")
+    if len(set(observations)) != len(observations):
+        raise CombinationValidationError("lineage component observations must be unique across arms")
+    for digest in observations:
+        _digest(digest, "component observation digest")
 
 
 def _validate_inputs(

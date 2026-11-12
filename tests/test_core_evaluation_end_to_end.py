@@ -65,9 +65,49 @@ def _expanded_configuration(configuration, scopes, fitted_configuration_digest):
     )
 
 
-def _multi_family_plan(plan, scopes, fitted_configuration_digest):
+def _group_arm_id(arm_id, group):
+    return arm_id if group == 0 else f"{arm_id}-{group + 1}"
+
+
+def _clone_configuration(configuration, scopes, fitted_configuration_digest, group):
+    expanded = _expanded_configuration(configuration, scopes, fitted_configuration_digest)
+    arm_id = _group_arm_id(expanded.arm_id, group)
+    policies = tuple(
+        replace(
+            policy,
+            key=ArmScopeKey(arm_id, policy.key.scope),
+            rules=tuple(replace(rule, key=ArmScopeKey(arm_id, rule.key.scope), rule_digest="") for rule in policy.rules),
+            policy_digest="",
+        )
+        for policy in expanded.denominator_policies
+    )
+    thresholds = tuple(replace(row, key=ArmScopeKey(arm_id, row.key.scope), threshold_digest="") for row in expanded.thresholds)
+    sufficiency = tuple(replace(row, key=ArmScopeKey(arm_id, row.key.scope), rule_digest="") for row in expanded.sufficiency_rules)
+    rule = expanded.combination_rule
+    if rule is not None:
+        rule = replace(
+            rule,
+            combined_arm_id=arm_id,
+            component_arm_ids=tuple(_group_arm_id(item, group) for item in rule.component_arm_ids),
+            rule_digest="",
+        )
+    return replace(
+        expanded,
+        arm_id=arm_id,
+        denominator_policies=policies,
+        thresholds=thresholds,
+        sufficiency_rules=sufficiency,
+        combination_rule=rule,
+        configuration_identity_digest="",
+    )
+
+
+def _multi_family_plan(plan, scopes, fitted_configuration_digest, *, component_pairs=1):
+    assert component_pairs > 0
     configurations = tuple(
-        _expanded_configuration(configuration, scopes, fitted_configuration_digest) for configuration in plan.declaration.arm_configurations
+        _clone_configuration(configuration, scopes, fitted_configuration_digest, group)
+        for group in range(component_pairs)
+        for configuration in plan.declaration.arm_configurations
     )
     inputs = tuple(sorted({slot.input_identity_digest for slot in plan.declaration.expected_observation_slots}))
     declaration = create_evaluation_plan_declaration(
@@ -95,18 +135,18 @@ def _multi_family_plan(plan, scopes, fitted_configuration_digest):
     return _review_plan_draft(draft, plan.review)
 
 
-def _authority_case(plan, context_case, readiness):
+def _authority_case(plan, context_case, readiness, *, attempt_count=2):
     original = authority_fixtures._reviewed_plan
     authority_fixtures._reviewed_plan = lambda: (context_case, plan, readiness)
     try:
-        return authority_fixtures._authority_case()
+        return authority_fixtures._authority_case(attempt_count=attempt_count)
     finally:
         authority_fixtures._reviewed_plan = original
 
 
-def _expanded_review_capacity(context_case):
+def _expanded_review_capacity(context_case, *, component_pairs=1):
     old = context_case.context.admission_review_policy
-    maximum_bytes = 16_384
+    maximum_bytes = 16_384 * component_pairs
     policy = replace(
         old,
         maximum_evidence_bytes=maximum_bytes,
@@ -183,7 +223,7 @@ def _fitted_inputs(bundle, program, program_lineage, training_ref, training_reso
     return probe_input, fitting_lineage, holdout, _merge(bundle[4], probe_resolver, holdout_resolver)
 
 
-def _complete_replay(monkeypatch):
+def _complete_replay(monkeypatch, *, component_pairs=1):
     from openultrasast.core import evaluation_admission
 
     context_case, plan, readiness = authority_fixtures._reviewed_plan()
@@ -192,10 +232,13 @@ def _complete_replay(monkeypatch):
     training_ref, training_resolver = _population_manifest(training_repositories, "e2e-training-population")
     program, program_lineage = _fitted_program(context_case, training_ref)
     context_case = _with_program(context_case, program, program_lineage)
-    context_case = _expanded_review_capacity(context_case)
+    context_case = _expanded_review_capacity(context_case, component_pairs=component_pairs)
     scopes = tuple(sorted((ScopeKey("reference-family", "python"), ScopeKey("other-family", "javascript"))))
-    reviewed_plan = _multi_family_plan(plan, scopes, program.configuration_digest)
-    bundle = _public_bundle(monkeypatch, _authority_case(reviewed_plan, context_case, readiness))
+    reviewed_plan = _multi_family_plan(plan, scopes, program.configuration_digest, component_pairs=component_pairs)
+    bundle = _public_bundle(
+        monkeypatch,
+        _authority_case(reviewed_plan, context_case, readiness, attempt_count=2 * component_pairs),
+    )
 
     reviewed_case = bundle[5]
     readiness_by_digest = {item.result_digest: item for item in reviewed_case[3]}

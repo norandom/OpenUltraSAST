@@ -184,6 +184,17 @@ def _validate_case_identity(value: ArmAdmissionCaseResultV3) -> None:
         "result_digest",
     ):
         _digest(getattr(value, field), field)
+    _validate_case_projection(value)
+    if type(value.role) is not AdmissionCaseRole:
+        raise EvaluationReleaseError("case role must use exact AdmissionCaseRole")
+    if value.pair_id_digest is not None:
+        _digest(value.pair_id_digest, "pair identity digest")
+    _validate_proof_candidate(value.proof_candidate)
+    if type(value.total_reply_ms) is not int or value.total_reply_ms < 0:
+        raise EvaluationReleaseError("case total reply time must be a non-negative integer")
+
+
+def _validate_case_projection(value: ArmAdmissionCaseResultV3) -> None:
     if type(value.outcome_projection) is not CaseOutcomeProjectionV3:
         raise EvaluationReleaseError("case outcome projection must use exact CaseOutcomeProjectionV3")
     try:
@@ -192,16 +203,14 @@ def _validate_case_identity(value: ArmAdmissionCaseResultV3) -> None:
         raise EvaluationReleaseError("case outcome projection is malformed") from exc
     if value.outcome_projection.case_input_digest != value.case_input_digest:
         raise EvaluationReleaseError("case outcome projection input identity does not match its released case")
-    if type(value.role) is not AdmissionCaseRole:
-        raise EvaluationReleaseError("case role must use exact AdmissionCaseRole")
-    if value.pair_id_digest is not None:
-        _digest(value.pair_id_digest, "pair identity digest")
-    if value.proof_candidate is not None:
-        if type(value.proof_candidate) is not ProofCandidateIdentityV3:
-            raise EvaluationReleaseError("proof candidate must use exact ProofCandidateIdentityV3")
-        value.proof_candidate.__post_init__()
-    if type(value.total_reply_ms) is not int or value.total_reply_ms < 0:
-        raise EvaluationReleaseError("case total reply time must be a non-negative integer")
+
+
+def _validate_proof_candidate(value: ProofCandidateIdentityV3 | None) -> None:
+    if value is None:
+        return
+    if type(value) is not ProofCandidateIdentityV3:
+        raise EvaluationReleaseError("proof candidate must use exact ProofCandidateIdentityV3")
+    value.__post_init__()
 
 
 def _validate_case_sequences(value: ArmAdmissionCaseResultV3) -> None:

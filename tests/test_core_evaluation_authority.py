@@ -86,7 +86,8 @@ def _reviewed_plan():
     return context_case, manifest, readiness
 
 
-def _authority_case():
+def _authority_case(*, attempt_count: int = 2):
+    assert attempt_count > 0
     context_case, plan, readiness = _reviewed_plan()
     policy = context_case.context.admission_review_policy
     feasibility = derive_evaluation_feasibility(plan, policy, context_case.resolver)
@@ -107,7 +108,7 @@ def _authority_case():
     access = ObservationAccessPolicyV3(tuple(PublicStatusFieldV3), False, False, "")
     predecessor = None
     event_refs = []
-    for index in range(2):
+    for index in range(attempt_count):
         event = _event(
             identity,
             PreSpendDispositionV3.SEALED,

@@ -709,7 +709,7 @@ contract work and use synthetic/in-memory workflow boundaries only.
   - _Requirements: 18.2, 18.4, 18.6, 18.7, 18.8, 19.2, 19.3, 19.5, 19.6, 19.7, 19.8, 19.9, 19.10, 19.11, 20.3, 20.5, 20.6, 20.7_
   - _Boundary: V3 Post-Spend and Replay Validation_
   - _Depends: 17.2, 17.4_
-- [ ] 18.4 Verify dependency boundaries, complexity caps, and bounded validation growth
+- [x] 18.4 Verify dependency boundaries, complexity caps, and bounded validation growth
   - Verify dependency direction, no V2/V3 aggregate imports across the version boundary, standard-library-only core runtime, and absence of benchmark, analyzer, model-runtime, or proof-execution ownership in V3 modules.
   - Enforce function and module complexity caps and measure validation growth over increasing arms, scopes, observations, attempt events, cases, and reports.
   - Fail each measurement fixture unless its scoped inputs are readable and nonzero before interpreting timing, count, or clean-result output.
@@ -758,6 +758,7 @@ contract work and use synthetic/in-memory workflow boundaries only.
 - Task 18.1 proves the public V3 facade end to end across two component arms, one combined arm, two family/ecosystem scopes, one shared spend, complete replay validation, ordinary projection/whole deduplication, and exact fitted GO selection.
 - Task 18.2 proves exact owning-layer pre-spend and version refusals with a connected synthetic downstream driver, loud input-read instrumentation, frozen V2 outputs, custody-preserving insufficiency, and zero detector/label/result/quality effects after rejection.
 - Task 18.3 proves exact owner-layer post-spend refusals across release, projection, combination, proof, metrics, reports, replay, current source/custody, aggregate, and fitted boundaries with connected authorization-effect instrumentation and all-arm visibility.
+- Task 18.4 enforces exact dependency and ownership boundaries across absolute, relative, package-root, wildcard, and near-prefix imports; validates genuine 1/2/4 replay-graph growth with connected bounded operation counts; and keeps all V3 validators within complexity caps.
 - The frozen migration inventory is a reviewed worklist with stable identities, not a semantic-use census. It may only close entries as `v2_migrated` or `retired`; it never grows, deletes entries, or proves absence by interpreting Python flow.
 - Cutover is proved by explicit syntax checks plus deletion of the compatibility and v1 write capability. No task extends the discarded alias/data-flow interpreter.
 - Task 10.5 debug established that executable owner probes cannot compensate for blanket source-closure acceptance; resumed hunt attempts also require collision-resistant attempt identity and create-only persistence before handoff validation is authoritative.

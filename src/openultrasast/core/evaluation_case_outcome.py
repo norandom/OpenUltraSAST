@@ -122,6 +122,28 @@ def case_outcome_projection_from_value(value: object) -> CaseOutcomeProjectionV3
     )
 
 
+def _validate_record(record: EvidenceRecord) -> None:
+    try:
+        if type(record.packet) is not EvidencePacket:
+            raise CaseOutcomeProjectionError("evidence record packet must use exact EvidencePacket")
+        if type(record.decision) is not Decision:
+            raise CaseOutcomeProjectionError("evidence record decision must use exact Decision")
+        if type(record.packet.provenance) is not ProvenanceStamp:
+            raise CaseOutcomeProjectionError("evidence record provenance change input digest must use exact ProvenanceStamp")
+        _digest(record.packet.provenance.change_input_digest, "change input digest")
+        record.packet.provenance.__post_init__()
+        record.packet.__post_init__()
+        record.decision.__post_init__()
+        record.__post_init__()
+        expected_record_id = derive_record_id(record.packet, record.decision)
+    except CaseOutcomeProjectionError:
+        raise
+    except (AttributeError, TypeError, ValueError) as exc:
+        raise CaseOutcomeProjectionError("component evidence record cannot be revalidated") from exc
+    if record.record_id != expected_record_id:
+        raise CaseOutcomeProjectionError("evidence record identity cannot be re-derived")
+
+
 def _canonical_records(records: object) -> tuple[EvidenceRecord, ...]:
     if type(records) is not tuple or not records:
         raise CaseOutcomeProjectionError("component evidence records must be a nonempty exact tuple")
@@ -129,25 +151,7 @@ def _canonical_records(records: object) -> tuple[EvidenceRecord, ...]:
         raise CaseOutcomeProjectionError("component evidence records must contain exact EvidenceRecord values")
     validated = records
     for record in validated:
-        try:
-            if type(record.packet) is not EvidencePacket:
-                raise CaseOutcomeProjectionError("evidence record packet must use exact EvidencePacket")
-            if type(record.decision) is not Decision:
-                raise CaseOutcomeProjectionError("evidence record decision must use exact Decision")
-            if type(record.packet.provenance) is not ProvenanceStamp:
-                raise CaseOutcomeProjectionError("evidence record provenance change input digest must use exact ProvenanceStamp")
-            _digest(record.packet.provenance.change_input_digest, "change input digest")
-            record.packet.provenance.__post_init__()
-            record.packet.__post_init__()
-            record.decision.__post_init__()
-            record.__post_init__()
-            expected_record_id = derive_record_id(record.packet, record.decision)
-        except CaseOutcomeProjectionError:
-            raise
-        except (AttributeError, TypeError, ValueError) as exc:
-            raise CaseOutcomeProjectionError("component evidence record cannot be revalidated") from exc
-        if record.record_id != expected_record_id:
-            raise CaseOutcomeProjectionError("evidence record identity cannot be re-derived")
+        _validate_record(record)
     identities = tuple(record.record_id for record in validated)
     if len(set(identities)) != len(identities):
         raise CaseOutcomeProjectionError("component evidence record identities must be unique")
