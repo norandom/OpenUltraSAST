@@ -98,7 +98,7 @@
   - _Boundary: Review Authority_
 
 - [ ] 4. Freeze a reproducible label-isolated replacement population
-- [ ] 4.1 Draw and validate representative ordinary pushes
+- [x] 4.1 Draw and validate representative ordinary pushes
   - Draw at least twenty eligible first-parent ordinary pushes per accepted positive from the same canonical repository and exclude the security fix.
   - Store each underlying ordinary push once with its reviewed ecosystem and deterministic draw/provenance identity.
   - Exclude reviewed pre-freeze defects with a reason and route verified post-freeze contamination to lifecycle retirement rather than rewriting a result.
@@ -421,3 +421,4 @@
 - Task 3.1 builds non-authoritative fix-site candidates from only the fixed revision and its exact parent, binding nonzero pre/post function bytes and repository/package/language/license/source/change provenance without blame or introducing-commit inference.
 - Task 3.2 revalidates externally governed ecosystem reviews against exact candidate/evidence/policy identities, derives closed accepted/insufficient outcomes, and enforces a repository↔network bijection before projecting canonical Python or JavaScript ecosystems.
 - Task 3.3 revalidates exact candidate and ecosystem authorities, derives accepted/excluded ground truth from explicit independent human judgments, keeps model assistance non-authoritative, and projects each change once while preserving all verified exact scopes.
+- Task 4.1 deterministically draws at least twenty same-network first-parent ordinary pushes per accepted positive, globally excludes every accepted fix revision, stores shared pushes once, and routes reviewed contamination to exclusion or terminal retirement according to freeze timing.
