@@ -1,77 +1,410 @@
-# Tasks: valid detection benchmark
+# Implementation Plan
 
-Order is dependency order. Each task is small enough to review on its own. New code under
-`benchmarks/valid/`. Implementation goes through Codex, gated here.
+## Merge record
 
-## Group 1 - positive catalog (fix-site, no SZZ)
-- [x] 1.1 `benchmarks/valid/catalog.py`: given sourced advisories (reuse `source.py`/`draft.py` output),
-  build candidate positive cases by fix site. Wrap `extract.fix_sites()` + `pairs/materialize.py`; read
-  the pre-fix function at `parent` and the post-fix function at `commit`. Must not call `introducing` or
-  `last_touch`. Emit the `[[case]]` catalog in the design schema. (R1)
-- [x] 1.2 Filter to Python and JS/TS only; attach `language` and `family`/`cwe`. (scope decision)
-- [x] 1.3 Offline test: a fixture commit yields one case with the correct pre/post functions and
-  `method = "fix_site"`; assert SZZ methods are never invoked.
+| Previous task group | Disposition in this plan |
+|---|---|
+| Completed pilot groups 1–4 and 6 | Retained as non-authorizing implementation and regression substrate; their legacy records do not satisfy replacement-population or V3 admission requirements |
+| Previous group 5 pilot run | Superseded by the withdrawn-pilot lifecycle and separately sourced replacement population; no open pilot-run task is carried forward |
+| Previous group 7 recognition table | Retired from this benchmark boundary; framework recognition is detector/fact-pack work and concrete repositories remain benchmark evidence only |
 
-## Group 2 - LLM verification driver
-- [x] 2.1 `benchmarks/valid/verify.py`: one DeepSeek call per case via the shipped provider (off-cluster).
-  Confirm vulnerable-pre-fix, fix-addresses-it, reachable-in-repo; name the entry point; return
-  confidence. Print bytes read per function before the call; reject a verdict on an empty read. (R3, instrument rule)
-- [x] 2.2 Emit the verification record (design schema) to `verification.json`; `verdict = "accepted"`
-  only when all three checks pass. Reachability here is the app-shaped filter. (R2, R3)
-- [x] 2.3 Human spot-check hook: a small CLI to record accept/reject + reviewer + date per case into the
-  same record. (R3)
-- [x] 2.4 Offline test with a stub model: a case with all three true and a human accept becomes
-  `accepted`; any false, or a human reject, does not.
+## Task constraints
 
-## Group 3 - negatives and assembly
-- [x] 3.1 `benchmarks/valid/assemble.py`: draw negatives with `extract.draw_ordinary()` from the accepted
-  positives' repos, at least 20x, excluding the fix. (R4)
-- [x] 3.2 Freeze accepted positives + negatives into a `pool.toml`-shaped manifest + `freeze-valid.json`
-  digest; run the held-out guard via `eligibility.normalize`. (R5, R8)
-- [x] 3.3 Offline test: freeze is deterministic (same source -> same digest); held-out guard drops any
-  repo in the used set.
+- This specification consumes `openultrasast.detection-core.evaluation-admission.v3` and never edits core-owned contracts.
+- Historical pilot bytes and digests remain unchanged; legacy catalog, assembly, and scoring paths are non-authorizing compatibility inputs only.
+- Independent human review records are external governed inputs. Implementation may validate and ingest them but must never fabricate reviewer identity, conflict disclosure, or label judgment.
+- New and amended code keeps McCabe complexity at most 10, functions at most 50 logical lines, and new modules at most 400 logical lines.
+- Every zero or clean-looking result first proves nonzero readable input and required-stage execution.
+- Durable artifacts default to the configured S3-compatible store; local files are rebuildable scratch, and application credentials never create buckets or mutate lifecycle policy.
+- Detector logic, framework vocabulary, rollout, infrastructure administration, and the parked access-control arm remain outside this plan.
 
-## Group 4 - metrics
-- [x] 4.1 `benchmarks/valid/metrics.py`: precision (PPV) with Wilson 95% over positives+negatives. (R7)
-- [x] 4.2 False alarms per 100 pushes as the presentation of `score.py`'s false-alarm rate. (R7)
-- [x] 4.3 Exploit-verified rate: join flagged positives with a search-with-proof run by case `id`;
-  report "not yet proved" where absent. (R7)
-- [x] 4.4 Build the headline string (recall + FP/100 + precision + exploit-verified). (R7)
-- [x] 4.5 Offline test on a tiny hand-made record set: all four metrics and intervals match hand calcs.
+- [ ] 1. Establish the replacement benchmark foundation
+- [ ] 1.1 Pin the validated V3 predecessor and frozen historical compatibility surface
+  - Verify the exact V3 schema, per-arm exact-scope plan and admission roots, shared-spend authority, case-release validation, and complete evaluation replay through the public core facade.
+  - Keep pooled V2 and historical pilot artifacts replayable only under their original schemas and refuse inferred conversion into V3.
+  - Refuse startup when the core schema or required V3 capability is absent, and prove all compatibility fixtures are readable and nonzero before interpreting them.
+  - Done when a benchmark-only conformance suite accepts the shipped V3 facade, preserves frozen historical bytes, and rejects V2, unknown, mixed, or incomplete roots without changing core-owned files.
+  - _Requirements: 5.3, 5.5, 6.1, 6.6, 6.7, 8.4, 8.5, 8.6, 9.1, 9.2_
+  - _Boundary: Scoped Admission V3 Consumer_
+- [ ] 1.2 Build the canonical benchmark artifact and identity boundary
+  - Define deterministic canonical envelopes for reservation, review, lifecycle, population, observation, workflow, report, and replay references using full content digests and closed artifact kinds.
+  - Validate schema, digest, byte length, provenance, access class, canonical ordering, and same-identity byte equality before any artifact is accepted.
+  - Preserve the existing artifact-envelope substrate only where it satisfies the new contracts; incompatible legacy envelopes remain read-only and non-authorizing.
+  - Done when equal inputs produce byte-identical identities and malformed, empty, unsupported, or same-key/different-byte inputs fail before projection or scoring.
+  - _Requirements: 7.1, 7.2, 7.3, 8.1, 8.4, 8.5, 8.6, 10.3_
+  - _Boundary: Benchmark Artifact Contracts_
+- [ ] 1.3 Define store settings, retention profiles, and capability prerequisites
+  - Load purpose-specific durable and transient store settings from environment names without serializing endpoints or credentials into artifacts.
+  - Represent required versioning, conditional-write, current-version, and noncurrent-version retention properties as validated capability profiles.
+  - Keep bucket creation, lifecycle mutation, cluster health, and credential provisioning outside application authority.
+  - Done when startup distinguishes missing or unsupported capabilities from clean benchmark results and a configured application identity cannot perform administrator-owned mutations.
+  - _Requirements: 7.4, 7.7, 7.8, 8.5, 10.2, 10.3, 10.6_
+  - _Boundary: Benchmark Store Configuration_
 
-## Group 5 - pilot run (research, local)
-- [ ] 5.1 Source Python/JS advisories; run `catalog.py` to ~25 candidates. (deliberate, rate-aware)
-- [ ] 5.2 Run `verify.py` + human spot-check to land ~12 accepted positives.
-- [ ] 5.3 `assemble.py` freezes the pilot manifest + negatives (>=20x) + held-out guard.
-- [ ] 5.4 `replay.py` on the Docker lane, arm (a): the push hook as shipped (quick + engine, 300 s).
-  Running overnight 2026-10-12; records under `~/ousast-results/valid/pilot/long_deadline`.
-- [ ] 5.5 `score.py` + `metrics.py` on arm (a): recall, precision, FP/100, exploit-verified, intervals,
-  and the headline, labelled "push hook as shipped". Freeze the run under `benchmarks/measurements/`.
-- [ ] 5.6 Write up the pilot: the four numbers for (a), what they mean, the engine-covered rate, and the
-  target set size from `required_n` for the full ~40-positive benchmark.
+- [ ] 2. Establish permanent reservation and baseline lifecycle authority
+- [ ] 2.1 Project reviewed repository influence into one permanent reservation census
+  - Canonicalize repository identities across aliases, former names, redirects, and fork networks before accepting influence evidence.
+  - Record reviewed `enumerated_only` and `influenced` events while adding only influenced identities and authoritative legacy sources to the permanent census.
+  - Make equal events idempotent, conflicting identities fail closed, and the sorted census deterministic from the complete accepted event set.
+  - Done when reserved aliases and forks are excluded, enumeration alone does not reserve a repository, and changed event bytes cannot reproduce the accepted census identity.
+  - _Requirements: 4.1, 4.2, 4.3, 4.4_
+  - _Boundary: Reservation Authority_
+- [ ] 2.2 Integrate historical withdrawal lifecycle with exact audit authorization
+  - Inventory every retained historical identity-bearing path with its repository-relative path, nonzero bytes, content digest, withdrawal reason, and reviewed authorization evidence.
+  - Mark the 2026-10-12 pilot withdrawn and non-admissible while preserving its bytes and original identities.
+  - Authorize audit reads only for exact unchanged path-and-digest pairs; reject directories, globs, repository allowlists, relocated files, and changed bytes.
+  - Done when the historical inventory reproduces exactly, the pilot cannot be presented as current qualification evidence, and no blanket exclusion is needed to read its authorized audit files.
+  - _Requirements: 4.5, 4.6, 4.7, 4.8_
+  - _Boundary: Reservation Authority, Baseline Lifecycle Authority_
+- [ ] 2.3 Project causal replacement, retirement, and development-opening lifecycles
+  - Validate append-only lifecycle events whose predecessor chain covers withdrawal, exact replacement binding, retirement, and development opening.
+  - Keep replacement pending until the reviewed event binds the exact historical withdrawal, new population, and new freeze identities.
+  - Make retirement and development opening terminal for admission while preserving prior freezes, reports, and audit material unchanged.
+  - Create reviewed influence events when population-specific raw observations or diagnostics are opened for development.
+  - Done when duplicate equal events are idempotent, forks and missing predecessors fail, terminal states cannot be undone, and only an active replacement-complete projection is admission eligible.
+  - _Requirements: 3.6, 4.7, 4.9, 5.1, 5.2, 5.6, 7.7_
+  - _Boundary: Baseline Lifecycle Authority_
+- [ ] 2.4 Route the permanent-reservation guard through exact reviewed authority
+  - Replace test-owned exception logic with the reservation census and exact historical authorization contracts.
+  - Require the replacement population to pass canonical identity, alias/fork, influence, and historical-file checks before acceptance.
+  - Preserve the guard's nonzero repository census and report every forbidden reference without treating an unread tree as zero.
+  - Done when the guard passes only for reviewed exact historical files, continues to reject every other reserved reference, and no reservation semantic is weakened.
+  - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.8, 4.9, 4.10_
+  - _Boundary: Reservation Guard Integration_
+  - _Depends: 2.1, 2.2, 2.3_
 
-## Group 6 - hunter arm (the LLM tier required on pre-push)
-- [x] 6.1 `benchmarks/valid/hunter_arm.py`: for each change in the frozen manifest, check out `head` in
-  the local clone (detached worktree), build hotspots for the changed files, run the shipped deep-mode
-  arm `tool_hunter.run_tool_hunter` with `resolve_hunter_client()` (the hunter that beat overlay 12/14;
-  wiring in `cli.py` `_attach_tool_hunter`), and emit a record `score.py` can read: findings go under
-  `push.admission.defects` with `family` and `locations = [[path, line]]` (the alerts stream), keyed by
-  change id. Runs off-cluster; the model key never enters a replay container. Honors the instrument rule
-  (bytes read per hotspot, fail loudly on an empty read).
-- [x] 6.2 Combine arm (a) and arm (b) records per change id and rescore: this is the number the tool is
-  held to (R6). Report (a), (a)+(b), and the difference as the pre-push product gap.
-- [x] 6.3 Offline test with a stub hunter: a flagged change joins the (a) record; a missing (b) record
-  leaves (a) unchanged; duplicate ids are rejected.
+- [ ] 3. Produce independently reviewed ecosystem and fix-derived ground truth
+- [ ] 3.1 Preserve fix-site, repository, ecosystem, language, license, and provenance evidence
+  - Derive vulnerable and fixed locations from the security-fix file and function at the vulnerable parent and fixed revision without blame walk-back or SZZ introducing-commit inference.
+  - Retain canonical repository identity, observed language, package ecosystem evidence, license evidence, source evidence, change inputs, and nonzero function bytes.
+  - Treat concrete frameworks and repositories as evidence only and add no detector vocabulary or implementation behavior.
+  - Done when fixture fixes reproduce the exact pre/post functions and provenance, SZZ-style methods are unreachable, and an empty or unreadable function refuses candidate creation.
+  - _Requirements: 1.1, 1.2, 1.5, 1.8, 2.1, 2.2_
+  - _Boundary: Fix-Site Catalog_
+- [ ] 3.2 Validate canonical repository ecosystem review
+  - Accept only reviewed `python` or `javascript` ecosystem identities, preserving TypeScript as an observed language within `javascript`.
+  - Require producer/reviewer separation, review-policy satisfaction, conflict disclosure, and the source-evidence digest.
+  - Emit bounded insufficient evidence for unresolved or conflicting ecosystem classification, including polyglot ambiguity.
+  - Done when accepted repositories have exactly one canonical ecosystem and every unresolved, self-reviewed, stale, or conflicting review remains non-admissible.
+  - _Requirements: 1.1, 1.5, 1.6, 1.8, 2.3_
+  - _Boundary: Review Authority_
+- [ ] 3.3 Validate independently reviewed positive ground truth and exact scopes
+  - Require explicit defect-present, fix-addresses, and in-repository-reachable judgments with producer/reviewer separation, policy evidence, and conflict disclosure.
+  - Keep optional model assistance as a separately identified non-authoritative input that can never satisfy a missing human judgment.
+  - Bind each accepted fix to one or more independently verified vulnerability-family and canonical-ecosystem scopes; record closed exclusion reasons otherwise.
+  - Count a multi-scope fix once by change identity while retaining every verified exact scope and granting no unverified scope.
+  - Done when all required judgments and exact scopes replay from reviewed evidence and any rejection, omission, self-review, model-only label, or scope substitution excludes the candidate.
+  - _Requirements: 1.2, 2.3, 2.4, 2.5, 2.6_
+  - _Boundary: Review Authority_
 
-## Out of this spec
-- Growing beyond the pilot to the full set (follow-up, once the pipeline is proven).
-- Running on kube `ax` (blocked on gVisor; Docker lane is enough here).
-- Any new detection capability, including wiring the hunter into the pre-push hook. That is product
-  work in `pre-push-safety-net`; this spec measures the push path with and without it.
+- [ ] 4. Freeze a reproducible label-isolated replacement population
+- [ ] 4.1 Draw and validate representative ordinary pushes
+  - Draw at least twenty eligible first-parent ordinary pushes per accepted positive from the same canonical repository and exclude the security fix.
+  - Store each underlying ordinary push once with its reviewed ecosystem and deterministic draw/provenance identity.
+  - Exclude reviewed pre-freeze defects with a reason and route verified post-freeze contamination to lifecycle retirement rather than rewriting a result.
+  - Done when the same source and policy reproduce the draw, cross-ecosystem substitution fails, and every accepted positive contributes the required eligible ordinary-change count.
+  - _Requirements: 3.1, 3.2, 3.4, 3.5, 3.6_
+  - _Boundary: Population Freezer_
+- [ ] 4.2 Classify and freeze the canonical population
+  - Consume only accepted ecosystem and ground-truth reviews plus the authoritative reservation census.
+  - Bind selections, ordinary draws, exclusions, review sets, provenance, policies, scope census, and new population/freeze identities into a deterministic freeze.
+  - Classify fewer than forty accepted positives, a missing ecosystem, missing second family, or infeasible claimed scope as development pilot or insufficient rather than admission.
+  - Done when only a freeze with at least forty accepted positives across Python and JavaScript/TypeScript and at least two families can be admission class, while unchanged material reproduces its identity and conflicting bytes are refused.
+  - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.6, 1.7, 3.2, 7.1, 7.2, 7.3_
+  - _Boundary: Population Freezer_
+- [ ] 4.3 Separate public material, private material, and sealed labels
+  - Publish only permissively licensed source material and represent uncertain or non-permissive content through opaque digest-bound private references.
+  - Keep label bytes and review judgments in private sealed objects unavailable to detector arms and presenters.
+  - Bind public manifest, private-object digest, sealed-label digest, license partitions, and exclusion counts without exposing private paths or payloads.
+  - Done when public serialization contains no private bytes, labels, credentials, or local paths and every opaque reference resolves only through the authorized custodian boundary.
+  - _Requirements: 5.1, 5.3, 7.1, 7.6, 10.3_
+  - _Boundary: Population Freezer_
+- [ ] 4.4 Integrate the independently reviewed label-blind population manifest
+  - Construct only counts, exact scopes, canonical input identities, and digests needed by later plan composition, with no label-bearing field.
+  - Require an independent manifest review with policy satisfaction and conflict disclosure.
+  - Bind immutable population, freeze, census, scope, review, and input-set identities before any arm plan or label access.
+  - Done when the reviewed manifest reproduces its exact label-blind census and input set, contains no label-bearing field, and refuses self-review, stale review, missing scope counts, or changed population bytes.
+  - _Requirements: 5.3, 5.4, 5.5_
+  - _Boundary: Population Freezer and Review Integration_
+  - _Depends: 1.1, 4.2, 4.3_
 
-## Group 7 - recognition-coverage target table (2026-10-30)
+- [ ] 5. Persist authoritative artifacts and custody durably
+- [ ] 5.1 Implement create-only content-addressed artifact persistence
+  - Persist canonical reservation, review, lifecycle, population, sealed-label, observation, workflow, replay, and report artifacts under purpose-specific keys.
+  - Require conditional creation or immutable digest keys, strict expected-kind/digest reads, nonzero bytes before decode, and equal-byte idempotency.
+  - Enforce public, private, custodian-sealed, and operator-safe access classes before returning artifact bytes.
+  - Done when same-key/different-byte writes fail, unauthorized reads reveal no raw content, and accepted artifacts round-trip byte-identically through the configured S3-compatible store.
+  - _Requirements: 5.1, 5.2, 7.1, 7.3, 7.4, 7.6, 7.7, 10.3_
+  - _Boundary: Artifact Repository_
+  - _Depends: 1.2, 1.3_
+- [ ] 5.2 Rebuild every authority after local scratch loss
+  - List and validate ordered durable projections for reservation, lifecycle, population, observation, workflow, replay, and report roots.
+  - Reject missing, conflicting, wrong-version, expired-authority, or digest-mismatched records rather than selecting a plausible latest value.
+  - Treat local journals and materialized files as replaceable caches, never the cross-run source of truth.
+  - Done when deleting scratch state and restarting reproduces every accepted identity, projection, and decision from durable objects alone.
+  - _Requirements: 7.4, 7.5, 7.7, 8.6, 10.1, 10.2_
+  - _Boundary: Artifact Repository_
+- [ ] 5.3 (P) Probe conditional custody and retention capabilities
+  - Exercise conditional head creation, conditional update, two concurrent writers with one winner, version visibility, exact committed-successor reread, and restart recovery.
+  - Verify both current and noncurrent transient expiry against the pre-registered deadlines without changing store configuration.
+  - Prove nonzero probe inputs and fail loudly on unsupported, ambiguous, prematurely terminated, or unreadable responses.
+  - Done when a versioned capability report names every mandatory result and real-population admission is disabled unless all mandatory probes pass.
+  - _Requirements: 5.7, 7.4, 7.5, 7.8, 8.4, 8.5_
+  - _Boundary: Durable Custody Store_
+  - _Depends: 1.3_
+- [ ] 5.4 Implement monotonic durable custody compare-and-swap
+  - Use canonical custody-log digests as domain identity and storage tokens only for conditional concurrency.
+  - Conditional-create the first head, conditional-update the exact current head, and reread/validate the direct available-to-spent successor before returning success.
+  - Reject stale heads, 409/412 conflicts, missing versions, invalid successors, ambiguous responses, and any attempt to restore available status.
+  - Done when concurrent spend attempts have exactly one valid successor and restart recovers the same monotonic spent log without exposing label bytes on a failed CAS.
+  - _Requirements: 5.7, 7.3, 7.4, 7.5, 7.7, 7.8_
+  - _Boundary: Durable Custody Store_
+  - _Depends: 5.3_
 
-- [ ] 7.1 Enumerate each pilot-pool repository's entry framework from its manifest
-  (package.json / pyproject.toml / composer.json, read-only) and record which of the
-  prover's registered entry frameworks match: the recognition-coverage target table for the
-  next detection workstream. No pool labels are read; manifests only.
+- [ ] 6. Register and execute immutable label-blind arms
+- [ ] 6.1 Register exact arm identities, scopes, policies, and lifecycle state
+  - Bind shipped, experimental, and combined arms separately to immutable analyzer, configuration, fact, vocabulary, outcome, baseline, denominator, threshold, sufficiency, and claimed-scope identities.
+  - Accept only active arms unless a parked arm carries a separate reviewed strategy-decision reference; provide no such reference for access control.
+  - Produce one canonical evaluation plan covering every component and combined arm before label access.
+  - Done when identity or scope changes create a new plan, the parked access-control arm cannot enter a plan, and every claimed scope has one exact core V3 policy.
+  - _Requirements: 5.5, 6.1, 8.6, 9.1, 9.2, 10.4, 10.5_
+  - _Boundary: Arm Registry_
+- [ ] 6.2 Preserve component observations through deterministic combination plans
+  - Pre-register only closed deterministic combination rules over complete component observation sets.
+  - Retain each contributing component identity and result while deriving a separate combined-arm observation set without rerunning cases.
+  - Prevent proof manufacture or transfer unless family, change input, packet identity, and finding-location anchor are identical.
+  - Done when component results remain independently reportable, missing or mismatched components block combination, and no combined arm acquires unrelated proof authority.
+  - _Requirements: 9.1, 9.2, 9.3, 9.4, 9.5_
+  - _Boundary: Combination Planner_
+- [ ] 6.3 Build the isolated label-blind execution bundle and adapter boundary
+  - Materialize identical ordered case/input identities, code/change references, arm registration, budgets, environment identity, and output destination for each planned component arm.
+  - Launch only through an isolated local, Docker, or AX adapter with an allowlisted environment and no custody, private-label, sealed-label, review, expected-outcome, model-secret, or store-admin credentials.
+  - Keep execution-plane back-pressure and health external while recording bounded benchmark process outcomes.
+  - Done when an adapter receives all required label-blind inputs and tests prove no forbidden reference, byte sequence, credential, or environment variable crosses the process boundary.
+  - _Requirements: 5.3, 5.5, 5.6, 9.1, 10.3, 10.4, 10.6_
+  - _Boundary: Isolated Arm Executor_
+- [ ] 6.4 Freeze complete observations with nonzero execution receipts and exact resume
+  - Record nonzero reads, required-stage execution, runtime, budgets, degradations, input-set identity, and output identity in a canonical execution receipt.
+  - Validate and durably freeze one custodian-sealed observation set for every planned component arm before spend.
+  - Reuse only an exact digest-matching completed checkpoint; never treat a missing/mismatched checkpoint as complete or silently rerun a completed arm under the same plan.
+  - Done when empty, skipped, prematurely terminated, partial, cross-arm, or changed-input execution yields impairment and no clean-looking observation set.
+  - _Requirements: 5.6, 8.3, 8.4, 8.5, 9.1, 9.2, 10.2_
+  - _Boundary: Isolated Arm Executor_
+- [ ] 6.5 Integrate sealed pre-spend diagnostics with reviewed development opening
+  - Expose before spend only closed reason codes, counts, and digests from observation artifacts.
+  - Require a reviewed lifecycle development-opening transition and corresponding influence events before any human receives population-specific findings, paths, exception text, or diagnostics.
+  - Permit automatic retry only for the exact unchanged population, plan, arms, inputs, budgets, environment, and admission identity.
+  - Done when diagnostic access or any retry-identity change permanently blocks admission, while an exact sealed retry resumes without revealing labels or raw observations.
+  - _Requirements: 4.3, 5.2, 5.6, 8.3, 10.2, 10.3_
+  - _Boundary: Isolated Arm Executor, Baseline Lifecycle Authority_
+  - _Depends: 2.3, 5.1, 6.4_
+
+- [ ] 7. Persist safe workflow state and operator projections
+- [ ] 7.1 Define closed workflow outcomes and redacted serialization
+  - Represent completed, insufficient, and impaired states with closed reason, phase, degradation, count, gate, runtime, spend-state, and optional replay-reference fields.
+  - Require completed outcomes to reference exactly one complete V3 replay and reject a clean status for missing or failed required stages.
+  - Reject arbitrary exception text, filesystem paths, labels, repository contents, payloads, secrets, and customer content during serialization.
+  - Done when every terminal and resumable state has a deterministic digest and unsafe or free-form content cannot enter the shared outcome.
+  - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5, 10.1, 10.2, 10.3_
+  - _Boundary: Workflow Outcome_
+- [ ] 7.2 (P) Implement the causal workflow journal and lease-protected head
+  - Append progress and heartbeat entries with exact sequence, predecessor, attempt, lease owner, counts, phase, and deadlines.
+  - Protect the current head with compare-and-swap, allow one resume owner only after an expired validated head, and refuse stale-owner append or renewal.
+  - Rebuild status from the complete chain to the head while ignoring orphan or stale entries.
+  - Done when concurrent resume has one winner, missing predecessors and forks fail, and only an expired authoritative head projects `IMPAIRED`/`STALLED` without claiming infrastructure failure.
+  - _Requirements: 7.4, 7.5, 7.8, 8.3, 10.1, 10.2, 10.6_
+  - _Boundary: Workflow Journal_
+  - _Depends: 1.2, 1.3, 5.1_
+- [ ] 7.3 Render deterministic transport-neutral operator reports
+  - Resolve and validate an optional evaluation replay against the outcome reference before rendering.
+  - For completion, show each arm's exact-scope GO/NO-GO/insufficient status, sample counts, metrics, intervals, digests, demonstrated status, and named failed gates; show whole coverage separately.
+  - For impairment, show only closed safe reasons, progress counts, degradations, runtime, and whether labels were spent.
+  - Never infer eligibility, enable rollout, emit BLOCK from confidence, or expose private material; proof-backed demonstration remains distinct from product blocking policy.
+  - Done when JSON and concise text are deterministic, redacted, and equivalent projections suitable for stdout/file or a separately owned notifier transport.
+  - _Requirements: 6.4, 6.5, 8.1, 8.2, 8.3, 9.3, 9.4, 9.5, 9.6, 9.7, 10.1, 10.2, 10.3, 10.6_
+  - _Boundary: Operator Presenter_
+  - _Depends: 7.1_
+
+- [ ] 8. Orchestrate one atomic multi-arm admission lifecycle
+- [ ] 8.1 Validate lifecycle, store, population, plan, and exact-scope preflight
+  - Refuse a run unless the replacement lifecycle is active, artifact/custody capability reports pass, the admission-class freeze and reviewed label-blind manifest resolve, and every arm identity is current.
+  - Compose the complete core V3 plan manifest and evaluate every arm/scope threshold, minimum, and interval-precision rule before execution or label access.
+  - Persist `INSUFFICIENT` with exact scope/gate witnesses when any planned scope is infeasible, without launching arms or spending custody.
+  - Done when only a complete feasible Cartesian arm/scope plan advances and whole-population counts or aggregates can never substitute for an insufficient scope.
+  - _Requirements: 1.3, 1.4, 1.7, 5.1, 5.3, 5.4, 5.5, 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7_
+  - _Boundary: Admission Orchestrator, Scoped Admission V3 Consumer_
+  - _Depends: 2.3, 4.4, 5.3, 5.4, 6.1, 7.1_
+- [ ] 8.2 Execute and seal every planned observation before spend authority
+  - Send the identical ordered label-blind input set to every component arm, freeze all component observations, and derive all registered combined observations.
+  - Build the V3 admission manifest from exact custodian-sealed observation references and combination lineage.
+  - Reauthorize immediately before custody CAS against current bytes, current lifecycle, current readiness, and current custody head.
+  - Done when a missing, partial, unreadable, changed, cross-arm, or unsealed observation prevents spend and produces an impaired outcome with no label-loader call.
+  - _Requirements: 5.3, 5.5, 5.6, 6.6, 6.7, 8.4, 8.5, 9.1, 9.2_
+  - _Boundary: Admission Orchestrator, Isolated Arm Executor_
+- [ ] 8.3 Commit spend before releasing labels and independently review V3 cases
+  - Conditionally append and reread the exact available-to-spent successor before opening nonzero sealed-label bytes inside the custodian boundary.
+  - Join ground truth to frozen observations without exposing labels to arms and bind every released case to exact scope, role, pair, result, evidence, change inputs, observation, and reviewed manifest.
+  - Require an independent post-spend release review with producer/reviewer separation, policy satisfaction, and conflict disclosure.
+  - Done when a failed or ambiguous CAS makes zero label reads, and only the exact reviewed V3 release bound to the committed receipt can reach scoring.
+  - _Requirements: 5.7, 5.8, 5.9, 7.5, 8.4, 8.5_
+  - _Boundary: Admission Orchestrator, Durable Custody Store_
+- [ ] 8.4 Project exact-scope cases and promote only matching differential proof
+  - Project each underlying ordinary push once per claimed family in its reviewed ecosystem and never across ecosystems, while deduplicating whole coverage by change-input identity.
+  - Count a multi-scope positive once in whole coverage and once in every independently verified exact scope.
+  - Promote a label-blind proof candidate only when released roles, family/ecosystem scope, pair, packet/change inputs, finding anchor, differential record, control, and verification receipt all match.
+  - Report absent or inconclusive matching proof as `not demonstrated`; refuse swapped, unrelated, cross-family, cross-location, scanner-only, or model-only evidence.
+  - Done when scoped denominators and proof attachments replay exactly and no result or proof crosses an unverified scope, role, pair, ecosystem, or input identity.
+  - _Requirements: 2.6, 3.3, 3.4, 6.2, 6.3, 6.4, 9.3, 9.4, 9.5_
+  - _Boundary: Admission Orchestrator, Proof Adapter_
+- [ ] 8.5 Produce every scoped report and one complete evaluation replay
+  - Submit each arm's released exact-scope cases through the shared authority and preserve independently valid component and combined reports.
+  - Require recall, false alarms per 100 ordinary pushes, precision, pair correctness, sample counts, Wilson intervals, operational evidence, and named gates for every completed exact scope.
+  - Keep optional aggregates non-authorizing with explicit constituents, counts, and weighting, and report deduplicated whole-population coverage separately.
+  - Validate and persist one complete V3 replay containing the shared spend and every planned arm before publishing a completed workflow outcome.
+  - Done when missing one planned arm/report blocks completion, baseline identity is complete, and a valid replay reproduces every scoped decision without legacy scoring helpers.
+  - _Requirements: 6.2, 6.3, 6.4, 6.5, 8.1, 8.2, 8.3, 8.6, 9.1, 9.2, 9.6, 9.7, 10.1_
+  - _Boundary: Admission Orchestrator, Scoped Admission V3 Consumer_
+- [ ] 8.6 Resume exact pre-spend and post-spend workflows without changing authority
+  - Resume pre-spend only from matching sealed checkpoints and unchanged identities; leave custody available after execution impairment.
+  - After committed spend, retain `labels_spent=true`, resume the same immutable run from durable artifacts, and never restore untouched status.
+  - Do not rerun completed arms, duplicate label release, or select an orphan journal entry after restart.
+  - Done when crash points before CAS, after CAS/before label load, during scoring, and before publication converge to the same valid terminal identity or an explicit durable impaired outcome.
+  - _Requirements: 5.2, 5.6, 5.7, 7.4, 7.5, 7.7, 8.3, 8.5, 10.1, 10.2_
+  - _Boundary: Admission Orchestrator, Workflow Journal_
+
+- [ ] 9. Integrate legacy benchmark seams and the operator entry point
+- [ ] 9.1 Route catalog, verification, and assembly through the new authorities
+  - Adapt existing fix-site cataloging and optional model-assistance records to the review authority without treating prior model or spot-check fields as accepted labels.
+  - Make legacy assembly a development-only facade that delegates to reservation, review, population, and artifact authorities and cannot emit an admission-class legacy manifest.
+  - Preserve historical readers and bytes while refusing old pilot identities as replacement inputs.
+  - Done when existing non-authorizing workflows remain usable for development and only reviewed replacement artifacts can enter V3 preflight.
+  - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 4.5, 4.6, 4.9, 5.1_
+  - _Boundary: Legacy Benchmark Integration_
+- [ ] 9.2 Remove replacement authority from legacy aggregate scoring
+  - Route replacement metrics, gates, case validation, proof validation, and replay exclusively through the V3 core facade.
+  - Keep old aggregate helpers available only for frozen historical replay and reject their output as a replacement admission root.
+  - Remove access-control-specific conversion or site-judgment ownership from the general replacement path.
+  - Done when the replacement path has no alternative scorer, V2 fixtures remain byte-identical, and pooled or target-specific output cannot authorize a V3 result.
+  - _Requirements: 6.2, 6.3, 6.4, 6.5, 8.2, 8.6, 9.5, 10.4, 10.5_
+  - _Boundary: Legacy Scoring Integration, Scoped Admission V3 Consumer_
+- [ ] 9.3 Publish benchmark-only run, resume, and status commands
+  - Validate settings and store capabilities before accepting source, freeze, run, resume, or status operations.
+  - Persist durable outputs incrementally, keep scratch bounded and rebuildable, and surface workflow status from the validated journal head.
+  - Emit deterministic operator JSON/text while leaving notifier transport, detector rollout, worker health, bucket administration, and retry policy with their owners.
+  - Done when an interrupted command resumes from the durable store, an expired lease reports benchmark `STALLED`, and no command mutates detector or infrastructure state.
+  - _Requirements: 7.4, 7.5, 7.8, 8.3, 10.1, 10.2, 10.3, 10.4, 10.6_
+  - _Boundary: Benchmark Operator Entry Point_
+  - _Depends: 5.2, 7.2, 7.3, 8.6_
+
+- [ ] 10. Build and bind the independently reviewed replacement population
+- [ ] 10.1 Create bounded sourcing and review queues for both initial ecosystems
+  - Source fix-derived application candidates without reading admission labels into detector development and exclude the complete permanent-reservation census before review.
+  - Produce separate bounded review queues covering Python and JavaScript/TypeScript and at least two vulnerability families, with nonzero source/fix/reachability evidence for each candidate.
+  - Persist resumable queue state and exclusions durably without treating enumeration as repository influence.
+  - Done when independent reviewers receive canonical evidence packages with no model verdict presented as authority and a restart reproduces the same pending queue identities.
+  - _Requirements: 1.1, 1.2, 1.5, 1.8, 2.1, 2.2, 4.1, 4.4, 7.4, 7.5_
+  - _Boundary: Replacement Population Sourcing_
+- [ ] 10.2 Ingest the first bounded independently reviewed Python cohort
+  - Accept only externally supplied review records with distinct producer/reviewer identities, policy satisfaction, conflict disclosure, required ground-truth judgments, reachability, canonical ecosystem, and exact verified scopes.
+  - Limit this ingestion unit to one supplied batch of at most twenty candidate review records.
+  - Record every exclusion and insufficiency reason without fabricating or self-approving missing reviews.
+  - Keep detector observations and admission labels outside the ingestion process.
+  - Done when one bounded Python review batch has at least ten accepted reachable positives and every accepted or excluded candidate replays from its external review evidence.
+  - _Requirements: 1.1, 1.5, 1.6, 2.3, 2.4, 2.5, 2.6, 4.1, 4.2_
+  - _Boundary: Review Authority, Replacement Population Sourcing_
+  - _Depends: 10.1_
+- [ ] 10.3 Ingest the first bounded independently reviewed JavaScript/TypeScript cohort
+  - Apply the same independent-review, conflict-disclosure, reachability, exact-scope, reservation, and exclusion rules to the canonical `javascript` ecosystem.
+  - Limit this ingestion unit to one supplied batch of at most twenty candidate review records.
+  - Preserve TypeScript as observed language evidence without creating a separate ecosystem or detector requirement.
+  - Do not fabricate or self-approve missing reviews; leave the cohort pending when external decisions are unavailable.
+  - Done when one bounded JavaScript/TypeScript review batch has at least ten accepted reachable positives and every accepted or excluded candidate replays from its external review evidence.
+  - _Requirements: 1.1, 1.5, 1.6, 1.8, 2.3, 2.4, 2.5, 2.6, 4.1, 4.2_
+  - _Boundary: Review Authority, Replacement Population Sourcing_
+  - _Depends: 10.1_
+- [ ] 10.4 Ingest a third bounded independently reviewed cohort
+  - Accept one externally supplied batch of at most twenty candidate review records under the same identity, review, reachability, exact-scope, reservation, and exclusion rules.
+  - Select the pending queue batch needed to preserve both ecosystems and progress the accepted set toward at least two vulnerability families without changing review policy after seeing labels.
+  - Do not fabricate or self-approve missing reviews; leave this bounded cohort pending when its external records are unavailable.
+  - Done when the third cohort contributes at least ten accepted reachable positives and every accepted or excluded candidate replays from its external evidence.
+  - _Requirements: 1.1, 1.2, 1.3, 1.5, 1.6, 2.3, 2.4, 2.5, 2.6, 4.1, 4.2, 4.10_
+  - _Boundary: Review Authority, Replacement Population Sourcing_
+  - _Depends: 10.2, 10.3_
+- [ ] 10.5 Ingest a fourth bounded independently reviewed cohort and close the positive set
+  - Accept one externally supplied batch of at most twenty candidate review records under the unchanged review and reservation policy.
+  - Require its accepted records to close any remaining ecosystem or family gap without granting an unverified scope.
+  - Do not fabricate or self-approve missing reviews; leave this bounded cohort pending when its external records are unavailable.
+  - Done when the fourth cohort contributes at least ten accepted reachable positives and the combined durable set has at least forty positives across both ecosystems and at least two families.
+  - _Requirements: 1.1, 1.2, 1.3, 1.5, 1.6, 1.7, 2.3, 2.4, 2.5, 2.6, 4.1, 4.2, 4.10_
+  - _Boundary: Review Authority, Replacement Population Sourcing_
+  - _Depends: 10.4_
+- [ ] 10.6 Draw and validate the full ordinary-change population
+  - Draw at least twenty eligible same-repository first-parent ordinary pushes for each accepted positive, excluding fixes and every reviewed contaminated change.
+  - Persist the deterministic draw, ecosystem identity, provenance, exclusion, and reservation evidence without opening detector observations or tuning on admission labels.
+  - Prove each input repository and selected change is readable and nonzero before accepting a draw count.
+  - Done when every accepted positive has the required eligible ordinary-push count and the complete draw reproduces from durable evidence after restart.
+  - _Requirements: 3.1, 3.2, 3.4, 3.5, 7.1, 7.4, 7.5_
+  - _Boundary: Population Freezer, Replacement Population Sourcing_
+  - _Depends: 10.5_
+- [ ] 10.7 Freeze and causally bind the exact replacement baseline
+  - Freeze the reviewed population under new population/freeze identities, build the independently reviewed label-blind manifest, and persist public/private/sealed partitions.
+  - Append the reviewed replacement-binding lifecycle event naming the exact withdrawal, population, and freeze identities.
+  - Re-run permanent reservation, lifecycle eligibility, and store capability checks without registering real arms, running core preflight, or spending labels.
+  - Done when the historical pilot remains withdrawn and byte-identical, the replacement is active and reproducible, the reviewed label-blind manifest resolves exactly, required store capabilities pass, and no admission run has consumed labels.
+  - _Requirements: 1.3, 1.4, 3.3, 3.4, 4.5, 4.6, 4.7, 4.8, 4.9, 4.10, 5.3, 5.4, 7.1, 7.2, 7.6_
+  - _Boundary: Replacement Freeze Integration_
+  - _Depends: 2.4, 4.4, 5.1, 10.6_
+- [ ] 11. Validate the complete replacement benchmark
+- [ ] 11.1 (P) Run governance, review, population, and confidentiality adversarial suites
+  - Exercise alias/fork reservation, enumerated-only events, historical path/digest changes, lifecycle forks, self-review, missing judgments, model-only labels, ecosystem ambiguity, license leakage, raw diagnostic access, and post-freeze contamination.
+  - Prove every scoped fixture is readable and nonzero before interpreting a refusal or zero result.
+  - Done when every mutation fails at its owning boundary, no private/label-bearing byte reaches an arm or shared report, and retirement/development opening never rewrites prior evidence.
+  - _Requirements: 1.5, 1.6, 1.7, 2.3, 2.4, 2.5, 3.5, 3.6, 4.1, 4.2, 4.3, 4.4, 4.8, 5.1, 5.2, 5.4, 5.6, 7.6, 10.3_
+  - _Boundary: Population Governance Validation_
+  - _Depends: 2.4, 4.4, 6.5_
+- [ ] 11.2 (P) Run artifact, custody, retention, and scratch-loss recovery suites
+  - Exercise create-only conflicts, wrong kind/digest reads, access classes, policy mismatch, conditional create/update, concurrent writers, committed reread, version visibility, transient expiry, restart, and complete scratch loss.
+  - Verify the configured store through nonzero test objects before interpreting capability results and never mutate administrator-owned policy.
+  - Done when durable authorities and spent state recover exactly, transient versions expire as registered, and any unsupported or ambiguous storage behavior blocks admission.
+  - _Requirements: 5.7, 7.3, 7.4, 7.5, 7.7, 7.8, 8.5, 10.2_
+  - _Boundary: Persistence and Custody Validation_
+  - _Depends: 5.2, 5.4_
+- [ ] 11.3 Run a synthetic two-ecosystem, multi-family, multi-arm lifecycle end to end
+  - Include Python and JavaScript/TypeScript, at least two families, multi-scope fixes, representative ordinary pushes, shipped/experimental/combined arms, and matching/nonmatching proof candidates.
+  - Prove a sub-forty freeze is non-authorizing, while a full synthetic freeze completes preflight, all label-blind observations, one shared spend, reviewed release, exact-scope reports, whole deduplication, and one replay.
+  - Persist and recover the workflow through restart and render deterministic redacted operator output.
+  - Done when one validated V3 replay contains every planned arm and exact scope, the presenter reports standard metrics and demonstrated status correctly, and no legacy or target-specific scorer participates.
+  - _Requirements: 1.1, 1.2, 1.3, 1.4, 2.6, 3.2, 3.3, 3.4, 5.3, 5.7, 5.8, 5.9, 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7, 8.1, 8.2, 8.3, 9.1, 9.2, 9.3, 9.4, 9.6, 9.7, 10.1_
+  - _Boundary: Replacement Benchmark End-to-End Integration_
+  - _Depends: 8.6, 9.3_
+- [ ] 11.4 Run the spend-ordering, crash, retry, and failure-visibility matrix
+  - Inject insufficient scope, missing arm, zero read, skipped stage, early exit, timeout, budget/resource exhaustion, failed CAS, after-spend interruption, scoring failure, publication failure, expired lease, and stale resume owner.
+  - Assert no pre-spend failure calls the label loader, all post-spend failures preserve spent state, and exact resume never reruns a completed arm.
+  - Require every failure to produce a closed insufficient/impaired reason rather than a clean metric or invented infrastructure diagnosis.
+  - Done when all crash points converge to the exact durable terminal outcome or replay and no path restores untouched custody or hides an instrument failure.
+  - _Requirements: 5.2, 5.6, 5.7, 7.5, 8.3, 8.4, 8.5, 10.1, 10.2, 10.6_
+  - _Boundary: Admission Recovery Validation_
+  - _Depends: 11.3_
+- [ ] 11.5 Verify streaming scale, bounded validation, and execution back-pressure
+  - Exercise at least forty positives and eight hundred ordinary pushes for freeze, manifest, policy, serialization, projection, replay, and reporting operations.
+  - Stream one object/case batch at a time, measure cold/warm workflow and per-arm runtime, and retain nonzero read/execution receipts for every measurement.
+  - Respect adapter back-pressure without treating a busy or unavailable execution lane as a detector result or infrastructure diagnosis.
+  - Done when resident memory remains bounded by the configured batch, validation grows with supplied artifacts, and every incomplete scale run reports impairment rather than a partial clean result.
+  - _Requirements: 3.2, 7.4, 7.5, 8.3, 8.4, 8.5, 10.2, 10.6_
+  - _Boundary: Benchmark Scale Validation_
+- [ ] 11.6 Execute the one governed replacement admission run
+  - Register the approved shipped, experimental, and pre-registered combined arms, then run exact-scope preflight over the active replacement freeze only after all synthetic and scale gates pass.
+  - If any planned scope is insufficient, persist that pre-spend outcome and leave custody available; otherwise freeze every planned observation before committing and rereading the one population spend.
+  - Complete independent case-release review, exact proof binding, all per-arm scoped reports, one V3 evaluation replay, and the durable terminal workflow outcome without tuning from released labels.
+  - Done when the real replacement produces either an exact pre-spend insufficient outcome with zero label reads or one validated replay and terminal outcome bound to the immutable spent population.
+  - _Requirements: 5.3, 5.4, 5.5, 5.6, 5.7, 5.8, 5.9, 6.1, 6.6, 6.7, 8.1, 8.2, 8.3, 8.4, 8.5, 9.1, 9.2, 9.3, 9.4, 9.6, 9.7, 10.1, 10.2_
+  - _Boundary: Replacement Admission Integration_
+  - _Depends: 10.7, 11.1, 11.2, 11.3, 11.4, 11.5_
+- [ ] 11.7 Run the final compatibility, security, boundary, and regression gate
+  - Run frozen historical compatibility, V3 core conformance, governance, persistence, custody, arm, orchestrator, workflow, presenter, end-to-end, and existing benchmark regression suites.
+  - Enforce dependency direction, standard complexity caps, no core edits, no detector/framework logic in benchmark authorities, no core imports from benchmark modules, and no product rollout or parked-arm activation.
+  - Scan shared artifacts and reports for credentials, endpoints, labels, payloads, repository content, local paths, arbitrary exceptions, and incompatible baseline trend claims.
+  - Done when all bounded inputs are proved readable/nonzero, every suite passes, historical bytes remain frozen, the exact durable replacement terminal outcome validates, a replay is required and validated only for `COMPLETED`, and downstream product work receives scoped evidence without rollout authority.
+  - _Requirements: 4.6, 4.10, 7.7, 8.1, 8.2, 8.3, 8.4, 8.5, 8.6, 9.5, 9.6, 9.7, 10.3, 10.4, 10.5, 10.6_
+  - _Boundary: Final Benchmark Validation Integration_
+  - _Depends: 11.6_

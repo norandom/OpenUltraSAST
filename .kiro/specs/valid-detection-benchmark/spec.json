@@ -1,9 +1,9 @@
 {
   "feature_name": "valid-detection-benchmark",
   "created_at": "2026-10-12T14:38:18Z",
-  "updated_at": "2026-11-06T08:15:41Z",
+  "updated_at": "2026-11-12T17:26:54Z",
   "language": "en",
-  "phase": "design-generated",
+  "phase": "tasks-generated",
   "approvals": {
     "requirements": {
       "generated": true,
@@ -14,11 +14,11 @@
       "approved": true
     },
     "tasks": {
-      "generated": false,
-      "approved": false
+      "generated": true,
+      "approved": true
     }
   },
-  "ready_for_implementation": false,
+  "ready_for_implementation": true,
   "depends_on": [
     "detection-core"
   ],
@@ -27,5 +27,5 @@
     "pre-push-safety-net",
     "search-with-proof"
   ],
-  "approval_note": "2026-11-06: requirements auto-approved by explicit -y request; the replacement design passed the bounded automatic review gate and the maintainer explicitly approved it. Implementation task generation remains gated on an approved, implemented, and independently validated detection-core amendment exporting openultrasast.detection-core.evaluation-admission.v3; valid-detection-benchmark does not own upstream core edits."
+  "approval_note": "2026-11-12: the validated detection-core V3 predecessor unblocked task generation. The replacement benchmark task graph covers all 73 acceptance criteria, passed the bounded task-plan and independent sanity reviews, and was auto-approved by explicit -y request; valid-detection-benchmark consumes but does not edit core-owned contracts."
 }
