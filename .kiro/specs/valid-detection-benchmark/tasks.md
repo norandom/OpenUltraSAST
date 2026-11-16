@@ -26,7 +26,7 @@
   - Done when a benchmark-only conformance suite accepts the shipped V3 facade, preserves frozen historical bytes, and rejects V2, unknown, mixed, or incomplete roots without changing core-owned files.
   - _Requirements: 5.3, 5.5, 6.1, 6.6, 6.7, 8.4, 8.5, 8.6, 9.1, 9.2_
   - _Boundary: Scoped Admission V3 Consumer_
-- [ ] 1.2 Build the canonical benchmark artifact and identity boundary
+- [x] 1.2 Build the canonical benchmark artifact and identity boundary
   - Define deterministic canonical envelopes for reservation, review, lifecycle, population, observation, workflow, report, and replay references using full content digests and closed artifact kinds.
   - Validate schema, digest, byte length, provenance, access class, canonical ordering, and same-identity byte equality before any artifact is accepted.
   - Preserve the existing artifact-envelope substrate only where it satisfies the new contracts; incompatible legacy envelopes remain read-only and non-authorizing.
@@ -412,3 +412,4 @@
 ## Implementation Notes
 
 - Task 1.1 pins the exact public V3 facade and delegates decoding and complete replay validation to detection-core; frozen V2 and pilot artifacts remain byte-identical, read-only compatibility inputs with no V3 conversion path.
+- Task 1.2 adds a replacement-only canonical artifact and reference contract with closed kinds/access classes and exact content identity; the existing V2 substrate remains readable but cannot authorize replacement admission.
