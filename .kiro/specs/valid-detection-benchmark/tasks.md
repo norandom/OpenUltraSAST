@@ -119,7 +119,7 @@
   - Done when public serialization contains no private bytes, labels, credentials, or local paths and every opaque reference resolves only through the authorized custodian boundary.
   - _Requirements: 5.1, 5.3, 7.1, 7.6, 10.3_
   - _Boundary: Population Freezer_
-  - _Blocked: debug attempted twice, still failing — semantic path classification enumerates selected filesystem roots and repeated traversal instead of rejecting every absolute filesystem path and any `../` traversal segment after bounded semantic normalization._
+  - _Blocked: two debug rounds plus one user-authorized extra repair/review cycle are exhausted — POSIX, drive-qualified Windows, UNC, file-URL, and traversal paths are rejected, but Windows current-drive-rooted paths beginning with one backslash remain public._
 - [ ] 4.4 Integrate the independently reviewed label-blind population manifest
   - Construct only counts, exact scopes, canonical input identities, and digests needed by later plan composition, with no label-bearing field.
   - Require an independent manifest review with policy satisfaction and conflict disclosure.
@@ -424,4 +424,4 @@
 - Task 3.3 revalidates exact candidate and ecosystem authorities, derives accepted/excluded ground truth from explicit independent human judgments, keeps model assistance non-authoritative, and projects each change once while preserving all verified exact scopes.
 - Task 4.1 deterministically draws at least twenty same-network first-parent ordinary pushes per accepted positive, globally excludes every accepted fix revision, stores shared pushes once, and routes reviewed contamination to exclusion or terminal retirement according to freeze timing.
 - Task 4.2 classifies and freezes only exact reviewed authorities against the Reservation Authority's current census snapshot; admission requires at least forty positives across Python and JavaScript and two families, while stale censuses, split networks, and insufficient scope remain non-authorizing.
-- Task 4.3 remains blocked after two debug rounds: exact object/policy binding and bounded JSON semantic normalization are green, but the public safety policy must structurally reject every absolute filesystem path and any traversal segment rather than enumerate selected roots.
+- Task 4.3 remains blocked after two debug rounds and one user-authorized extra cycle: exact policy/object binding, bounded JSON semantics, POSIX/drive/UNC/file/traversal rejection, and 294 benchmark tests are green; raw or JSON-escaped Windows current-drive-rooted paths beginning with one backslash still require structural refusal.
