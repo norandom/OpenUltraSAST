@@ -64,7 +64,7 @@
   - Done when duplicate equal events are idempotent, forks and missing predecessors fail, terminal states cannot be undone, and only an active replacement-complete projection is admission eligible.
   - _Requirements: 3.6, 4.7, 4.9, 5.1, 5.2, 5.6, 7.7_
   - _Boundary: Baseline Lifecycle Authority_
-- [ ] 2.4 Route the permanent-reservation guard through exact reviewed authority
+- [x] 2.4 Route the permanent-reservation guard through exact reviewed authority
   - Replace test-owned exception logic with the reservation census and exact historical authorization contracts.
   - Require the replacement population to pass canonical identity, alias/fork, influence, and historical-file checks before acceptance.
   - Preserve the guard's nonzero repository census and report every forbidden reference without treating an unread tree as zero.
@@ -417,3 +417,4 @@
 - Task 2.1 projects independently reviewed influence and explicit authoritative legacy sources through canonical alias/former-name/redirect/fork networks; enumeration remains recorded but non-reserving, and the legacy test-owned guard remains pending Task 2.4 migration.
 - Task 2.2 centralizes the unchanged ten-file historical inventory, records the 2026-10-12 pilot as withdrawn/non-admissible and replacement-pending, and grants audit authority only after external review of exact live path/digest/length bytes; no real review identity is fabricated.
 - Task 2.3 projects one immutable reviewed lifecycle chain from the exact withdrawal through replacement completion; retirement and development opening are terminal, with the latter emitting reviewed permanent-reservation influence for every opened network.
+- Task 2.4 replaces directory exceptions with a production guard over the fixed `benchmarks`/`plane`/`src`/`tests` scope; reports bind exact read receipts and authorities, and replacement acceptance reruns the complete scope to reject stale or narrowed clean reports.

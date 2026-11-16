@@ -390,6 +390,17 @@ class ReservationAuthority:
             return False
         return network.network_identity_digest in census.reserved_network_digests
 
+    def resolve_repository(self, repository: str) -> RepositoryNetworkIdentity:
+        """Resolve a candidate through the reviewed canonical network registry."""
+        return self._resolver.resolve(repository)
+
+    def legacy_source_network_digest(self, legacy_source_digest: str) -> str:
+        """Resolve one accepted legacy-source identity to its canonical network."""
+        try:
+            return self._legacy_by_digest[legacy_source_digest].network_identity_digest
+        except KeyError as error:
+            raise ReservationError("legacy source identity is not accepted") from error
+
 
 __all__ = [
     "InfluenceDisposition",
