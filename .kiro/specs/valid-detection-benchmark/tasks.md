@@ -88,7 +88,7 @@
   - Done when accepted repositories have exactly one canonical ecosystem and every unresolved, self-reviewed, stale, or conflicting review remains non-admissible.
   - _Requirements: 1.1, 1.5, 1.6, 1.8, 2.3_
   - _Boundary: Review Authority_
-- [ ] 3.3 Validate independently reviewed positive ground truth and exact scopes
+- [x] 3.3 Validate independently reviewed positive ground truth and exact scopes
   - Require explicit defect-present, fix-addresses, and in-repository-reachable judgments with producer/reviewer separation, policy evidence, and conflict disclosure.
   - Keep optional model assistance as a separately identified non-authoritative input that can never satisfy a missing human judgment.
   - Bind each accepted fix to one or more independently verified vulnerability-family and canonical-ecosystem scopes; record closed exclusion reasons otherwise.
@@ -420,3 +420,4 @@
 - Task 2.4 replaces directory exceptions with a production guard over the fixed `benchmarks`/`plane`/`src`/`tests` scope; reports bind exact read receipts and authorities, and replacement acceptance reruns the complete scope to reject stale or narrowed clean reports.
 - Task 3.1 builds non-authoritative fix-site candidates from only the fixed revision and its exact parent, binding nonzero pre/post function bytes and repository/package/language/license/source/change provenance without blame or introducing-commit inference.
 - Task 3.2 revalidates externally governed ecosystem reviews against exact candidate/evidence/policy identities, derives closed accepted/insufficient outcomes, and enforces a repository↔network bijection before projecting canonical Python or JavaScript ecosystems.
+- Task 3.3 revalidates exact candidate and ecosystem authorities, derives accepted/excluded ground truth from explicit independent human judgments, keeps model assistance non-authoritative, and projects each change once while preserving all verified exact scopes.
