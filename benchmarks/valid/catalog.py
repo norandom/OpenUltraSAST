@@ -8,13 +8,28 @@ import json
 import os
 import re
 import subprocess
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import asdict, is_dataclass
 from functools import cache
 from pathlib import Path
+from typing import Any
 
 from benchmarks.unseen import extract
 from benchmarks.unseen.draft import toml
 from benchmarks.unseen.eligibility import normalize
+from benchmarks.valid.fix_site_catalog import (
+    EvidenceRef,
+    FixSiteCandidateV1,
+    FixSiteCatalogError,
+    FixSiteReader,
+    FixSiteRequest,
+    FunctionSnapshot,
+    LicenseEvidence,
+    PackageEcosystemEvidence,
+    SourceEvidence,
+    build_fix_site_candidate,
+    fix_site_candidate_bytes,
+)
 
 LANGUAGES = {
     ".py": "python",
@@ -29,17 +44,17 @@ LANGUAGES = {
 }
 
 
-def local_git(path: Path):
+def local_git(path: Path) -> extract.Git:
     """Disable partial-clone lazy fetches while reading existing local objects."""
 
-    def runner(argv, **kwargs):
+    def runner(argv: Sequence[str], **kwargs: Any) -> Any:
         return subprocess.run(argv, env={**os.environ, "GIT_NO_LAZY_FETCH": "1", "GIT_TERMINAL_PROMPT": "0"}, **kwargs)
 
     return extract.Git(path, runner=runner)
 
 
 @cache
-def pair_builder():
+def pair_builder() -> Any:
     path = Path(__file__).resolve().parents[1] / "pairs/advisory-fixes/materialize.py"
     spec = importlib.util.spec_from_file_location("valid_pair_builder", path)
     if spec is None or spec.loader is None:
@@ -49,9 +64,14 @@ def pair_builder():
     return module
 
 
-def read_functions(git, case: dict, *, report=None) -> dict:
+def read_functions(
+    git: Any,
+    case: Mapping[str, Any],
+    *,
+    report: Callable[[str, int], None] | None = None,
+) -> dict[str, Any]:
     """Use the pair builder's function_bounds cutter on both pinned snapshots."""
-    result = {}
+    result: dict[str, Any] = {}
     for side, sha in (("pre_fix", case["parent"]), ("post_fix", case["commit"])):
         source = git.blob(sha, case["path"])
         cut = pair_builder().extract(source, case["language"], case["function"]) if source else None
@@ -71,9 +91,9 @@ def read_functions(git, case: dict, *, report=None) -> dict:
     return result
 
 
-def build_cases(git, source, *, cwe: str | None = None, advisory_text: str = "") -> list[dict]:
+def build_cases(git: Any, source: Any, *, cwe: str | None = None, advisory_text: str = "") -> list[dict[str, Any]]:
     """Accept source.Candidate or its resolved dictionary, with advisory metadata."""
-    source = asdict(source) if is_dataclass(source) else dict(source)
+    source = asdict(source) if is_dataclass(source) and not isinstance(source, type) else dict(source)
     repo = normalize(source.get("repository") or source["repo"])
     fix, parent = source.get("fix") or source["commit"], source["parent"]
     if not extract.SHA.fullmatch(fix) or not extract.SHA.fullmatch(parent) or fix == parent:
@@ -120,7 +140,7 @@ def build_cases(git, source, *, cwe: str | None = None, advisory_text: str = "")
     return sorted(rows, key=lambda row: row["id"])
 
 
-def write_catalog(path: Path, cases: list[dict]) -> None:
+def write_catalog(path: Path, cases: list[dict[str, Any]]) -> None:
     if len({row["id"] for row in cases}) != len(cases):
         raise ValueError("duplicate case id")
     text = "\n".join(
@@ -130,7 +150,7 @@ def write_catalog(path: Path, cases: list[dict]) -> None:
     path.write_text(text, encoding="utf-8")
 
 
-def main(argv=None):
+def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("sources", type=Path, help="JSON array of resolved Candidate dictionaries with CWE and advisory_text")
     parser.add_argument("--repos", type=Path, required=True, help="JSON map of repository names to local Git directories")
@@ -148,3 +168,24 @@ def main(argv=None):
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
+
+__all__ = [
+    "EvidenceRef",
+    "FixSiteCandidateV1",
+    "FixSiteCatalogError",
+    "FixSiteReader",
+    "FixSiteRequest",
+    "FunctionSnapshot",
+    "LicenseEvidence",
+    "PackageEcosystemEvidence",
+    "SourceEvidence",
+    "build_cases",
+    "build_fix_site_candidate",
+    "fix_site_candidate_bytes",
+    "local_git",
+    "main",
+    "pair_builder",
+    "read_functions",
+    "write_catalog",
+]

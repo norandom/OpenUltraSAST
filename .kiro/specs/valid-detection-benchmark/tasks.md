@@ -74,7 +74,7 @@
   - _Depends: 2.1, 2.2, 2.3_
 
 - [ ] 3. Produce independently reviewed ecosystem and fix-derived ground truth
-- [ ] 3.1 Preserve fix-site, repository, ecosystem, language, license, and provenance evidence
+- [x] 3.1 Preserve fix-site, repository, ecosystem, language, license, and provenance evidence
   - Derive vulnerable and fixed locations from the security-fix file and function at the vulnerable parent and fixed revision without blame walk-back or SZZ introducing-commit inference.
   - Retain canonical repository identity, observed language, package ecosystem evidence, license evidence, source evidence, change inputs, and nonzero function bytes.
   - Treat concrete frameworks and repositories as evidence only and add no detector vocabulary or implementation behavior.
@@ -418,3 +418,4 @@
 - Task 2.2 centralizes the unchanged ten-file historical inventory, records the 2026-10-12 pilot as withdrawn/non-admissible and replacement-pending, and grants audit authority only after external review of exact live path/digest/length bytes; no real review identity is fabricated.
 - Task 2.3 projects one immutable reviewed lifecycle chain from the exact withdrawal through replacement completion; retirement and development opening are terminal, with the latter emitting reviewed permanent-reservation influence for every opened network.
 - Task 2.4 replaces directory exceptions with a production guard over the fixed `benchmarks`/`plane`/`src`/`tests` scope; reports bind exact read receipts and authorities, and replacement acceptance reruns the complete scope to reject stale or narrowed clean reports.
+- Task 3.1 builds non-authoritative fix-site candidates from only the fixed revision and its exact parent, binding nonzero pre/post function bytes and repository/package/language/license/source/change provenance without blame or introducing-commit inference.
