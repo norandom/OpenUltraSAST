@@ -33,7 +33,7 @@
   - Done when equal inputs produce byte-identical identities and malformed, empty, unsupported, or same-key/different-byte inputs fail before projection or scoring.
   - _Requirements: 7.1, 7.2, 7.3, 8.1, 8.4, 8.5, 8.6, 10.3_
   - _Boundary: Benchmark Artifact Contracts_
-- [ ] 1.3 Define store settings, retention profiles, and capability prerequisites
+- [x] 1.3 Define store settings, retention profiles, and capability prerequisites
   - Load purpose-specific durable and transient store settings from environment names without serializing endpoints or credentials into artifacts.
   - Represent required versioning, conditional-write, current-version, and noncurrent-version retention properties as validated capability profiles.
   - Keep bucket creation, lifecycle mutation, cluster health, and credential provisioning outside application authority.
@@ -413,3 +413,4 @@
 
 - Task 1.1 pins the exact public V3 facade and delegates decoding and complete replay validation to detection-core; frozen V2 and pilot artifacts remain byte-identical, read-only compatibility inputs with no V3 conversion path.
 - Task 1.2 adds a replacement-only canonical artifact and reference contract with closed kinds/access classes and exact content identity; the existing V2 substrate remains readable but cannot authorize replacement admission.
+- Task 1.3 separates durable and transient store namespaces through canonical endpoint identity, requires versioning/conditional writes and purpose-specific current/noncurrent retention, emits only redacted closed startup reports, and denies administrator-owned operations.
