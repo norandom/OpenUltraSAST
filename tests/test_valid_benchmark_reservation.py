@@ -19,7 +19,7 @@ SUBJECT = content_digest({"subject": "selection-evidence"})
 LEGACY = content_digest({"legacy": "authoritative-reservation"})
 
 
-def _network(*, canonical: str = "https://github.com/acme/core"):
+def _network(*, canonical: str = "https://github.com/acme/core") -> reservation.RepositoryNetworkIdentity:
     return reservation.build_network_identity(
         canonical,
         aliases=("https://github.com/ACME/core.git",),
@@ -30,7 +30,7 @@ def _network(*, canonical: str = "https://github.com/acme/core"):
 
 
 def _event(
-    resolver,
+    resolver: reservation.RepositoryIdentityResolver,
     *,
     repository: str = "https://github.com/acme/core",
     disposition: reservation.InfluenceDisposition = reservation.InfluenceDisposition.INFLUENCED,
@@ -105,6 +105,26 @@ def test_equal_events_are_idempotent() -> None:
 
     assert first == second
     assert len(second.accepted_event_digests) == 1
+
+
+def test_current_census_includes_legacy_and_equal_appends_are_idempotent() -> None:
+    resolver = reservation.RepositoryIdentityResolver((_network(),))
+    legacy = reservation.legacy_reservation_source(
+        resolver,
+        repository="https://github.com/acme/old-core",
+        source_digest=LEGACY,
+    )
+    authority = reservation.ReservationAuthority(resolver, legacy_sources=(legacy,))
+    initial = authority.current_census()
+    event = _event(resolver)
+
+    first = authority.append_influence(event)
+    second = authority.append_influence(bytes(event))
+
+    assert initial.legacy_source_digests == (legacy.legacy_source_digest,)
+    assert first == second == authority.current_census()
+    assert len(second.accepted_event_digests) == 1
+    authority.require_current_census(second)
 
 
 def test_census_is_deterministic_from_complete_event_set() -> None:

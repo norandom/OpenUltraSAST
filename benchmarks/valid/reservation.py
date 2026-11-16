@@ -373,6 +373,18 @@ class ReservationAuthority:
             content_digest(_census_value(draft, include_digest=False)),
         )
 
+    def current_census(self) -> ReservationCensusV1:
+        """Project the exact census from all state accepted by this authority."""
+        return self.project_census(self._accepted_bytes_by_digest.values())
+
+    def require_current_census(self, census: ReservationCensusV1) -> ReservationCensusV1:
+        """Require a supplied census to equal the authority's current snapshot."""
+        census_bytes(census)
+        current = self.current_census()
+        if census != current:
+            raise ReservationConflict("reservation census is not the current authoritative snapshot")
+        return current
+
     def append_influence(self, content: bytes) -> ReservationCensusV1:
         event = decode_influence_event(content)
         existing = self._accepted_bytes_by_digest.get(event.event_digest)
@@ -380,7 +392,7 @@ class ReservationAuthority:
             raise ReservationConflict("same event identity has different bytes")
         self._accepted_events((content,))
         self._accepted_bytes_by_digest[event.event_digest] = content
-        return self.project_census(self._accepted_bytes_by_digest.values())
+        return self.current_census()
 
     def is_reserved(self, repository: str, census: ReservationCensusV1) -> bool:
         census_bytes(census)

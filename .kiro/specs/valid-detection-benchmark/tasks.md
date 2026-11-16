@@ -105,7 +105,7 @@
   - Done when the same source and policy reproduce the draw, cross-ecosystem substitution fails, and every accepted positive contributes the required eligible ordinary-change count.
   - _Requirements: 3.1, 3.2, 3.4, 3.5, 3.6_
   - _Boundary: Population Freezer_
-- [ ] 4.2 Classify and freeze the canonical population
+- [x] 4.2 Classify and freeze the canonical population
   - Consume only accepted ecosystem and ground-truth reviews plus the authoritative reservation census.
   - Bind selections, ordinary draws, exclusions, review sets, provenance, policies, scope census, and new population/freeze identities into a deterministic freeze.
   - Classify fewer than forty accepted positives, a missing ecosystem, missing second family, or infeasible claimed scope as development pilot or insufficient rather than admission.
@@ -422,3 +422,4 @@
 - Task 3.2 revalidates externally governed ecosystem reviews against exact candidate/evidence/policy identities, derives closed accepted/insufficient outcomes, and enforces a repository↔network bijection before projecting canonical Python or JavaScript ecosystems.
 - Task 3.3 revalidates exact candidate and ecosystem authorities, derives accepted/excluded ground truth from explicit independent human judgments, keeps model assistance non-authoritative, and projects each change once while preserving all verified exact scopes.
 - Task 4.1 deterministically draws at least twenty same-network first-parent ordinary pushes per accepted positive, globally excludes every accepted fix revision, stores shared pushes once, and routes reviewed contamination to exclusion or terminal retirement according to freeze timing.
+- Task 4.2 classifies and freezes only exact reviewed authorities against the Reservation Authority's current census snapshot; admission requires at least forty positives across Python and JavaScript and two families, while stale censuses, split networks, and insufficient scope remain non-authorizing.
