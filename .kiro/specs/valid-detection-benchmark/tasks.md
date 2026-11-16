@@ -81,7 +81,7 @@
   - Done when fixture fixes reproduce the exact pre/post functions and provenance, SZZ-style methods are unreachable, and an empty or unreadable function refuses candidate creation.
   - _Requirements: 1.1, 1.2, 1.5, 1.8, 2.1, 2.2_
   - _Boundary: Fix-Site Catalog_
-- [ ] 3.2 Validate canonical repository ecosystem review
+- [x] 3.2 Validate canonical repository ecosystem review
   - Accept only reviewed `python` or `javascript` ecosystem identities, preserving TypeScript as an observed language within `javascript`.
   - Require producer/reviewer separation, review-policy satisfaction, conflict disclosure, and the source-evidence digest.
   - Emit bounded insufficient evidence for unresolved or conflicting ecosystem classification, including polyglot ambiguity.
@@ -419,3 +419,4 @@
 - Task 2.3 projects one immutable reviewed lifecycle chain from the exact withdrawal through replacement completion; retirement and development opening are terminal, with the latter emitting reviewed permanent-reservation influence for every opened network.
 - Task 2.4 replaces directory exceptions with a production guard over the fixed `benchmarks`/`plane`/`src`/`tests` scope; reports bind exact read receipts and authorities, and replacement acceptance reruns the complete scope to reject stale or narrowed clean reports.
 - Task 3.1 builds non-authoritative fix-site candidates from only the fixed revision and its exact parent, binding nonzero pre/post function bytes and repository/package/language/license/source/change provenance without blame or introducing-commit inference.
+- Task 3.2 revalidates externally governed ecosystem reviews against exact candidate/evidence/policy identities, derives closed accepted/insufficient outcomes, and enforces a repository↔network bijection before projecting canonical Python or JavaScript ecosystems.
