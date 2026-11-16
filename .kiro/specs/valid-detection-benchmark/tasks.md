@@ -49,7 +49,7 @@
   - Done when reserved aliases and forks are excluded, enumeration alone does not reserve a repository, and changed event bytes cannot reproduce the accepted census identity.
   - _Requirements: 4.1, 4.2, 4.3, 4.4_
   - _Boundary: Reservation Authority_
-- [ ] 2.2 Integrate historical withdrawal lifecycle with exact audit authorization
+- [x] 2.2 Integrate historical withdrawal lifecycle with exact audit authorization
   - Inventory every retained historical identity-bearing path with its repository-relative path, nonzero bytes, content digest, withdrawal reason, and reviewed authorization evidence.
   - Mark the 2026-10-12 pilot withdrawn and non-admissible while preserving its bytes and original identities.
   - Authorize audit reads only for exact unchanged path-and-digest pairs; reject directories, globs, repository allowlists, relocated files, and changed bytes.
@@ -415,3 +415,4 @@
 - Task 1.2 adds a replacement-only canonical artifact and reference contract with closed kinds/access classes and exact content identity; the existing V2 substrate remains readable but cannot authorize replacement admission.
 - Task 1.3 separates durable and transient store namespaces through canonical endpoint identity, requires versioning/conditional writes and purpose-specific current/noncurrent retention, emits only redacted closed startup reports, and denies administrator-owned operations.
 - Task 2.1 projects independently reviewed influence and explicit authoritative legacy sources through canonical alias/former-name/redirect/fork networks; enumeration remains recorded but non-reserving, and the legacy test-owned guard remains pending Task 2.4 migration.
+- Task 2.2 centralizes the unchanged ten-file historical inventory, records the 2026-10-12 pilot as withdrawn/non-admissible and replacement-pending, and grants audit authority only after external review of exact live path/digest/length bytes; no real review identity is fabricated.

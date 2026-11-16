@@ -20,25 +20,13 @@ from benchmarks.valid.core_conformance import (
     require_scoped_admission_v3,
     validate_scoped_admission_replay,
 )
+from benchmarks.valid.historical_authorization import PINNED_HISTORICAL_DIGESTS
 from openultrasast.core import evaluation_admission
 
 REPO = Path(__file__).resolve().parents[1]
 V2_REPORT_SCHEMA = "openultrasast.detection-core.admission-report.v2"
 V3_SCHEMA = "openultrasast.detection-core.evaluation-admission.v3"
-FROZEN_HISTORY = {
-    "benchmarks/valid/pilot/freeze-valid.json": "fc6c97a034a6e2828bc003d72a2ab03445a18a3f64387310f26c7cd3ae9bf6ba",
-    "benchmarks/valid/pilot/pool-valid.toml": "48765c7703c6465f0f7fc00df81c07618b52065ed637cf97c112fdea98896c3f",
-    "tests/fixtures/detection_core/admission_v2/go_replay.json": "16dfa63087ac7ef11404196df1766961c16a3f0f148e743251df191a8070f7be",
-    "tests/fixtures/detection_core/admission_v2/go_report.json": "bf5d839c9c29f22db4a54ce2bbfff986315bf910248ea1a28ac64de0660ac59f",
-    "tests/fixtures/detection_core/admission_v2/manifest.json": "c470ccd0d27eaf98de1ac50846c2281d2ec777a96def4211e92051b158317b2b",
-    "tests/fixtures/detection_core/admission_v2/no_go_replay.json": "a385eee59970fba07d615172524c90038997911f3bd302e56bb23be029e50e6e",
-    "tests/fixtures/detection_core/admission_v2/no_go_report.json": "3c0d8698bb72157de384fa1ad63c4c1b5bafbd1001235e416aaeced9cb5da8b7",
-    "tests/fixtures/detection_core/admission_v2/validation_failures.json": (
-        "c80a1214c59c26e25db0978c85ce07ced9642baf9dc57ef0a5f0f1504f11c49f"
-    ),
-    "tests/fixtures/detection_core/admission_v2/zero_model_replay.json": "c17ab6fc00c5aea7e981a07dbb28aaa9b3da399429948029aaeb1f67eebecfd9",
-    "tests/fixtures/detection_core/admission_v2/zero_model_report.json": "336f07de37ec15eeaffb6711ce398762c6091d49b7993fd7a38f7cdebf33f85c",
-}
+FROZEN_HISTORY = PINNED_HISTORICAL_DIGESTS
 
 
 def _read_frozen_history() -> dict[str, bytes]:
