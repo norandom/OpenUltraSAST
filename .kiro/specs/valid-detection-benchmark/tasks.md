@@ -56,7 +56,7 @@
   - Done when the historical inventory reproduces exactly, the pilot cannot be presented as current qualification evidence, and no blanket exclusion is needed to read its authorized audit files.
   - _Requirements: 4.5, 4.6, 4.7, 4.8_
   - _Boundary: Reservation Authority, Baseline Lifecycle Authority_
-- [ ] 2.3 Project causal replacement, retirement, and development-opening lifecycles
+- [x] 2.3 Project causal replacement, retirement, and development-opening lifecycles
   - Validate append-only lifecycle events whose predecessor chain covers withdrawal, exact replacement binding, retirement, and development opening.
   - Keep replacement pending until the reviewed event binds the exact historical withdrawal, new population, and new freeze identities.
   - Make retirement and development opening terminal for admission while preserving prior freezes, reports, and audit material unchanged.
@@ -416,3 +416,4 @@
 - Task 1.3 separates durable and transient store namespaces through canonical endpoint identity, requires versioning/conditional writes and purpose-specific current/noncurrent retention, emits only redacted closed startup reports, and denies administrator-owned operations.
 - Task 2.1 projects independently reviewed influence and explicit authoritative legacy sources through canonical alias/former-name/redirect/fork networks; enumeration remains recorded but non-reserving, and the legacy test-owned guard remains pending Task 2.4 migration.
 - Task 2.2 centralizes the unchanged ten-file historical inventory, records the 2026-10-12 pilot as withdrawn/non-admissible and replacement-pending, and grants audit authority only after external review of exact live path/digest/length bytes; no real review identity is fabricated.
+- Task 2.3 projects one immutable reviewed lifecycle chain from the exact withdrawal through replacement completion; retirement and development opening are terminal, with the latter emitting reviewed permanent-reservation influence for every opened network.
