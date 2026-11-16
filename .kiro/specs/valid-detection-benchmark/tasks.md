@@ -42,7 +42,7 @@
   - _Boundary: Benchmark Store Configuration_
 
 - [ ] 2. Establish permanent reservation and baseline lifecycle authority
-- [ ] 2.1 Project reviewed repository influence into one permanent reservation census
+- [x] 2.1 Project reviewed repository influence into one permanent reservation census
   - Canonicalize repository identities across aliases, former names, redirects, and fork networks before accepting influence evidence.
   - Record reviewed `enumerated_only` and `influenced` events while adding only influenced identities and authoritative legacy sources to the permanent census.
   - Make equal events idempotent, conflicting identities fail closed, and the sorted census deterministic from the complete accepted event set.
@@ -414,3 +414,4 @@
 - Task 1.1 pins the exact public V3 facade and delegates decoding and complete replay validation to detection-core; frozen V2 and pilot artifacts remain byte-identical, read-only compatibility inputs with no V3 conversion path.
 - Task 1.2 adds a replacement-only canonical artifact and reference contract with closed kinds/access classes and exact content identity; the existing V2 substrate remains readable but cannot authorize replacement admission.
 - Task 1.3 separates durable and transient store namespaces through canonical endpoint identity, requires versioning/conditional writes and purpose-specific current/noncurrent retention, emits only redacted closed startup reports, and denies administrator-owned operations.
+- Task 2.1 projects independently reviewed influence and explicit authoritative legacy sources through canonical alias/former-name/redirect/fork networks; enumeration remains recorded but non-reserving, and the legacy test-owned guard remains pending Task 2.4 migration.
