@@ -19,7 +19,7 @@
 - Detector logic, framework vocabulary, rollout, infrastructure administration, and the parked access-control arm remain outside this plan.
 
 - [ ] 1. Establish the replacement benchmark foundation
-- [ ] 1.1 Pin the validated V3 predecessor and frozen historical compatibility surface
+- [x] 1.1 Pin the validated V3 predecessor and frozen historical compatibility surface
   - Verify the exact V3 schema, per-arm exact-scope plan and admission roots, shared-spend authority, case-release validation, and complete evaluation replay through the public core facade.
   - Keep pooled V2 and historical pilot artifacts replayable only under their original schemas and refuse inferred conversion into V3.
   - Refuse startup when the core schema or required V3 capability is absent, and prove all compatibility fixtures are readable and nonzero before interpreting them.
@@ -408,3 +408,7 @@
   - _Requirements: 4.6, 4.10, 7.7, 8.1, 8.2, 8.3, 8.4, 8.5, 8.6, 9.5, 9.6, 9.7, 10.3, 10.4, 10.5, 10.6_
   - _Boundary: Final Benchmark Validation Integration_
   - _Depends: 11.6_
+
+## Implementation Notes
+
+- Task 1.1 pins the exact public V3 facade and delegates decoding and complete replay validation to detection-core; frozen V2 and pilot artifacts remain byte-identical, read-only compatibility inputs with no V3 conversion path.
