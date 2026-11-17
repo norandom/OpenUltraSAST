@@ -183,6 +183,7 @@
   - Done when an adapter receives all required label-blind inputs and tests prove no forbidden reference, byte sequence, credential, or environment variable crosses the process boundary.
   - _Requirements: 5.3, 5.5, 5.6, 9.1, 10.3, 10.4, 10.6_
   - _Boundary: Isolated Arm Executor_
+  - _Blocked: debug attempted twice, still failing — public bundle serialization and execution revalidate the registered plan but do not rederive the execution-source projection from the exact reviewed public-material manifest, artifact-set identity, and ordinary-selection authority, so rehashed source-authority substitutions remain accepted._
 - [ ] 6.4 Freeze complete observations with nonzero execution receipts and exact resume
   - Record nonzero reads, required-stage execution, runtime, budgets, degradations, input-set identity, and output identity in a canonical execution receipt.
   - Validate and durably freeze one custodian-sealed observation set for every planned component arm before spend.
@@ -431,3 +432,4 @@
 - Task 5.4 persists one canonical AVAILABLE head and permits only its direct AVAILABLE-to-SPENT successor through capability-gated conditional writes; domain digests govern state while advancing version and ETag tokens prove storage concurrency and exact rereads before any caller may expose labels.
 - Task 6.1 delegates plan and baseline algebra exclusively to detection-core V3 while binding separate arm roles and lifecycle identity; every parked-arm factory, validator, and serializer path re-resolves an exact independently reviewed strategy-decision authority, and access control remains unconditionally excluded.
 - Task 6.2 derives closed UNION or INTERSECTION observations only from complete scope-compatible component sets, preserves every component independently, and retains proof continuity only when all anchors match and the exact proof scope belongs to the combined arm; deterministic re-derivation rejects forged or unrelated proof authority.
+- Task 6.3 remains blocked after two debug rounds: the label-free source projection and exact plan authority are implemented and mechanically green, but every public serializer/executor path must still rederive that projection from the exact reviewed Task 4.3/4.4 source authorities to reject rehashed source-identity substitution.
