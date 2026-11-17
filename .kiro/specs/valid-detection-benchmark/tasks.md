@@ -129,7 +129,7 @@
   - _Depends: 1.1, 4.2, 4.3_
 
 - [ ] 5. Persist authoritative artifacts and custody durably
-- [ ] 5.1 Implement create-only content-addressed artifact persistence
+- [x] 5.1 Implement create-only content-addressed artifact persistence
   - Persist canonical reservation, review, lifecycle, population, sealed-label, observation, workflow, replay, and report artifacts under purpose-specific keys.
   - Require conditional creation or immutable digest keys, strict expected-kind/digest reads, nonzero bytes before decode, and equal-byte idempotency.
   - Enforce public, private, custodian-sealed, and operator-safe access classes before returning artifact bytes.
@@ -425,3 +425,4 @@
 - Task 4.2 classifies and freezes only exact reviewed authorities against the Reservation Authority's current census snapshot; admission requires at least forty positives across Python and JavaScript and two families, while stale censuses, split networks, and insufficient scope remain non-authorizing.
 - Task 4.3 separates metadata-only public manifests from typed content-addressed public source objects: source literals are never interpreted as operational paths, while manifests expose only closed license metadata, digests, lengths, canonical exclusion projections, and opaque private references; private source and sealed labels retain exact custodian-bound access.
 - Task 4.4 derives the exact label-blind input set from the frozen positive and ordinary-selection authorities, uses detection-core V3's canonical input-set identity, and accepts review only through a rederived independence policy plus resolvable conflict-disclosure evidence.
+- Task 5.1 persists replacement-authorizing artifacts under deterministic digest keys with conditional create and strict readback; access is policy-bound before fetch, and provider failures cross the repository boundary only as closed reason codes without retained exception diagnostics.
