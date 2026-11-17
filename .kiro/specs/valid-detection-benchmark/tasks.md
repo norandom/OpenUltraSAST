@@ -144,7 +144,7 @@
   - Done when deleting scratch state and restarting reproduces every accepted identity, projection, and decision from durable objects alone.
   - _Requirements: 7.4, 7.5, 7.7, 8.6, 10.1, 10.2_
   - _Boundary: Artifact Repository_
-- [ ] 5.3 (P) Probe conditional custody and retention capabilities
+- [x] 5.3 (P) Probe conditional custody and retention capabilities
   - Exercise conditional head creation, conditional update, two concurrent writers with one winner, version visibility, exact committed-successor reread, and restart recovery.
   - Verify both current and noncurrent transient expiry against the pre-registered deadlines without changing store configuration.
   - Prove nonzero probe inputs and fail loudly on unsupported, ambiguous, prematurely terminated, or unreadable responses.
@@ -427,3 +427,4 @@
 - Task 4.4 derives the exact label-blind input set from the frozen positive and ordinary-selection authorities, uses detection-core V3's canonical input-set identity, and accepts review only through a rederived independence policy plus resolvable conflict-disclosure evidence.
 - Task 5.1 persists replacement-authorizing artifacts under deterministic digest keys with conditional create and strict readback; access is policy-bound before fetch, and provider failures cross the repository boundary only as closed reason codes without retained exception diagnostics.
 - Task 5.2 rebuilds exact caller-selected durable projection roots and ordered members from the object store alone; canonical root-envelope binding, mixed-access population recovery, and explicit optional expiry prevent forged authority, latest-value selection, and unintended terminal-artifact expiration.
+- Task 5.3 gates real-population admission on a canonical report bound to exact store namespaces and a typed retention profile; negative conditional-write proofs, distinct visible versions, bound pre-deadline current/noncurrent evidence, and closed handling of null IDs, delete markers, and provider ambiguity prevent plausible-but-unsupported capability passes.

@@ -303,6 +303,21 @@ def _same_namespace(durable: StoreSettings, transient: StoreSettings) -> bool:
     return _endpoint_namespace(durable.endpoint) == _endpoint_namespace(transient.endpoint) and durable.bucket == transient.bucket
 
 
+def store_namespace_identity(settings: StoreSettings) -> str:
+    """Bind one non-secret purpose namespace without serializing runtime values."""
+    if type(settings) is not StoreSettings:
+        raise StoreConfigurationError(StorePurpose.DURABLE, StoreConfigurationReason.INVALID, ("store_settings",))
+    try:
+        endpoint_namespace = _endpoint_namespace(settings.endpoint)
+    except ValueError:
+        raise StoreConfigurationError(settings.purpose, StoreConfigurationReason.INVALID, ("endpoint",)) from None
+    value: JsonValue = {
+        "endpoint_namespace": endpoint_namespace,
+        "bucket": settings.bucket,
+    }
+    return bytes_digest(canonical_bytes(value))
+
+
 def _positive_days(value: object) -> bool:
     return not isinstance(value, bool) and isinstance(value, int) and value > 0
 
