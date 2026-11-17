@@ -119,7 +119,7 @@
   - Done when public serialization contains no private bytes, labels, credentials, or local paths and every opaque reference resolves only through the authorized custodian boundary.
   - _Requirements: 5.1, 5.3, 7.1, 7.6, 10.3_
   - _Boundary: Population Freezer_
-  - _Blocked: two debug rounds plus four user-authorized extra repair/review cycles are exhausted — nested JSON/key/list/source handling and caps are fixed, but the embedded-source tokenizer still permits `path=\Root/a/b`, `path=\secret.txt`, and unquoted `path=\Program Files\app\x` because it requires two backslashes and stops at whitespace._
+  - _Blocked: two debug rounds plus five user-authorized extra repair/review cycles are exhausted — prior embedded-source forms and caps are fixed, but rooted paths after newline/comment/list boundaries remain public while complete standalone Unicode escapes are falsely classified private._
 - [ ] 4.4 Integrate the independently reviewed label-blind population manifest
   - Construct only counts, exact scopes, canonical input identities, and digests needed by later plan composition, with no label-bearing field.
   - Require an independent manifest review with policy satisfaction and conflict disclosure.
@@ -424,4 +424,4 @@
 - Task 3.3 revalidates exact candidate and ecosystem authorities, derives accepted/excluded ground truth from explicit independent human judgments, keeps model assistance non-authoritative, and projects each change once while preserving all verified exact scopes.
 - Task 4.1 deterministically draws at least twenty same-network first-parent ordinary pushes per accepted positive, globally excludes every accepted fix revision, stores shared pushes once, and routes reviewed contamination to exclusion or terminal retirement according to freeze timing.
 - Task 4.2 classifies and freezes only exact reviewed authorities against the Reservation Authority's current census snapshot; admission requires at least forty positives across Python and JavaScript and two families, while stale censuses, split networks, and insufficient scope remain non-authorizing.
-- Task 4.3 remains blocked after two debug rounds and four user-authorized extra cycles: nested JSON, keys, lists, quoted source paths, caps, 80 material tests, and 311 benchmark tests are green; independent probes still expose mixed-separator, one-component, and space-containing unquoted current-drive-root paths in embedded source text.
+- Task 4.3 remains blocked after two debug rounds and five user-authorized extra cycles: 91 material and 322 benchmark tests and all caps are green; independent probes still expose newline/CRLF/comment/list-prefixed rooted paths and false-positive complete Unicode escapes, indicating the inline-source path-filter boundary needs an explicit architectural decision.
