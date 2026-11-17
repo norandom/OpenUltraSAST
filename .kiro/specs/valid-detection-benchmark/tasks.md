@@ -162,7 +162,7 @@
   - _Depends: 5.3_
 
 - [ ] 6. Register and execute immutable label-blind arms
-- [ ] 6.1 Register exact arm identities, scopes, policies, and lifecycle state
+- [x] 6.1 Register exact arm identities, scopes, policies, and lifecycle state
   - Bind shipped, experimental, and combined arms separately to immutable analyzer, configuration, fact, vocabulary, outcome, baseline, denominator, threshold, sufficiency, and claimed-scope identities.
   - Accept only active arms unless a parked arm carries a separate reviewed strategy-decision reference; provide no such reference for access control.
   - Produce one canonical evaluation plan covering every component and combined arm before label access.
@@ -429,3 +429,4 @@
 - Task 5.2 rebuilds exact caller-selected durable projection roots and ordered members from the object store alone; canonical root-envelope binding, mixed-access population recovery, and explicit optional expiry prevent forged authority, latest-value selection, and unintended terminal-artifact expiration.
 - Task 5.3 gates real-population admission on a canonical report bound to exact store namespaces and a typed retention profile; negative conditional-write proofs, distinct visible versions, bound pre-deadline current/noncurrent evidence, and closed handling of null IDs, delete markers, and provider ambiguity prevent plausible-but-unsupported capability passes.
 - Task 5.4 persists one canonical AVAILABLE head and permits only its direct AVAILABLE-to-SPENT successor through capability-gated conditional writes; domain digests govern state while advancing version and ETag tokens prove storage concurrency and exact rereads before any caller may expose labels.
+- Task 6.1 delegates plan and baseline algebra exclusively to detection-core V3 while binding separate arm roles and lifecycle identity; every parked-arm factory, validator, and serializer path re-resolves an exact independently reviewed strategy-decision authority, and access control remains unconditionally excluded.
