@@ -152,7 +152,7 @@
   - _Requirements: 5.7, 7.4, 7.5, 7.8, 8.4, 8.5_
   - _Boundary: Durable Custody Store_
   - _Depends: 1.3_
-- [ ] 5.4 Implement monotonic durable custody compare-and-swap
+- [x] 5.4 Implement monotonic durable custody compare-and-swap
   - Use canonical custody-log digests as domain identity and storage tokens only for conditional concurrency.
   - Conditional-create the first head, conditional-update the exact current head, and reread/validate the direct available-to-spent successor before returning success.
   - Reject stale heads, 409/412 conflicts, missing versions, invalid successors, ambiguous responses, and any attempt to restore available status.
@@ -428,3 +428,4 @@
 - Task 5.1 persists replacement-authorizing artifacts under deterministic digest keys with conditional create and strict readback; access is policy-bound before fetch, and provider failures cross the repository boundary only as closed reason codes without retained exception diagnostics.
 - Task 5.2 rebuilds exact caller-selected durable projection roots and ordered members from the object store alone; canonical root-envelope binding, mixed-access population recovery, and explicit optional expiry prevent forged authority, latest-value selection, and unintended terminal-artifact expiration.
 - Task 5.3 gates real-population admission on a canonical report bound to exact store namespaces and a typed retention profile; negative conditional-write proofs, distinct visible versions, bound pre-deadline current/noncurrent evidence, and closed handling of null IDs, delete markers, and provider ambiguity prevent plausible-but-unsupported capability passes.
+- Task 5.4 persists one canonical AVAILABLE head and permits only its direct AVAILABLE-to-SPENT successor through capability-gated conditional writes; domain digests govern state while advancing version and ETag tokens prove storage concurrency and exact rereads before any caller may expose labels.
