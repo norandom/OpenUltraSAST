@@ -119,7 +119,7 @@
   - Done when public serialization contains no private bytes, labels, credentials, or local paths and every opaque reference resolves only through the authorized custodian boundary.
   - _Requirements: 5.1, 5.3, 7.1, 7.6, 10.3_
   - _Boundary: Population Freezer_
-  - _Blocked: two debug rounds plus two user-authorized extra repair/review cycles are exhausted — direct Windows current-drive-rooted paths are rejected, but equivalent paths embedded in source text, JSON object keys, or string-encoded nested JSON remain public; the preserved test module/function also exceed the 400/50 logical-line caps._
+  - _Blocked: two debug rounds plus three user-authorized extra repair/review cycles are exhausted — nested JSON, object keys, lists, quoted source paths, and caps are fixed, but the embedded-source tokenizer still permits `path=\Root/a/b`, `path=\secret.txt`, and unquoted `path=\Program Files\app\x`._
 - [ ] 4.4 Integrate the independently reviewed label-blind population manifest
   - Construct only counts, exact scopes, canonical input identities, and digests needed by later plan composition, with no label-bearing field.
   - Require an independent manifest review with policy satisfaction and conflict disclosure.
@@ -424,4 +424,4 @@
 - Task 3.3 revalidates exact candidate and ecosystem authorities, derives accepted/excluded ground truth from explicit independent human judgments, keeps model assistance non-authoritative, and projects each change once while preserving all verified exact scopes.
 - Task 4.1 deterministically draws at least twenty same-network first-parent ordinary pushes per accepted positive, globally excludes every accepted fix revision, stores shared pushes once, and routes reviewed contamination to exclusion or terminal retirement according to freeze timing.
 - Task 4.2 classifies and freezes only exact reviewed authorities against the Reservation Authority's current census snapshot; admission requires at least forty positives across Python and JavaScript and two families, while stale censuses, split networks, and insufficient scope remain non-authorizing.
-- Task 4.3 remains blocked after two debug rounds and two user-authorized extra cycles: 71 material and 302 benchmark tests are green, but current-drive-rooted Windows paths embedded in source text, JSON keys, or nested encoded JSON still bypass public screening, and the preserved tests must be split to restore module/function caps.
+- Task 4.3 remains blocked after two debug rounds and three user-authorized extra cycles: 80 material and 311 benchmark tests plus all caps are green; independent probes still expose three embedded-source Windows-root forms involving mixed separators, a one-component root, and an unquoted path containing spaces.
