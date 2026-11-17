@@ -183,7 +183,7 @@
   - Done when an adapter receives all required label-blind inputs and tests prove no forbidden reference, byte sequence, credential, or environment variable crosses the process boundary.
   - _Requirements: 5.3, 5.5, 5.6, 9.1, 10.3, 10.4, 10.6_
   - _Boundary: Isolated Arm Executor_
-- [ ] 6.4 Freeze complete observations with nonzero execution receipts and exact resume
+- [x] 6.4 Freeze complete observations with nonzero execution receipts and exact resume
   - Record nonzero reads, required-stage execution, runtime, budgets, degradations, input-set identity, and output identity in a canonical execution receipt.
   - Validate and durably freeze one custodian-sealed observation set for every planned component arm before spend.
   - Reuse only an exact digest-matching completed checkpoint; never treat a missing/mismatched checkpoint as complete or silently rerun a completed arm under the same plan.
@@ -432,3 +432,4 @@
 - Task 6.1 delegates plan and baseline algebra exclusively to detection-core V3 while binding separate arm roles and lifecycle identity; every parked-arm factory, validator, and serializer path re-resolves an exact independently reviewed strategy-decision authority, and access control remains unconditionally excluded.
 - Task 6.2 derives closed UNION or INTERSECTION observations only from complete scope-compatible component sets, preserves every component independently, and retains proof continuity only when all anchors match and the exact proof scope belongs to the combined arm; deterministic re-derivation rejects forged or unrelated proof authority.
 - Task 6.3 builds identical ordered component bundles only after controller-side revalidation of the exact registered plan and a metadata-only execution-source projection freshly derived from reviewed Task 4.3/4.4 and ordinary-selection authorities; adapters receive only sanitized label-blind data, and every authorizing serialization/execution path rejects rehashed source or plan substitutions without opening sealed material.
+- Task 6.4 freezes one exact custodian-sealed core V3 observation checkpoint per component only after canonical nonzero read/stage receipts and exact repository readback; construction, freeze, and resume bind the completed process outcome and every bundle/read identity, while missing, incomplete, or mismatched checkpoints remain impaired without rerunning the adapter.
