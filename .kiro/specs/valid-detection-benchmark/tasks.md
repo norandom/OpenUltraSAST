@@ -169,7 +169,7 @@
   - Done when identity or scope changes create a new plan, the parked access-control arm cannot enter a plan, and every claimed scope has one exact core V3 policy.
   - _Requirements: 5.5, 6.1, 8.6, 9.1, 9.2, 10.4, 10.5_
   - _Boundary: Arm Registry_
-- [ ] 6.2 Preserve component observations through deterministic combination plans
+- [x] 6.2 Preserve component observations through deterministic combination plans
   - Pre-register only closed deterministic combination rules over complete component observation sets.
   - Retain each contributing component identity and result while deriving a separate combined-arm observation set without rerunning cases.
   - Prevent proof manufacture or transfer unless family, change input, packet identity, and finding-location anchor are identical.
@@ -430,3 +430,4 @@
 - Task 5.3 gates real-population admission on a canonical report bound to exact store namespaces and a typed retention profile; negative conditional-write proofs, distinct visible versions, bound pre-deadline current/noncurrent evidence, and closed handling of null IDs, delete markers, and provider ambiguity prevent plausible-but-unsupported capability passes.
 - Task 5.4 persists one canonical AVAILABLE head and permits only its direct AVAILABLE-to-SPENT successor through capability-gated conditional writes; domain digests govern state while advancing version and ETag tokens prove storage concurrency and exact rereads before any caller may expose labels.
 - Task 6.1 delegates plan and baseline algebra exclusively to detection-core V3 while binding separate arm roles and lifecycle identity; every parked-arm factory, validator, and serializer path re-resolves an exact independently reviewed strategy-decision authority, and access control remains unconditionally excluded.
+- Task 6.2 derives closed UNION or INTERSECTION observations only from complete scope-compatible component sets, preserves every component independently, and retains proof continuity only when all anchors match and the exact proof scope belongs to the combined arm; deterministic re-derivation rejects forged or unrelated proof authority.
