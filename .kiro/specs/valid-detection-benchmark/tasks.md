@@ -119,7 +119,7 @@
   - Done when public serialization contains no private bytes, labels, credentials, or local paths and every opaque reference resolves only through the authorized custodian boundary.
   - _Requirements: 5.1, 5.3, 7.1, 7.6, 10.3_
   - _Boundary: Population Freezer_
-- [ ] 4.4 Integrate the independently reviewed label-blind population manifest
+- [x] 4.4 Integrate the independently reviewed label-blind population manifest
   - Construct only counts, exact scopes, canonical input identities, and digests needed by later plan composition, with no label-bearing field.
   - Require an independent manifest review with policy satisfaction and conflict disclosure.
   - Bind immutable population, freeze, census, scope, review, and input-set identities before any arm plan or label access.
@@ -424,3 +424,4 @@
 - Task 4.1 deterministically draws at least twenty same-network first-parent ordinary pushes per accepted positive, globally excludes every accepted fix revision, stores shared pushes once, and routes reviewed contamination to exclusion or terminal retirement according to freeze timing.
 - Task 4.2 classifies and freezes only exact reviewed authorities against the Reservation Authority's current census snapshot; admission requires at least forty positives across Python and JavaScript and two families, while stale censuses, split networks, and insufficient scope remain non-authorizing.
 - Task 4.3 separates metadata-only public manifests from typed content-addressed public source objects: source literals are never interpreted as operational paths, while manifests expose only closed license metadata, digests, lengths, canonical exclusion projections, and opaque private references; private source and sealed labels retain exact custodian-bound access.
+- Task 4.4 derives the exact label-blind input set from the frozen positive and ordinary-selection authorities, uses detection-core V3's canonical input-set identity, and accepts review only through a rederived independence policy plus resolvable conflict-disclosure evidence.
