@@ -137,7 +137,7 @@
   - _Requirements: 5.1, 5.2, 7.1, 7.3, 7.4, 7.6, 7.7, 10.3_
   - _Boundary: Artifact Repository_
   - _Depends: 1.2, 1.3_
-- [ ] 5.2 Rebuild every authority after local scratch loss
+- [x] 5.2 Rebuild every authority after local scratch loss
   - List and validate ordered durable projections for reservation, lifecycle, population, observation, workflow, replay, and report roots.
   - Reject missing, conflicting, wrong-version, expired-authority, or digest-mismatched records rather than selecting a plausible latest value.
   - Treat local journals and materialized files as replaceable caches, never the cross-run source of truth.
@@ -426,3 +426,4 @@
 - Task 4.3 separates metadata-only public manifests from typed content-addressed public source objects: source literals are never interpreted as operational paths, while manifests expose only closed license metadata, digests, lengths, canonical exclusion projections, and opaque private references; private source and sealed labels retain exact custodian-bound access.
 - Task 4.4 derives the exact label-blind input set from the frozen positive and ordinary-selection authorities, uses detection-core V3's canonical input-set identity, and accepts review only through a rederived independence policy plus resolvable conflict-disclosure evidence.
 - Task 5.1 persists replacement-authorizing artifacts under deterministic digest keys with conditional create and strict readback; access is policy-bound before fetch, and provider failures cross the repository boundary only as closed reason codes without retained exception diagnostics.
+- Task 5.2 rebuilds exact caller-selected durable projection roots and ordered members from the object store alone; canonical root-envelope binding, mixed-access population recovery, and explicit optional expiry prevent forged authority, latest-value selection, and unintended terminal-artifact expiration.
