@@ -192,6 +192,30 @@ Option C is the leading design candidate because it is the only approach that sa
 
 ---
 
+## Retry Authority Boundary Amendment (2026-11-18)
+
+### Discovery Summary
+
+- **Discovery type**: Integration-focused extension after Task 6.5 adversarial review.
+- **Observed gap**: Plans, observation checkpoints, artifact roots, and lifecycle projections are immutable, but each is caller-selected at the automatic-retry boundary. A caller can change a bundle, rebuild both compared retry identities, and replace every asserted truth together.
+- **Instrument evidence**: Nonzero Task 6.5 sources and fixtures reproduced a changed-budget retry that returned checkpoint impairment with zero adapter calls while the lifecycle remained admission-eligible. Empty or mistyped bundle inputs also escaped as raw Python exceptions. The existing focused suite passed, so green tests did not establish authoritative retry identity.
+
+### Design Decision
+
+- Keep sealed diagnostic projection and reviewed `development_opened` access in the Isolated Arm Executor and Baseline Lifecycle Authority boundary.
+- Move ownership of authoritative automatic-retry registration and resume to the Admission Orchestrator and Workflow Journal.
+- Admission preflight persists one custodian-sealed retry authority before first execution. The initial CAS workflow head selects its exact artifact reference and digest, and every successor preserves that selection.
+- Resume reconstructs the validated journal chain after scratch loss, resolves only the selected authority, and compares the candidate/current identity before checkpoint resolution or adapter execution. A content-addressed artifact that is not selected by the authoritative head is non-authorizing.
+- Task 8.6 consumes this authority after Tasks 7.2 and 8.1–8.2 establish it. Task 6.5 no longer attempts to accept an original retry identity from a caller.
+
+### Risks and Validation
+
+- A substituted authority reference or digest, orphan head, changed plan/bundle/input/budget/environment/destination/admission identity, or malformed request must fail before an adapter call.
+- A reviewed mismatch path may terminally block admission, but no caller-supplied replacement identity may redefine the original registration.
+- Scratch-loss recovery must reproduce the same selected authority from durable journal and artifact bytes alone.
+
+---
+
 ## Design Discovery and Synthesis (2026-11-06)
 
 ### Discovery Summary

@@ -34,7 +34,7 @@ Maintainers and independent reviewers use the workflow to source, review, freeze
 - Deterministic public/private population freeze artifacts, label-blind census construction, sealed-label references, and replacement lifecycle records.
 - A durable S3-compatible compare-and-swap adapter for the existing benchmark custody protocol, including capability and recovery probes.
 - A versioned content-addressed artifact repository for reservation, population, lifecycle, observation, workflow, and final-report artifacts.
-- Immutable arm registrations, pre-registered combination plans, label-blind arm execution, case binding, and general benchmark orchestration.
+- Immutable arm registrations, pre-registered combination plans, label-blind arm execution, case binding, journal-selected retry authority, and general benchmark orchestration.
 - Benchmark workflow envelopes and redacted JSON/text operator reports.
 - Consumption and conformance testing of the detection-core V3 admission contract.
 
@@ -47,6 +47,7 @@ Maintainers and independent reviewers use the workflow to source, review, freeze
 - Product eligibility installation, advisory rollout, BLOCK enablement, and pre-push UX.
 - Infrastructure health and bucket creation, lifecycle mutation, credential provisioning, cluster scheduling, and retry policy for AX workers.
 - Partial-scope or partial-arm custody. One evaluation plan spends one whole population only after every planned arm and claimed scope is feasible and every label-blind observation set is durably frozen.
+- Caller-selected retry registration. The executor validates checkpoint bytes, but only the Admission Orchestrator and CAS Workflow Journal establish and select the original retry authority.
 
 ### Allowed Dependencies
 
@@ -60,7 +61,7 @@ Maintainers and independent reviewers use the workflow to source, review, freeze
 
 Dependency direction is fixed:
 
-`detection-core contracts → artifact repository and reservation/review/freeze artifacts → isolated arm execution → custody and admission orchestrator → workflow envelope → operator presenter`
+`detection-core contracts → artifact repository and reservation/review/freeze artifacts → admission preflight and workflow journal → isolated arm execution → custody and admission orchestrator → workflow envelope → operator presenter`
 
 Core never imports benchmark modules. Presenters and notifications never influence admission. Detector adapters never receive label bytes.
 
@@ -72,6 +73,7 @@ Core never imports benchmark modules. Presenters and notifications never influen
 - A change to conditional-write tokens, custody transition semantics, object-store version visibility, retention rules, or restart recovery.
 - A change that lets an arm see labels, lets presentation affect scoring, or moves detector-specific knowledge into benchmark/core components.
 - A change to the multi-arm evaluation-plan root, shared-spend binding, V3 case-release graph, isolated arm-execution boundary, or observation checkpoint identity.
+- A change to retry-authority fields, the workflow-head selection contract, or scratch-loss authority resolution.
 - A change to proof attachment matching or the advisory/BLOCK interpretation consumed by downstream product specifications.
 
 ## Architecture
@@ -149,10 +151,10 @@ benchmarks/
     ├── object_store.py                        # Artifact Repository for durable content-addressed records
     ├── custody_store.py                       # Durable Custody Store and capability probe
     ├── arm_contract.py                        # Arm Registry contracts and label-blind adapter protocol
-    ├── arm_executor.py                        # Isolated Arm Executor and observation checkpoints
+    ├── arm_executor.py                        # Isolated Arm Executor, sealed diagnostics, and observation checkpoints
     ├── arm_combination.py                     # Combination Planner over preserved observations
-    ├── admission_orchestrator.py              # Admission Orchestrator state machine and case binding
-    ├── workflow_journal.py                    # CAS workflow head, leases, and causal heartbeat chain
+    ├── admission_orchestrator.py              # Admission Orchestrator, retry-authority registration, and case binding
+    ├── workflow_journal.py                    # CAS head selecting retry authority, leases, and causal heartbeat chain
     ├── workflow_outcome.py                    # Workflow Outcome canonical envelope
     ├── operator_report.py                     # Operator Presenter JSON and text projection
     └── run.py                                 # Benchmark-only operator entry point
@@ -213,7 +215,7 @@ stateDiagram-v2
     Reviewed --> AdmissionAvailable: full freeze and reviewed census
     AdmissionAvailable --> AdmissionAvailable: gate preflight insufficient
     AdmissionAvailable --> Observed: all label blind arm observations frozen
-    Observed --> Observed: automatic retry of exact sealed plan
+    Observed --> Observed: journal authorized retry of exact sealed plan
     Observed --> DevelopmentPilot: raw observations or diagnostics inspected
     Observed --> Spent: custody append committed and reread
     Spent --> Scoring: labels released to custodian
@@ -223,7 +225,7 @@ stateDiagram-v2
     Completed --> Retired: contaminated negative or identity invalidation
 ```
 
-`DevelopmentPilot` and `Insufficient` are non-authorizing classifications. A pre-spend failure permits only an automatic retry with the exact plan, arms, inputs, budgets, execution environment, and admission identity while raw observations and diagnostics remain custodian-sealed. A workflow identifier alone never authorizes reuse. Human inspection or any configuration/plan change appends `development_opened` plus influence events and permanently disqualifies the population from admission. `Impaired` after spend never restores `AdmissionAvailable`; recovery resumes the same digest-bound run or records a terminal impaired outcome. `Retired` is an append-only lifecycle projection, never a mutation of the freeze.
+`DevelopmentPilot` and `Insufficient` are non-authorizing classifications. Before first execution, admission preflight persists one custodian-sealed retry authority binding the exact plan, arms, inputs, budgets, execution environment, destinations, admission identity, and checkpoint slots; the CAS workflow head selects its exact reference and digest. A pre-spend failure permits automatic retry only by resolving that journal-selected authority while raw observations and diagnostics remain custodian-sealed. Caller-supplied workflow or identity values never authorize reuse. Human inspection or any configuration/plan change appends `development_opened` plus influence events and permanently disqualifies the population from admission. `Impaired` after spend never restores `AdmissionAvailable`; recovery resumes the same digest-bound run or records a terminal impaired outcome. `Retired` is an append-only lifecycle projection, never a mutation of the freeze.
 
 ### Admission Sequence
 
@@ -606,6 +608,7 @@ Only rules required by a pre-registered plan are implemented. A combination cann
 - Validate, canonicalize, and durably freeze one custodian-sealed `ArmObservationSetV1` per planned component arm; then derive combined sets without rerunning cases.
 - Resume by reusing an exact digest-matching completed observation set. A missing or mismatched checkpoint cannot be treated as completed and a completed arm is not silently rerun under the same plan identity.
 - Expose before spend only closed process reason codes, counts, and digests. Population-specific findings, paths, exception text, and diagnostics remain sealed. Any human opening of them triggers the lifecycle development-opening transition before access.
+- Accept resume requests only after the Admission Orchestrator supplies the retry authority selected by the validated workflow head; the executor does not accept or establish the original retry identity.
 
 **Dependencies**
 
@@ -657,7 +660,7 @@ class IsolatedArmExecutor(Protocol):
     ) -> ArmObservationSetV1: ...
 ```
 
-No label-bearing object exists in the executor's address space. An executor impairment occurs before spend and cannot produce an admission quality decision. Automatic retry is permitted only for the exact immutable admission identity; a changed arm, plan, input, budget, or environment requires a new population or development-opening disposition.
+No label-bearing object exists in the executor's address space. An executor impairment occurs before spend and cannot produce an admission quality decision. The executor validates exact checkpoints but does not decide whether a retry identity is original; the Admission Orchestrator resolves that identity from the CAS-head-selected authority. A changed arm, plan, input, budget, environment, destination, or admission identity cannot reach checkpoint resolution and permanently blocks admission through the reviewed lifecycle path.
 
 #### Admission Orchestrator
 
@@ -665,6 +668,7 @@ No label-bearing object exists in the executor's address space. An executor impa
 
 - Validate dependency schema and store capabilities before accepting an admission run.
 - Require lifecycle eligibility, compose the reviewed V3 evaluation manifest, evaluate every arm/scope label-blind, and stop without spend if any arm or scope is insufficient.
+- Before first execution, persist and reread one custodian-sealed `AutomaticRetryAuthorityV1` binding the population/freeze, admission identity, registered plan, ordered arms and bundles, checkpoint slots, inputs, budgets, environments, and destinations; atomically select its reference and digest in the initial workflow head.
 - Execute and durably freeze all component and combined observation sets before spend; missing planned observations prevent admission.
 - Re-run core authorization after observation sealing and immediately before CAS; changed, missing, unreadable, or unsealed observation bytes make `may_spend=false`.
 - Commit and reread the custody transition before the custodian opens nonzero label bytes.
@@ -673,6 +677,7 @@ No label-bearing object exists in the executor's address space. An executor impa
 - Project one underlying push into exact-scope cases without rerunning it; whole-population coverage remains deduplicated by change-input identity.
 - Validate proof attachments, submit every arm's exact-scope cases under the shared authority, and require the complete evaluation replay before completion.
 - Persist state transitions so restart resumes the same immutable run.
+- On resume, resolve the retry authority only from the validated CAS workflow head and compare the candidate/current execution identity before any checkpoint resolution or adapter call. A substituted authority, changed identity, or orphan head cannot authorize retry.
 - Never call legacy aggregate scoring or access-control-specific conversion helpers.
 
 **Dependencies**
@@ -684,13 +689,30 @@ No label-bearing object exists in the executor's address space. An executor impa
 **Contracts**: Service [x] / API [ ] / Event [ ] / Batch [x] / State [x]
 
 ```python
+@dataclass(frozen=True)
+class AutomaticRetryAuthorityV1:
+    population_digest: str
+    freeze_digest: str
+    admission_identity_digest: str
+    plan_digest: str
+    ordered_arm_ids: tuple[str, ...]
+    ordered_bundle_digests: tuple[str, ...]
+    ordered_checkpoint_slot_digests: tuple[str, ...]
+    ordered_input_set_digests: tuple[str, ...]
+    ordered_budget_digests: tuple[str, ...]
+    ordered_environment_digests: tuple[str, ...]
+    ordered_destination_digests: tuple[str, ...]
+    authority_digest: str
+
 class AdmissionOrchestrator(Protocol):
     def preflight(self, request: AdmissionRunRequestV1) -> AdmissionPreflightV1: ...
     def run(self, request: AdmissionRunRequestV1) -> BenchmarkWorkflowOutcomeV1: ...
     def resume(self, workflow_digest: str) -> BenchmarkWorkflowOutcomeV1: ...
 ```
 
-`AdmissionRunRequestV1` binds the admission-class population/freeze, lifecycle projection, label-blind population manifest, registered evaluation plan, retention profiles, store capability reports, execution deadline/budgets, and workflow identity. `AdmissionPreflightV1` binds `EvaluationPlanManifestV3`, all per-arm feasibility results, lifecycle eligibility, input-set digest, and expected observation slots. After execution, the orchestrator creates `EvaluationAdmissionManifestV3` with exact sealed observation references and obtains `EvaluationAdmissionAuthorityV3` immediately before CAS. Preconditions require every planned arm/scope to be feasible and every expected observation to be durable and unchanged. Postcondition: either one validated multi-arm V3 evaluation replay is referenced by a completed envelope or an explicit insufficient/impaired envelope is durable.
+`AdmissionRunRequestV1` binds the admission-class population/freeze, lifecycle projection, label-blind population manifest, registered evaluation plan, retention profiles, store capability reports, execution deadline/budgets, and workflow identity. `AdmissionPreflightV1` binds `EvaluationPlanManifestV3`, all per-arm feasibility results, lifecycle eligibility, input-set digest, expected observation slots, and the exact `AutomaticRetryAuthorityV1` reference/digest selected by the initial workflow head. After execution, the orchestrator creates `EvaluationAdmissionManifestV3` with exact sealed observation references and obtains `EvaluationAdmissionAuthorityV3` immediately before CAS. Preconditions require every planned arm/scope to be feasible and every expected observation to be durable and unchanged. Postcondition: either one validated multi-arm V3 evaluation replay is referenced by a completed envelope or an explicit insufficient/impaired envelope is durable.
+
+`AutomaticRetryAuthorityV1` is content-addressed but becomes authorizing only when its exact artifact reference and content digest are selected by the CAS workflow head created during preflight. The authority is immutable across attempts and is not accepted as a caller argument on resume. Scratch-loss recovery first rebuilds the validated journal chain, resolves the selected authority through the Artifact Repository, and then compares the candidate execution identity. Content identity without journal selection is non-authorizing.
 
 ### Operations and Presentation
 
@@ -701,6 +723,7 @@ class AdmissionOrchestrator(Protocol):
 - Persist workflow state even when no core report can be constructed.
 - Persist append-only progress/heartbeat records so `run.py status` can distinguish moving work from an expired workflow without interpreting AX infrastructure health.
 - Maintain one CAS-protected workflow head. Every journal entry names its sequence, predecessor, attempt, and lease owner; resume acquires a new lease only from an expired validated head, and a stale owner cannot append or renew.
+- Bind the exact retry-authority artifact reference and digest into the initial head before first arm execution and preserve them unchanged through every successor; an orphan or caller-substituted authority is non-authorizing.
 - Use a closed top-level status and reason taxonomy.
 - Bind status, phase, counts, safe degradations, runtime, population/freeze/plan/workflow digests, spend state, failed gate names, and optional core replay reference.
 - Reject arbitrary exception text, paths, labels, repository contents, payloads, secrets, and customer content.
@@ -747,6 +770,8 @@ class WorkflowHeadV1:
     entry_digest: str
     lease_owner_id: str
     lease_expires_at: str
+    retry_authority_ref: ContentRef
+    retry_authority_digest: str
     head_digest: str
 class WorkflowJournalStore(Protocol):
     def current_head(self, workflow_digest: str) -> WorkflowHeadV1: ...
@@ -926,10 +951,10 @@ Monitoring is artifact-based: every phase appends a heartbeat/progress entry wit
 - Custody adapter capability test covers conditional create/update, two concurrent writers with one winner, version visibility, committed successor reread, restart recovery, and both current/noncurrent transient expiry. Test input bytes are read and reported before interpreting results.
 - Orchestrator test proves an insufficient preflight never launches arms or calls the label loader; every arm gets identical ordered label-blind case IDs; all observation sets freeze before CAS; a failed/missing arm prevents spend; a failed CAS never calls the label loader; and detector processes receive no label credentials, references, or bytes.
 - Admission sealing tests mutate, remove, or swap an observation after feasibility and prove that V3 authorization refuses spend.
-- Pre-spend confidentiality tests prove an impaired attempt exposes only fixed codes/counts/digests; raw observation or repository-specific diagnostic access first appends `development_opened` and influence events and blocks later spend. Automatic retry succeeds only for the exact immutable admission identity.
+- Pre-spend confidentiality tests prove an impaired attempt exposes only fixed codes/counts/digests; raw observation or repository-specific diagnostic access first appends `development_opened` and complete influence events and blocks later spend. Automatic retry succeeds only after scratch-loss recovery resolves the exact authority selected by the validated CAS head; caller-rebuilt identities, references, or digests cannot substitute it.
 - Multi-arm integration proves one reviewed evaluation plan, preparation, and receipt bind every component/combined report; component observations remain preserved; missing one planned replay prevents completion.
 - Crash-recovery tests cover arm failure before CAS, failure after committed spend but before label load, scoring interruption, and failure before report publication. Pre-spend failure remains unspent; post-spend failures remain spent and resume the same run. Completed arm checkpoints are not rerun under the same plan.
-- Workflow journal tests cover causal sequence/predecessor validation, missing predecessors, CAS head conflicts, concurrent resume with one lease winner, stale-owner renewal refusal, and choosing a newer valid heartbeat over an orphan expired entry. Status derives `IMPAIRED`/`STALLED` only from the validated head without attributing infrastructure health.
+- Workflow journal tests cover causal sequence/predecessor validation, missing predecessors, CAS head conflicts, immutable retry-authority selection, authority substitution, concurrent resume with one lease winner, stale-owner renewal refusal, and choosing a newer valid heartbeat over an orphan expired entry. Status derives `IMPAIRED`/`STALLED` only from the validated head without attributing infrastructure health.
 - Case-release integration binds exact scope, role, pair, observation, evidence, change inputs, reviewed manifest, and independent release review.
 - Proof integration promotes only exact label-blind candidates after ground-truth release; swapped vulnerable/fixed roles, unrelated controls, cross-family/location reuse, and mismatched pair/input are refused; missing/inconclusive proof is `not demonstrated`. The presenter reports demonstration but never BLOCK eligibility.
 
@@ -987,4 +1012,4 @@ flowchart LR
 6. Source and independently review the replacement. Freeze sub-40 work as development pilots until all full-population and exact-scope preflight rules pass.
 7. Bind the exact replacement lifecycle event, freeze every planned arm observation, and perform the one immutable admission spend. Downstream product work may consume only validated per-arm scoped results.
 
-There is no destructive rollback. Before spend, failed-attempt artifacts remain custodian-sealed and permit only an automatic retry of the exact admission identity; opening them for diagnosis records development use. After spend, no operation can restore untouched status. The run is resumed or retained as spent/impaired evidence.
+There is no destructive rollback. Before spend, failed-attempt artifacts remain custodian-sealed and permit only an automatic retry resolved from the immutable authority selected by the CAS workflow head; opening them for diagnosis records development use. After spend, no operation can restore untouched status. The run is resumed or retained as spent/impaired evidence.

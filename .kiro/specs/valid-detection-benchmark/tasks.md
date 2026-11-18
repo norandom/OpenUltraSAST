@@ -192,13 +192,12 @@
   - _Boundary: Isolated Arm Executor_
 - [ ] 6.5 Integrate sealed pre-spend diagnostics with reviewed development opening
   - Expose before spend only closed reason codes, counts, and digests from observation artifacts.
+  - Require the selected observation's exact checkpoint provenance and the complete population-derived affected-network set to be bound into the independently reviewed access request.
   - Require a reviewed lifecycle development-opening transition and corresponding influence events before any human receives population-specific findings, paths, exception text, or diagnostics.
-  - Permit automatic retry only for the exact unchanged population, plan, arms, inputs, budgets, environment, and admission identity.
-  - Done when diagnostic access or any retry-identity change permanently blocks admission, while an exact sealed retry resumes without revealing labels or raw observations.
+  - Done when the safe projection contains only closed codes, counts, and digests, and no raw byte is returned until the exact durable `development_opened` transition and complete influence set are reread and later admission is ineligible.
   - _Requirements: 4.3, 5.2, 5.6, 8.3, 10.2, 10.3_
   - _Boundary: Isolated Arm Executor, Baseline Lifecycle Authority_
   - _Depends: 2.3, 5.1, 6.4_
-  - _Blocked: automatic retry cannot resolve an authoritative original retry identity within this boundary because every available plan, checkpoint, and durable root is caller-selected; the CAS workflow journal and admission preflight must first persist and select the immutable retry authority before Task 8.6 owns resume._
 
 - [ ] 7. Persist safe workflow state and operator projections
 - [ ] 7.1 Define closed workflow outcomes and redacted serialization
@@ -210,10 +209,11 @@
   - _Boundary: Workflow Outcome_
 - [ ] 7.2 (P) Implement the causal workflow journal and lease-protected head
   - Append progress and heartbeat entries with exact sequence, predecessor, attempt, lease owner, counts, phase, and deadlines.
+  - Make the initial CAS head select the exact custodian-sealed automatic-retry authority reference and digest before first execution, and preserve that selection unchanged through every successor.
   - Protect the current head with compare-and-swap, allow one resume owner only after an expired validated head, and refuse stale-owner append or renewal.
   - Rebuild status from the complete chain to the head while ignoring orphan or stale entries.
-  - Done when concurrent resume has one winner, missing predecessors and forks fail, and only an expired authoritative head projects `IMPAIRED`/`STALLED` without claiming infrastructure failure.
-  - _Requirements: 7.4, 7.5, 7.8, 8.3, 10.1, 10.2, 10.6_
+  - Done when concurrent resume has one winner, missing predecessors and forks fail, scratch-loss recovery resolves the same selected retry authority, substituted or orphan authority fails, and only an expired authoritative head projects `IMPAIRED`/`STALLED` without claiming infrastructure failure.
+  - _Requirements: 5.2, 5.6, 7.4, 7.5, 7.8, 8.3, 10.1, 10.2, 10.6_
   - _Boundary: Workflow Journal_
   - _Depends: 1.2, 1.3, 5.1_
 - [ ] 7.3 Render deterministic transport-neutral operator reports
@@ -231,17 +231,20 @@
   - Refuse a run unless the replacement lifecycle is active, artifact/custody capability reports pass, the admission-class freeze and reviewed label-blind manifest resolve, and every arm identity is current.
   - Compose the complete core V3 plan manifest and evaluate every arm/scope threshold, minimum, and interval-precision rule before execution or label access.
   - Persist `INSUFFICIENT` with exact scope/gate witnesses when any planned scope is infeasible, without launching arms or spending custody.
-  - Done when only a complete feasible Cartesian arm/scope plan advances and whole-population counts or aggregates can never substitute for an insufficient scope.
-  - _Requirements: 1.3, 1.4, 1.7, 5.1, 5.3, 5.4, 5.5, 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7_
-  - _Boundary: Admission Orchestrator, Scoped Admission V3 Consumer_
-  - _Depends: 2.3, 4.4, 5.3, 5.4, 6.1, 7.1_
+  - Only after complete feasibility succeeds, persist and exactly reread one custodian-sealed retry authority binding population/freeze, admission identity, registered plan, ordered arms/bundles/checkpoint slots, inputs, budgets, environments, and destinations; atomically select its reference and digest in the initial workflow head and reread that head before the first adapter call.
+  - Done when only a complete feasible Cartesian arm/scope plan advances with a recoverable journal-selected retry authority, while an insufficient path creates no retry authority or workflow authority head and whole-population counts or aggregates never substitute for an insufficient scope.
+  - _Requirements: 1.3, 1.4, 1.7, 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7, 7.4, 7.5_
+  - _Boundary: Admission Orchestrator, Scoped Admission V3 Consumer, Workflow Journal_
+  - _Depends: 2.3, 4.4, 5.3, 5.4, 6.1, 7.1, 7.2_
 - [ ] 8.2 Execute and seal every planned observation before spend authority
   - Send the identical ordered label-blind input set to every component arm, freeze all component observations, and derive all registered combined observations.
+  - Resolve and revalidate the retry authority selected by the current workflow head before execution; reject a missing, substituted, or mismatched authority before any checkpoint resolution, adapter call, or spend attempt.
   - Build the V3 admission manifest from exact custodian-sealed observation references and combination lineage.
   - Reauthorize immediately before custody CAS against current bytes, current lifecycle, current readiness, and current custody head.
-  - Done when a missing, partial, unreadable, changed, cross-arm, or unsealed observation prevents spend and produces an impaired outcome with no label-loader call.
-  - _Requirements: 5.3, 5.5, 5.6, 6.6, 6.7, 8.4, 8.5, 9.1, 9.2_
-  - _Boundary: Admission Orchestrator, Isolated Arm Executor_
+  - Done when an authority mismatch or a missing, partial, unreadable, changed, cross-arm, or unsealed observation prevents spend and produces a closed impaired outcome with no adapter or label-loader call on the authority-mismatch path.
+  - _Requirements: 5.2, 5.3, 5.5, 5.6, 6.6, 6.7, 7.4, 7.5, 8.4, 8.5, 9.1, 9.2_
+  - _Boundary: Admission Orchestrator, Isolated Arm Executor, Workflow Journal_
+  - _Depends: 6.4, 7.2, 8.1_
 - [ ] 8.3 Commit spend before releasing labels and independently review V3 cases
   - Conditionally append and reread the exact available-to-spent successor before opening nonzero sealed-label bytes inside the custodian boundary.
   - Join ground truth to frozen observations without exposing labels to arms and bind every released case to exact scope, role, pair, result, evidence, change inputs, observation, and reviewed manifest.
@@ -266,12 +269,15 @@
   - _Requirements: 6.2, 6.3, 6.4, 6.5, 8.1, 8.2, 8.3, 8.6, 9.1, 9.2, 9.6, 9.7, 10.1_
   - _Boundary: Admission Orchestrator, Scoped Admission V3 Consumer_
 - [ ] 8.6 Resume exact pre-spend and post-spend workflows without changing authority
-  - Resume pre-spend only from matching sealed checkpoints and unchanged identities; leave custody available after execution impairment.
+  - Rebuild the validated workflow chain after scratch loss, resolve only the retry authority selected by its CAS head, and compare the candidate/current identity before checkpoint resolution or an adapter call; never accept an original registered identity from the caller.
+  - Resume pre-spend only from matching sealed checkpoints and unchanged population, freeze, admission, plan, arm, bundle, input, budget, environment, destination, and checkpoint-slot identities; leave custody available after execution impairment.
+  - For an exact independently reviewed identity-bound mismatch disposition, append and reread terminal lifecycle state before returning `IDENTITY_CHANGED`; missing, invalid, malformed, or untrusted mismatch evidence fails closed before execution without claiming retirement or mutating lifecycle.
   - After committed spend, retain `labels_spent=true`, resume the same immutable run from durable artifacts, and never restore untouched status.
   - Do not rerun completed arms, duplicate label release, or select an orphan journal entry after restart.
-  - Done when crash points before CAS, after CAS/before label load, during scoring, and before publication converge to the same valid terminal identity or an explicit durable impaired outcome.
+  - Done when exact pre-spend retry resumes without rerunning completed arms or revealing raw observations, reviewed identity changes durably block admission, untrusted requests remain closed and non-authorizing, and crash points before CAS, after CAS/before label load, during scoring, and before publication converge to the same valid terminal identity or an explicit durable impaired outcome.
   - _Requirements: 5.2, 5.6, 5.7, 7.4, 7.5, 7.7, 8.3, 8.5, 10.1, 10.2_
-  - _Boundary: Admission Orchestrator, Workflow Journal_
+  - _Boundary: Admission Orchestrator, Workflow Journal, Baseline Lifecycle Authority_
+  - _Depends: 2.3, 7.2, 8.1, 8.2_
 
 - [ ] 9. Integrate legacy benchmark seams and the operator entry point
 - [ ] 9.1 Route catalog, verification, and assembly through the new authorities
@@ -434,4 +440,4 @@
 - Task 6.2 derives closed UNION or INTERSECTION observations only from complete scope-compatible component sets, preserves every component independently, and retains proof continuity only when all anchors match and the exact proof scope belongs to the combined arm; deterministic re-derivation rejects forged or unrelated proof authority.
 - Task 6.3 builds identical ordered component bundles only after controller-side revalidation of the exact registered plan and a metadata-only execution-source projection freshly derived from reviewed Task 4.3/4.4 and ordinary-selection authorities; adapters receive only sanitized label-blind data, and every authorizing serialization/execution path rejects rehashed source or plan substitutions without opening sealed material.
 - Task 6.4 freezes one exact custodian-sealed core V3 observation checkpoint per component only after canonical nonzero read/stage receipts and exact repository readback; construction, freeze, and resume bind the completed process outcome and every bundle/read identity, while missing, incomplete, or mismatched checkpoints remain impaired without rerunning the adapter.
-- Task 6.5 debug found that sealed diagnostics and reviewed development opening fit the executor/lifecycle boundary, but authoritative automatic retry does not: the original retry identity must be selected by the CAS workflow head established by Tasks 7.2 and 8.1–8.2, then consumed by Task 8.6 instead of accepted from a caller.
+- The approved Task 6.5 boundary amendment keeps sealed diagnostics and reviewed development opening in the executor/lifecycle seam; Tasks 7.2 and 8.1–8.2 persist and select the immutable retry authority only after feasible preflight, and Task 8.6 resolves it from the CAS workflow head instead of accepting an original identity from a caller.
