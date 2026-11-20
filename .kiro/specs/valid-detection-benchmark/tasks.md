@@ -207,7 +207,7 @@
   - Done when every terminal and resumable state has a deterministic digest and unsafe or free-form content cannot enter the shared outcome.
   - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5, 10.1, 10.2, 10.3_
   - _Boundary: Workflow Outcome_
-- [ ] 7.2 (P) Implement the causal workflow journal and lease-protected head
+- [x] 7.2 (P) Implement the causal workflow journal and lease-protected head
   - Append progress and heartbeat entries with exact sequence, predecessor, attempt, lease owner, counts, phase, and deadlines.
   - Make the initial CAS head select the exact custodian-sealed automatic-retry authority reference and digest before first execution, and preserve that selection unchanged through every successor.
   - Protect the current head with compare-and-swap, allow one resume owner only after an expired validated head, and refuse stale-owner append or renewal.
