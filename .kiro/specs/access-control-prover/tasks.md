@@ -80,7 +80,7 @@ its final resolution, dominance, fact-acquisition and measurement semantics with
 
 ## Amendment implementation
 
-- [ ] 7. Abstract evidence foundation
+- [x] 7. Abstract evidence foundation
 - [x] 7.1 Implement the evidence-relation algebra and completeness value
   - Encode the specified precision order, complete join table, dimension conjunction and witness aggregation.
   - Preserve every incompleteness reason deterministically and deduplicate reasons without losing stage identity.
@@ -109,7 +109,7 @@ its final resolution, dominance, fact-acquisition and measurement semantics with
   - _Boundary: Judgment Contracts, Canonical Trace_
   - _Depends: 7.1, 7.2, 7.3_
 
-- [ ] 8. Stable symbols and conservative call resolution
+- [x] 8. Stable symbols and conservative call resolution
 - [x] 8.1 Capture call receiver and arity evidence in the semantic IR
   - Preserve receiver expression and argument count for supported syntax while keeping existing constructors valid.
   - Done when language fixtures retain receiver and arity evidence without regressing existing IR consumers.
@@ -137,7 +137,7 @@ its final resolution, dominance, fact-acquisition and measurement semantics with
   - _Boundary: Call Resolution_
   - _Depends: 8.2, 8.3_
 
-- [ ] 9. Interprocedural summaries and concrete paths
+- [x] 9. Interprocedural summaries and concrete paths
 - [x] 9.1 Extract local function summaries
   - Collect each function's operations, witnesses, resolved calls and local completeness without traversing callers.
   - Done when summaries are deterministic and contain no target names outside fact identifiers.
@@ -164,7 +164,7 @@ its final resolution, dominance, fact-acquisition and measurement semantics with
   - _Boundary: Concrete Paths_
   - _Depends: 9.3_
 
-- [ ] 10. Strict authorization judgment
+- [x] 10. Strict authorization judgment
 - [x] 10.1 Return abstract dominance relations without prover fallback
   - Return MUST, MAY, NO or UNKNOWN with guard effect and control context.
   - Keep legacy order dominance unchanged, but return UNKNOWN in prover mode for unavailable graphs or line mappings.
@@ -210,7 +210,7 @@ its final resolution, dominance, fact-acquisition and measurement semantics with
   - _Boundary: Prover Integration, Canonical Trace_
   - _Depends: 7.4, 9.4, 10.5_
 
-- [ ] 11. Target knowledge registry and acquisition
+- [x] 11. Target knowledge registry and acquisition
 - [x] 11.1 (P) Add the entry-recognition strategy registry
   - Route mapping dispatch through one registry without embedding target names in engine modules.
   - Done when a fixture strategy registers, runs and records its strategy identifier and evidence.
@@ -256,7 +256,7 @@ its final resolution, dominance, fact-acquisition and measurement semantics with
   - _Boundary: Target Knowledge_
   - _Depends: 10.3, 11.2, 11.5, 11.6_
 
-- [ ] 12. Development and admission runners
+- [x] 12. Development and admission runners
 - [x] 12.1 Materialise and verify baseline and candidate analyzer bundles
   - Resolve analyzer revisions, fact sets, acquisition records and configurations to immutable digest-verified inputs.
   - Refuse comparison when any bundle artifact is unavailable or mismatched.
@@ -299,7 +299,7 @@ its final resolution, dominance, fact-acquisition and measurement semantics with
   - _Boundary: Admission Runner_
   - _Depends: 12.5_
 
-- [ ] 13. Cross-cutting validation and measurements
+- [x] 13. Cross-cutting validation and measurements
 - [x] 13.1 Validate abstract-domain and metamorphic laws
   - Cover the full join table, conjunction, witness aggregation, monotonicity and mixed-obligation rule.
   - Prove that type renaming preserves a judgment and adding ambiguity can only preserve it or make it indeterminate.
@@ -330,7 +330,7 @@ its final resolution, dominance, fact-acquisition and measurement semantics with
   - _Boundary: Admission Measurement_
   - _Depends: 12.6, 13.3_
 
-- [ ] 14. Reviewed detection-core fact adapter
+- [x] 14. Reviewed detection-core fact adapter
 - [x] 14.1 Define the production access-control family contract
   - Encode the versioned access-control security object, roles, three decision rules, residual question and closed incompleteness reasons through public detection-core types.
   - Keep target names confined to the reviewed ecosystem declaration while pinning every digest-affecting field, status, origin policy and decision semantic declared by the design.
