@@ -67,9 +67,8 @@ class _Client:
             if kwargs.get("IfNoneMatch") == "*" and current is not None and not self.ignore_if_none_match:
                 raise _ProviderError("PreconditionFailed")
             expected = kwargs.get("IfMatch")
-            if expected is not None and not self.allow_two_winners:
-                if current is None or current.etag != expected:
-                    raise _ProviderError("PreconditionFailed")
+            if expected is not None and not self.allow_two_winners and (current is None or current.etag != expected):
+                raise _ProviderError("PreconditionFailed")
             version_id = self.fixed_version_id or f"version-{self._next_version}"
             self._next_version += 1
             etag = sha256(body + version_id.encode()).hexdigest()
