@@ -190,7 +190,7 @@
   - Done when empty, skipped, prematurely terminated, partial, cross-arm, or changed-input execution yields impairment and no clean-looking observation set.
   - _Requirements: 5.6, 8.3, 8.4, 8.5, 9.1, 9.2, 10.2_
   - _Boundary: Isolated Arm Executor_
-- [ ] 6.5 Integrate sealed pre-spend diagnostics with reviewed development opening
+- [x] 6.5 Integrate sealed pre-spend diagnostics with reviewed development opening
   - Expose before spend only closed reason codes, counts, and digests from observation artifacts.
   - Require the selected observation's exact checkpoint provenance and the complete population-derived affected-network set to be bound into the independently reviewed access request.
   - Require a reviewed lifecycle development-opening transition and corresponding influence events before any human receives population-specific findings, paths, exception text, or diagnostics.
