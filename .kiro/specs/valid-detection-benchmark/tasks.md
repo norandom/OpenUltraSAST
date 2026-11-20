@@ -200,7 +200,7 @@
   - _Depends: 2.3, 5.1, 6.4_
 
 - [ ] 7. Persist safe workflow state and operator projections
-- [ ] 7.1 Define closed workflow outcomes and redacted serialization
+- [x] 7.1 Define closed workflow outcomes and redacted serialization
   - Represent completed, insufficient, and impaired states with closed reason, phase, degradation, count, gate, runtime, spend-state, and optional replay-reference fields.
   - Require completed outcomes to reference exactly one complete V3 replay and reject a clean status for missing or failed required stages.
   - Reject arbitrary exception text, filesystem paths, labels, repository contents, payloads, secrets, and customer content during serialization.
