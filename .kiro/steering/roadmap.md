@@ -1,5 +1,109 @@
 # Roadmap
 
+## Roadmap -- milestone ladder to a shippable safety net (2026-11-20)
+
+This section supersedes ordering questions below it. It is the general roadmap the maintainer
+asked for: every open work stream led milestone by milestone to the narrow advisory release
+(M5), with the first governed real-world number as the pivotal gate. Milestone definitions and
+acceptance profiles (`pre-push-safety-net/release-milestones.md`) and stop conditions
+(`detection-quality.md`) apply unchanged; this ladder sequences work, it lowers no bar.
+
+### Position (2026-11-20)
+
+- M1a/M1b met on fixtures (NodeGoat). M2 measured unmet (engine startup, 2026-09-17). M3
+  partial (PHP blocked by runtime). M4/M5 pending.
+- The access-control admission arm is parked after three honest 0/12 NO-GOs. Root cause on
+  record: framework-shaped entries (event bridges, MCP tools, router factories) outside the
+  route-shaped entry model, vendored framework semantics excluded by design, and a gate
+  arithmetically unreachable at 3/12 in-family pairs.
+- Real-world results do not exist yet. That is the gap this ladder closes first: no product
+  milestone outranks a governed admission number on real repositories.
+- Open work by spec (verified 2026-11-20): valid-detection-benchmark 27 subtasks;
+  contributor-scan 24; plane-on-kubernetes 22 (paused, re-plan); reachability-flow-model 16
+  and authorization-obligations 18 (tasks-generated, not yet implementation-ready);
+  pre-push-safety-net 6; hunter-learning-loop 1 (model lane, proposal-only); detection-core 1
+  (11.4, closing under R0). access-control-prover subtasks are complete.
+
+### R0 -- Closure (2026-11-20)
+
+detection-core 11.4 unblocked: the benchmark owner (valid-detection-benchmark tasks 2.1-2.4)
+implemented the authoritative reservation/withdrawal/replacement lifecycle the blocker waited
+on; the reservation conflict is resolved (`tests/test_independent_population.py` green), the
+final gate instrument is green with the V3 evaluation layer added to its declared core
+authority, the suite is green, and the 67-commit backlog is pushed. access-control-prover
+group headers reconciled with their completed subtasks.
+
+Exit evidence: green suite at the closure commit; origin/main advanced.
+
+### R1 -- Benchmark machinery complete (valid-detection-benchmark 6.5 -> 9.3)
+
+Commit task 6.5 (sealed pre-spend diagnostics), land the retry authority seam (7.2/8.6 per the
+2026-11-18 design amendment), closed workflow outcomes and lease-protected heads (7.x), the
+atomic multi-arm admission lifecycle (8.x), and the operator entry point (9.1-9.3).
+
+Exit evidence: a synthetic multi-arm, multi-family lifecycle runs end to end from operator
+commands; crash and retry resume converge to exact durable outcomes.
+
+### R2 -- Real population frozen (valid-detection-benchmark group 10)
+
+Bounded sourcing and review queues, four independently reviewed cohorts (at least 40
+positives across Python and JavaScript/TypeScript, at least two families), the full
+ordinary-change population, and the causally bound replacement baseline.
+
+Human gates (maintainer): cohort reviews, contamination dispositions, development openings.
+Everything else is autonomous.
+
+Exit evidence: immutable population and label-blind manifest with zero label reads, digests
+bound into the workflow head.
+
+### R3 -- First honest number (valid-detection-benchmark 11.1 -> 11.6)
+
+Adversarial governance/confidentiality suites, custody and scratch-loss recovery, the
+synthetic lifecycle, the crash/retry matrix, scale and back-pressure, then the ONE governed
+replacement admission run on the frozen population.
+
+Exit evidence: a GO or NO-GO bound to the immutable spent population, with witnesses and
+exact scopes. Whichever way it lands, a real-world number exists. A NO-GO is a result: it
+names the exact missing capability (entry shape, framework semantics, or calibration)
+instead of leaving "no real results" undefined.
+
+### R4 -- Shippable scope declared (pre-push-safety-net 15.1/15.2; M4)
+
+Reserve and review the untouched evaluation population (may run parallel with R2/R3 wherever
+inputs exist), then declare the v1 advisory scope as exactly the families whose claims
+survived R3 plus the M4 acceptance profile (95% observed actionable precision, 90% supported
+recall, 95% supported-check completion, 30s/2s runtime gates, zero known fixed/benign false
+alerts). Silence on everything fails; experimental leftovers stay labeled experimental.
+
+### R5 -- Engine depth and hardening (parallelizable once R3 is read)
+
+- contributor-scan: resolution depth and engine internals (control dependence, modeled sinks,
+  complete-share levers) -- the quality lever any R3 NO-GO names.
+- reachability-flow-model + authorization-obligations: the two specs that cure the parked
+  arm's root cause (bounded path/entry edges; closed discharger/obligation facts). They enter
+  implementation only after their phase approvals.
+- pre-push task 16: harness self-reporting (provenance, per-cause counts, contradiction
+  assertions) -- the plausible-zero instrument class dies here.
+- M2 engine-startup robustness; 11.3 batch path; 13.2/13.3 PHP transfer once its runtime is
+  unblocked; 8.3 independent transfer admission.
+- hunter-learning-loop stays proposal-only behind core probes; search-with-proof stays parked
+  until R4 needs proof-based BLOCK (human operator decision).
+
+### R6 -- Narrow advisory rollout (M5)
+
+Eligibility bound to the exact passing runtime, query, fact, ranking and policy identities;
+packaged vulnerable/fixed/benign push experience revalidated; advisory keeps the blocking
+evidence bar. plane-on-kubernetes resumes here (or at R4) as the delivery substrate, after its
+2026-10-04 re-plan.
+
+### Rules that hold at every milestone
+
+- The pool measures and never trains; admission gates on untouched populations only.
+- Two consecutive admission NO-GOs on the same arm park it for strategy review.
+- Every zero proves its instrument read nonzero input; every harness reports its own failure
+  causes once R5 lands.
+- Historical bytes stay frozen; governance decisions are recorded, never improvised.
+
 ## Binding phase -- detection-core as the shared contract (2026-10-30)
 
 This section supersedes ordering questions below it for detection work. `detection-core`
