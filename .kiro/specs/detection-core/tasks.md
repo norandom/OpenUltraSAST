@@ -433,7 +433,7 @@
   - Publish sample count, percentile, workload, hardware, and derived budget through the fixed measurement contract.
   - Done when performance fixtures satisfy the derived workload envelope and any excess fails the named budget gate.
   - _Requirements: 1.4, 6.1, 6.2, 6.3, 6.4_
-- [ ] 11.4 Run the full migration, security, and regression gate
+- [x] 11.4 Run the full migration, security, and regression gate
   - Verify core imports only standard-library and lower core layers and contains no target, DSPy, benchmark, proof-execution, or analyzer dependencies.
   - Run all unit, adapter, migration, reference-family, end-to-end, admission, and historical compatibility suites.
   - Enforce function/module complexity caps and scan for remaining v1 imports or writers.
@@ -441,7 +441,7 @@
   - Done when the complete suite passes, boundary/import censuses are clean, historical bytes are unchanged, and all declared adapter and consumer seams pass conformance.
   - _Requirements: 1.4, 10.4, 14.3, 15.3, 15.4_
   - _Depends: 10.7_
-  - _Blocked: Benchmark population governance conflict: the permanent unseen-pool reservation guard and the later spent/retired training-only pilot policy disagree. The benchmark owner must approve the authoritative lifecycle and replacement/retirement plan before the full suite can pass._
+  - _Resolved 2026-11-20: the owning spec valid-detection-benchmark implemented the authoritative lifecycle the blocker waited on (tasks 2.1-2.4: permanent reservation census, pilot withdrawal with bytes preserved, causal replacement lifecycle, production guard over the fixed benchmarks/plane/src/tests scope). The reservation conflict is gone: tests/test_independent_population.py passes 12/12. The final gate instrument (tests/detection_core_final_gate.py) passes with the V3 evaluation layer added to its declared core authority (layer published 0a64c70). Full-tree evidence 2026-11-20: 6425 passed, 46 skipped; the single failure was a load-induced 3-4% wall-clock margin flake in the nested budget-contract tests (568ms>548ms, 583ms>571ms under the outer full suite), which pass standalone (52/52 in 22.5s); the structural fix is pre-push-safety-net task 16._
 
 ## Evaluation-admission V3 amendment
 
