@@ -236,7 +236,7 @@
   - _Requirements: 1.3, 1.4, 1.7, 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7, 7.4, 7.5_
   - _Boundary: Admission Orchestrator, Scoped Admission V3 Consumer, Workflow Journal_
   - _Depends: 2.3, 4.4, 5.3, 5.4, 6.1, 7.1, 7.2_
-- [ ] 8.2 Execute and seal every planned observation before spend authority
+- [x] 8.2 Execute and seal every planned observation before spend authority
   - Send the identical ordered label-blind input set to every component arm, freeze all component observations, and derive all registered combined observations.
   - Resolve and revalidate the retry authority selected by the current workflow head before execution; reject a missing, substituted, or mismatched authority before any checkpoint resolution, adapter call, or spend attempt.
   - Build the V3 admission manifest from exact custodian-sealed observation references and combination lineage.
@@ -442,3 +442,5 @@
 - Task 6.4 freezes one exact custodian-sealed core V3 observation checkpoint per component only after canonical nonzero read/stage receipts and exact repository readback; construction, freeze, and resume bind the completed process outcome and every bundle/read identity, while missing, incomplete, or mismatched checkpoints remain impaired without rerunning the adapter.
 - The approved Task 6.5 boundary amendment keeps sealed diagnostics and reviewed development opening in the executor/lifecycle seam; Tasks 7.2 and 8.1–8.2 persist and select the immutable retry authority only after feasible preflight, and Task 8.6 resolves it from the CAS workflow head instead of accepting an original identity from a caller.
 - Task 7.3 pre-registers the operator replay-artifact envelope: stored replay artifacts carry `payload["replay_digest"]` equal to the decoded replay digest; Tasks 8.5 and 9.3 must honor this binding when persisting replays (load-bearing for `REPLAY_MISMATCH` detection).
+- Task 8.2 places the execution phase in `admission_execution.py`, which sits at exactly the 400-line module cap: any further admission-boundary growth (8.3 spend, 8.5 replay) must start a new sibling module rather than extend it. Its sealed admission-manifest witness is a closed digest artifact (`admission-manifest-witness.v1`); the core `EvaluationAdmissionManifestV3` object travels in the product for Task 8.3's `authorize_evaluation` + custody CAS.
+- Task 9.1 review empirically confirmed a hardening gap in the committed 8.1 module: `admission_orchestrator._freeze_gate` catches only `(TypeError, ValueError)` while `population_freeze_bytes` raises `AttributeError` for dict-shaped freeze inputs, escaping as an unhandled traceback instead of a closed `FREEZE_NOT_ADMISSION_CLASS` refusal (fail-closed either way). The next task owning that module (8.3) should fold in the one-line except-tuple extension plus an adversarial test.
