@@ -830,3 +830,23 @@ def test_duplicate_head_selection_is_refused_and_original_head_preserved() -> No
         environment.preflight(case.request())
     assert report.value.reason is AdmissionPreflightReason.WORKFLOW_HEAD_EXISTS
     assert environment.journal.current_head(WORKFLOW) == first.workflow_head
+
+
+def test_dict_shaped_freeze_is_refused_closed_without_writes() -> None:
+    case = _case()
+    environment = _Environment(case)
+    durable_before = tuple(environment.durable)
+    transient_before = tuple(environment.transient)
+
+    with pytest.raises(AdmissionOrchestratorError) as report:
+        environment.preflight(case.request(freeze={"population_class": "admission"}))
+
+    assert report.value.reason is AdmissionPreflightReason.INVALID_REQUEST
+    hollow = object.__new__(PopulationFreezeV3)
+    with pytest.raises(AdmissionOrchestratorError) as report:
+        environment.preflight(case.request(freeze=hollow))
+
+    assert report.value.reason is AdmissionPreflightReason.FREEZE_NOT_ADMISSION_CLASS
+    assert tuple(environment.durable) == durable_before
+    assert tuple(environment.transient) == transient_before
+    assert environment.spy.calls == []

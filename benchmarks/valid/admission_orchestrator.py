@@ -587,7 +587,7 @@ class AdmissionOrchestrator:
     def _freeze_gate(self, request: AdmissionRunRequestV1) -> None:
         try:
             population_freeze_bytes(request.freeze)
-        except (TypeError, ValueError):
+        except (TypeError, ValueError, AttributeError):
             raise _refused(AdmissionPreflightReason.FREEZE_NOT_ADMISSION_CLASS) from None
         if request.freeze.population_class is not PopulationClass.ADMISSION:
             raise _refused(AdmissionPreflightReason.FREEZE_NOT_ADMISSION_CLASS)
