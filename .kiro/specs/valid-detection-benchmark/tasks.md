@@ -252,7 +252,7 @@
   - Done when a failed or ambiguous CAS makes zero label reads, and only the exact reviewed V3 release bound to the committed receipt can reach scoring.
   - _Requirements: 5.7, 5.8, 5.9, 7.5, 8.4, 8.5_
   - _Boundary: Admission Orchestrator, Durable Custody Store_
-- [ ] 8.4 Project exact-scope cases and promote only matching differential proof
+- [x] 8.4 Project exact-scope cases and promote only matching differential proof
   - Project each underlying ordinary push once per claimed family in its reviewed ecosystem and never across ecosystems, while deduplicating whole coverage by change-input identity.
   - Count a multi-scope positive once in whole coverage and once in every independently verified exact scope.
   - Promote a label-blind proof candidate only when released roles, family/ecosystem scope, pair, packet/change inputs, finding anchor, differential record, control, and verification receipt all match.
