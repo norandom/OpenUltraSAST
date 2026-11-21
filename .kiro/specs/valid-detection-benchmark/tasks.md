@@ -260,7 +260,7 @@
   - Done when scoped denominators and proof attachments replay exactly and no result or proof crosses an unverified scope, role, pair, ecosystem, or input identity.
   - _Requirements: 2.6, 3.3, 3.4, 6.2, 6.3, 6.4, 9.3, 9.4, 9.5_
   - _Boundary: Admission Orchestrator, Proof Adapter_
-- [ ] 8.5 Produce every scoped report and one complete evaluation replay
+- [x] 8.5 Produce every scoped report and one complete evaluation replay
   - Submit each arm's released exact-scope cases through the shared authority and preserve independently valid component and combined reports.
   - Require recall, false alarms per 100 ordinary pushes, precision, pair correctness, sample counts, Wilson intervals, operational evidence, and named gates for every completed exact scope.
   - Keep optional aggregates non-authorizing with explicit constituents, counts, and weighting, and report deduplicated whole-population coverage separately.
