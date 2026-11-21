@@ -227,9 +227,7 @@ class _RunEnv(_Env):
                     self.case.freeze.positive_change_digests,
                     _scope_census(self.case.freeze),
                 )
-                subject = spend.release_review_subject(
-                    manifest.manifest_digest, self.planned_receipt_digest(), cases, self.loader.payload
-                )
+                subject = spend.release_review_subject(manifest.manifest_digest, self.planned_receipt_digest(), cases, self.loader.payload)
             except spend.AdmissionSpendError:
                 subject = _digest("underivable-release-subject")
         return _attestation(subject, _digest("release-producer"), self.disclosure)
@@ -433,9 +431,7 @@ def _projection(environment: _RunEnv):
 
 
 def _proof_material(flagged: str, control: str, *, outcome: ProofOutcome = ProofOutcome.DEMONSTRATED, safe_observed: bool = False):
-    producer = ProofProducerIdentity(
-        "proof-producer", "verifier-7", _digest("sandbox"), _digest("oracle"), _digest("proof-review")
-    )
+    producer = ProofProducerIdentity("proof-producer", "verifier-7", _digest("sandbox"), _digest("oracle"), _digest("proof-review"))
     producer_digest = derive_producer_identity_digest(producer)
     affected = ProofSideResult(flagged, True, _digest("affected-observation"), 1, "")
     safe = ProofSideResult(control, safe_observed, _digest("safe-observation"), 1, "")
@@ -649,9 +645,7 @@ def _forged_release(environment: _RunEnv, original, *, marker: str) -> Admission
 def test_duplicated_ordinary_row_with_fresh_case_digest_is_refused() -> None:
     environment = _located_env()
     push = environment.case.selection.pushes[0].push_digest
-    original = next(
-        row for row in environment.release.released_cases if row.arm_id == "arm-shipped" and row.case_input_digest == push
-    )
+    original = next(row for row in environment.release.released_cases if row.arm_id == "arm-shipped" and row.case_input_digest == push)
     forged = _forged_release(environment, original, marker="forged-ordinary-result")
     assert forged.released_cases[-1].case_digest != original.case_digest
     assert forged.release_digest == environment.release.release_digest

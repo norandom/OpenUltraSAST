@@ -87,9 +87,7 @@ class _RacedCustody:
         if not self._raced:
             self._raced = True
             prior = self._inner.current_log(self._population)
-            rival = PopulationUseRequest(
-                self._population, "rival-arm", LineagePurpose.ADMISSION_LABEL_OPEN, True, None, prior.log_digest
-            )
+            rival = PopulationUseRequest(self._population, "rival-arm", LineagePurpose.ADMISSION_LABEL_OPEN, True, None, prior.log_digest)
             receipt = record_population_use(rival, prior, self._custodian, self._policy)
             assert self._inner.compare_and_swap(prior.log_digest, append_population_use(prior, receipt, self._policy))
         return self._inner.compare_and_swap(expected_log_digest, replacement)
@@ -259,9 +257,7 @@ class _SpendEnv(_Env):
                     self.case.freeze.positive_change_digests,
                     _scope_census(self.case.freeze),
                 )
-                subject = release_review_subject(
-                    manifest.manifest_digest, self.planned_receipt_digest(), cases, self.loader.payload
-                )
+                subject = release_review_subject(manifest.manifest_digest, self.planned_receipt_digest(), cases, self.loader.payload)
             except spend.AdmissionSpendError:
                 subject = _digest("underivable-release-subject")
         return _attestation(subject, _digest("release-producer"), self.disclosure)
@@ -374,13 +370,9 @@ def test_moved_custody_head_refuses_before_any_label_read() -> None:
     case = _case()
     environment = _SpendEnv(case)
     prior = environment.custody.current_log(environment.population)
-    rival = PopulationUseRequest(
-        environment.population, "rival-arm", LineagePurpose.ADMISSION_LABEL_OPEN, True, None, prior.log_digest
-    )
+    rival = PopulationUseRequest(environment.population, "rival-arm", LineagePurpose.ADMISSION_LABEL_OPEN, True, None, prior.log_digest)
     receipt = record_population_use(rival, prior, CUSTODIAN, environment.custody_policy)
-    assert environment.custody.compare_and_swap(
-        prior.log_digest, append_population_use(prior, receipt, environment.custody_policy)
-    )
+    assert environment.custody.compare_and_swap(prior.log_digest, append_population_use(prior, receipt, environment.custody_policy))
 
     product = commit_spend_and_release(environment.spend_request())
 
@@ -531,9 +523,7 @@ def test_reviewed_release_is_sealed_and_carries_no_label_bytes() -> None:
 
     product = commit_spend_and_release(environment.spend_request())
 
-    release_rows = [
-        row for row in environment.sealed_workflow_payloads() if row[1] == spend.CASE_RELEASE_DOCUMENT_SCHEMA
-    ]
+    release_rows = [row for row in environment.sealed_workflow_payloads() if row[1] == spend.CASE_RELEASE_DOCUMENT_SCHEMA]
     assert len(release_rows) == 1
     release_key = release_rows[0][0]
     release_bytes = environment.durable.body(release_key)
@@ -560,9 +550,7 @@ def test_only_release_bound_to_committed_receipt_reaches_scoring() -> None:
     assert first.refusal_reason is None
     assert second.refusal_reason is AdmissionSpendReason.CUSTODY_HEAD_UNAVAILABLE
     assert environment.loader.reads == 1
-    release_rows = [
-        row for row in environment.sealed_workflow_payloads() if row[1] == spend.CASE_RELEASE_DOCUMENT_SCHEMA
-    ]
+    release_rows = [row for row in environment.sealed_workflow_payloads() if row[1] == spend.CASE_RELEASE_DOCUMENT_SCHEMA]
     assert len(release_rows) == 1
 
 

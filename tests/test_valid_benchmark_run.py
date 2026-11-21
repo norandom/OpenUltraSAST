@@ -441,9 +441,7 @@ def test_command_entry_refuses_invalid_settings_and_capabilities_before_any_oper
     environment = _CommandEnv()
     before = (list(environment.durable.operations), list(environment.transient.operations))
     with pytest.raises(run.OperatorCommandError) as collision:
-        run.validated_operator_configuration(
-            _environ() | {"VALID_BENCHMARK_TRANSIENT_S3_BUCKET": "valid-durable"}, unsupported
-        )
+        run.validated_operator_configuration(_environ() | {"VALID_BENCHMARK_TRANSIENT_S3_BUCKET": "valid-durable"}, unsupported)
     assert collision.value.reason in {
         run.OperatorCommandReason.SETTINGS_INVALID,
         run.OperatorCommandReason.CAPABILITIES_UNSUPPORTED,
@@ -558,9 +556,7 @@ def test_run_command_surfaces_the_seam_impaired_product_without_spend() -> None:
 
 def test_interrupted_pre_spend_run_resumes_from_the_durable_store_without_rerun_or_release() -> None:
     environment = _CommandEnv()
-    interrupted = run.benchmark_run_command(
-        environment.context(), environment.run_request(environment.stages(crash_before_spend=True))
-    )
+    interrupted = run.benchmark_run_command(environment.context(), environment.run_request(environment.stages(crash_before_spend=True)))
 
     assert interrupted.outcome.status is WorkflowStatus.IMPAIRED
     assert interrupted.outcome.reason_codes == (WorkflowReasonCode.INTERRUPTED,)
@@ -585,9 +581,7 @@ def test_interrupted_pre_spend_run_resumes_from_the_durable_store_without_rerun_
 def test_interrupted_post_spend_run_resumes_without_duplicate_release() -> None:
     environment = _CommandEnv()
     loader = _CrashingLoader(_label_bytes(environment.case.freeze))
-    interrupted = run.benchmark_run_command(
-        environment.context(), environment.run_request(environment.stages(spend_loader=loader))
-    )
+    interrupted = run.benchmark_run_command(environment.context(), environment.run_request(environment.stages(spend_loader=loader)))
 
     assert interrupted.outcome.status is WorkflowStatus.IMPAIRED
     assert interrupted.outcome.reason_codes == (WorkflowReasonCode.INSTRUMENT_FAILURE,)
@@ -654,20 +648,14 @@ def test_commands_never_mutate_detector_or_infrastructure_state(monkeypatch) -> 
     for env in (environment, crashed):
         methods = {operation.split(":", 1)[0] for operation in env.durable.operations + env.transient.operations}
         assert methods <= {"put", "get"}
-        assert all(
-            operation.split(":", 1)[1].startswith(DURABLE_PREFIXES) for operation in env.durable.operations
-        )
-        assert all(
-            operation.split(":", 1)[1].startswith(f"workflow/{WORKFLOW}/") for operation in env.transient.operations
-        )
+        assert all(operation.split(":", 1)[1].startswith(DURABLE_PREFIXES) for operation in env.durable.operations)
+        assert all(operation.split(":", 1)[1].startswith(f"workflow/{WORKFLOW}/") for operation in env.transient.operations)
         assert not any("detector" in operation or "lifecycle-policy" in operation for operation in env.durable.operations)
 
 
 def test_status_refuses_hostile_outcome_bytes_without_a_traceback() -> None:
     environment = _CommandEnv()
-    result = run.benchmark_run_command(
-        environment.context(), environment.run_request(environment.stages(crash_before_spend=True))
-    )
+    result = run.benchmark_run_command(environment.context(), environment.run_request(environment.stages(crash_before_spend=True)))
     reference = result.outcome_reference
     assert reference is not None
     location = artifact_object_location(_settings(StorePurpose.DURABLE), reference)
@@ -716,9 +704,7 @@ def test_resume_command_reports_blocked_when_the_seam_terminally_blocks() -> Non
     ineligible = _lifecycle(environment.population, environment.case.freeze.freeze_digest, active=False)
 
     with pytest.raises(run.OperatorCommandError) as blocked:
-        run.benchmark_resume_command(
-            environment.context(), environment.resume_request(lifecycle_authority=ineligible)
-        )
+        run.benchmark_resume_command(environment.context(), environment.resume_request(lifecycle_authority=ineligible))
 
     assert blocked.value.reason is run.OperatorCommandReason.RESUME_BLOCKED
     assert str(blocked.value) == "operator_command_resume_blocked"
@@ -736,8 +722,6 @@ def test_command_refusals_stay_closed_without_caller_content() -> None:
     crashed = _CommandEnv()
     run.benchmark_run_command(crashed.context(), crashed.run_request(crashed.stages(crash_before_spend=True)))
     with pytest.raises(run.OperatorCommandError) as unknown:
-        run.benchmark_resume_command(
-            crashed.context(), crashed.resume_request(workflow_digest=_digest("missing-workflow"))
-        )
+        run.benchmark_resume_command(crashed.context(), crashed.resume_request(workflow_digest=_digest("missing-workflow")))
     assert unknown.value.reason is run.OperatorCommandReason.WORKFLOW_UNKNOWN
     assert str(unknown.value) == "operator_command_workflow_unknown"

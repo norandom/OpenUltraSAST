@@ -115,18 +115,14 @@ def _operator_policy() -> str:
 
 
 def _operator_authority():
-    return artifact_read_authority(
-        ArtifactActorRole.OPERATOR, (), _operator_policy(), expected_access_policy_digest=_operator_policy()
-    )
+    return artifact_read_authority(ArtifactActorRole.OPERATOR, (), _operator_policy(), expected_access_policy_digest=_operator_policy())
 
 
 @lru_cache(maxsize=1)
 def _core_context():
     context_case = _core_context_case()
     old = context_case.context.evidence
-    custody_policy = PopulationCustodyPolicy(
-        (CUSTODIAN,), derive_population_custody_policy_digest((CUSTODIAN,))
-    )
+    custody_policy = PopulationCustodyPolicy((CUSTODIAN,), derive_population_custody_policy_digest((CUSTODIAN,)))
     evidence = make_evidence_validation_context(
         family_catalog=old.family_catalog,
         fact_packs=old.fact_packs,
@@ -286,9 +282,7 @@ def _bound_bridge_request(
     )
     bound = replace(
         request,
-        admission_review=_attestation(
-            bridged_admission_subject(request), _digest("bridge-admission-producer"), case.disclosure
-        ),
+        admission_review=_attestation(bridged_admission_subject(request), _digest("bridge-admission-producer"), case.disclosure),
     )
     return environment, preflight, execution, readiness, bound
 
@@ -327,9 +321,7 @@ def _publication_request(replay, *, planned_arms: tuple[str, ...] = PLANNED_ARMS
         repository=repository,
         replay=replay,
         planned_arm_ids=planned_arms,
-        planned_input_count=len(
-            {slot.input_identity_digest for slot in replay.plan_manifest.declaration.expected_observation_slots}
-        ),
+        planned_input_count=len({slot.input_identity_digest for slot in replay.plan_manifest.declaration.expected_observation_slots}),
         population_digest=replay.plan_manifest.declaration.population_digest,
         freeze_digest=replay.plan_manifest.declaration.freeze_digest,
         plan_digest=replay.plan_manifest.manifest_digest,
@@ -380,11 +372,7 @@ def test_optional_aggregate_is_explicit_non_authorizing_and_whole_coverage_is_de
     assert "decision" not in {field.name for field in fields(replay.aggregate)}
     assert "gate" not in {field.name for field in fields(replay.aggregate)}
     whole = replay.whole_population_coverage
-    unique_pushes = {
-        case.underlying_push_digest
-        for group in replay.cases_by_arm
-        for case in group.cases
-    }
+    unique_pushes = {case.underlying_push_digest for group in replay.cases_by_arm for case in group.cases}
     assert whole.underlying_push_count == len(replay.report_source.whole_projection.underlying_push_digests)
     assert whole.underlying_push_count == len(unique_pushes)
 
@@ -480,22 +468,19 @@ def test_bridge_core_authorization_over_raw_documents_and_real_readiness() -> No
     digests = tuple(sorted(item.result_digest for item in readiness))
     assert bridged.plan_manifest.readiness_digests == digests
     assert bridged.admission_manifest.readiness_digests == digests
-    assert bridged.preparation.authority.readiness_set_digest == canonical.content_digest(
-        {"readiness_digests": digests}
-    ) or bridged.preparation.authority.readiness_set_digest
+    assert (
+        bridged.preparation.authority.readiness_set_digest == canonical.content_digest({"readiness_digests": digests})
+        or bridged.preparation.authority.readiness_set_digest
+    )
     assert bridged.preparation.authority.observation_set_digest != derive_evaluation_observation_set_digest_zero()
     for sealed in bridged.admission_manifest.observations:
         resolved = bridged.resolver.resolve(sealed.observation)
         assert canonical.bytes_digest(resolved.content) == sealed.observation.content_digest
         assert decode_arm_observation_set(resolved.content).observation_digest == sealed.observation_digest
-    assert bridged.preparation.label_release_request.influenced_artifact_digest == (
-        bridged.preparation.authority.authority_digest
-    )
+    assert bridged.preparation.label_release_request.influenced_artifact_digest == (bridged.preparation.authority.authority_digest)
     assert bridged.preparation.label_release_request.arm_id == bridged.plan_manifest.manifest_digest
     receipt = _commit_shared_spend(environment, bridged)
-    binding = validate_shared_spend(
-        bridged.admission_manifest, bridged.preparation, receipt, environment.context, environment.custody
-    )
+    binding = validate_shared_spend(bridged.admission_manifest, bridged.preparation, receipt, environment.context, environment.custody)
     assert binding.receipt_digest == receipt.receipt_digest
 
 
@@ -506,9 +491,7 @@ def derive_evaluation_observation_set_digest_zero() -> str:
 def _commit_shared_spend(environment: _BridgeEnv, bridged) -> PopulationUseReceipt:
     preparation = bridged.preparation
     prior = environment.custody.current_log(preparation.label_release_request.population_digest)
-    receipt = record_population_use(
-        preparation.label_release_request, prior, CUSTODIAN, environment.context.evidence.custody_policy
-    )
+    receipt = record_population_use(preparation.label_release_request, prior, CUSTODIAN, environment.context.evidence.custody_policy)
     successor = append_population_use(prior, receipt, environment.context.evidence.custody_policy)
     assert environment.custody.compare_and_swap(prior.log_digest, successor)
     return receipt
@@ -523,9 +506,7 @@ def test_unbridged_envelope_references_and_capability_readiness_are_refused_by_c
         _digest("gap-plan-producer"),
         case.disclosure,
     )
-    gap_plan = compose_plan_manifest(
-        case.plan, preflight.plan_manifest.census, digests, preflight.custody_log_digest, plan_review
-    )
+    gap_plan = compose_plan_manifest(case.plan, preflight.plan_manifest.census, digests, preflight.custody_log_digest, plan_review)
     feasibility = preflight_evaluation(gap_plan, environment.context, case.resolver)
     envelope_draft = EvaluationAdmissionManifestV3(
         gap_plan,
@@ -540,16 +521,10 @@ def test_unbridged_envelope_references_and_capability_readiness_are_refused_by_c
     )
     envelope_payload = derive_evaluation_admission_manifest_payload_digest(envelope_draft)
     envelope_review = _attestation(envelope_payload, _digest("gap-admission-producer"), case.disclosure)
-    envelope_manifest = replace(
-        envelope_draft, payload_digest=envelope_payload, review=envelope_review
-    )
-    envelope_manifest = replace(
-        envelope_manifest, manifest_digest=derive_evaluation_admission_manifest_digest(envelope_manifest)
-    )
+    envelope_manifest = replace(envelope_draft, payload_digest=envelope_payload, review=envelope_review)
+    envelope_manifest = replace(envelope_manifest, manifest_digest=derive_evaluation_admission_manifest_digest(envelope_manifest))
     with pytest.raises((EvaluationAdmissionV3Error, ArtifactResolutionError, ArtifactValidationError)):
-        authorize_evaluation(
-            envelope_manifest, feasibility, readiness, environment.context, environment.custody, case.resolver
-        )
+        authorize_evaluation(envelope_manifest, feasibility, readiness, environment.context, environment.custody, case.resolver)
     bridged = bridge_core_authorization(request)
     original = preflight.plan_manifest
     capability_draft = EvaluationAdmissionManifestV3(
@@ -566,9 +541,7 @@ def test_unbridged_envelope_references_and_capability_readiness_are_refused_by_c
     capability_payload = derive_evaluation_admission_manifest_payload_digest(capability_draft)
     capability_review = _attestation(capability_payload, _digest("gap-capability-producer"), case.disclosure)
     capability_manifest = replace(capability_draft, payload_digest=capability_payload, review=capability_review)
-    capability_manifest = replace(
-        capability_manifest, manifest_digest=derive_evaluation_admission_manifest_digest(capability_manifest)
-    )
+    capability_manifest = replace(capability_manifest, manifest_digest=derive_evaluation_admission_manifest_digest(capability_manifest))
     assert original.readiness_digests != digests
     with pytest.raises((EvaluationAdmissionV3Error, EvaluationAuthorityError)):
         authorize_evaluation(

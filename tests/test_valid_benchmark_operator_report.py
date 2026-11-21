@@ -159,16 +159,12 @@ def _no_go_variant(resolved: operator_report.ResolvedOperatorReplay) -> operator
 
 
 def _demonstrated_attachment(case: object) -> ProofAttachment:
-    producer = ProofProducerIdentity(
-        "prover-arm", "verifier-v1", _digest("sandbox"), _digest("oracle"), _digest("producer-review")
-    )
+    producer = ProofProducerIdentity("prover-arm", "verifier-v1", _digest("sandbox"), _digest("oracle"), _digest("producer-review"))
     affected = ProofSideResult(_digest("affected-input"), True, _digest("affected-obs"), 2, "")
     safe = ProofSideResult(_digest("safe-input"), False, _digest("safe-obs"), 2, "")
     witness = ContentRef("witness", _digest("witness"), "application/json", 64, _digest("retention"), _digest("receipt"))
     control = ControlBinding(_digest("affected-input"), _digest("safe-input"), witness, _digest("prover-reviewer"), "")
-    proof = DifferentialProofRecord(
-        DIFFERENTIAL_PROOF_SCHEMA, producer, affected, safe, control, witness, ProofOutcome.DEMONSTRATED, ""
-    )
+    proof = DifferentialProofRecord(DIFFERENTIAL_PROOF_SCHEMA, producer, affected, safe, control, witness, ProofOutcome.DEMONSTRATED, "")
     verification = ProofVerificationReceipt(
         _digest("producer"), _digest("record"), _digest("aff"), _digest("safe"), _digest("witness"), witness, ""
     )
@@ -239,9 +235,7 @@ def test_completion_shows_multi_arm_scopes_metrics_intervals_and_separate_whole_
     assert value["input_read_evidence_digest"] and value["stage_execution_evidence_digest"]
 
 
-def test_completion_names_failed_gates_for_no_go_scopes(
-    monkeypatch: pytest.MonkeyPatch, completed: tuple[object, object]
-) -> None:
+def test_completion_names_failed_gates_for_no_go_scopes(monkeypatch: pytest.MonkeyPatch, completed: tuple[object, object]) -> None:
     _, replay = completed
     resolved = _no_go_variant(_resolved(monkeypatch, replay))
     value = operator_report.operator_report_json(_completed_outcome(resolved.reference), resolved)
@@ -364,9 +358,7 @@ def test_completed_outcome_fails_closed_without_a_matching_valid_replay(
     assert unexpected.value.reason is operator_report.OperatorReportErrorReason.INCONSISTENT_STATE
 
 
-def test_invalid_replay_material_fails_closed_at_resolution(
-    monkeypatch: pytest.MonkeyPatch, completed: tuple[object, object]
-) -> None:
+def test_invalid_replay_material_fails_closed_at_resolution(monkeypatch: pytest.MonkeyPatch, completed: tuple[object, object]) -> None:
     _, replay = completed
     content, reference = _envelope(replay.replay_digest)  # type: ignore[attr-defined]
 
@@ -405,9 +397,7 @@ def test_invalid_replay_material_fails_closed_at_resolution(
     assert wrong_kind.value.reason is operator_report.OperatorReportErrorReason.INVALID_REQUEST
 
 
-def test_projections_are_deterministic_and_byte_identical(
-    monkeypatch: pytest.MonkeyPatch, completed: tuple[object, object]
-) -> None:
+def test_projections_are_deterministic_and_byte_identical(monkeypatch: pytest.MonkeyPatch, completed: tuple[object, object]) -> None:
     _, replay = completed
     resolved = _resolved(monkeypatch, replay)
     outcome = _completed_outcome(resolved.reference)
@@ -422,9 +412,7 @@ def test_projections_are_deterministic_and_byte_identical(
     assert impaired_text == operator_report.operator_report_text(_impaired(), None)
 
 
-def test_text_and_json_are_equivalent_ascii_projections(
-    monkeypatch: pytest.MonkeyPatch, completed: tuple[object, object]
-) -> None:
+def test_text_and_json_are_equivalent_ascii_projections(monkeypatch: pytest.MonkeyPatch, completed: tuple[object, object]) -> None:
     _, replay = completed
     resolved = _no_go_variant(_demonstrated_variant(_resolved(monkeypatch, replay)))
     outcome = _completed_outcome(resolved.reference)
@@ -459,9 +447,7 @@ def test_text_and_json_are_equivalent_ascii_projections(
     )
 
 
-def test_rendered_bytes_stay_redacted(
-    monkeypatch: pytest.MonkeyPatch, completed: tuple[object, object]
-) -> None:
+def test_rendered_bytes_stay_redacted(monkeypatch: pytest.MonkeyPatch, completed: tuple[object, object]) -> None:
     _, replay = completed
     resolved = _resolved(monkeypatch, replay)
     rendered = operator_report.operator_report_bytes(_completed_outcome(resolved.reference), resolved)
@@ -507,9 +493,7 @@ def test_optional_aggregate_declares_constituents_and_weighting_without_decision
 
     metrics = replay.report_source.metrics  # type: ignore[attr-defined]
     keys = tuple(sorted({metric.key for metric in metrics}))
-    samples = tuple(
-        next(m.sample_count for m in metrics if m.key == key and m.metric_id is MetricId.PRECISION) for key in keys
-    )
+    samples = tuple(next(m.sample_count for m in metrics if m.key == key and m.metric_id is MetricId.PRECISION) for key in keys)
     weights = tuple(AggregateWeightV3(key, 1, len(keys), "") for key in keys)
     aggregate = derive_evaluation_aggregate_v3(metrics, samples, weights)
     aggregated = replace(resolved, aggregate=aggregate)

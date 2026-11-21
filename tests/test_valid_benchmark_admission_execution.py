@@ -163,9 +163,7 @@ def _selection(freeze) -> OrdinarySelectionV1:
     positives = freeze.positive_change_digests
     assignments = tuple(
         sorted(
-            OrdinaryDrawAssignmentV1(positive, network, pushes[0].ecosystem, push.push_digest)
-            for positive in positives
-            for push in pushes
+            OrdinaryDrawAssignmentV1(positive, network, pushes[0].ecosystem, push.push_digest) for positive in positives for push in pushes
         )
     )
     fix_exclusions = tuple(
@@ -329,9 +327,7 @@ def _case_ref(bundle, slot):
 
 def _observations(plan, bundle, slots=None):
     rows = (
-        tuple(slot for slot in plan.declaration.expected_observation_slots if slot.arm_id == bundle.arm.arm_id)
-        if slots is None
-        else slots
+        tuple(slot for slot in plan.declaration.expected_observation_slots if slot.arm_id == bundle.arm.arm_id) if slots is None else slots
     )
     reads, stages = _read_rows(bundle), _stage_rows()
     return tuple(
@@ -419,9 +415,7 @@ def _union_rule():
             return NeutralOutcome.INDETERMINATE
         return NeutralOutcome.SATISFIED
 
-    rows = tuple(
-        CombinationDecisionRowV3(outcomes, union(outcomes), "") for outcomes in product(tuple(NeutralOutcome), repeat=2)
-    )
+    rows = tuple(CombinationDecisionRowV3(outcomes, union(outcomes), "") for outcomes in product(tuple(NeutralOutcome), repeat=2))
     return CombinationRuleV3(
         "arm-combined",
         ("arm-experimental", "arm-shipped"),
@@ -437,9 +431,7 @@ class _ExecCase:
         self.freeze = _freeze()
         self.selection = _selection(self.freeze)
         self.material = _material_manifest(self.freeze)
-        self.manifest, self.manifest_review, self.disclosure, self.resolver = _reviewed_manifest(
-            self.freeze, self.selection, self.material
-        )
+        self.manifest, self.manifest_review, self.disclosure, self.resolver = _reviewed_manifest(self.freeze, self.selection, self.material)
         self.ordinary_census = (EcosystemOrdinaryCensusV3("python", ORDINARY_PUSHES),)
         self.plan = registry.register_evaluation_plan(
             registrations=(
@@ -514,11 +506,7 @@ class _ExecCase:
             self.plan, self.census, (self.report.report_digest,), self.custody_log_digest, self.plan_review
         )
         self.attempt_status_ref = stored_artifact(b'{"status":"sealed"}', artifact_id="attempt-status")[0]
-        combined_configuration = next(
-            row.configuration
-            for row in self.plan.registrations
-            if row.configuration.kind is ArmKindV3.COMBINED
-        )
+        combined_configuration = next(row.configuration for row in self.plan.registrations if row.configuration.kind is ArmKindV3.COMBINED)
         assert combined_configuration.combination_rule is not None
         self.combination_registrations = (
             CombinationRuleRegistrationV1(
@@ -592,9 +580,7 @@ class _Env:
         self.transient = _Client()
         durable_settings = _settings(StorePurpose.DURABLE)
         self.repository = S3ArtifactRepository(durable_settings, self.durable)
-        self.custody_policy = PopulationCustodyPolicy(
-            (CUSTODIAN,), derive_population_custody_policy_digest((CUSTODIAN,))
-        )
+        self.custody_policy = PopulationCustodyPolicy((CUSTODIAN,), derive_population_custody_policy_digest((CUSTODIAN,)))
         self.custody = S3DurableCustodyStore(
             durable_settings,
             self.durable,
@@ -631,9 +617,7 @@ class _Env:
             self.custody,
             self.journal,
             ACCESS_POLICY,
-            self.case.execution_request(
-                resolved, adapter=self.adapter, review=review, selectors=selectors, run_request=run_request
-            ),
+            self.case.execution_request(resolved, adapter=self.adapter, review=review, selectors=selectors, run_request=run_request),
         )
 
 
@@ -645,9 +629,7 @@ def _admission_review(case: _ExecCase) -> object:
 
 
 def _selectors(product):
-    return tuple(
-        None if row.reference is None else _selector(row.reference, row.checkpoint_digest) for row in product.component_results
-    )
+    return tuple(None if row.reference is None else _selector(row.reference, row.checkpoint_digest) for row in product.component_results)
 
 
 def _selector(reference, digest):
@@ -827,9 +809,7 @@ def test_mismatched_authority_binding_is_rejected_before_any_adapter_call() -> N
     case = _case()
     environment = _Env(case)
     authorized = environment.preflight()
-    changed = tuple(
-        replace(row, budget_digest=_digest("changed-budget")) if row.arm_id == "arm-shipped" else row for row in case.bindings
-    )
+    changed = tuple(replace(row, budget_digest=_digest("changed-budget")) if row.arm_id == "arm-shipped" else row for row in case.bindings)
 
     product = environment.execute(preflight=authorized, run_request=case.run_request(execution_bindings=changed))
 
@@ -958,9 +938,7 @@ def test_reviewed_admission_manifest_binds_exact_sealed_references_and_authorize
     assert tuple(ref.slot_digest for ref in manifest.observations) == tuple(
         slot.slot_digest for slot in case.plan.declaration.expected_observation_slots
     )
-    assert tuple(ref.ref_digest for ref in manifest.observations) == tuple(
-        ref.ref_digest for ref in product.sealed_observations
-    )
+    assert tuple(ref.ref_digest for ref in manifest.observations) == tuple(ref.ref_digest for ref in product.sealed_observations)
     assert manifest.custody_log_digest == case.custody_log_digest
     assert manifest.attempt_history.head_event_digest
     authorization = product.spend_authorization
@@ -1012,9 +990,7 @@ def test_changed_or_unsealed_observation_bytes_prevent_spend(mode: str) -> None:
         first.sealed_observations,
         first.admission_manifest,
     )
-    reason = (
-        AdmissionExecutionReason.OBSERVATION_CHANGED if mode == "changed" else AdmissionExecutionReason.OBSERVATION_UNSEALED
-    )
+    reason = AdmissionExecutionReason.OBSERVATION_CHANGED if mode == "changed" else AdmissionExecutionReason.OBSERVATION_UNSEALED
     assert authorization.may_spend is False
     assert reason in authorization.refusal_reasons
     assert environment.custody.current_log(case.freeze.population_digest).status is PopulationStatus.AVAILABLE

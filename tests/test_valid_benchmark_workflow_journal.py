@@ -88,11 +88,7 @@ class _Client:
                 raise _ProviderError("InternalError")
             key = str(kwargs["Key"])
             requested = kwargs.get("VersionId")
-            matching = [
-                item
-                for item in self.versions.get(key, [])
-                if requested is None or item.version_id == requested
-            ]
+            matching = [item for item in self.versions.get(key, []) if requested is None or item.version_id == requested]
             if not matching:
                 raise _ProviderError("NoSuchKey")
             version = matching[-1]
@@ -112,9 +108,7 @@ class _Client:
         with self.lock:
             version_id = f"version-{self.next_version}"
             self.next_version += 1
-            self.versions.setdefault(key, []).append(
-                _Version(version_id, body, sha256(body + version_id.encode()).hexdigest())
-            )
+            self.versions.setdefault(key, []).append(_Version(version_id, body, sha256(body + version_id.encode()).hexdigest()))
 
 
 def _digest(seed: str) -> str:
@@ -240,9 +234,7 @@ def test_entry_binds_exact_causal_fields_with_byte_identical_digest() -> None:
     assert _HEX64.fullmatch(first.entry_digest)
     changed = _entry(counts=WorkflowCounts(2, 2, 12, 6, 0))
     assert changed.entry_digest != first.entry_digest
-    decoded = workflow_journal.decode_workflow_journal_entry(
-        workflow_journal.journal_entry_bytes(first)
-    )
+    decoded = workflow_journal.decode_workflow_journal_entry(workflow_journal.journal_entry_bytes(first))
     assert decoded == first
 
 
@@ -373,9 +365,7 @@ def test_substituted_authority_cannot_replace_the_selection() -> None:
     with pytest.raises(workflow_journal.WorkflowJournalError) as guard:
         workflow_journal.require_selected_authority(head, _authority("substituted"), _digest("s"))
     assert guard.value.reason is workflow_journal.WorkflowJournalReason.AUTHORITY_SUBSTITUTED
-    assert workflow_journal.require_selected_authority(
-        head, head.retry_authority_ref, head.retry_authority_digest
-    )
+    assert workflow_journal.require_selected_authority(head, head.retry_authority_ref, head.retry_authority_digest)
 
 
 def test_missing_predecessor_or_forked_entries_fail() -> None:
@@ -387,9 +377,7 @@ def test_missing_predecessor_or_forked_entries_fail() -> None:
     assert report.value.reason is workflow_journal.WorkflowJournalReason.INVALID_SUCCESSOR
     collision = _entry(sequence=0, previous_entry_digest=None)
     with pytest.raises(workflow_journal.WorkflowJournalError):
-        journal.append_and_swap(
-            head.head_digest, collision, workflow_journal.successor_head(head, collision)
-        )
+        journal.append_and_swap(head.head_digest, collision, workflow_journal.successor_head(head, collision))
     skip = _entry(sequence=2, previous_entry_digest=head.entry_digest)
     with pytest.raises(workflow_journal.WorkflowJournalError):
         journal.append_and_swap(head.head_digest, skip, workflow_journal.successor_head(head, skip))
@@ -521,8 +509,13 @@ def test_concurrent_resume_has_exactly_one_winner() -> None:
         )
     assert live.value.reason is workflow_journal.WorkflowJournalReason.LEASE_NOT_EXPIRED
     current = _appended(
-        journal, resumed, 2, attempt_id="attempt-2", lease_owner_id="owner-b",
-        heartbeat_at=_at(45), lease_expires_at=_at(75),
+        journal,
+        resumed,
+        2,
+        attempt_id="attempt-2",
+        lease_owner_id="owner-b",
+        heartbeat_at=_at(45),
+        lease_expires_at=_at(75),
     )
     stale = _entry(
         sequence=3,

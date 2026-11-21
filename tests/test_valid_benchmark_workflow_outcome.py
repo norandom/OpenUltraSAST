@@ -88,9 +88,7 @@ def _insufficient(**overrides: object) -> workflow_outcome.BenchmarkWorkflowOutc
         "plan_digest": _digest("plan"),
         "workflow_digest": _digest("workflow"),
         "labels_spent": False,
-        "counts": _counts(
-            planned_arms=2, completed_arms=0, planned_inputs=12, completed_inputs=0, deferred_inputs=12
-        ),
+        "counts": _counts(planned_arms=2, completed_arms=0, planned_inputs=12, completed_inputs=0, deferred_inputs=12),
         "failed_gate_names": (workflow_outcome.WorkflowGate.PREFLIGHT_FEASIBILITY,),
         "degradation_codes": (),
         "runtime_ms": 90,

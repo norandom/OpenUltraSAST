@@ -78,9 +78,7 @@ def _frozen_plan():
     bundles = _bundles()
     client = _Client()
     results = tuple(_run(bundle, _CheckpointAdapter(), client) for bundle in bundles)
-    selectors = tuple(
-        observation_checkpoint.CheckpointSelectorV1(result.reference, result.checkpoint_digest) for result in results
-    )
+    selectors = tuple(observation_checkpoint.CheckpointSelectorV1(result.reference, result.checkpoint_digest) for result in results)
     return bundles, client, selectors
 
 
@@ -124,9 +122,7 @@ def _review() -> dict[str, object]:
 
 def _matching_authority(bundles, selectors, plan, admission: str) -> AutomaticRetryAuthorityV1:
     candidate = _identity(bundles, selectors, admission)
-    components = tuple(
-        sorted(row.arm_id for row in plan.registrations if row.configuration.kind is ArmKindV3.COMPONENT)
-    )
+    components = tuple(sorted(row.arm_id for row in plan.registrations if row.configuration.kind is ArmKindV3.COMPONENT))
     return AutomaticRetryAuthorityV1(
         candidate.population_digest,
         candidate.freeze_digest,
@@ -259,9 +255,7 @@ def _foreign_plan(case, *, changed_inputs: bool = False):
         input_digests = (_digest("foreign-plan-input"), *input_digests[1:])
     return registry.register_evaluation_plan(
         registrations=current.registrations,
-        population_digest=(
-            current.declaration.population_digest if changed_inputs else _digest("foreign-plan-population")
-        ),
+        population_digest=(current.declaration.population_digest if changed_inputs else _digest("foreign-plan-population")),
         freeze_digest=current.declaration.freeze_digest,
         input_set_digest=derive_evaluation_input_set_digest(input_digests),
         input_identity_digests=input_digests,
@@ -309,17 +303,13 @@ def test_caller_supplied_original_identity_cannot_authorize_changed_current_bund
     case = _execution_case()
     env = _RetryEnv(case)
     lifecycle_authority = env.lifecycle()
-    changed_budget = replace(
-        case.bundles[0].budget, deadline_seconds=case.bundles[0].budget.deadline_seconds + 1, budget_digest=""
-    )
+    changed_budget = replace(case.bundles[0].budget, deadline_seconds=case.bundles[0].budget.deadline_seconds + 1, budget_digest="")
     bundles = (replace(case.bundles[0], budget=changed_budget, bundle_digest=""), *case.bundles[1:])
     candidate = _identity(bundles, env.selectors, env.authorized.retry_authority.admission_identity_digest)
     mismatch = _review_authority(env, candidate, bundles=bundles, lifecycle_authority=lifecycle_authority)
     adapter = _Adapter(_boom)
 
-    result = _pre_spend_resume(
-        env, bundles=bundles, adapter=adapter, mismatch_authority=mismatch, lifecycle_authority=lifecycle_authority
-    )
+    result = _pre_spend_resume(env, bundles=bundles, adapter=adapter, mismatch_authority=mismatch, lifecycle_authority=lifecycle_authority)
 
     assert result.status is sealed_retry.AutomaticRetryStatus.BLOCKED
     assert result.reason is sealed_retry.AutomaticRetryReason.IDENTITY_CHANGED
@@ -345,14 +335,10 @@ def test_changed_identity_dimension_terminally_blocks_admission_without_executio
     elif mutation == "plan-inputs":
         plan = _foreign_plan(case, changed_inputs=True)
     else:
-        changed = replace(
-            case.bundles[0].budget, deadline_seconds=case.bundles[0].budget.deadline_seconds + 1, budget_digest=""
-        )
+        changed = replace(case.bundles[0].budget, deadline_seconds=case.bundles[0].budget.deadline_seconds + 1, budget_digest="")
         bundles = (replace(case.bundles[0], budget=changed, bundle_digest=""), *case.bundles[1:])
     candidate = _identity(bundles, env.selectors, admission)
-    mismatch = _review_authority(
-        env, candidate, plan=plan, bundles=bundles, lifecycle_authority=lifecycle_authority
-    )
+    mismatch = _review_authority(env, candidate, plan=plan, bundles=bundles, lifecycle_authority=lifecycle_authority)
     adapter = _Adapter(_boom)
 
     result = _pre_spend_resume(
@@ -457,9 +443,7 @@ def test_deeply_nested_mismatch_evidence_fails_closed_without_mutation() -> None
     forged = object.__new__(sealed_retry.RetryMismatchAuthorityV1)
     for name, value in vars(valid).items():
         object.__setattr__(forged, name, value)
-    object.__setattr__(
-        forged, "retirement_event_content", b'{"a":' * 100_000 + b"1" + b"}" * 100_000
-    )
+    object.__setattr__(forged, "retirement_event_content", b'{"a":' * 100_000 + b"1" + b"}" * 100_000)
     adapter = _Adapter(_boom)
 
     with pytest.raises(sealed_retry.AutomaticRetryError) as captured:
@@ -656,9 +640,10 @@ def test_post_spend_resume_keeps_labels_spent_and_the_same_immutable_run() -> No
 
     assert resumed.labels_spent is True
     assert resumed.authority_digest == env.authorized.retry_authority.authority_digest
-    assert resumed.retry_digest == _identity(
-        env.case.bundles, env.selectors, env.authorized.retry_authority.admission_identity_digest
-    ).retry_digest
+    assert (
+        resumed.retry_digest
+        == _identity(env.case.bundles, env.selectors, env.authorized.retry_authority.admission_identity_digest).retry_digest
+    )
     assert resumed.custody_receipt_digest == spent_log.head_receipt_digest
     assert env.custody.current_log(env.population) == spent_log
     assert env.custody.current_log(env.population).status is PopulationStatus.SPENT

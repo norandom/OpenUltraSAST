@@ -269,14 +269,10 @@ def _freeze(*, pilot: bool = False) -> PopulationFreezeV3:
     selection = canonical.content_digest(
         {
             "accepted_changes": positives,
-            "scope_census": tuple(
-                (row.vulnerability_family, row.ecosystem.value, row.count) for row in scope_census
-            ),
+            "scope_census": tuple((row.vulnerability_family, row.ecosystem.value, row.count) for row in scope_census),
         }
     )
-    reviews = canonical.content_digest(
-        {"ecosystem_reviews": ecosystem_reviews, "ground_truth_reviews": ground_truth_reviews}
-    )
+    reviews = canonical.content_digest({"ecosystem_reviews": ecosystem_reviews, "ground_truth_reviews": ground_truth_reviews})
     draft = PopulationFreezeV3(
         PopulationClass.DEVELOPMENT_PILOT if pilot else PopulationClass.ADMISSION,
         (PopulationClassificationReason.BELOW_MINIMUM_POSITIVES,) if pilot else (),
@@ -361,8 +357,9 @@ def _thresholds_and_rules(arm_id: str, scopes: tuple[tuple[str, str], ...], mini
     return tuple(thresholds), tuple(policies), tuple(sufficiency)
 
 
-def _configuration(arm_id: str, scopes: tuple[tuple[str, str], ...], *, combined: bool = False,
-                   minimum_ordinary: int = 8, label: str = "configuration") -> ArmConfigurationV3:
+def _configuration(
+    arm_id: str, scopes: tuple[tuple[str, str], ...], *, combined: bool = False, minimum_ordinary: int = 8, label: str = "configuration"
+) -> ArmConfigurationV3:
     thresholds, policies, sufficiency = _thresholds_and_rules(arm_id, scopes, minimum_ordinary)
     rule = None
     if combined:
@@ -375,8 +372,9 @@ def _configuration(arm_id: str, scopes: tuple[tuple[str, str], ...], *, combined
             )
             for outcomes in product(tuple(NeutralOutcome), repeat=len(arm_ids))
         )
-        rule = CombinationRuleV3(arm_id, arm_ids, CombinationOperatorV3.DECLARATIVE_TABLE, rows,
-                                 ProofCandidatePolicyV3.IDENTICAL_COMPONENT_ONLY, "")
+        rule = CombinationRuleV3(
+            arm_id, arm_ids, CombinationOperatorV3.DECLARATIVE_TABLE, rows, ProofCandidatePolicyV3.IDENTICAL_COMPONENT_ONLY, ""
+        )
     return ArmConfigurationV3(
         arm_id,
         ArmKindV3.COMBINED if combined else ArmKindV3.COMPONENT,
@@ -464,22 +462,29 @@ def _capability_report(durable_identity: str, transient_identity: str, *, failed
         1765000000,
         "",
     )
-    state = replace(state, state_digest=canonical.bytes_digest(canonical.canonical_bytes({
-        "schema_version": RETENTION_PROBE_STATE_SCHEMA,
-        "input_digest": state.input_digest,
-        "input_bytes_read": state.input_bytes_read,
-        "started_at_epoch": state.started_at_epoch,
-        "durable_store_identity": state.durable_store_identity,
-        "transient_store_identity": state.transient_store_identity,
-        "transient_bucket": state.transient_bucket,
-        "current_key": state.current_key,
-        "current_version_id": state.current_version_id,
-        "current_deadline_epoch": state.current_deadline_epoch,
-        "noncurrent_key": state.noncurrent_key,
-        "noncurrent_version_id": state.noncurrent_version_id,
-        "successor_version_id": state.successor_version_id,
-        "noncurrent_deadline_epoch": state.noncurrent_deadline_epoch,
-    })))
+    state = replace(
+        state,
+        state_digest=canonical.bytes_digest(
+            canonical.canonical_bytes(
+                {
+                    "schema_version": RETENTION_PROBE_STATE_SCHEMA,
+                    "input_digest": state.input_digest,
+                    "input_bytes_read": state.input_bytes_read,
+                    "started_at_epoch": state.started_at_epoch,
+                    "durable_store_identity": state.durable_store_identity,
+                    "transient_store_identity": state.transient_store_identity,
+                    "transient_bucket": state.transient_bucket,
+                    "current_key": state.current_key,
+                    "current_version_id": state.current_version_id,
+                    "current_deadline_epoch": state.current_deadline_epoch,
+                    "noncurrent_key": state.noncurrent_key,
+                    "noncurrent_version_id": state.noncurrent_version_id,
+                    "successor_version_id": state.successor_version_id,
+                    "noncurrent_deadline_epoch": state.noncurrent_deadline_epoch,
+                }
+            )
+        ),
+    )
     results = tuple(
         failed_result(ProbeResultName.CONDITIONAL_CREATE, ProbeResultReason.CONDITIONAL_CREATE_UNSUPPORTED)
         if failed and name is ProbeResultName.CONDITIONAL_CREATE
@@ -497,9 +502,7 @@ class _Environment:
         durable_settings = _settings(StorePurpose.DURABLE)
         self.repository = S3ArtifactRepository(durable_settings, self.durable)
         report = case.report
-        custody_policy = PopulationCustodyPolicy(
-            (CUSTODIAN,), derive_population_custody_policy_digest((CUSTODIAN,))
-        )
+        custody_policy = PopulationCustodyPolicy((CUSTODIAN,), derive_population_custody_policy_digest((CUSTODIAN,)))
         self.custody = S3DurableCustodyStore(
             durable_settings,
             self.durable,
@@ -528,11 +531,7 @@ def _case(*, ordinary: int = 12, pilot: bool = False, small_scope_claimed: bool 
     freeze = _freeze(pilot=pilot)
     manifest, manifest_review, disclosure, resolver = _label_blind_manifest(freeze, ordinary)
     ordinary_census = (EcosystemOrdinaryCensusV3("python", ordinary),)
-    shipped_scopes = (
-        (("injection", "python"), ("output_encoding", "python"))
-        if small_scope_claimed
-        else (("injection", "python"),)
-    )
+    shipped_scopes = (("injection", "python"), ("output_encoding", "python")) if small_scope_claimed else (("injection", "python"),)
     registrations = (
         ArmRegistrationV1(
             ArmRole.COMBINED,
@@ -556,9 +555,7 @@ def _case(*, ordinary: int = 12, pilot: bool = False, small_scope_claimed: bool 
     durable_identity = store_namespace_identity(_settings(StorePurpose.DURABLE))
     transient_identity = store_namespace_identity(_settings(StorePurpose.TRANSIENT))
     report, transient_profile = _capability_report(durable_identity, transient_identity)
-    census_payload = admission_orchestrator.admission_census_payload_digest(
-        plan, manifest, ordinary_census, manifest_review
-    )
+    census_payload = admission_orchestrator.admission_census_payload_digest(plan, manifest, ordinary_census, manifest_review)
     census_review = _attestation(census_payload, _digest("census-producer"), disclosure)
     census = admission_orchestrator.compose_population_census(plan, manifest, ordinary_census, census_review)
     custody_log = empty_population_custody_log(freeze.population_digest, CUSTODIAN)
@@ -733,8 +730,7 @@ def test_whole_population_never_substitutes_for_an_insufficient_scope() -> None:
     feasible_rows = [
         row
         for row in preflight.feasibility.rows
-        if (row.key.arm_id, row.key.scope.family_id, row.key.scope.ecosystem)
-        == ("arm-shipped", "injection", "python")
+        if (row.key.arm_id, row.key.scope.family_id, row.key.scope.ecosystem) == ("arm-shipped", "injection", "python")
     ]
     assert feasible_rows
     assert all(row.status is FeasibilityStatusV3.FEASIBLE for row in feasible_rows)
@@ -806,9 +802,7 @@ def test_retry_authority_binds_every_ordered_identity() -> None:
         _digest("destination-arm-experimental"),
         _digest("destination-arm-shipped"),
     )
-    assert authority.ordered_checkpoint_slot_digests == tuple(
-        slot.slot_digest for slot in case.plan.declaration.expected_observation_slots
-    )
+    assert authority.ordered_checkpoint_slot_digests == tuple(slot.slot_digest for slot in case.plan.declaration.expected_observation_slots)
     assert authority.ordered_input_set_digests == (case.manifest.input_set_digest, case.manifest.input_set_digest)
     assert len(authority.admission_identity_digest) == 64
 
