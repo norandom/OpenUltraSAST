@@ -268,7 +268,7 @@
   - Done when missing one planned arm/report blocks completion, baseline identity is complete, and a valid replay reproduces every scoped decision without legacy scoring helpers.
   - _Requirements: 6.2, 6.3, 6.4, 6.5, 8.1, 8.2, 8.3, 8.6, 9.1, 9.2, 9.6, 9.7, 10.1_
   - _Boundary: Admission Orchestrator, Scoped Admission V3 Consumer_
-- [ ] 8.6 Resume exact pre-spend and post-spend workflows without changing authority
+- [x] 8.6 Resume exact pre-spend and post-spend workflows without changing authority
   - Rebuild the validated workflow chain after scratch loss, resolve only the retry authority selected by its CAS head, and compare the candidate/current identity before checkpoint resolution or an adapter call; never accept an original registered identity from the caller.
   - Resume pre-spend only from matching sealed checkpoints and unchanged population, freeze, admission, plan, arm, bundle, input, budget, environment, destination, and checkpoint-slot identities; leave custody available after execution impairment.
   - For an exact independently reviewed identity-bound mismatch disposition, append and reread terminal lifecycle state before returning `IDENTITY_CHANGED`; missing, invalid, malformed, or untrusted mismatch evidence fails closed before execution without claiming retirement or mutating lifecycle.
