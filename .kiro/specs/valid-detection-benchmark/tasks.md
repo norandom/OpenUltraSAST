@@ -227,7 +227,7 @@
   - _Depends: 7.1_
 
 - [ ] 8. Orchestrate one atomic multi-arm admission lifecycle
-- [ ] 8.1 Validate lifecycle, store, population, plan, and exact-scope preflight
+- [x] 8.1 Validate lifecycle, store, population, plan, and exact-scope preflight
   - Refuse a run unless the replacement lifecycle is active, artifact/custody capability reports pass, the admission-class freeze and reviewed label-blind manifest resolve, and every arm identity is current.
   - Compose the complete core V3 plan manifest and evaluate every arm/scope threshold, minimum, and interval-precision rule before execution or label access.
   - Persist `INSUFFICIENT` with exact scope/gate witnesses when any planned scope is infeasible, without launching arms or spending custody.
