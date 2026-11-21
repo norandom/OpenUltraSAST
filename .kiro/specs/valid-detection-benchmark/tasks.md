@@ -216,7 +216,7 @@
   - _Requirements: 5.2, 5.6, 7.4, 7.5, 7.8, 8.3, 10.1, 10.2, 10.6_
   - _Boundary: Workflow Journal_
   - _Depends: 1.2, 1.3, 5.1_
-- [ ] 7.3 Render deterministic transport-neutral operator reports
+- [x] 7.3 Render deterministic transport-neutral operator reports
   - Resolve and validate an optional evaluation replay against the outcome reference before rendering.
   - For completion, show each arm's exact-scope GO/NO-GO/insufficient status, sample counts, metrics, intervals, digests, demonstrated status, and named failed gates; show whole coverage separately.
   - For impairment, show only closed safe reasons, progress counts, degradations, runtime, and whether labels were spent.
@@ -441,3 +441,4 @@
 - Task 6.3 builds identical ordered component bundles only after controller-side revalidation of the exact registered plan and a metadata-only execution-source projection freshly derived from reviewed Task 4.3/4.4 and ordinary-selection authorities; adapters receive only sanitized label-blind data, and every authorizing serialization/execution path rejects rehashed source or plan substitutions without opening sealed material.
 - Task 6.4 freezes one exact custodian-sealed core V3 observation checkpoint per component only after canonical nonzero read/stage receipts and exact repository readback; construction, freeze, and resume bind the completed process outcome and every bundle/read identity, while missing, incomplete, or mismatched checkpoints remain impaired without rerunning the adapter.
 - The approved Task 6.5 boundary amendment keeps sealed diagnostics and reviewed development opening in the executor/lifecycle seam; Tasks 7.2 and 8.1–8.2 persist and select the immutable retry authority only after feasible preflight, and Task 8.6 resolves it from the CAS workflow head instead of accepting an original identity from a caller.
+- Task 7.3 pre-registers the operator replay-artifact envelope: stored replay artifacts carry `payload["replay_digest"]` equal to the decoded replay digest; Tasks 8.5 and 9.3 must honor this binding when persisting replays (load-bearing for `REPLAY_MISMATCH` detection).
