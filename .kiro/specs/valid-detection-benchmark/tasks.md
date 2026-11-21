@@ -294,7 +294,7 @@
   - Done when the replacement path has no alternative scorer, V2 fixtures remain byte-identical, and pooled or target-specific output cannot authorize a V3 result.
   - _Requirements: 6.2, 6.3, 6.4, 6.5, 8.2, 8.6, 9.5, 10.4, 10.5_
   - _Boundary: Legacy Scoring Integration, Scoped Admission V3 Consumer_
-- [ ] 9.3 Publish benchmark-only run, resume, and status commands
+- [x] 9.3 Publish benchmark-only run, resume, and status commands
   - Validate settings and store capabilities before accepting source, freeze, run, resume, or status operations.
   - Persist durable outputs incrementally, keep scratch bounded and rebuildable, and surface workflow status from the validated journal head.
   - Emit deterministic operator JSON/text while leaving notifier transport, detector rollout, worker health, bucket administration, and retry policy with their owners.
