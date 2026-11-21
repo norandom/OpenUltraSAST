@@ -280,7 +280,7 @@
   - _Depends: 2.3, 7.2, 8.1, 8.2_
 
 - [ ] 9. Integrate legacy benchmark seams and the operator entry point
-- [ ] 9.1 Route catalog, verification, and assembly through the new authorities
+- [x] 9.1 Route catalog, verification, and assembly through the new authorities
   - Adapt existing fix-site cataloging and optional model-assistance records to the review authority without treating prior model or spot-check fields as accepted labels.
   - Make legacy assembly a development-only facade that delegates to reservation, review, population, and artifact authorities and cannot emit an admission-class legacy manifest.
   - Preserve historical readers and bytes while refusing old pilot identities as replacement inputs.

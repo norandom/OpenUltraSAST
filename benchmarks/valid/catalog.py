@@ -30,6 +30,8 @@ from benchmarks.valid.fix_site_catalog import (
     build_fix_site_candidate,
     fix_site_candidate_bytes,
 )
+from benchmarks.valid.reservation import RepositoryIdentityResolver
+from openultrasast.core.canonical import bytes_digest, content_digest
 
 LANGUAGES = {
     ".py": "python",
@@ -150,6 +152,37 @@ def write_catalog(path: Path, cases: list[dict[str, Any]]) -> None:
     path.write_text(text, encoding="utf-8")
 
 
+def candidate_request(
+    case: Mapping[str, Any],
+    *,
+    resolver: RepositoryIdentityResolver,
+    package_evidence: PackageEcosystemEvidence,
+    license_evidence: LicenseEvidence,
+) -> FixSiteRequest:
+    """Route one legacy fix-site case into the review authority's candidate request.
+
+    Repository identity comes from the reservation authority's reviewed network
+    registry, the advisory remains the source evidence with its own content digest,
+    and package plus license evidence must be supplied from reviewed repository
+    material because the legacy catalog never recorded them.
+    """
+    advisory_text = str(case.get("advisory_text", ""))
+    if not advisory_text.strip():
+        raise ValueError("advisory text is required for source evidence")
+    return FixSiteRequest(
+        repository=resolver.resolve(str(case["url"])),
+        vulnerable_parent=str(case["parent"]),
+        fixed_revision=str(case["commit"]),
+        path=str(case["path"]),
+        function=str(case["function"]),
+        observed_language=str(case["language"]),
+        package_evidence=package_evidence,
+        license_evidence=license_evidence,
+        source_evidence=SourceEvidence("security_advisory", str(case["advisory"]), bytes_digest(advisory_text.encode("utf-8"))),
+        change_inputs_digest=content_digest({"parent": case["parent"], "fixed": case["commit"]}),
+    )
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("sources", type=Path, help="JSON array of resolved Candidate dictionaries with CWE and advisory_text")
@@ -182,6 +215,7 @@ __all__ = [
     "SourceEvidence",
     "build_cases",
     "build_fix_site_candidate",
+    "candidate_request",
     "fix_site_candidate_bytes",
     "local_git",
     "main",

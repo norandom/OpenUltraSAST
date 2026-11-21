@@ -1,4 +1,8 @@
-"""Freeze verified positives and deterministic ordinary draws with a held-out guard."""
+"""Development-only legacy assembly of verified positives and deterministic ordinary draws.
+
+Replacement admission freezes delegate to the population authority through
+:func:`replacement_freeze`; this facade never emits an admission-class manifest
+of its own, and its freeze records carry a development-only admission class."""
 
 from __future__ import annotations
 
@@ -15,7 +19,10 @@ from benchmarks.unseen.eligibility import normalize
 from benchmarks.unseen.journal import digest
 
 from .catalog import local_git
+from .population_freeze import PopulationFreezeV3, freeze_population
 from .verify import verdict
+
+LEGACY_FREEZE_ADMISSION_CLASS = "legacy_development_only"
 
 
 def negatives(
@@ -163,6 +170,7 @@ def freeze(
         ordinary_floor=floor,
         history_limit=history_limit,
         label_check_counts={"confirmed": sum(len(v) for v in retained.values()), "unchecked": 0, "unclear": 0, "refactor": 0},
+        admission_class=LEGACY_FREEZE_ADMISSION_CLASS,
     )
     payloads = [
         (directory / "pool-valid.toml", text.encode()),
@@ -176,6 +184,42 @@ def freeze(
             with path.open("xb") as handle:
                 handle.write(payload)
     return record
+
+
+def replacement_freeze(
+    positives,
+    *,
+    ordinary_selection,
+    reservation_census,
+    reservation_authority,
+    scope_minimums=(),
+    exclusion_counts=(),
+    source_provenance_digest,
+    freeze_policy_digest,
+    expected_ecosystem_policy_digest,
+    expected_ground_truth_policy_digest,
+    forbidden_historical_identities=(),
+) -> PopulationFreezeV3:
+    """Delegate replacement freezing to the population authority.
+
+    The legacy facade holds no freezing logic of its own: reviewed positives, the
+    ordinary selection, the reservation census, and the artifact contract stay with
+    their authorities, so an admission-class artifact can never be produced from
+    legacy assembly output.
+    """
+    return freeze_population(
+        positives,
+        ordinary_selection=ordinary_selection,
+        reservation_census=reservation_census,
+        reservation_authority=reservation_authority,
+        scope_minimums=scope_minimums,
+        exclusion_counts=exclusion_counts,
+        source_provenance_digest=source_provenance_digest,
+        freeze_policy_digest=freeze_policy_digest,
+        expected_ecosystem_policy_digest=expected_ecosystem_policy_digest,
+        expected_ground_truth_policy_digest=expected_ground_truth_policy_digest,
+        forbidden_historical_identities=forbidden_historical_identities,
+    )
 
 
 def main(argv=None):

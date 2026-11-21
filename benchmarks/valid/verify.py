@@ -6,15 +6,30 @@ import argparse
 import json
 import math
 import tomllib
+from collections.abc import Mapping
 from datetime import date
 from pathlib import Path
 
+from openultrasast.core.canonical import content_digest
 from openultrasast.model.endpoint import DEFAULT_DETECTOR_MODEL, DeepSeekChatClient, resolve_chat_endpoint
 from openultrasast.ruleset.frameworks import load_frameworks
 
 from .catalog import local_git, read_functions
+from .ground_truth_review import GroundTruthAttestationV1
 
 CHECKS = ("vulnerable_pre_fix", "fix_addresses_it", "reachable_in_repo")
+MODEL_ASSISTANCE_SCHEMA = "openultrasast.valid-detection-benchmark.model-assistance.v1"
+_HUMAN_ATTESTATION_FIELDS = (
+    "producer_identity",
+    "reviewer_identity",
+    "conflict_disclosed",
+    "policy_digest",
+    "policy_satisfied",
+    "defect_present",
+    "fix_addresses",
+    "in_repository_reachable",
+    "verified_scopes",
+)
 
 
 def verdict(record: dict) -> str:
@@ -93,6 +108,64 @@ def spot_check(record: dict, decision: str, reviewer: str, checked_date: str) ->
     updated = {**record, "human_spot_check": {"decision": decision, "reviewer": reviewer.strip(), "date": checked_date}}
     updated["verdict"] = verdict(updated)
     return updated
+
+
+def model_assistance(record: Mapping[str, object]) -> dict[str, object]:
+    """Record the model's checks as separately identified non-authoritative assistance."""
+    return {
+        "schema_version": MODEL_ASSISTANCE_SCHEMA,
+        "case_id": record.get("id"),
+        "assistance_kind": "model_review_assistance",
+        "authoritative": False,
+        "model": record.get("model"),
+        "checks": {key: record.get(key) for key in (*CHECKS, "advisory_cited")},
+        "entry_point": record.get("entry_point"),
+        "confidence": record.get("confidence"),
+    }
+
+
+def model_assistance_digest(record: Mapping[str, object]) -> str:
+    """Bind model assistance to its own content identity, never to a label."""
+    return content_digest(model_assistance(record))
+
+
+def review_attestation(
+    record: Mapping[str, object],
+    *,
+    candidate_digest: str,
+    ecosystem_review_digest: str,
+    human_judgment: Mapping[str, object],
+) -> GroundTruthAttestationV1:
+    """Adapt one legacy verification record to the review authority.
+
+    The record's model checks, confidence, and any legacy ``human_spot_check`` fields are
+    routed only as separately identified non-authoritative assistance; they can never
+    satisfy the required human judgment. Every authoritative judgment, reviewer identity,
+    disclosure, and policy value must arrive through the externally governed
+    ``human_judgment`` mapping, which must carry exactly the review-authority
+    attestation fields; the review authority itself then validates their semantics.
+    """
+    if not isinstance(human_judgment, Mapping):
+        raise ValueError("human judgment is required; a legacy verification record cannot supply it")
+    fields = set(human_judgment)
+    if fields != set(_HUMAN_ATTESTATION_FIELDS):
+        missing = sorted(set(_HUMAN_ATTESTATION_FIELDS) - fields)
+        unknown = sorted(fields - set(_HUMAN_ATTESTATION_FIELDS))
+        raise ValueError(f"human judgment must carry exactly the attestation fields: missing={missing}, unknown={unknown}")
+    return GroundTruthAttestationV1(
+        candidate_digest=candidate_digest,
+        ecosystem_review_digest=ecosystem_review_digest,
+        producer_identity=str(human_judgment["producer_identity"]),
+        reviewer_identity=str(human_judgment["reviewer_identity"]),
+        conflict_disclosed=human_judgment["conflict_disclosed"],
+        policy_digest=str(human_judgment["policy_digest"]),
+        policy_satisfied=human_judgment["policy_satisfied"],
+        defect_present=human_judgment["defect_present"],
+        fix_addresses=human_judgment["fix_addresses"],
+        in_repository_reachable=human_judgment["in_repository_reachable"],
+        verified_scopes=tuple(human_judgment["verified_scopes"]),
+        model_assistance_digest=model_assistance_digest(record),
+    )
 
 
 def write_records(path: Path, records: list[dict]) -> None:
