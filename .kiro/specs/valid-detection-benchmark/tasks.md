@@ -287,7 +287,7 @@
   - Done when existing non-authorizing workflows remain usable for development and only reviewed replacement artifacts can enter V3 preflight.
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 4.5, 4.6, 4.9, 5.1_
   - _Boundary: Legacy Benchmark Integration_
-- [ ] 9.2 Remove replacement authority from legacy aggregate scoring
+- [x] 9.2 Remove replacement authority from legacy aggregate scoring
   - Route replacement metrics, gates, case validation, proof validation, and replay exclusively through the V3 core facade.
   - Keep old aggregate helpers available only for frozen historical replay and reject their output as a replacement admission root.
   - Remove access-control-specific conversion or site-judgment ownership from the general replacement path.
