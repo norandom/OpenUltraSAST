@@ -345,7 +345,7 @@
   - _Requirements: 1.1, 1.2, 1.3, 1.5, 1.6, 1.7, 2.3, 2.4, 2.5, 2.6, 4.1, 4.2, 4.10_
   - _Boundary: Review Authority, Replacement Population Sourcing_
   - _Depends: 10.4_
-- [ ] 10.6 Draw and validate the full ordinary-change population
+- [x] 10.6 Draw and validate the full ordinary-change population
   - Draw at least twenty eligible same-repository first-parent ordinary pushes for each accepted positive, excluding fixes and every reviewed contaminated change.
   - Persist the deterministic draw, ecosystem identity, provenance, exclusion, and reservation evidence without opening detector observations or tuning on admission labels.
   - Prove each input repository and selected change is readable and nonzero before accepting a draw count.
