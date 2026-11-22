@@ -353,7 +353,7 @@
   - _Requirements: 3.1, 3.2, 3.4, 3.5, 7.1, 7.4, 7.5_
   - _Boundary: Population Freezer, Replacement Population Sourcing_
   - _Depends: 10.5_
-- [ ] 10.7 Freeze and causally bind the exact replacement baseline
+- [x] 10.7 Freeze and causally bind the exact replacement baseline
   - Freeze the reviewed population under new population/freeze identities, build the independently reviewed label-blind manifest, and persist public/private/sealed partitions.
   - Append the reviewed replacement-binding lifecycle event naming the exact withdrawal, population, and freeze identities.
   - Re-run permanent reservation, lifecycle eligibility, and store capability checks without registering real arms, running core preflight, or spending labels.
