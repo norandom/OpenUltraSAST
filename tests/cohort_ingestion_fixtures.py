@@ -15,7 +15,12 @@ from dataclasses import replace
 from typing import Any
 
 from benchmarks.valid.catalog import candidate_request
-from benchmarks.valid.cohort_ingestion import EXTERNAL_REVIEW_RECORD_SCHEMA
+from benchmarks.valid.cohort_ingestion import (
+    EXTERNAL_REVIEW_RECORD_SCHEMA,
+    CohortBatchOutcomeV1,
+    ingest_javascript_cohort_batch,
+    ingest_python_cohort_batch,
+)
 from benchmarks.valid.ecosystem_review import (
     EcosystemReviewAttestationV1,
     EcosystemReviewDecision,
@@ -53,6 +58,12 @@ PYTHON_COUNT = 12
 JAVASCRIPT_NAMES = tuple(f"js-{index:02d}" for index in range(10))
 TYPESCRIPT_NAMES = ("ts-00", "ts-01")
 JAVASCRIPT_COUNT = len(JAVASCRIPT_NAMES) + len(TYPESCRIPT_NAMES)
+COMBINED_PYTHON_NAMES = tuple(f"py-{index:02d}" for index in range(PYTHON_COUNT))
+COMBINED_JAVASCRIPT_NAMES = (*JAVASCRIPT_NAMES, *TYPESCRIPT_NAMES)
+THIRD_PYTHON_NAMES = tuple(f"py3-{index:02d}" for index in range(12))
+THIRD_JAVASCRIPT_NAMES = (*(f"js3-{index:02d}" for index in range(10)), "ts3-00", "ts3-01")
+SINGLE_FAMILY_PYTHON_NAMES = tuple(f"pyinj-{index:02d}" for index in range(12))
+SINGLE_FAMILY_JAVASCRIPT_NAMES = tuple(f"jsinj-{index:02d}" for index in range(12))
 
 _APPS: dict[str, dict[str, Any]] = {}
 for _index in range(PYTHON_COUNT):
@@ -125,10 +136,88 @@ for _name, _path, _function, _family, _cwe in (
         "vulnerable": f"export function {_function}(input: string) {{\n  return eval(input);\n}}\n",
         "fixed": f"export function {_function}(input: string) {{\n  return String(input);\n}}\n",
     }
+for _index in range(12):
+    _apps_key = f"pyinj-{_index:02d}"
+    _APPS[_apps_key] = {
+        "url": f"https://github.com/fixture/cohort-{_apps_key}",
+        "repo": f"fixture/cohort-{_apps_key}",
+        "path": f"pkg/inj_{_index:02d}.py",
+        "function": f"invoke_{_index:02d}",
+        "language": "python",
+        "hint": "python",
+        "family": "injection",
+        "cwe": "CWE-94",
+        "vulnerable": f"def invoke_{_index:02d}(query):\n    return eval(query)\n",
+        "fixed": f"def invoke_{_index:02d}(query):\n    return str(query)\n",
+    }
+for _index in range(12):
+    _apps_key = f"jsinj-{_index:02d}"
+    _APPS[_apps_key] = {
+        "url": f"https://github.com/fixture/cohort-{_apps_key}",
+        "repo": f"fixture/cohort-{_apps_key}",
+        "path": f"lib/inj_{_index:02d}.js",
+        "function": f"render_{_index:02d}",
+        "language": "javascript",
+        "hint": "javascript",
+        "family": "injection",
+        "cwe": "CWE-94",
+        "vulnerable": f"function render_{_index:02d}(input) {{\n  return eval(input);\n}}\n",
+        "fixed": f"function render_{_index:02d}(input) {{\n  return String(input);\n}}\n",
+    }
+for _index in range(12):
+    _family = "deserialization" if _index % 2 == 0 else "ssrf"
+    _apps_key = f"py3-{_index:02d}"
+    _APPS[_apps_key] = {
+        "url": f"https://github.com/fixture/cohort-{_apps_key}",
+        "repo": f"fixture/cohort-{_apps_key}",
+        "path": f"app/third_{_index:02d}.py",
+        "function": f"dispatch_{_index:02d}",
+        "language": "python",
+        "hint": "python",
+        "family": _family,
+        "cwe": "CWE-502" if _family == "deserialization" else "CWE-918",
+        "vulnerable": f"def dispatch_{_index:02d}(payload):\n    return eval(payload)\n",
+        "fixed": f"def dispatch_{_index:02d}(payload):\n    return str(payload)\n",
+    }
+for _index in range(10):
+    _family = "prototype_pollution" if _index % 2 == 0 else "output_encoding"
+    _apps_key = f"js3-{_index:02d}"
+    _APPS[_apps_key] = {
+        "url": f"https://github.com/fixture/cohort-{_apps_key}",
+        "repo": f"fixture/cohort-{_apps_key}",
+        "path": f"lib/third_{_index:02d}.js",
+        "function": f"merge_{_index:02d}",
+        "language": "javascript",
+        "hint": "javascript",
+        "family": _family,
+        "cwe": "CWE-1321" if _family == "prototype_pollution" else "CWE-79",
+        "vulnerable": f"function merge_{_index:02d}(input) {{\n  return eval(input);\n}}\n",
+        "fixed": f"function merge_{_index:02d}(input) {{\n  return String(input);\n}}\n",
+    }
+for _name, _function, _family, _cwe in (
+    ("ts3-00", "loadPayload", "deserialization", "CWE-502"),
+    ("ts3-01", "fetchTarget", "ssrf", "CWE-918"),
+):
+    _APPS[_name] = {
+        "url": f"https://github.com/fixture/cohort-{_name}",
+        "repo": f"fixture/cohort-{_name}",
+        "path": f"src/{_name}.ts",
+        "function": _function,
+        "language": "typescript",
+        "hint": "javascript",
+        "family": _family,
+        "cwe": _cwe,
+        "vulnerable": f"export function {_function}(input: string) {{\n  return eval(input);\n}}\n",
+        "fixed": f"export function {_function}(input: string) {{\n  return String(input);\n}}\n",
+    }
 _STABLE_APP_ORDER = ("js-00", "js-01", *(f"py-{index:02d}" for index in range(PYTHON_COUNT)))
 _NEW_APP_ORDER = (*JAVASCRIPT_NAMES[2:], *TYPESCRIPT_NAMES)
 _REVISIONS = {name: (f"{5000 + index * 2:040x}", f"{5001 + index * 2:040x}") for index, name in enumerate(_STABLE_APP_ORDER)}
 _REVISIONS.update({name: (f"{6000 + index * 2:040x}", f"{6001 + index * 2:040x}") for index, name in enumerate(_NEW_APP_ORDER)})
+_THIRD_ORDER = (*THIRD_PYTHON_NAMES, *THIRD_JAVASCRIPT_NAMES)
+_REVISIONS.update({name: (f"{7000 + index * 2:040x}", f"{7001 + index * 2:040x}") for index, name in enumerate(_THIRD_ORDER)})
+_SINGLE_FAMILY_ORDER = (*SINGLE_FAMILY_PYTHON_NAMES, *SINGLE_FAMILY_JAVASCRIPT_NAMES)
+_REVISIONS.update({name: (f"{8000 + index * 2:040x}", f"{8001 + index * 2:040x}") for index, name in enumerate(_SINGLE_FAMILY_ORDER)})
 READ_POLICY = bytes_digest(b"cohort-ingestion-read-policy-fixture")
 
 
@@ -430,7 +519,80 @@ def model_only_assistance_digest() -> str:
     return verify.model_assistance_digest(record)
 
 
+def candidate_for(name: str, resolver_: RepositoryIdentityResolver) -> FixSiteCandidateV1:
+    """Build one fix-site candidate for a named fixture app."""
+    return next(iter(candidates_for([request_for(name)], resolver_).values()))
+
+
+def replacement_cohort_state(
+    python_names: tuple[str, ...] = (*COMBINED_PYTHON_NAMES, *THIRD_PYTHON_NAMES),
+    javascript_names: tuple[str, ...] = (*COMBINED_JAVASCRIPT_NAMES, *THIRD_JAVASCRIPT_NAMES),
+    *,
+    per_ecosystem_cap: int | None = None,
+    resolver_: RepositoryIdentityResolver | None = None,
+    authority_: ReservationAuthority | None = None,
+) -> tuple[SourcingQueueStateV1, RepositoryIdentityResolver]:
+    """One shared queue state carrying the ingested cohorts and the pending third.
+
+    Every cohort round reads this same state, so the accepted ledger and the
+    pending queues always share one reservation-census snapshot.
+    """
+    resolved = resolver_ or resolver()
+    cap = per_ecosystem_cap or max(len(python_names), len(javascript_names))
+    state = build_sourcing_queue(
+        [request_for(name) for name in (*python_names, *javascript_names)],
+        reader=FakeReader(),
+        resolver=resolved,
+        authority=authority_ or authority(resolved),
+        policy=sourcing_queue_policy(per_ecosystem_cap=cap, required_families=2),
+        enumeration_actor=ENUMERATION_ACTOR,
+        enumeration_reviewer=ENUMERATION_REVIEWER,
+    )
+    return state, resolved
+
+
+def ingested_replacement_ledger(
+    state: SourcingQueueStateV1,
+    resolved: RepositoryIdentityResolver,
+    *,
+    python_names: tuple[str, ...] = COMBINED_PYTHON_NAMES,
+    javascript_names: tuple[str, ...] = COMBINED_JAVASCRIPT_NAMES,
+    weakened_python: int = 0,
+    weakened_javascript: int = 0,
+) -> tuple[CohortBatchOutcomeV1, ...]:
+    """Ingest the committed first cohorts against one shared queue state."""
+    batches: list[CohortBatchOutcomeV1] = []
+    rounds = (
+        ("python", python_names, weakened_python, ingest_python_cohort_batch),
+        ("javascript", javascript_names, weakened_javascript, ingest_javascript_cohort_batch),
+    )
+    for ecosystem, names, weakened, ingest in rounds:
+        if not names:
+            continue
+        queue = state.python_queue if ecosystem == "python" else state.javascript_queue
+        by_candidate = {entry.candidate_digest: entry for entry in queue.entries}
+        candidates = {name: candidate_for(name, resolved) for name in names}
+        records = []
+        for index, name in enumerate(names):
+            candidate = candidates[name]
+            entry = by_candidate[candidate.candidate_digest]
+            changes = {"in_repository_reachable": False} if index < weakened else None
+            records.append(reviewed_record(entry, candidate, ecosystem=ecosystem, gt_changes=changes)[0])
+        batches.append(
+            ingest(
+                records,
+                state=state,
+                candidates_by_digest={item.candidate_digest: item for item in candidates.values()},
+                expected_ecosystem_policy_digest=ECOSYSTEM_POLICY,
+                expected_ground_truth_policy_digest=GROUND_TRUTH_POLICY,
+            )
+        )
+    return tuple(batches)
+
+
 __all__ = [
+    "COMBINED_JAVASCRIPT_NAMES",
+    "COMBINED_PYTHON_NAMES",
     "ECOSYSTEM_POLICY",
     "ECOSYSTEM_PRODUCER",
     "ECOSYSTEM_REVIEWER",
@@ -443,16 +605,23 @@ __all__ = [
     "PYTHON_COUNT",
     "READ_POLICY",
     "RepositoryEcosystemReviewV1",
+    "SINGLE_FAMILY_JAVASCRIPT_NAMES",
+    "SINGLE_FAMILY_PYTHON_NAMES",
+    "THIRD_JAVASCRIPT_NAMES",
+    "THIRD_PYTHON_NAMES",
     "TYPESCRIPT_NAMES",
     "authority",
+    "candidate_for",
     "candidates_for",
     "case_for",
+    "ingested_replacement_ledger",
     "javascript_cohort_state",
     "javascript_entries",
     "javascript_request_names",
     "model_only_assistance_digest",
     "python_cohort_state",
     "python_entries",
+    "replacement_cohort_state",
     "request_for",
     "resolver",
     "reviewed_record",

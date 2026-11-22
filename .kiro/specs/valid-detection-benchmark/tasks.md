@@ -329,7 +329,7 @@
   - _Requirements: 1.1, 1.5, 1.6, 1.8, 2.3, 2.4, 2.5, 2.6, 4.1, 4.2_
   - _Boundary: Review Authority, Replacement Population Sourcing_
   - _Depends: 10.1_
-- [ ] 10.4 Ingest a third bounded independently reviewed cohort
+- [x] 10.4 Ingest a third bounded independently reviewed cohort
   - Accept one externally supplied batch of at most twenty candidate review records under the same identity, review, reachability, exact-scope, reservation, and exclusion rules.
   - Select the pending queue batch needed to preserve both ecosystems and progress the accepted set toward at least two vulnerability families without changing review policy after seeing labels.
   - Do not fabricate or self-approve missing reviews; leave this bounded cohort pending when its external records are unavailable.

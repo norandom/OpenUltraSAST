@@ -105,7 +105,7 @@ _CLOSED_OUTCOME_REASONS = _CLOSED_RECORD_REASONS | frozenset(item.value for item
 _REASON_TEXT = {
     CohortRecordExclusionReason.RECORD_UNREADABLE: "external review record bytes are unreadable",
     CohortRecordExclusionReason.RECORD_SCHEMA_MISMATCH: "external review record does not match its closed schema",
-    CohortRecordExclusionReason.QUEUE_ENTRY_UNKNOWN: "record does not answer a pending Python review queue entry",
+    CohortRecordExclusionReason.QUEUE_ENTRY_UNKNOWN: "record does not answer a pending cohort review queue entry",
     CohortRecordExclusionReason.CANDIDATE_EVIDENCE_MISSING: "reviewed candidate evidence is absent from the exact input set",
     CohortRecordExclusionReason.REVIEW_EVIDENCE_INVALID: "external review attestations fail authority validation",
     CohortRecordExclusionReason.DUPLICATE_RECORD: "queue entry is already answered by another record in this batch",
