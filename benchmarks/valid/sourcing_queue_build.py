@@ -35,6 +35,18 @@ ENUMERATION_EVENT_SOURCE = "valid-benchmark-sourcing-queue"
 _LANGUAGE_ECOSYSTEM = {"javascript": "javascript", "python": "python", "typescript": "javascript"}
 
 
+class InsufficientFamiliesRefusal(SourcingQueueError):
+    """Insufficient-families refusal carrying the attempt's exclusions.
+
+    Task 10.1 review fold-in: a refused build must not silently discard the
+    exclusions it already derived; callers persist them durably.
+    """
+
+    def __init__(self, exclusions: Sequence[QueueExclusionV1]) -> None:
+        super().__init__(SourcingQueueReason.INSUFFICIENT_FAMILIES)
+        self.attempt_exclusions = tuple(exclusions)
+
+
 @dataclass(frozen=True)
 class _Outcome:
     advisory_locator: str
@@ -78,9 +90,24 @@ def _resolve_outcome(
     return _Outcome(locator, network.canonical_repository, ecosystem, candidate, None)
 
 
-def _request_order(request: SourcingCandidateRequest) -> tuple[str, str, str, str]:
+def _request_order(request: SourcingCandidateRequest) -> tuple[str, ...]:
+    """Content-bound order: every remaining evidence digest breaks ties.
+
+    Task 10.1 review fold-in: distinct candidates tying on the first four keys
+    used to be ordered by input position, so cap selection was
+    permutation-sensitive; the advisory, package-manifest, and license digests
+    make the order a function of content only.
+    """
     digest = request.model_assistance_digest or ""
-    return (str(request.case.get("url", "")), request.family.advisory_locator, request.reachability.evidence_digest, digest)
+    return (
+        str(request.case.get("url", "")),
+        request.family.advisory_locator,
+        request.reachability.evidence_digest,
+        digest,
+        request.family.advisory_digest,
+        request.package_evidence.manifest.content_digest,
+        request.license_evidence.source.content_digest,
+    )
 
 
 def _entry(outcome: _Outcome, request: SourcingCandidateRequest) -> ReviewQueueEntryV1:
@@ -162,7 +189,7 @@ def build_sourcing_queue(
         filled[ecosystem].append(_entry(outcome, request))
     families = {entry.family.vulnerability_family for group in filled.values() for entry in group}
     if len(families) < policy.required_families:
-        raise SourcingQueueError(SourcingQueueReason.INSUFFICIENT_FAMILIES) from None
+        raise InsufficientFamiliesRefusal(exclusions) from None
     entries = (*filled["python"], *filled["javascript"])
     _record_enumeration(authority, resolver, entries, policy=policy, actor=enumeration_actor, reviewer=enumeration_reviewer)
     return sourcing_queue_state(
@@ -187,4 +214,4 @@ def _exclusion(outcome: _Outcome, reason: SourcingQueueReason) -> QueueExclusion
     )
 
 
-__all__ = ["ENUMERATION_EVENT_SOURCE", "build_sourcing_queue"]
+__all__ = ["ENUMERATION_EVENT_SOURCE", "InsufficientFamiliesRefusal", "build_sourcing_queue"]
