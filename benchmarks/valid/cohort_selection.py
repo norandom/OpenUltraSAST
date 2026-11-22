@@ -18,10 +18,13 @@ from benchmarks.valid.cohort_ingestion import (
     COHORT_BATCH_CAP,
     MINIMUM_ACCEPTED_POSITIVES,
     CohortBatchOutcomeV1,
+    CohortRecordOutcomeV1,
+    CohortRecordStatus,
     ingest_javascript_cohort_batch,
     ingest_python_cohort_batch,
 )
 from benchmarks.valid.fix_site_catalog import FixSiteCandidateV1
+from benchmarks.valid.ground_truth_review import GroundTruthExclusionReason
 from benchmarks.valid.sourcing_queue import (
     EcosystemReviewQueueV1,
     ReviewQueueEntryV1,
@@ -49,9 +52,11 @@ class CohortSelectionReason(StrEnum):
     MISSING_ECOSYSTEM_SELECTED = "missing_ecosystem_selected"
     FAMILY_GAP_SELECTED = "family_gap_selected"
     BALANCED_PROGRESS_SELECTED = "balanced_progress_selected"
+    CLOSURE_GAP_SELECTED = "closure_gap_selected"
     NO_PENDING_ENTRIES = "no_pending_entries"
     CENSUS_MISMATCH = "census_mismatch"
     POLICY_MISMATCH = "policy_mismatch"
+    GAP_UNCLOSABLE = "gap_unclosable"
 
 
 class CohortSelectionStateReason(StrEnum):
@@ -64,6 +69,7 @@ _REFUSAL_REASONS = frozenset(
         CohortSelectionReason.NO_PENDING_ENTRIES,
         CohortSelectionReason.CENSUS_MISMATCH,
         CohortSelectionReason.POLICY_MISMATCH,
+        CohortSelectionReason.GAP_UNCLOSABLE,
     }
 )
 
@@ -479,6 +485,241 @@ def select_third_cohort_batch(
     )
 
 
+_REVIEW_RESOLVED_REASONS = frozenset(item.value for item in GroundTruthExclusionReason)
+
+
+def _review_resolved(outcome: CohortRecordOutcomeV1) -> bool:
+    """True when one external record resolved its queue entry through review."""
+    if outcome.queue_entry_digest is None:
+        return False
+    if outcome.status is CohortRecordStatus.ACCEPTED:
+        return True
+    return outcome.reason in _REVIEW_RESOLVED_REASONS
+
+
+def _pending_by_ecosystem(
+    state: SourcingQueueStateV1,
+    batches: Sequence[CohortBatchOutcomeV1],
+) -> dict[str, tuple[ReviewQueueEntryV1, ...]]:
+    """Pending entries per ecosystem from every batch's resolved records.
+
+    A record resolves its entry only through the committed review machinery:
+    accepted positives and review-level exclusions answer the entry, while
+    unreadable or evidence-invalid records leave it pending. A narrowed
+    selection batch therefore surrenders exactly the entries its records
+    resolved, never the whole shared queue.
+    """
+    queued = {
+        ecosystem: {entry.entry_digest for entry in _queue_for(state, ecosystem).entries}
+        for ecosystem in COHORT_SELECTION_ECOSYSTEMS
+    }
+    answered: dict[str, set[str]] = {ecosystem: set() for ecosystem in COHORT_SELECTION_ECOSYSTEMS}
+    for batch in batches:
+        ecosystem = batch.ecosystem
+        if ecosystem not in answered:
+            continue
+        for outcome in batch.record_outcomes:
+            if _review_resolved(outcome) and outcome.queue_entry_digest in queued[ecosystem]:
+                answered[ecosystem].add(outcome.queue_entry_digest)
+    return {
+        ecosystem: tuple(
+            entry for entry in _queue_for(state, ecosystem).entries if entry.entry_digest not in answered[ecosystem]
+        )
+        for ecosystem in COHORT_SELECTION_ECOSYSTEMS
+    }
+
+
+def _ecosystem_gap(facts: _LedgerFacts) -> tuple[str, ...]:
+    """Canonical ecosystems with no accepted positive recorded yet."""
+    return tuple(
+        ecosystem for ecosystem in COHORT_SELECTION_ECOSYSTEMS if facts.accepted_by_ecosystem.get(ecosystem, 0) == 0
+    )
+
+
+def _fourth_ecosystem(
+    pending_by: Mapping[str, Sequence[ReviewQueueEntryV1]],
+    facts: _LedgerFacts,
+    ecosystem_gap: Sequence[str],
+) -> str | None:
+    """One ecosystem whose pending batch can close the remaining gap, else None.
+
+    A gap-closing batch must be able to contribute the per-batch minimum of
+    accepted positives; a family gap additionally needs a pending entry from a
+    family no accepted review has recorded yet.
+    """
+    for ecosystem in ecosystem_gap or COHORT_SELECTION_ECOSYSTEMS:
+        pending = pending_by[ecosystem]
+        if len(pending) < MINIMUM_ACCEPTED_POSITIVES:
+            continue
+        if not ecosystem_gap and all(entry.family.vulnerability_family in facts.families for entry in pending):
+            continue
+        return ecosystem
+    return None
+
+
+def _fourth_selected(
+    state: SourcingQueueStateV1,
+    ecosystem: str,
+    reason: CohortSelectionReason,
+    pending: Sequence[ReviewQueueEntryV1],
+    facts: _LedgerFacts,
+    *,
+    family_gap: bool,
+    census: str,
+    eco_policy: str,
+    gt_policy: str,
+) -> CohortSelectionV1:
+    """Bind one selected fourth-round batch to the gap facts it serves."""
+    base = facts.families_by_ecosystem.get(ecosystem, frozenset())
+    represented = frozenset(facts.families) if family_gap else frozenset(base)
+    chosen, targeted = _selected_entries(pending, represented)
+    return cohort_selection(
+        ecosystem=ecosystem,
+        selected_entries=chosen,
+        targeted_families=targeted,
+        queue_digest=_queue_for(state, ecosystem).queue_digest,
+        census_digest=census,
+        ecosystem_policy_digest=eco_policy,
+        ground_truth_policy_digest=gt_policy,
+        prior_batch_digests=facts.batch_digests,
+        accepted_families=facts.families,
+        accepted_by_ecosystem=facts.accepted_by_ecosystem,
+        status=CohortSelectionStatus.SELECTED,
+        reason=reason,
+    )
+
+
+def _gap_closing_selection(
+    state: SourcingQueueStateV1,
+    pending_by: Mapping[str, Sequence[ReviewQueueEntryV1]],
+    facts: _LedgerFacts,
+    *,
+    census: str,
+    eco_policy: str,
+    gt_policy: str,
+) -> CohortSelectionV1 | None:
+    """Selection closing a remaining ecosystem or family gap, or a closed refusal."""
+    ecosystem_gap = _ecosystem_gap(facts)
+    family_gap = len(facts.families) < REQUIRED_DISTINCT_FAMILIES
+    if not (ecosystem_gap or family_gap):
+        return None
+    ecosystem = _fourth_ecosystem(pending_by, facts, ecosystem_gap)
+    if ecosystem is None:
+        return _refused(
+            CohortSelectionReason.GAP_UNCLOSABLE,
+            facts,
+            census_digest=census,
+            ecosystem_policy_digest=eco_policy,
+            ground_truth_policy_digest=gt_policy,
+        )
+    reason = (
+        CohortSelectionReason.MISSING_ECOSYSTEM_SELECTED if ecosystem_gap else CohortSelectionReason.CLOSURE_GAP_SELECTED
+    )
+    return _fourth_selected(
+        state,
+        ecosystem,
+        reason,
+        pending_by[ecosystem],
+        facts,
+        family_gap=family_gap,
+        census=census,
+        eco_policy=eco_policy,
+        gt_policy=gt_policy,
+    )
+
+
+def _fourth_decision(
+    state: SourcingQueueStateV1,
+    accepted_batches: Sequence[CohortBatchOutcomeV1],
+    facts: _LedgerFacts,
+    *,
+    census: str,
+    eco_policy: str,
+    gt_policy: str,
+) -> CohortSelectionV1:
+    try:
+        pending_by = _pending_by_ecosystem(state, accepted_batches)
+        if not any(pending_by.values()):
+            return _refused(
+                CohortSelectionReason.NO_PENDING_ENTRIES,
+                facts,
+                census_digest=census,
+                ecosystem_policy_digest=eco_policy,
+                ground_truth_policy_digest=gt_policy,
+            )
+        closing = _gap_closing_selection(state, pending_by, facts, census=census, eco_policy=eco_policy, gt_policy=gt_policy)
+        if closing is not None:
+            return closing
+        ranked = sorted(
+            _ecosystem_rank(pending_by[ecosystem], ecosystem, facts) for ecosystem in COHORT_SELECTION_ECOSYSTEMS
+        )
+        for rank in ranked:
+            ecosystem = rank[4]
+            if pending_by[ecosystem]:
+                return _fourth_selected(
+                    state,
+                    ecosystem,
+                    CohortSelectionReason.BALANCED_PROGRESS_SELECTED,
+                    pending_by[ecosystem],
+                    facts,
+                    family_gap=False,
+                    census=census,
+                    eco_policy=eco_policy,
+                    gt_policy=gt_policy,
+                )
+    except CohortSelectionStateError:
+        raise
+    except (AttributeError, TypeError, ValueError) as error:
+        raise CohortSelectionStateError(CohortSelectionStateReason.STATE_MISMATCH) from error
+    return _refused(
+        CohortSelectionReason.NO_PENDING_ENTRIES,
+        facts,
+        census_digest=census,
+        ecosystem_policy_digest=eco_policy,
+        ground_truth_policy_digest=gt_policy,
+    )
+
+
+def select_fourth_cohort_batch(
+    *,
+    state: SourcingQueueStateV1,
+    accepted_batches: Sequence[CohortBatchOutcomeV1],
+    expected_ecosystem_policy_digest: str,
+    expected_ground_truth_policy_digest: str,
+) -> CohortSelectionV1:
+    """Select the gap-closing fourth cohort batch from one shared reservation snapshot.
+
+    The fourth round must close any remaining ecosystem or family gap: it
+    targets the gap when a feasible pending batch exists and refuses with a
+    closed reason when no pending batch can close it, never substituting a
+    batch that would leave the gap open.
+    """
+    facts = _ledger_facts(accepted_batches)
+    try:
+        census = _closed_digest(state.census_digest)
+        eco_policy = _closed_digest(expected_ecosystem_policy_digest)
+        gt_policy = _closed_digest(expected_ground_truth_policy_digest)
+    except (AttributeError, TypeError, ValueError) as error:
+        raise CohortSelectionStateError(CohortSelectionStateReason.STATE_MISMATCH) from error
+    if _census_refused(facts, census):
+        return _refused(
+            CohortSelectionReason.CENSUS_MISMATCH,
+            facts,
+            census_digest=census,
+            ecosystem_policy_digest=eco_policy,
+            ground_truth_policy_digest=gt_policy,
+        )
+    if _policy_refused(facts, (eco_policy, gt_policy)):
+        return _refused(
+            CohortSelectionReason.POLICY_MISMATCH,
+            facts,
+            census_digest=census,
+            ecosystem_policy_digest=eco_policy,
+            ground_truth_policy_digest=gt_policy,
+        )
+    return _fourth_decision(state, accepted_batches, facts, census=census, eco_policy=eco_policy, gt_policy=gt_policy)
+
+
 def _require_selection_binding(
     selection: CohortSelectionV1,
     state: SourcingQueueStateV1,
@@ -535,7 +776,7 @@ def _selection_state(
         raise CohortSelectionStateError(CohortSelectionStateReason.STATE_MISMATCH) from error
 
 
-def ingest_third_cohort_batch(
+def _ingest_selected_cohort_batch(
     records: Sequence[bytes],
     *,
     selection: CohortSelectionV1,
@@ -544,7 +785,7 @@ def ingest_third_cohort_batch(
     expected_ecosystem_policy_digest: str,
     expected_ground_truth_policy_digest: str,
 ) -> CohortBatchOutcomeV1:
-    """Ingest the selected bounded third cohort through the committed machinery."""
+    """Ingest one selected bounded cohort batch through the committed machinery."""
     narrowed = _selection_state(
         selection,
         state,
@@ -555,6 +796,50 @@ def ingest_third_cohort_batch(
     return ingest(
         records,
         state=narrowed,
+        candidates_by_digest=candidates_by_digest,
+        expected_ecosystem_policy_digest=expected_ecosystem_policy_digest,
+        expected_ground_truth_policy_digest=expected_ground_truth_policy_digest,
+    )
+
+
+def ingest_third_cohort_batch(
+    records: Sequence[bytes],
+    *,
+    selection: CohortSelectionV1,
+    state: SourcingQueueStateV1,
+    candidates_by_digest: Mapping[str, FixSiteCandidateV1],
+    expected_ecosystem_policy_digest: str,
+    expected_ground_truth_policy_digest: str,
+) -> CohortBatchOutcomeV1:
+    """Ingest the selected bounded third cohort through the committed machinery."""
+    return _ingest_selected_cohort_batch(
+        records,
+        selection=selection,
+        state=state,
+        candidates_by_digest=candidates_by_digest,
+        expected_ecosystem_policy_digest=expected_ecosystem_policy_digest,
+        expected_ground_truth_policy_digest=expected_ground_truth_policy_digest,
+    )
+
+
+def ingest_fourth_cohort_batch(
+    records: Sequence[bytes],
+    *,
+    selection: CohortSelectionV1,
+    state: SourcingQueueStateV1,
+    candidates_by_digest: Mapping[str, FixSiteCandidateV1],
+    expected_ecosystem_policy_digest: str,
+    expected_ground_truth_policy_digest: str,
+) -> CohortBatchOutcomeV1:
+    """Ingest the selected bounded fourth cohort under the unchanged review policy.
+
+    Scope verification never moves: acceptance still flows only through the
+    committed review authorities over the narrowed selected queue.
+    """
+    return _ingest_selected_cohort_batch(
+        records,
+        selection=selection,
+        state=state,
         candidates_by_digest=candidates_by_digest,
         expected_ecosystem_policy_digest=expected_ecosystem_policy_digest,
         expected_ground_truth_policy_digest=expected_ground_truth_policy_digest,
@@ -573,6 +858,8 @@ __all__ = [
     "cohort_selection",
     "cohort_selection_bytes",
     "cohort_selection_value",
+    "ingest_fourth_cohort_batch",
     "ingest_third_cohort_batch",
+    "select_fourth_cohort_batch",
     "select_third_cohort_batch",
 ]

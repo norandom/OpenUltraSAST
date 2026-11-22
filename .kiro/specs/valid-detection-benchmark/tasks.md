@@ -337,7 +337,7 @@
   - _Requirements: 1.1, 1.2, 1.3, 1.5, 1.6, 2.3, 2.4, 2.5, 2.6, 4.1, 4.2, 4.10_
   - _Boundary: Review Authority, Replacement Population Sourcing_
   - _Depends: 10.2, 10.3_
-- [ ] 10.5 Ingest a fourth bounded independently reviewed cohort and close the positive set
+- [x] 10.5 Ingest a fourth bounded independently reviewed cohort and close the positive set
   - Accept one externally supplied batch of at most twenty candidate review records under the unchanged review and reservation policy.
   - Require its accepted records to close any remaining ecosystem or family gap without granting an unverified scope.
   - Do not fabricate or self-approve missing reviews; leave this bounded cohort pending when its external records are unavailable.

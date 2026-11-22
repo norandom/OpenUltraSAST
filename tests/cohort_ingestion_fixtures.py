@@ -62,6 +62,8 @@ COMBINED_PYTHON_NAMES = tuple(f"py-{index:02d}" for index in range(PYTHON_COUNT)
 COMBINED_JAVASCRIPT_NAMES = (*JAVASCRIPT_NAMES, *TYPESCRIPT_NAMES)
 THIRD_PYTHON_NAMES = tuple(f"py3-{index:02d}" for index in range(12))
 THIRD_JAVASCRIPT_NAMES = (*(f"js3-{index:02d}" for index in range(10)), "ts3-00", "ts3-01")
+FOURTH_PYTHON_NAMES = tuple(f"py4-{index:02d}" for index in range(12))
+FOURTH_JAVASCRIPT_NAMES = (*(f"js4-{index:02d}" for index in range(10)), "ts4-00", "ts4-01")
 SINGLE_FAMILY_PYTHON_NAMES = tuple(f"pyinj-{index:02d}" for index in range(12))
 SINGLE_FAMILY_JAVASCRIPT_NAMES = tuple(f"jsinj-{index:02d}" for index in range(12))
 
@@ -210,12 +212,60 @@ for _name, _function, _family, _cwe in (
         "vulnerable": f"export function {_function}(input: string) {{\n  return eval(input);\n}}\n",
         "fixed": f"export function {_function}(input: string) {{\n  return String(input);\n}}\n",
     }
+for _index in range(12):
+    _family = "file_disclosure" if _index % 2 == 0 else "open_redirect"
+    _apps_key = f"py4-{_index:02d}"
+    _APPS[_apps_key] = {
+        "url": f"https://github.com/fixture/cohort-{_apps_key}",
+        "repo": f"fixture/cohort-{_apps_key}",
+        "path": f"app/fourth_{_index:02d}.py",
+        "function": f"serve_{_index:02d}",
+        "language": "python",
+        "hint": "python",
+        "family": _family,
+        "cwe": "CWE-200" if _family == "file_disclosure" else "CWE-601",
+        "vulnerable": f"def serve_{_index:02d}(target):\n    return eval(target)\n",
+        "fixed": f"def serve_{_index:02d}(target):\n    return str(target)\n",
+    }
+for _index in range(10):
+    _family = "redos" if _index % 2 == 0 else "type_confusion"
+    _apps_key = f"js4-{_index:02d}"
+    _APPS[_apps_key] = {
+        "url": f"https://github.com/fixture/cohort-{_apps_key}",
+        "repo": f"fixture/cohort-{_apps_key}",
+        "path": f"lib/fourth_{_index:02d}.js",
+        "function": f"match_{_index:02d}",
+        "language": "javascript",
+        "hint": "javascript",
+        "family": _family,
+        "cwe": "CWE-400" if _family == "redos" else "CWE-843",
+        "vulnerable": f"function match_{_index:02d}(input) {{\n  return eval(input);\n}}\n",
+        "fixed": f"function match_{_index:02d}(input) {{\n  return String(input);\n}}\n",
+    }
+for _name, _function, _family, _cwe in (
+    ("ts4-00", "scanPattern", "redos", "CWE-400"),
+    ("ts4-01", "coerceValue", "type_confusion", "CWE-843"),
+):
+    _APPS[_name] = {
+        "url": f"https://github.com/fixture/cohort-{_name}",
+        "repo": f"fixture/cohort-{_name}",
+        "path": f"src/{_name}.ts",
+        "function": _function,
+        "language": "typescript",
+        "hint": "javascript",
+        "family": _family,
+        "cwe": _cwe,
+        "vulnerable": f"export function {_function}(input: string) {{\n  return eval(input);\n}}\n",
+        "fixed": f"export function {_function}(input: string) {{\n  return String(input);\n}}\n",
+    }
 _STABLE_APP_ORDER = ("js-00", "js-01", *(f"py-{index:02d}" for index in range(PYTHON_COUNT)))
 _NEW_APP_ORDER = (*JAVASCRIPT_NAMES[2:], *TYPESCRIPT_NAMES)
 _REVISIONS = {name: (f"{5000 + index * 2:040x}", f"{5001 + index * 2:040x}") for index, name in enumerate(_STABLE_APP_ORDER)}
 _REVISIONS.update({name: (f"{6000 + index * 2:040x}", f"{6001 + index * 2:040x}") for index, name in enumerate(_NEW_APP_ORDER)})
 _THIRD_ORDER = (*THIRD_PYTHON_NAMES, *THIRD_JAVASCRIPT_NAMES)
 _REVISIONS.update({name: (f"{7000 + index * 2:040x}", f"{7001 + index * 2:040x}") for index, name in enumerate(_THIRD_ORDER)})
+_FOURTH_ORDER = (*FOURTH_PYTHON_NAMES, *FOURTH_JAVASCRIPT_NAMES)
+_REVISIONS.update({name: (f"{9000 + index * 2:040x}", f"{9001 + index * 2:040x}") for index, name in enumerate(_FOURTH_ORDER)})
 _SINGLE_FAMILY_ORDER = (*SINGLE_FAMILY_PYTHON_NAMES, *SINGLE_FAMILY_JAVASCRIPT_NAMES)
 _REVISIONS.update({name: (f"{8000 + index * 2:040x}", f"{8001 + index * 2:040x}") for index, name in enumerate(_SINGLE_FAMILY_ORDER)})
 READ_POLICY = bytes_digest(b"cohort-ingestion-read-policy-fixture")
@@ -600,6 +650,8 @@ __all__ = [
     "ENUMERATION_REVIEWER",
     "GROUND_TRUTH_POLICY",
     "FakeReader",
+    "FOURTH_JAVASCRIPT_NAMES",
+    "FOURTH_PYTHON_NAMES",
     "JAVASCRIPT_COUNT",
     "JAVASCRIPT_NAMES",
     "PYTHON_COUNT",
