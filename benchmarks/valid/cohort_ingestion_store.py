@@ -9,7 +9,6 @@ from typing import Any
 
 from benchmarks.valid.artifact_repository import ArtifactReadAuthority, S3ArtifactRepository
 from benchmarks.valid.cohort_ingestion import (
-    COHORT_BATCH_SCHEMA,
     CohortBatchOutcomeV1,
     CohortBatchStatus,
     CohortInsufficientReason,
@@ -19,6 +18,7 @@ from benchmarks.valid.cohort_ingestion import (
     CohortStateReason,
     cohort_batch,
     cohort_batch_bytes,
+    cohort_batch_ecosystem,
     cohort_batch_value,
     decode_external_record,
 )
@@ -98,11 +98,15 @@ def _accepted_from_value(item: Any) -> AcceptedGroundTruthV1:
 def decode_cohort_batch(content: bytes) -> CohortBatchOutcomeV1:
     """Rebuild one batch outcome only from canonical, digest-consistent bytes."""
     value = _decoded_value(content)
-    if set(value) != _BATCH_KEYS or value["schema_version"] != COHORT_BATCH_SCHEMA:
+    if set(value) != _BATCH_KEYS:
+        raise CohortStateError(CohortStateReason.STATE_MISMATCH)
+    ecosystem = cohort_batch_ecosystem(value["schema_version"])
+    if ecosystem is None or value["ecosystem"] != ecosystem:
         raise CohortStateError(CohortStateReason.STATE_MISMATCH)
     try:
         reason = None if value["insufficient_reason"] is None else CohortInsufficientReason(value["insufficient_reason"])
         outcome = cohort_batch(
+            ecosystem=ecosystem,
             queue_digest=value["queue_digest"],
             census_digest=value["census_digest"],
             ecosystem_policy_digest=value["ecosystem_policy_digest"],

@@ -1,10 +1,11 @@
-"""Bounded ingestion of externally reviewed Python cohort batches.
+"""Bounded ingestion of externally reviewed cohort batches.
 
 One ingestion unit consumes a single supplied batch of at most twenty external
-review records against the pending Python review queue. Every acceptance comes
-only from the committed review authorities revalidating the external
-attestations; missing, partial, or refused reviews are recorded as closed
-per-record exclusions or pending entries and are never self-approved.
+review records against one pending canonical-ecosystem review queue (Python or
+JavaScript; TypeScript arrives as observed language evidence under javascript).
+Every acceptance comes only from the committed review authorities revalidating
+the external attestations; missing, partial, or refused reviews are recorded as
+closed per-record exclusions or pending entries and are never self-approved.
 """
 
 from __future__ import annotations
@@ -36,11 +37,14 @@ from benchmarks.valid.ground_truth_review import (
     project_accepted_ground_truth,
     review_ground_truth,
 )
-from benchmarks.valid.sourcing_queue import ReviewQueueEntryV1, SourcingQueueStateV1
+from benchmarks.valid.sourcing_queue import EcosystemReviewQueueV1, ReviewQueueEntryV1, SourcingQueueStateV1
 from openultrasast.core.canonical import JsonValue, bytes_digest, canonical_bytes, content_digest
 
 EXTERNAL_REVIEW_RECORD_SCHEMA = "openultrasast.valid-detection-benchmark.external-review-record.v1"
 COHORT_BATCH_SCHEMA = "openultrasast.valid-detection-benchmark.python-cohort-batch.v1"
+JAVASCRIPT_COHORT_BATCH_SCHEMA = "openultrasast.valid-detection-benchmark.javascript-cohort-batch.v1"
+_BATCH_SCHEMA_BY_ECOSYSTEM = {"python": COHORT_BATCH_SCHEMA, "javascript": JAVASCRIPT_COHORT_BATCH_SCHEMA}
+_ECOSYSTEM_BY_BATCH_SCHEMA = {schema: ecosystem for ecosystem, schema in _BATCH_SCHEMA_BY_ECOSYSTEM.items()}
 COHORT_BATCH_CAP = 20
 MINIMUM_ACCEPTED_POSITIVES = 10
 _DIGEST = re.compile(r"[0-9a-f]{64}")
@@ -81,6 +85,7 @@ class CohortInsufficientReason(StrEnum):
     BATCH_EMPTY = "batch_empty"
     BATCH_CAP_EXCEEDED = "batch_cap_exceeded"
     PYTHON_QUEUE_EMPTY = "python_queue_empty"
+    JAVASCRIPT_QUEUE_EMPTY = "javascript_queue_empty"
     INSUFFICIENT_ACCEPTED_POSITIVES = "insufficient_accepted_positives"
 
 
@@ -138,6 +143,9 @@ class CohortRecordOutcomeV1:
     def __post_init__(self) -> None:
         if not isinstance(self.record_digest, str) or _DIGEST.fullmatch(self.record_digest) is None:
             raise CohortStateError(CohortStateReason.STATE_MISMATCH)
+        for digest_value in (self.queue_entry_digest, self.ground_truth_review_digest):
+            if digest_value is not None and (not isinstance(digest_value, str) or _DIGEST.fullmatch(digest_value) is None):
+                raise CohortStateError(CohortStateReason.STATE_MISMATCH)
         if not isinstance(self.status, CohortRecordStatus):
             raise CohortStateError(CohortStateReason.STATE_MISMATCH)
         if self.status is CohortRecordStatus.ACCEPTED:
@@ -373,9 +381,10 @@ def _batch_status(
     record_count: int,
     accepted_count: int,
     queue_entry_count: int,
+    queue_empty_reason: CohortInsufficientReason,
 ) -> tuple[CohortBatchStatus, CohortInsufficientReason | None]:
     if queue_entry_count == 0:
-        return CohortBatchStatus.INSUFFICIENT, CohortInsufficientReason.PYTHON_QUEUE_EMPTY
+        return CohortBatchStatus.INSUFFICIENT, queue_empty_reason
     if record_count == 0:
         return CohortBatchStatus.INSUFFICIENT, CohortInsufficientReason.BATCH_EMPTY
     if accepted_count < MINIMUM_ACCEPTED_POSITIVES:
@@ -389,8 +398,21 @@ def _closed_digest(value: object) -> str:
     return value
 
 
+def _batch_schema(ecosystem: object) -> str:
+    schema = _BATCH_SCHEMA_BY_ECOSYSTEM.get(ecosystem) if isinstance(ecosystem, str) else None
+    if schema is None:
+        raise CohortStateError(CohortStateReason.STATE_MISMATCH)
+    return schema
+
+
+def cohort_batch_ecosystem(schema_version: object) -> str | None:
+    """Map one committed cohort batch schema onto its canonical ecosystem, else None."""
+    return _ECOSYSTEM_BY_BATCH_SCHEMA.get(schema_version) if isinstance(schema_version, str) else None
+
+
 def cohort_batch(
     *,
+    ecosystem: str = "python",
     queue_digest: str,
     census_digest: str,
     ecosystem_policy_digest: str,
@@ -401,7 +423,13 @@ def cohort_batch(
     status: CohortBatchStatus,
     insufficient_reason: CohortInsufficientReason | None,
 ) -> CohortBatchOutcomeV1:
-    """Assemble one bounded Python cohort batch bound to its exact queue and census."""
+    """Assemble one bounded cohort batch bound to its exact queue and census.
+
+    The ecosystem must be one of the canonical cohort ecosystems; a batch for
+    an observed language such as TypeScript is a javascript-ecosystem batch.
+    """
+    if not isinstance(ecosystem, str) or ecosystem not in _BATCH_SCHEMA_BY_ECOSYSTEM:
+        raise CohortStateError(CohortStateReason.STATE_MISMATCH)
     if not isinstance(status, CohortBatchStatus):
         raise CohortStateError(CohortStateReason.STATE_MISMATCH)
     accepted_tuple = tuple(accepted_positives)
@@ -411,13 +439,13 @@ def cohort_batch(
         raise CohortStateError(CohortStateReason.STATE_MISMATCH)
     accepted = tuple(sorted(accepted_tuple, key=lambda item: item.change_identity_digest))
     draft = CohortBatchOutcomeV1(
-        "python",
+        ecosystem,
         _closed_digest(queue_digest),
         _closed_digest(census_digest),
         _closed_digest(ecosystem_policy_digest),
         _closed_digest(ground_truth_policy_digest),
         tuple(sorted(record_outcomes, key=lambda item: item.record_digest)),
-        tuple(sorted(set(pending_entries))),
+        tuple(sorted({_closed_digest(item) for item in pending_entries})),
         accepted,
         MINIMUM_ACCEPTED_POSITIVES,
         status,
@@ -456,7 +484,7 @@ def _accepted_value(item: AcceptedGroundTruthV1) -> dict[str, JsonValue]:
 def cohort_batch_value(outcome: CohortBatchOutcomeV1) -> dict[str, JsonValue]:
     """Canonical batch payload used for durable persistence and exact rereads."""
     return {
-        "schema_version": COHORT_BATCH_SCHEMA,
+        "schema_version": _batch_schema(outcome.ecosystem),
         "ecosystem": outcome.ecosystem,
         "queue_digest": outcome.queue_digest,
         "census_digest": outcome.census_digest,
@@ -486,7 +514,13 @@ def cohort_batch_bytes(outcome: CohortBatchOutcomeV1) -> bytes:
     return canonical_bytes(cohort_batch_value(outcome))
 
 
-def _refused_batch(state: SourcingQueueStateV1, ordered: Sequence[bytes], batch: _BatchState) -> CohortBatchOutcomeV1:
+def _refused_batch(
+    queue: EcosystemReviewQueueV1,
+    census_digest: str,
+    ecosystem: str,
+    ordered: Sequence[bytes],
+    batch: _BatchState,
+) -> CohortBatchOutcomeV1:
     outcomes = [
         CohortRecordOutcomeV1(
             bytes_digest(content), None, None, CohortRecordStatus.EXCLUDED, CohortRecordExclusionReason.BATCH_UNIT_REFUSED.value
@@ -494,8 +528,9 @@ def _refused_batch(state: SourcingQueueStateV1, ordered: Sequence[bytes], batch:
         for content in ordered
     ]
     return cohort_batch(
-        queue_digest=state.python_queue.queue_digest,
-        census_digest=state.census_digest,
+        ecosystem=ecosystem,
+        queue_digest=queue.queue_digest,
+        census_digest=census_digest,
         ecosystem_policy_digest=batch.ecosystem_policy_digest,
         ground_truth_policy_digest=batch.ground_truth_policy_digest,
         record_outcomes=outcomes,
@@ -503,6 +538,57 @@ def _refused_batch(state: SourcingQueueStateV1, ordered: Sequence[bytes], batch:
         accepted_positives=(),
         status=CohortBatchStatus.INSUFFICIENT,
         insufficient_reason=CohortInsufficientReason.BATCH_CAP_EXCEEDED,
+    )
+
+
+def _ingest_cohort_batch(
+    records: Sequence[bytes],
+    *,
+    queue: EcosystemReviewQueueV1,
+    census_digest: str,
+    ecosystem: str,
+    queue_empty_reason: CohortInsufficientReason,
+    candidates_by_digest: Mapping[str, FixSiteCandidateV1],
+    expected_ecosystem_policy_digest: str,
+    expected_ground_truth_policy_digest: str,
+) -> CohortBatchOutcomeV1:
+    """Ingest one supplied batch of at most twenty external review records."""
+    for content in records:
+        if not isinstance(content, bytes):
+            raise ValueError("external review records must be supplied as bytes")
+    batch = _BatchState(
+        {entry.entry_digest: entry for entry in queue.entries},
+        candidates_by_digest,
+        expected_ecosystem_policy_digest,
+        expected_ground_truth_policy_digest,
+    )
+    ordered = tuple(sorted(records, key=bytes_digest))
+    if len(ordered) > COHORT_BATCH_CAP:
+        return _refused_batch(queue, census_digest, ecosystem, ordered, batch)
+    for content in ordered:
+        batch.outcomes.append(_review_record(content, batch).outcome)
+    try:
+        accepted_positives = project_accepted_ground_truth(
+            batch.accepted_reviews,
+            candidates_by_digest=candidates_by_digest,
+            ecosystem_reviews_by_digest=dict(batch.ecosystem_reviews),
+            expected_ecosystem_policy_digest=expected_ecosystem_policy_digest,
+            expected_ground_truth_policy_digest=expected_ground_truth_policy_digest,
+        )
+    except GroundTruthReviewError:
+        raise CohortStateError(CohortStateReason.STATE_MISMATCH) from None
+    status, reason = _batch_status(len(ordered), len(accepted_positives), len(batch.entries), queue_empty_reason)
+    return cohort_batch(
+        ecosystem=ecosystem,
+        queue_digest=queue.queue_digest,
+        census_digest=census_digest,
+        ecosystem_policy_digest=expected_ecosystem_policy_digest,
+        ground_truth_policy_digest=expected_ground_truth_policy_digest,
+        record_outcomes=batch.outcomes,
+        pending_entries=sorted(batch.entries.keys() - batch.answered),
+        accepted_positives=accepted_positives,
+        status=status,
+        insufficient_reason=reason,
     )
 
 
@@ -515,38 +601,40 @@ def ingest_python_cohort_batch(
     expected_ground_truth_policy_digest: str,
 ) -> CohortBatchOutcomeV1:
     """Ingest one supplied batch of at most twenty external Python review records."""
-    for content in records:
-        if not isinstance(content, bytes):
-            raise ValueError("external review records must be supplied as bytes")
-    batch = _BatchState(
-        {entry.entry_digest: entry for entry in state.python_queue.entries},
-        candidates_by_digest,
-        expected_ecosystem_policy_digest,
-        expected_ground_truth_policy_digest,
-    )
-    ordered = tuple(sorted(records, key=bytes_digest))
-    if len(ordered) > COHORT_BATCH_CAP:
-        return _refused_batch(state, ordered, batch)
-    for content in ordered:
-        batch.outcomes.append(_review_record(content, batch).outcome)
-    accepted_positives = project_accepted_ground_truth(
-        batch.accepted_reviews,
+    return _ingest_cohort_batch(
+        records,
+        queue=state.python_queue,
+        census_digest=state.census_digest,
+        ecosystem="python",
+        queue_empty_reason=CohortInsufficientReason.PYTHON_QUEUE_EMPTY,
         candidates_by_digest=candidates_by_digest,
-        ecosystem_reviews_by_digest=dict(batch.ecosystem_reviews),
         expected_ecosystem_policy_digest=expected_ecosystem_policy_digest,
         expected_ground_truth_policy_digest=expected_ground_truth_policy_digest,
     )
-    status, reason = _batch_status(len(ordered), len(accepted_positives), len(batch.entries))
-    return cohort_batch(
-        queue_digest=state.python_queue.queue_digest,
+
+
+def ingest_javascript_cohort_batch(
+    records: Sequence[bytes],
+    *,
+    state: SourcingQueueStateV1,
+    candidates_by_digest: Mapping[str, FixSiteCandidateV1],
+    expected_ecosystem_policy_digest: str,
+    expected_ground_truth_policy_digest: str,
+) -> CohortBatchOutcomeV1:
+    """Ingest one supplied JavaScript/TypeScript review batch under the canonical javascript ecosystem.
+
+    TypeScript arrives only as observed language evidence on queue entries; the
+    cohort itself stays bound to the javascript ecosystem and its batch schema.
+    """
+    return _ingest_cohort_batch(
+        records,
+        queue=state.javascript_queue,
         census_digest=state.census_digest,
-        ecosystem_policy_digest=expected_ecosystem_policy_digest,
-        ground_truth_policy_digest=expected_ground_truth_policy_digest,
-        record_outcomes=batch.outcomes,
-        pending_entries=sorted(batch.entries.keys() - batch.answered),
-        accepted_positives=accepted_positives,
-        status=status,
-        insufficient_reason=reason,
+        ecosystem="javascript",
+        queue_empty_reason=CohortInsufficientReason.JAVASCRIPT_QUEUE_EMPTY,
+        candidates_by_digest=candidates_by_digest,
+        expected_ecosystem_policy_digest=expected_ecosystem_policy_digest,
+        expected_ground_truth_policy_digest=expected_ground_truth_policy_digest,
     )
 
 
@@ -563,10 +651,13 @@ __all__ = [
     "CohortStateError",
     "CohortStateReason",
     "EXTERNAL_REVIEW_RECORD_SCHEMA",
+    "JAVASCRIPT_COHORT_BATCH_SCHEMA",
     "MINIMUM_ACCEPTED_POSITIVES",
     "cohort_batch",
     "cohort_batch_bytes",
+    "cohort_batch_ecosystem",
     "cohort_batch_value",
     "decode_external_record",
+    "ingest_javascript_cohort_batch",
     "ingest_python_cohort_batch",
 ]

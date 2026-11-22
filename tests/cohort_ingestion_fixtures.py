@@ -50,6 +50,9 @@ ENUMERATION_REVIEWER = "cohort-enumeration-reviewer@example.invalid"
 ECOSYSTEM_PRODUCER = "ecosystem-producer@example.invalid"
 ECOSYSTEM_REVIEWER = "ecosystem-reviewer@example.invalid"
 PYTHON_COUNT = 12
+JAVASCRIPT_NAMES = tuple(f"js-{index:02d}" for index in range(10))
+TYPESCRIPT_NAMES = ("ts-00", "ts-01")
+JAVASCRIPT_COUNT = len(JAVASCRIPT_NAMES) + len(TYPESCRIPT_NAMES)
 
 _APPS: dict[str, dict[str, Any]] = {}
 for _index in range(PYTHON_COUNT):
@@ -91,7 +94,41 @@ _APPS["js-01"] = {
     "vulnerable": "function validate(input) {\n  return eval(input);\n}\n",
     "fixed": "function validate(input) {\n  return String(input);\n}\n",
 }
-_REVISIONS = {name: (f"{5000 + index * 2:040x}", f"{5001 + index * 2:040x}") for index, name in enumerate(sorted(_APPS))}
+for _index in range(2, 10):
+    _family = "injection" if _index % 2 == 0 else "path_traversal"
+    _apps_key = f"js-{_index:02d}"
+    _APPS[_apps_key] = {
+        "url": f"https://github.com/fixture/cohort-{_apps_key}",
+        "repo": f"fixture/cohort-{_apps_key}",
+        "path": f"lib/module{_index:02d}.js",
+        "function": f"transform_{_index:02d}",
+        "language": "javascript",
+        "hint": "javascript",
+        "family": _family,
+        "cwe": "CWE-94" if _family == "injection" else "CWE-22",
+        "vulnerable": f"function transform_{_index:02d}(input) {{\n  return eval(input);\n}}\n",
+        "fixed": f"function transform_{_index:02d}(input) {{\n  return String(input);\n}}\n",
+    }
+for _name, _path, _function, _family, _cwe in (
+    ("ts-00", "src/paths.ts", "resolveTarget", "path_traversal", "CWE-22"),
+    ("ts-01", "src/config.ts", "parseValue", "injection", "CWE-94"),
+):
+    _APPS[_name] = {
+        "url": f"https://github.com/fixture/cohort-{_name}",
+        "repo": f"fixture/cohort-{_name}",
+        "path": _path,
+        "function": _function,
+        "language": "typescript",
+        "hint": "javascript",
+        "family": _family,
+        "cwe": _cwe,
+        "vulnerable": f"export function {_function}(input: string) {{\n  return eval(input);\n}}\n",
+        "fixed": f"export function {_function}(input: string) {{\n  return String(input);\n}}\n",
+    }
+_STABLE_APP_ORDER = ("js-00", "js-01", *(f"py-{index:02d}" for index in range(PYTHON_COUNT)))
+_NEW_APP_ORDER = (*JAVASCRIPT_NAMES[2:], *TYPESCRIPT_NAMES)
+_REVISIONS = {name: (f"{5000 + index * 2:040x}", f"{5001 + index * 2:040x}") for index, name in enumerate(_STABLE_APP_ORDER)}
+_REVISIONS.update({name: (f"{6000 + index * 2:040x}", f"{6001 + index * 2:040x}") for index, name in enumerate(_NEW_APP_ORDER)})
 READ_POLICY = bytes_digest(b"cohort-ingestion-read-policy-fixture")
 
 
@@ -249,6 +286,34 @@ def python_entries(state: SourcingQueueStateV1) -> list[ReviewQueueEntryV1]:
     return [*state.python_queue.entries]
 
 
+def javascript_request_names() -> tuple[str, ...]:
+    return (*JAVASCRIPT_NAMES, *TYPESCRIPT_NAMES)
+
+
+def javascript_cohort_state(
+    requests: list | None = None,
+    *,
+    resolver_: RepositoryIdentityResolver | None = None,
+    authority_: ReservationAuthority | None = None,
+    per_ecosystem_cap: int = 20,
+) -> tuple[SourcingQueueStateV1, RepositoryIdentityResolver]:
+    resolved = resolver_ or resolver()
+    state = build_sourcing_queue(
+        requests or [request_for(name) for name in javascript_request_names()],
+        reader=FakeReader(),
+        resolver=resolved,
+        authority=authority_ or authority(resolved),
+        policy=sourcing_queue_policy(per_ecosystem_cap=per_ecosystem_cap, required_families=2),
+        enumeration_actor=ENUMERATION_ACTOR,
+        enumeration_reviewer=ENUMERATION_REVIEWER,
+    )
+    return state, resolved
+
+
+def javascript_entries(state: SourcingQueueStateV1) -> list[ReviewQueueEntryV1]:
+    return [*state.javascript_queue.entries]
+
+
 def _eco_value(att: EcosystemReviewAttestationV1) -> dict[str, Any]:
     return {
         "candidate_digest": att.candidate_digest,
@@ -285,13 +350,19 @@ def reviewed_record(
     entry: ReviewQueueEntryV1,
     candidate: FixSiteCandidateV1,
     *,
+    ecosystem: str = "python",
     eco_changes: dict[str, Any] | None = None,
     gt_changes: dict[str, Any] | None = None,
     entry_digest: str | None = None,
     record_extra: dict[str, Any] | None = None,
     derive_review: bool = True,
 ) -> tuple[bytes, GroundTruthReviewV1 | None]:
-    """Build one external review record and the review the authorities derive from it."""
+    """Build one external review record and the review the authorities derive from it.
+
+    The ecosystem parameter stays inside the closed canonical vocabulary; a
+    TypeScript-language repository is reviewed as observed evidence under the
+    canonical javascript ecosystem, never as its own ecosystem.
+    """
     locator = entry.family.advisory_locator
     eco = replace(
         EcosystemReviewAttestationV1(
@@ -302,15 +373,15 @@ def reviewed_record(
             conflict_disclosed=True,
             policy_digest=ECOSYSTEM_POLICY,
             policy_satisfied=True,
-            decision=EcosystemReviewDecision.PYTHON,
+            decision=EcosystemReviewDecision(ecosystem),
         ),
         **(eco_changes or {}),
     )
-    ecosystem = review_repository_ecosystem(candidate, eco, expected_policy_digest=ECOSYSTEM_POLICY)
+    ecosystem_review = review_repository_ecosystem(candidate, eco, expected_policy_digest=ECOSYSTEM_POLICY)
     ground_truth = replace(
         GroundTruthAttestationV1(
             candidate_digest=candidate.candidate_digest,
-            ecosystem_review_digest=ecosystem.review_digest,
+            ecosystem_review_digest=ecosystem_review.review_digest,
             producer_identity=f"producer-{locator}@example.invalid",
             reviewer_identity=f"reviewer-{locator}@example.invalid",
             conflict_disclosed=True,
@@ -319,7 +390,7 @@ def reviewed_record(
             defect_present=True,
             fix_addresses=True,
             in_repository_reachable=True,
-            verified_scopes=(VerifiedScope(entry.family.vulnerability_family, "python"),),
+            verified_scopes=(VerifiedScope(entry.family.vulnerability_family, ecosystem),),
             model_assistance_digest=None,
         ),
         **(gt_changes or {}),
@@ -328,7 +399,7 @@ def reviewed_record(
     if derive_review:
         review = review_ground_truth(
             candidate,
-            ecosystem,
+            ecosystem_review,
             ground_truth,
             expected_ecosystem_policy_digest=ECOSYSTEM_POLICY,
             expected_ground_truth_policy_digest=GROUND_TRUTH_POLICY,
@@ -367,12 +438,18 @@ __all__ = [
     "ENUMERATION_REVIEWER",
     "GROUND_TRUTH_POLICY",
     "FakeReader",
+    "JAVASCRIPT_COUNT",
+    "JAVASCRIPT_NAMES",
     "PYTHON_COUNT",
     "READ_POLICY",
     "RepositoryEcosystemReviewV1",
+    "TYPESCRIPT_NAMES",
     "authority",
     "candidates_for",
     "case_for",
+    "javascript_cohort_state",
+    "javascript_entries",
+    "javascript_request_names",
     "model_only_assistance_digest",
     "python_cohort_state",
     "python_entries",

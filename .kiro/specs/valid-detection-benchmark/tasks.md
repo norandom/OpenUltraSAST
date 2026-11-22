@@ -320,7 +320,7 @@
   - _Requirements: 1.1, 1.5, 1.6, 2.3, 2.4, 2.5, 2.6, 4.1, 4.2_
   - _Boundary: Review Authority, Replacement Population Sourcing_
   - _Depends: 10.1_
-- [ ] 10.3 Ingest the first bounded independently reviewed JavaScript/TypeScript cohort
+- [x] 10.3 Ingest the first bounded independently reviewed JavaScript/TypeScript cohort
   - Apply the same independent-review, conflict-disclosure, reachability, exact-scope, reservation, and exclusion rules to the canonical `javascript` ecosystem.
   - Limit this ingestion unit to one supplied batch of at most twenty candidate review records.
   - Preserve TypeScript as observed language evidence without creating a separate ecosystem or detector requirement.
