@@ -246,15 +246,23 @@ def test_closure_refuses_float_and_bool_totals_closed():
         assert error.value.reason is PositiveSetClosureStateReason.STATE_MISMATCH
 
 
-def test_closure_decode_refuses_a_self_consistent_float_total():
-    encoded = positive_set_closure_bytes(positive_set_closure(**_CLOSED_BASE))
+@pytest.mark.parametrize(
+    "based, forged_total, encoded_total",
+    (
+        (_CLOSED_BASE, 45.0, b'"total_accepted_positives":45.0'),
+        ({**_CLOSED_BASE, **_SINGLE_POSITIVE}, True, b'"total_accepted_positives":true'),
+    ),
+    ids=("float", "bool"),
+)
+def test_closure_decode_refuses_a_self_consistent_non_integer_total(based, forged_total, encoded_total):
+    encoded = positive_set_closure_bytes(positive_set_closure(**based))
     forged = {key: tuple(value) if isinstance(value, list) else value for key, value in json.loads(encoded).items()}
-    assert forged["total_accepted_positives"] == 45
-    forged["total_accepted_positives"] = 45.0
+    assert type(forged["total_accepted_positives"]) is int
+    forged["total_accepted_positives"] = forged_total
     forged["closure_digest"] = content_digest({key: value for key, value in forged.items() if key != "closure_digest"})
     content = canonical_bytes(forged)
-    assert b'"total_accepted_positives":45.0' in content
-    assert decode_positive_set_closure(encoded).total_accepted_positives == 45
+    assert encoded_total in content
+    assert decode_positive_set_closure(encoded).total_accepted_positives == based["total_accepted_positives"]
 
     with pytest.raises(PositiveSetClosureStateError) as error:
         decode_positive_set_closure(content)

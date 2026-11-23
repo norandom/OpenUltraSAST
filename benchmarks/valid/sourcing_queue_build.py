@@ -97,8 +97,11 @@ def _request_order(request: SourcingCandidateRequest) -> tuple[str, ...]:
     used to be ordered by input position, so cap selection was
     permutation-sensitive; the advisory, package-manifest, and license digests
     make the order a function of content only. The fix-site path and function
-    are the non-digest scalars two otherwise identical requests can still
-    differ on; appending them keeps every existing order intact.
+    are the non-digest fix-site scalars; appending them keeps every existing
+    order intact. Two ties remain. Requests identical on all nine keys can
+    still differ in their fix revisions, which no key element carries. Two
+    requests can also share one candidate digest while differing in family or
+    CWE; DUPLICATE_CANDIDATE then resolves that pair by input order.
     """
     digest = request.model_assistance_digest or ""
     return (

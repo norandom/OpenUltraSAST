@@ -409,6 +409,26 @@ class _TwinPathReader(FakeReader):
         self._blobs[(fix, "twin.py")] = SECOND_FIXED
 
 
+class _TwinFunctionReader(FakeReader):
+    """app.py at the py-app revisions carries a second function the fix changes."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        parent, fix = _REVISIONS["py-app"]
+        self._blobs[(parent, "app.py")] = PYTHON_VULNERABLE + "\n\n" + SECOND_VULNERABLE
+        self._blobs[(fix, "app.py")] = PYTHON_FIXED + "\n\n" + SECOND_FIXED
+
+
+class _SameFunctionReader(FakeReader):
+    """The py-two revisions also carry the same function under a different path."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        parent, fix = _REVISIONS["py-two"]
+        self._blobs[(parent, "worker.py")] = SECOND_VULNERABLE
+        self._blobs[(fix, "worker.py")] = SECOND_FIXED
+
+
 def _build_with_reader(reader, requests, policy):
     resolver = _resolver()
     return build_sourcing_queue(
@@ -422,9 +442,18 @@ def _build_with_reader(reader, requests, policy):
     )
 
 
-def test_fix_site_scalars_break_otherwise_tied_candidates_under_a_cap():
-    first = _request("py-app")
-    second = _request("py-app", path="twin.py", function="load")
+@pytest.mark.parametrize(
+    "reader_type, name, changes, differing",
+    (
+        (_TwinPathReader, "py-app", {"path": "twin.py", "function": "load"}, ("path", "function")),
+        (_TwinFunctionReader, "py-app", {"function": "load"}, ("function",)),
+        (_SameFunctionReader, "py-two", {"path": "worker.py"}, ("path",)),
+    ),
+    ids=("path-and-function", "function-only", "path-only"),
+)
+def test_fix_site_scalars_break_otherwise_tied_candidates_under_a_cap(reader_type, name, changes, differing):
+    first = _request(name)
+    second = _request(name, **changes)
     requests = [first, second, _request("js-app", family="output_encoding", cwe="CWE-79")]
     policy = _policy(per_ecosystem_cap=1)
     assert (first.family, first.reachability, first.package_evidence, first.license_evidence) == (
@@ -434,18 +463,20 @@ def test_fix_site_scalars_break_otherwise_tied_candidates_under_a_cap():
         second.license_evidence,
     )
     assert (first.case["url"], first.model_assistance_digest) == (second.case["url"], second.model_assistance_digest)
-    assert (first.case["path"], first.case["function"]) == ("app.py", "handler")
-    assert (second.case["path"], second.case["function"]) == ("twin.py", "load")
+    sites = tuple((request.case["path"], request.case["function"]) for request in (first, second))
+    for element, index in (("path", 0), ("function", 1)):
+        assert (sites[0][index] != sites[1][index]) is (element in differing)
+    assert sites[0] < sites[1]
 
     digests = set()
     for order in itertools.permutations(requests):
-        state = _build_with_reader(_TwinPathReader(), list(order), policy)
+        state = _build_with_reader(reader_type(), list(order), policy)
         (queued,) = state.python_queue.entries
-        assert (queued.fix_site.path, queued.fix_site.function) == ("app.py", "handler")
+        assert (queued.fix_site.path, queued.fix_site.function) == sites[0]
         digests.add((state.state_digest, pending_queue_identities(state)))
 
     assert len(digests) == 1
-    state = _build_with_reader(_TwinPathReader(), requests, policy)
+    state = _build_with_reader(reader_type(), requests, policy)
     (capped,) = [item for item in state.exclusions if item.reason is SourcingQueueReason.QUEUE_CAP_EXCEEDED]
     assert capped.candidate_digest != state.python_queue.entries[0].candidate_digest
     assert len(state.javascript_queue.entries) == 1
