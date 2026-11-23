@@ -8,6 +8,7 @@ PINNED_LEGACY_RESERVATION_SOURCE_DIGESTS = MappingProxyType(
         "benchmarks/independent/freeze-v1.json": "2c9ca1be6386a2053b34532e573195201c4bbd5db1cdf0f6b8678c311246e330",
         "benchmarks/independent/freeze-v2.json": "83335e0ee49dd88f6e7c2b7d856b20da22e0572e5fe360d30f0ff7552c518b07",
         "benchmarks/independent/freeze-v3-php.json": "ad372911ee90b2437f777ff4db128421028d7c0c6eafab7da768e97cb25163f2",
+        "benchmarks/independent/freeze-v4.json": "9ea0dd6aaadc14da0259c57f3c8bf35a10e55f6e49d178402f2d8d37a77cf2ac",
         "benchmarks/independent/research-2026-09-24.md": "2c24df48d93f4cd6bdc71b1b990afacd0de5314127041a9b786baf5c33b4810a",
         "benchmarks/independent/research-2026-09-26.md": "905da0feae5fa1d5e5c71dfc7bca9d6a2ca208fbe30a82345a8209c81d0ab3b6",
         "benchmarks/independent/research-2026-09-30-php.md": "8b87fef5a7d73ff71c23e9b7fb64a0756124ad2429fbffa8df54e87abb8e8feb",

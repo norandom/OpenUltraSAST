@@ -1,0 +1,419 @@
+{
+  "schema_version": 1,
+  "population": "population-v4.toml",
+  "cases": [
+    {
+      "id": "wp-rtmedia-compare-sqli",
+      "repo": "https://github.com/rtCamp/rtMedia",
+      "vulnerable": "b7447272f791f1ee8180a17201977af3bd96d9c6",
+      "fixed": "7b0e50fc228aa52dd0f41b0b1066adfe6a4c49a6",
+      "problems": [],
+      "vulnerable_is_ancestor_of_fixed": true,
+      "sink_file": "app/helper/RTMediaModel.php",
+      "sink_functions": [
+        "get"
+      ],
+      "sink_sha256_vulnerable": "84d70be9b016da0be4a11f905e8e643c5f8b58119230eb42b0a65c4414b5de69",
+      "sink_evidence_found": true,
+      "sink_sha256_fixed": "a39e7d7dd73b1a75947ae8cec246b71352b4219e90435edb16268336e65e4c1c",
+      "fix_changed_files": 3,
+      "fix_touches_sink_file": true,
+      "fix_touches_fix_site": false,
+      "benign_proposal": {
+        "base": "4ec56683aa7b3364fb755626e4bf47f1c72e51b0",
+        "tip": "6245b630e28ea321e6d41a1dc51a4005218b9e40",
+        "subject": "Merge pull request #2381 from rtCamp/version-update/v4.7.15",
+        "files": [
+          "README.md",
+          "changelog.txt",
+          "index.php",
+          "languages/buddpress-media.pot",
+          "languages/buddypress-media.pot",
+          "readme.txt"
+        ],
+        "lines": 67,
+        "side": "after the fix"
+      },
+      "benign_review": "accepted: version bump 4.7.14 -> 4.7.15 (merge of the version-update branch; the first-parent diff was read in full, 67 lines): the version constant and plugin header in index.php (2 PHP lines), readme.txt, changelog.txt, README.md and the two .pot headers (Project-Id-Version, POT-Creation-Date, source line references). No code logic changes; no changed line builds SQL text, a URL, a Host-derived link, a header or a security setting from request input; nothing adds debug or a wildcard. Does not touch app/helper/RTMediaModel.php or app/helper/db/RTDBModel.php. Not a security fix: the added changelog text describes the release's security fixes, but the diff itself changes only version strings and documentation. The fix is an ancestor of the proposal base (merge-base --is-ancestor exit 0).",
+      "sink_review": "app/helper/RTMediaModel.php:105-116, get"
+    },
+    {
+      "id": "drupal-core-entity-query-sqli",
+      "repo": "https://github.com/drupal/drupal",
+      "vulnerable": "e4450efdfea863fbc0b04a4e0be77bce96f170e3",
+      "fixed": "ea9524d9c75dd4fcbaf5d4a823c7f571de7d546c",
+      "problems": [],
+      "vulnerable_is_ancestor_of_fixed": true,
+      "sink_file": "core/modules/pgsql/src/EntityQuery/Condition.php",
+      "sink_functions": [
+        "translateCondition"
+      ],
+      "sink_sha256_vulnerable": "a7f9a41ed7c67053be0ae8b2a6f27e814ce5c7c8eef3aae95476c6edf06f44a7",
+      "sink_functions_missing": [],
+      "sink_sha256_fixed": "0400238723649426c3bfa81ac28f5e973d764c035acf1a0cf7c141af11319e2e",
+      "fix_changed_files": 3,
+      "fix_touches_sink_file": true,
+      "fix_touches_fix_site": false,
+      "benign_proposal": {
+        "base": "dc3c97a4d019548b3e2272e502ea7b05a9ce44ae",
+        "tip": "454adefc5b8ec2e35c39e7929b5bc42a56556d7e",
+        "subject": "perf: #3590722 Speed up DependencyTest",
+        "files": [
+          "core/modules/system/tests/src/Functional/Module/DependencyTest.php"
+        ],
+        "lines": 46,
+        "side": "after the fix"
+      },
+      "benign_review": "accepted: test refactor in core/modules/system/tests/src/Functional/Module/DependencyTest.php (28 insertions, 18 deletions): four public test methods become protected doTest* helpers called from one new testModulesForm(); no production code. The message and body ('perf: #3590722 Speed up DependencyTest' / 'By: catch') and the diff have no security content; no changed line builds SQL text, a URL from request input, a header or a security setting (the one drupalGet call uses a constant path and is moved code); nothing adds debug or a wildcard. Does not touch the sink file. Side: the fix is on the 11.3.x branch only (branch -a --contains ea9524d9 lists only remotes/origin/11.3.x; merge-base --is-ancestor of the proposal base exits 1); the proposal is a first-parent commit on main dated 2026-05-22, after the fix's committer date 2026-05-20, which is how freeze.py defines 'after the fix' for a maintenance-branch fix.",
+      "sink_review": "core/modules/pgsql/src/EntityQuery/Condition.php:25-28, translateCondition"
+    },
+    {
+      "id": "known-unfurl-ssrf",
+      "repo": "https://github.com/idno/idno",
+      "vulnerable": "981a5e5c88437ba44386f2a97701767a99da86ec",
+      "fixed": "7a9662f3439fc6b052eac8e68527eebad9555309",
+      "problems": [],
+      "vulnerable_is_ancestor_of_fixed": true,
+      "sink_file": "Idno/Entities/UnfurledUrl.php",
+      "sink_functions": [
+        "unfurl"
+      ],
+      "sink_sha256_vulnerable": "556805e99cda531a72340463e9f5cccd7199b2679cd7ccdd5c3dd7a0f2fb4eee",
+      "sink_functions_missing": [],
+      "sink_sha256_fixed": "aeca8e9d14b0d161a9f346d81ecaef1aedfcaeab77f29241c1db4b22c30ff6fb",
+      "fix_changed_files": 2,
+      "fix_touches_sink_file": true,
+      "fix_touches_fix_site": false,
+      "benign_proposal": {
+        "base": "e0c3f30963ae0ce69be6335d7c7f9d8bd035b94c",
+        "tip": "71aa41914d090e54402d77d7cfb83b5f0cd1d01f",
+        "subject": "feat: remove read time indicator from blog posts",
+        "files": [
+          "IdnoPlugins/Text/templates/modern/entity/Entry.tpl.php"
+        ],
+        "lines": 11,
+        "side": "after the fix"
+      },
+      "benign_review": "accepted: 'feat: remove read time indicator from blog posts' deletes 11 lines (the reading-time block) from IdnoPlugins/Text/templates/modern/entity/Entry.tpl.php, a PHP template; it adds no line, so nothing builds SQL text, a URL, a Host-derived link, a header or a security setting from request input, and nothing adds debug or a wildcard; not security-related; does not touch the sink file; 11 lines; PHP file. The fix is an ancestor of the proposal base (merge-base --is-ancestor exit 0).",
+      "sink_review": "Idno/Entities/UnfurledUrl.php:59-63, unfurl"
+    },
+    {
+      "id": "typo3-news-datemenu-sqli",
+      "repo": "https://github.com/georgringer/news",
+      "vulnerable": "00a82b55bf01f13d783947584cf47bb2bda116f6",
+      "fixed": "cec1cd776a32e5cec527575b97ca7b044ceac19c",
+      "problems": [],
+      "vulnerable_is_ancestor_of_fixed": true,
+      "sites": [
+        "Classes/Domain/Repository/AbstractDemandedRepository.php::findDemandedRaw",
+        "Classes/Domain/Repository/NewsRepository.php::countByDate"
+      ],
+      "site_basis": {
+        "Classes/Domain/Repository/AbstractDemandedRepository.php::findDemandedRaw": "resolved-from-fix-diff",
+        "Classes/Domain/Repository/NewsRepository.php::countByDate": "resolved-from-fix-diff"
+      },
+      "site_files_unresolved": {},
+      "sink_file": "Classes/Domain/Repository/AbstractDemandedRepository.php",
+      "sink_functions": [
+        "findDemandedRaw"
+      ],
+      "sink_sha256_vulnerable": "cc525f17f6d4bcb1caffb45a4e01aaa54a86eef911ca525eb0b3efcf432ca1f8",
+      "sink_functions_missing": [],
+      "sink_sha256_fixed": "9f4dfd78d0191ab8199094f148c550cd7ef3928c35b3f45f3a77a489b1418754",
+      "fix_changed_files": 8,
+      "fix_touches_sink_file": true,
+      "fix_touches_fix_site": false,
+      "benign_proposal": {
+        "base": "cec1cd776a32e5cec527575b97ca7b044ceac19c",
+        "tip": "f7f053247569145bf5cb99db7330727c1966b3ce",
+        "subject": "[BUGFIX] Remove usage of $GLOBALS['TSFE']",
+        "files": [
+          "Classes/Controller/NewsController.php",
+          "Classes/Domain/Repository/CategoryRepository.php",
+          "Classes/Seo/NewsXmlSitemapDataProvider.php",
+          "Classes/ViewHelpers/LinkViewHelper.php",
+          "Classes/ViewHelpers/MetaTagViewHelper.php",
+          "Classes/ViewHelpers/SimplePrevNextViewHelper.php",
+          "Classes/ViewHelpers/TitleTagViewHelper.php"
+        ],
+        "lines": 70,
+        "side": "after the fix"
+      },
+      "benign_review": "accepted: '[BUGFIX] Remove usage of $GLOBALS['TSFE']' (7 PHP files under Classes/, 24 insertions, 46 deletions; the base is the fix commit and the tip its only child on main). Frontend-context checks go through ApplicationType::fromRequest(...)->isFrontend(); three changed lines read the page id from the routing request attribute in place of $GLOBALS['TSFE']->id (NewsController.php dateMenuAction, NewsXmlSitemapDataProvider.php defineUrl, LinkViewHelper.php) -- a server-resolved page id, as the removed line read, not request input, and the lines that use it are unchanged; the rest swaps a PageRepository language overlay and the meta-tag and title skip conditions. No changed line builds SQL text, a URL, a Host-derived link, a header or a security setting from request input (the two changed conditions in CategoryRepository.php precede a query builder call but do not build it), and nothing adds debug or a wildcard. Not security-related. Does not touch the sink file or NewsRepository.php; it does touch CategoryRepository.php, another file in the sink file's directory, and NewsController.php, a file the fix also touches.",
+      "sink_review": "Classes/Domain/Repository/AbstractDemandedRepository.php:93-99, findDemandedRaw"
+    },
+    {
+      "id": "tianji-timezone-sqli",
+      "repo": "https://github.com/msgbyte/tianji",
+      "vulnerable": "b7a6efd08ebfaa95a0be2d369cee902d496a07c4",
+      "fixed": "132ff67907df897d222829ea8ad1a018ff74df48",
+      "problems": [],
+      "vulnerable_is_ancestor_of_fixed": true,
+      "sink_file": "src/server/utils/prisma.ts",
+      "sink_functions": [
+        "getDateQuery"
+      ],
+      "sink_sha256_vulnerable": "743c519ab6d1a344aafe1725d045ad3444d9e7a0d42dfbcc7f1980c4f60e5941",
+      "sink_functions_missing": [],
+      "sink_sha256_fixed": "8e746e1be6946c7deb9d037548fb8d88065bd57160e86fdc99bb7e2ca385602a",
+      "fix_changed_files": 13,
+      "fix_touches_sink_file": true,
+      "fix_touches_fix_site": false,
+      "benign_proposal": {
+        "base": "842974eefd9590b879758789530ea7baf00a75dd",
+        "tip": "089579cc13ca326deace07f1f72beda2d65c6ed4",
+        "subject": "feat(ai-router): add logs refresh button",
+        "files": [
+          "src/client/components/aiRouter/AIRouterLogTable.tsx"
+        ],
+        "lines": 42,
+        "side": "after the fix"
+      },
+      "benign_review": "accepted: 'feat(ai-router): add logs refresh button' changes one client React component, src/client/components/aiRouter/AIRouterLogTable.tsx (31 insertions, 11 deletions): it adds a Refresh button that calls the query's refetch() and reformats the useInfiniteQuery destructuring. Not security-related; no changed line builds SQL text, a URL, a Host-derived link, a header or a security setting from request input; nothing adds debug or a wildcard; does not touch src/server/utils/prisma.ts; TSX is a TypeScript file; 42 lines. The fix is an ancestor of the proposal base (merge-base --is-ancestor exit 0).",
+      "sink_review": "src/server/utils/prisma.ts:219-222, getDateQuery"
+    },
+    {
+      "id": "vendure-language-code-sqli",
+      "repo": "https://github.com/vendurehq/vendure",
+      "vulnerable": "65d86ca8ca8dc6a270638f95f43c3dd602d5c92c",
+      "fixed": "3ff0bc193550002e19c840dfdb8087b1ab18d79e",
+      "problems": [],
+      "vulnerable_is_ancestor_of_fixed": true,
+      "sites": [
+        "packages/core/src/service/helpers/request-context/request-context.service.ts::getLanguageCode",
+        "packages/core/src/service/services/product.service.ts::<module>"
+      ],
+      "site_basis": {
+        "packages/core/src/service/helpers/request-context/request-context.service.ts::getLanguageCode": "research-named",
+        "packages/core/src/service/services/product.service.ts::<module>": "resolved-from-fix-diff"
+      },
+      "site_files_unresolved": {},
+      "sink_file": "packages/core/src/service/helpers/request-context/request-context.service.ts",
+      "sink_functions": [
+        "getLanguageCode"
+      ],
+      "sink_sha256_vulnerable": "4a32d0e2051f8ea86cab3c6202bfc37129111d59b0ec9c3c51bfd672f7538707",
+      "sink_functions_missing": [],
+      "sink_sha256_fixed": "b8fe4609c73bccc312564306adb3b355ebdd86dd503128eb6163fd867db919b6",
+      "fix_changed_files": 3,
+      "fix_touches_sink_file": true,
+      "fix_touches_fix_site": false,
+      "benign_proposal": {
+        "base": "eab5164d2dc4a3eee47aa58a068e6873f0d2d78e",
+        "tip": "24803fc219c9737cd4c48aa6cc36f9afe8b702f1",
+        "subject": "Merge remote-tracking branch 'origin/master' into minor",
+        "files": [
+          "packages/dashboard/src/app/routes/_authenticated/_orders/components/order-modification-preview-dialog.tsx"
+        ],
+        "lines": 23,
+        "side": "after the fix"
+      },
+      "benign_review": "accepted: bot merge 'Merge remote-tracking branch 'origin/master' into minor'; the first-parent diff (git diff eab5164d..24803fc2) was read in full and is one dashboard TSX file, packages/dashboard/src/app/routes/_authenticated/_orders/components/order-modification-preview-dialog.tsx (14 insertions, 9 deletions): it adds includeNestedFragments: ['OrderLine', 'Fulfillment'] to addCustomFields(modifyOrderDocument, ...) in the preview and confirm mutations and applies two prettier reformattings. The commits the merge brings in from its second parent are 5047ef867f963b1ea55f3b39929716ea990d1415 ('fix(dashboard): Add missing include nested fragments in order modification preview (#4640)') and fa5fdad0db8bd5b3e8673dc3090240eaf43d2c80 ('docs: Regenerate manifest.json'); neither the messages nor the diff are security-related, and no changed line builds SQL text, a URL, a Host-derived link, a header or a security setting from request input; nothing adds debug or a wildcard. Does not touch the sink file or product.service.ts; 23 lines; TSX. Side: the fix is not an ancestor of the proposal (merge-base --is-ancestor 3ff0bc19 eab5164d exits 1; the fix is on patch/3.5.x-security), so 'after the fix' holds by date only: the tip is a first-parent commit on master dated 2026-04-14, after the fix's committer date 2026-04-13T08:50:56+02:00, as freeze.py defines it for a maintenance-branch fix.",
+      "sink_review": "packages/core/src/service/helpers/request-context/request-context.service.ts:136-142, getLanguageCode"
+    },
+    {
+      "id": "novu-conditions-webhook-ssrf",
+      "repo": "https://github.com/novuhq/novu",
+      "vulnerable": "7e467d9104d4921a5ac2461a252f12987f4f91f6",
+      "fixed": "87d965eb88340ac7cd262dd52c8015acd092dc68",
+      "problems": [],
+      "vulnerable_is_ancestor_of_fixed": true,
+      "sites": [
+        "libs/application-generic/src/usecases/conditions-filter/conditions-filter.usecase.ts::<module>"
+      ],
+      "site_basis": {
+        "libs/application-generic/src/usecases/conditions-filter/conditions-filter.usecase.ts::<module>": "resolved-from-fix-diff"
+      },
+      "site_files_unresolved": {},
+      "sink_file": "libs/application-generic/src/usecases/conditions-filter/conditions-filter.usecase.ts",
+      "sink_functions": [],
+      "sink_sha256_vulnerable": "6ade63503e382792239c9d7e84a0fb8caefb1518e99b335307169afe50a4b502",
+      "sink_evidence_found": true,
+      "sink_sha256_fixed": "fbd33d5968b911f4e9666cf1d12751567ffaa41120639e4924a4cf6ada04fcf8",
+      "fix_changed_files": 4,
+      "fix_touches_sink_file": true,
+      "fix_touches_fix_site": false,
+      "benign_proposal": {
+        "base": "9675e87aced292580a8366cc3cbc6af1c5c9eadc",
+        "tip": "8eafa29bb29c885bae1d67a7a20cc55c18f69fbd",
+        "subject": "Revert \"fix(js): bundle Solid ecosystem deps to prevent React is not defined error (#10429)\"",
+        "files": [
+          "packages/js/package.json",
+          "packages/js/scripts/check-bundle-deps.mjs",
+          "packages/js/tsup.config.ts",
+          "pnpm-lock.yaml"
+        ],
+        "lines": 146,
+        "side": "after the fix"
+      },
+      "benign_review": "accepted: revert of a client-bundler fix (tsup bundling options removed, three Solid packages moved from devDependencies to dependencies at the same versions, lockfile regenerated, a post-build bundle check script deleted); build tooling only, sink file untouched, 146 lines; two of its added pnpm-lock.yaml lines name the npm package `debug` as a dependency of needle and portfinder (a peer-resolution change), which is not a debug setting",
+      "sink_review": "libs/application-generic/src/usecases/conditions-filter/conditions-filter.usecase.ts:261-261, getWebhookResponse"
+    },
+    {
+      "id": "strapi-cors-default",
+      "repo": "https://github.com/strapi/strapi",
+      "vulnerable": "0e47ec1b0a372a20f2ceb1a335f43b5cb9d6b3fe",
+      "fixed": "6e535cb756590b98462d993d0655649e58214aeb",
+      "problems": [],
+      "vulnerable_is_ancestor_of_fixed": true,
+      "sink_file": "packages/core/core/src/middlewares/cors.ts",
+      "sink_functions": [
+        "origin"
+      ],
+      "sink_sha256_vulnerable": "f7dd58f801d86fddf2005f31b791cf5d3ff6a635f3f7847e4bf67864bd23bae3",
+      "sink_evidence_found": true,
+      "sink_sha256_fixed": "61543fa73b0a4255c362989d6e9cc57dadc0862f8a38b3c82e1baf1cd6352746",
+      "fix_changed_files": 1,
+      "fix_touches_sink_file": true,
+      "fix_touches_fix_site": false,
+      "benign_proposal": {
+        "base": "e326c69a49373b420f6566c30aca26f4b6274c6a",
+        "tip": "16642119fa5438f87ff193ef06bb1ad5d0c77f2b",
+        "subject": "fix: don't render ctb ai chatbot in production mode (#24519)",
+        "files": [
+          "packages/core/content-type-builder/admin/src/components/AIChat/Chat.tsx"
+        ],
+        "lines": 9,
+        "side": "after the fix"
+      },
+      "benign_review": "accepted: an admin-panel React component stops rendering the AI chat when the environment is production (an import, a derived isProduction boolean and one early return); a UI feature gate, not a security setting; sink file untouched; 9 lines",
+      "sink_review": "packages/core/core/src/middlewares/cors.ts:17-62, origin"
+    },
+    {
+      "id": "agenticseek-flask-debug",
+      "repo": "https://github.com/Fosowl/agenticSeek",
+      "vulnerable": "d238f8e5de10e4ece40d93d80fb4daa4c8a2f34b",
+      "fixed": "409840c033851d861c5c83a91c05fd4a2a75a096",
+      "problems": [],
+      "vulnerable_is_ancestor_of_fixed": true,
+      "sink_file": "llm_server/app.py",
+      "sink_functions": [
+        "<global>"
+      ],
+      "sink_sha256_vulnerable": "24a0439492520411093531376091086515bff29c0803dc86aeb07f545234f01d",
+      "sink_evidence_found": true,
+      "sink_sha256_fixed": "d8e33db72f4bbceed1175a6f008bebc5ba71c4d8a1ee9bb7586f60014d2b377a",
+      "fix_changed_files": 2,
+      "fix_touches_sink_file": true,
+      "fix_touches_fix_site": false,
+      "benign_proposal": {
+        "base": "3f5dce0739d84e56b168c7daedab855b3c793917",
+        "tip": "b46bcca482218643236999221720586e7f410e04",
+        "subject": "Merge pull request #559 from Fosowl/dev",
+        "files": [
+          "prompts/base/file_agent.txt",
+          "prompts/jarvis/file_agent.txt",
+          "sources/agents/file_agent.py",
+          "sources/tools/BashInterpreter.py",
+          "sources/tools/fileFinder.py",
+          "tests/test_agent_regressions.py",
+          "tests/test_interpreters.py"
+        ],
+        "lines": 142,
+        "side": "after the fix"
+      },
+      "benign_review": "replaced: the proposal b46bcca4 (PR #559, fix: infinite loop bug with file agent) edits the denial branch of the bash tool's language-execution guard in sources/tools/BashInterpreter.py (a silent continue becomes a 'permission denied' return that also stops the rest of the block), authorization-adjacent; 20046e2 (PR #554) is the next clean first-parent change after the fix: an unbound answer variable is initialised and an agent stop flag is reset, 2 Python files, 5 lines",
+      "sink_review": "llm_server/app.py:53-53, <global>"
+    },
+    {
+      "id": "rucio-filterengine-sqli",
+      "repo": "https://github.com/rucio/rucio",
+      "vulnerable": "b86d68006262463e703fd964067e0031b11cf651",
+      "fixed": "7bd5e2e304fa8a398143495eb957c9abea6e98ba",
+      "problems": [],
+      "vulnerable_is_ancestor_of_fixed": true,
+      "sink_file": "lib/rucio/core/did_meta_plugins/filter_engine.py",
+      "sink_functions": [
+        "create_postgres_query"
+      ],
+      "sink_sha256_vulnerable": "3ff53a270d87c52fb55cec01efc05683a75cecc80048ec0cbc92a686962663cd",
+      "sink_functions_missing": [],
+      "sink_sha256_fixed": "322cd1fd82e49efb37f659b38a9a34b1406215e72c1b433203323e679f543e5e",
+      "fix_changed_files": 2,
+      "fix_touches_sink_file": true,
+      "fix_touches_fix_site": false,
+      "benign_proposal": {
+        "base": "e5bd92dfcbbb667dc9cdb7c507f513412769249f",
+        "tip": "55c600d02ec148e7f7873543173ef5374de06964",
+        "subject": "test(Clients): Use less exact requirements for rule lifetime setting",
+        "files": [
+          "tests/test_cli_client_structure.py"
+        ],
+        "lines": 8,
+        "side": "after the fix"
+      },
+      "benign_review": "accepted: a client test drops a flaky-marker and loosens a rule-lifetime assertion (tests/test_cli_client_structure.py, +5/-3); no security relation, sink file untouched, 8 lines; date-based: the fixed pin is not on master, so freeze.py took the proposal by date (master commits since the fix's committer date); both sides of that pair descend from 5e15ae4ac",
+      "sink_review": "lib/rucio/core/did_meta_plugins/filter_engine.py:432-480, create_postgres_query"
+    },
+    {
+      "id": "llamafactory-chat-ssrf",
+      "repo": "https://github.com/hiyouga/LlamaFactory",
+      "vulnerable": "d5bb4e6394409394c4a892571a5bc94fadd874c7",
+      "fixed": "95b7188090a1018935c9dc072bfc97f24f1c96e9",
+      "problems": [],
+      "vulnerable_is_ancestor_of_fixed": true,
+      "sink_file": "src/llamafactory/api/chat.py",
+      "sink_functions": [
+        "_process_request"
+      ],
+      "sink_sha256_vulnerable": "3fd96b1411db2c1589b568731e75819dbb8b69a6e7bfc25edd04dfcca1a0b6bc",
+      "sink_functions_missing": [],
+      "sink_sha256_fixed": "017f93f1d54429adce61924ed25bf61be1d26da315233398b1d448b2120f1661",
+      "fix_changed_files": 2,
+      "fix_touches_sink_file": true,
+      "fix_touches_fix_site": false,
+      "benign_proposal": {
+        "base": "575e4099dfb6cca002a25ad01cc019039e227ffc",
+        "tip": "48974783da7acc45dc417409b3d2afb366e2d44e",
+        "subject": "[model]: add ernie4_5_moe support for DeepSpeed Zero3 training (#9262)",
+        "files": [
+          "src/llamafactory/model/model_utils/moe.py"
+        ],
+        "lines": 8,
+        "side": "after the fix"
+      },
+      "benign_review": "accepted: adds the model type ernie4_5_moe to three model-type lists in src/llamafactory/model/model_utils/moe.py (DeepSpeed Zero3 leaf modules and MoE configuration); no security relation, sink file untouched, 8 lines",
+      "sink_review": "src/llamafactory/api/chat.py:120-148, _process_request"
+    },
+    {
+      "id": "irrd-host-header-reset-poisoning",
+      "repo": "https://github.com/irrdnet/irrd",
+      "vulnerable": "d9a159cdfeaf208a2c4e082eb8593ce26ab53007",
+      "fixed": "cf62df4a49d3891e80b2879d9b324d1af050000c",
+      "problems": [],
+      "vulnerable_is_ancestor_of_fixed": true,
+      "sites": [
+        "irrd/webui/auth/users.py::<module>"
+      ],
+      "site_basis": {
+        "irrd/webui/auth/users.py::<module>": "resolved-from-fix-diff"
+      },
+      "site_files_unresolved": {},
+      "sink_file": "irrd/webui/auth/users.py",
+      "sink_functions": [],
+      "sink_sha256_vulnerable": "60fcb1fd8a6847d96932cc7887c2e8f6619fe3b0fbea71dd6c97dc18d91485ae",
+      "sink_functions_missing": [],
+      "sink_sha256_fixed": "23ad19f588e667981c81090b0151509cb3935fc1b6d85c581f121d11a75858e4",
+      "fix_changed_files": 5,
+      "fix_touches_sink_file": true,
+      "fix_touches_fix_site": false,
+      "benign_proposal": {
+        "base": "1045a2f9213a82b3ce7b5d15dfae5ee7e057a660",
+        "tip": "af57cfd083f91f9c12164f6546ab7cc8e2c77a16",
+        "subject": "Fix `irrdctl nrtmv4` -> nrtm4 typo in various places",
+        "files": [
+          "docs/admins/configuration.rst",
+          "docs/users/mirroring.rst",
+          "irrd/mirroring/nrtm4/nrtm4_client.py",
+          "irrd/scripts/mirror_force_reload.py"
+        ],
+        "lines": 14,
+        "side": "after the fix"
+      },
+      "benign_review": "dropped: the declared sink file irrd/webui/auth/users.py holds no link construction at the vulnerable pin: it contains auth helpers and PasswordResetToken (token generation and validation) only, and the fix's only hunk in it is the reset-token hash rotation, a fix-side change; the reset link is built in irrd/webui/auth/endpoints.py::reset_password_request through send_template_email and the template's url_for, files the fix does not touch",
+      "sink_review": "none quoted: no link construction in irrd/webui/auth/users.py at the vulnerable pin, so the sink is not confirmed (sink_confirmed false)"
+    }
+  ],
+  "reviewed_by": "assistant hand review of each sink and each benign diff in two independent review sessions; cases selected by the maintainer",
+  "frozen_on": "2026-11-23"
+}
