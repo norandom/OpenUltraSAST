@@ -96,7 +96,9 @@ def _request_order(request: SourcingCandidateRequest) -> tuple[str, ...]:
     Task 10.1 review fold-in: distinct candidates tying on the first four keys
     used to be ordered by input position, so cap selection was
     permutation-sensitive; the advisory, package-manifest, and license digests
-    make the order a function of content only.
+    make the order a function of content only. The fix-site path and function
+    are the non-digest scalars two otherwise identical requests can still
+    differ on; appending them keeps every existing order intact.
     """
     digest = request.model_assistance_digest or ""
     return (
@@ -107,6 +109,8 @@ def _request_order(request: SourcingCandidateRequest) -> tuple[str, ...]:
         request.family.advisory_digest,
         request.package_evidence.manifest.content_digest,
         request.license_evidence.source.content_digest,
+        str(request.case.get("path", "")),
+        str(request.case.get("function", "")),
     )
 
 

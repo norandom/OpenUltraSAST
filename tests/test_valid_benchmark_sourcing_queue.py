@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import itertools
 import json
 import sys
 import tomllib
@@ -396,6 +397,58 @@ def test_bounded_queues_enforce_caps_deterministically():
     assert reversed_state.state_digest == state.state_digest
     assert pending_queue_identities(reversed_state) == pending_queue_identities(state)
     assert reversed_state.exclusions == state.exclusions
+
+
+class _TwinPathReader(FakeReader):
+    """The py-app revisions also carry a second fix site under a different path."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        parent, fix = _REVISIONS["py-app"]
+        self._blobs[(parent, "twin.py")] = SECOND_VULNERABLE
+        self._blobs[(fix, "twin.py")] = SECOND_FIXED
+
+
+def _build_with_reader(reader, requests, policy):
+    resolver = _resolver()
+    return build_sourcing_queue(
+        requests,
+        reader=reader,
+        resolver=resolver,
+        authority=_authority(resolver),
+        policy=policy,
+        enumeration_actor=ENUMERATION_ACTOR,
+        enumeration_reviewer=ENUMERATION_REVIEWER,
+    )
+
+
+def test_fix_site_scalars_break_otherwise_tied_candidates_under_a_cap():
+    first = _request("py-app")
+    second = _request("py-app", path="twin.py", function="load")
+    requests = [first, second, _request("js-app", family="output_encoding", cwe="CWE-79")]
+    policy = _policy(per_ecosystem_cap=1)
+    assert (first.family, first.reachability, first.package_evidence, first.license_evidence) == (
+        second.family,
+        second.reachability,
+        second.package_evidence,
+        second.license_evidence,
+    )
+    assert (first.case["url"], first.model_assistance_digest) == (second.case["url"], second.model_assistance_digest)
+    assert (first.case["path"], first.case["function"]) == ("app.py", "handler")
+    assert (second.case["path"], second.case["function"]) == ("twin.py", "load")
+
+    digests = set()
+    for order in itertools.permutations(requests):
+        state = _build_with_reader(_TwinPathReader(), list(order), policy)
+        (queued,) = state.python_queue.entries
+        assert (queued.fix_site.path, queued.fix_site.function) == ("app.py", "handler")
+        digests.add((state.state_digest, pending_queue_identities(state)))
+
+    assert len(digests) == 1
+    state = _build_with_reader(_TwinPathReader(), requests, policy)
+    (capped,) = [item for item in state.exclusions if item.reason is SourcingQueueReason.QUEUE_CAP_EXCEEDED]
+    assert capped.candidate_digest != state.python_queue.entries[0].candidate_digest
+    assert len(state.javascript_queue.entries) == 1
 
 
 def test_durable_resume_reproduces_pending_identities():
