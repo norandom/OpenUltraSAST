@@ -89,7 +89,8 @@ What has not been touched: population v3, 15 PHP cases, frozen as the one-time f
 - It runs once, after a prediction is committed.
 
 Population v4 is unscanned as well: 11 cases (4 PHP with JavaScript, 4 TypeScript, 3 Python),
-frozen on 2026-11-23, with no protocol and no result yet. The same test guards its repositories.
+frozen on 2026-11-23, with `protocol-v4.md` committed and no result yet. The same test guards its
+repositories.
 
 ## 2. Our approach to detection, step by step
 
@@ -328,8 +329,8 @@ Measurement debt.
   label on unseen code (`2026-10-02-decision-engine-harvest-advisory/record.json`).
 - Population v3 waits for `benchmarks/independent/prediction-v3.json`, which does not exist. It is
   written only after a program is adopted.
-- Population v4 (11 cases, frozen 2026-11-23) is unscanned. No protocol is written for it, so no
-  result exists.
+- Population v4 (11 cases, frozen 2026-11-23) is unscanned. `protocol-v4.md` is committed; the
+  population runs once after the candidate is frozen at M3, so no result exists.
 
 Infrastructure.
 

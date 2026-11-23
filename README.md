@@ -301,7 +301,8 @@ The design and evaluation slices are in [docs/decision-engine.md](docs/decision-
 tuned on. It covers the pair corpora, the independent populations and the M4 gates. It also covers
 the fold discipline that keeps learned decisions out of their own training data. Population v3
 (PHP, 15 cases) is frozen as the one-time final check. Nothing in the tree may read it. Population v4
-(11 cases) was frozen on 2026-11-23 and is unscanned, with no protocol and no result yet.
+(11 cases) was frozen on 2026-11-23 and is unscanned; `protocol-v4.md` is committed and no result
+exists.
 
 ```bash
 uv run ousast benchmark benchmarks/manifests/python-vulnerable.toml --mode quick
