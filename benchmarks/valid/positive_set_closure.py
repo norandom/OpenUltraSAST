@@ -128,6 +128,13 @@ def _closed_counts(pairs: object) -> tuple[tuple[str, int], ...]:
     return pairs
 
 
+def _closed_total(value: object) -> int:
+    """A non-negative exact int: booleans and floats are not closure counts."""
+    if type(value) is not int or value < 0:
+        raise _mismatch()
+    return value
+
+
 def _gates(item: PositiveSetClosureV1) -> tuple[bool, bool, bool]:
     total_ok = item.total_accepted_positives >= COMBINED_POSITIVE_FLOOR
     ecosystems_ok = all(count > 0 for _, count in item.positives_by_ecosystem)
@@ -146,9 +153,7 @@ def _validate_closure(item: PositiveSetClosureV1) -> None:
         raise _mismatch()
     _closed_vocabulary(item.accepted_families, _FAMILY)
     _closed_counts(item.positives_by_ecosystem)
-    if item.total_accepted_positives < 0 or item.total_accepted_positives != sum(
-        count for _, count in item.positives_by_ecosystem
-    ):
+    if _closed_total(item.total_accepted_positives) != sum(count for _, count in item.positives_by_ecosystem):
         raise _mismatch()
     if bool(item.accepted_batch_digests) != (item.total_accepted_positives > 0):
         raise _mismatch()

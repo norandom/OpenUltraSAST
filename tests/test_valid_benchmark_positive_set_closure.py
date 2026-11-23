@@ -54,6 +54,7 @@ from benchmarks.valid.replacement_artifact_contract import (  # noqa: E402
     ArtifactKind,
     validate_artifact,
 )
+from openultrasast.core.canonical import canonical_bytes, content_digest  # noqa: E402
 
 
 @pytest.fixture(autouse=True)
@@ -212,6 +213,51 @@ def test_closure_assembler_fails_closed_on_impossible_combinations():
         positive_set_closure(
             **{**based, "status": PositiveSetClosureStatus.INSUFFICIENT, "reason": PositiveSetClosureReason.NO_ACCEPTED_BATCHES}
         )
+    assert error.value.reason is PositiveSetClosureStateReason.STATE_MISMATCH
+
+
+_CLOSED_BASE = {
+    "batch_digests": ("a" * 64,),
+    "accepted_batch_digests": ("a" * 64,),
+    "total_accepted_positives": 45,
+    "positives_by_ecosystem": {"javascript": 21, "python": 24},
+    "accepted_families": ("injection", "path_traversal"),
+    "status": PositiveSetClosureStatus.CLOSED,
+    "reason": PositiveSetClosureReason.ALL_GAPS_CLOSED,
+}
+_SINGLE_POSITIVE = {
+    "total_accepted_positives": 1,
+    "positives_by_ecosystem": {"javascript": 1, "python": 0},
+    "status": PositiveSetClosureStatus.INSUFFICIENT,
+    "reason": PositiveSetClosureReason.INSUFFICIENT_TOTAL_POSITIVES,
+}
+
+
+def test_closure_refuses_float_and_bool_totals_closed():
+    assert type(positive_set_closure(**_CLOSED_BASE).total_accepted_positives) is int
+    assert type(positive_set_closure(**{**_CLOSED_BASE, **_SINGLE_POSITIVE}).total_accepted_positives) is int
+
+    for forged in (
+        {**_CLOSED_BASE, "total_accepted_positives": 45.0},
+        {**_CLOSED_BASE, **_SINGLE_POSITIVE, "total_accepted_positives": True},
+    ):
+        with pytest.raises(PositiveSetClosureStateError) as error:
+            positive_set_closure(**forged)
+        assert error.value.reason is PositiveSetClosureStateReason.STATE_MISMATCH
+
+
+def test_closure_decode_refuses_a_self_consistent_float_total():
+    encoded = positive_set_closure_bytes(positive_set_closure(**_CLOSED_BASE))
+    forged = {key: tuple(value) if isinstance(value, list) else value for key, value in json.loads(encoded).items()}
+    assert forged["total_accepted_positives"] == 45
+    forged["total_accepted_positives"] = 45.0
+    forged["closure_digest"] = content_digest({key: value for key, value in forged.items() if key != "closure_digest"})
+    content = canonical_bytes(forged)
+    assert b'"total_accepted_positives":45.0' in content
+    assert decode_positive_set_closure(encoded).total_accepted_positives == 45
+
+    with pytest.raises(PositiveSetClosureStateError) as error:
+        decode_positive_set_closure(content)
     assert error.value.reason is PositiveSetClosureStateReason.STATE_MISMATCH
 
 
