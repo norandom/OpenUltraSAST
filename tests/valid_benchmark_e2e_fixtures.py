@@ -250,10 +250,10 @@ def _freeze(positives: tuple[_InputIdentity, ...]) -> PopulationFreezeV3:
     return replace(bound, freeze_digest=canonical.content_digest(_freeze_value(bound, include_digest=False)))
 
 
-def _pushes() -> tuple[OrdinaryPushV1, ...]:
+def _pushes(per_ecosystem: int = 10) -> tuple[OrdinaryPushV1, ...]:
     rows = []
     for ecosystem in ("javascript", "python"):
-        for index in range(10):
+        for index in range(per_ecosystem):
             draft = OrdinaryPushV1(
                 "https://example.invalid/app.git",
                 _digest(f"e2e-ordinary-network-{ecosystem}"),
@@ -269,8 +269,21 @@ def _pushes() -> tuple[OrdinaryPushV1, ...]:
     return tuple(sorted(rows, key=lambda item: item.push_digest))
 
 
-def _selection(freeze: PopulationFreezeV3) -> OrdinarySelectionV1:
-    pushes = _pushes()
+def _ordinary_census(selection: OrdinarySelectionV1) -> tuple[EcosystemOrdinaryCensusV3, ...]:
+    """Ecosystem ordinary census derived from the actual selection pushes."""
+    counts: dict[str, int] = {}
+    for push in selection.pushes:
+        counts[push.ecosystem] = counts.get(push.ecosystem, 0) + 1
+    return tuple(EcosystemOrdinaryCensusV3(ecosystem, counts[ecosystem]) for ecosystem in sorted(counts))
+
+
+def _selection(
+    freeze: PopulationFreezeV3,
+    pushes: tuple[OrdinaryPushV1, ...] | None = None,
+    required_per_positive: int | None = None,
+) -> OrdinarySelectionV1:
+    pushes = _pushes() if pushes is None else pushes
+    required = 20 if required_per_positive is None else required_per_positive
     network = pushes[0].network_identity_digest
     positives = freeze.positive_change_digests
     assignments = tuple(
@@ -295,7 +308,9 @@ def _selection(freeze: PopulationFreezeV3) -> OrdinarySelectionV1:
             "policy_digest": _digest("e2e-ordinary-policy"),
         }
     )
-    draft = OrdinarySelectionV1(20, _digest("e2e-ordinary-policy"), positives, fix_exclusions, pushes, assignments, (), provenance, "")
+    draft = OrdinarySelectionV1(
+        required, _digest("e2e-ordinary-policy"), positives, fix_exclusions, pushes, assignments, (), provenance, ""
+    )
     return replace(draft, selection_digest=canonical.content_digest(_selection_value(draft, include_digest=False)))
 
 
@@ -655,16 +670,17 @@ class E2EPopulation:
         pairs_javascript: int = PAIRS_JS,
         mint_cases: bool = True,
         minimum_ordinary: int = 2,
+        pushes: tuple[OrdinaryPushV1, ...] | None = None,
     ) -> None:
         self.minimum_ordinary = minimum_ordinary
         positives = _positive_identities(pairs_python, pairs_javascript)
         self.freeze = _freeze(positives)
-        self.selection = _selection(self.freeze)
+        self.selection = _selection(self.freeze, pushes, None if pushes is None else len(pushes))
         self.material = _material_manifest(self.freeze)
         self.manifest, self.manifest_review, self.disclosure, manifest_resolver = _reviewed_manifest(
             self.freeze, self.selection, self.material
         )
-        self.ordinary_census = (EcosystemOrdinaryCensusV3("javascript", 10), EcosystemOrdinaryCensusV3("python", 10))
+        self.ordinary_census = _ordinary_census(self.selection)
         scopes = tuple(sorted(((FAMILY_PY, "python"), (FAMILY_JS, "javascript"))))
         self.plan = register_evaluation_plan(
             registrations=(
