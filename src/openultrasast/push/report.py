@@ -17,6 +17,7 @@ from typing import Literal
 
 from openultrasast.model.contracts import ChangeContext, ExecutionBudget
 from openultrasast.model.scan import ModelScanResult
+from openultrasast.push.advisory_scope import AdvisoryScope, load_advisory_scope
 from openultrasast.push.contracts import PushComparison, PushResolution, PushResult, SnapshotManifest
 from openultrasast.push.explain import explain
 from openultrasast.push.policy import AdmissionResult, _context_boundaries
@@ -49,6 +50,9 @@ class PushReport:
     quick: tuple[Mapping[str, object], ...] = ()
     # The background engine (task 17.5): what this run started, and earlier results shown now.
     background: Mapping[str, object] = field(default_factory=dict)
+    # The declared advisory scope (task 15.2): the shipped record, kept in the artifact and rendered as the
+    # one limit line. Loading is closed: an unreadable record is itself reported as a limit.
+    advisory_scope: AdvisoryScope = field(default_factory=load_advisory_scope)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "model_assistance", MappingProxyType(dict(self.model_assistance)))
@@ -90,6 +94,8 @@ class PushReport:
             type(value) not in (int, float) or not math.isfinite(value) or value < 0 for value in self.timings.values()
         ):
             raise ValueError("report requires finite nonnegative timings including total_seconds")
+        if not isinstance(self.advisory_scope, AdvisoryScope):
+            raise ValueError("report requires a loaded advisory scope")
 
 
 @dataclass(frozen=True)
@@ -140,6 +146,7 @@ def _write_artifact(report: PushReport, target: Path, temporary: Path, connectio
                     "experimental": dict(report.experimental),
                     "quick_tier": [dict(item) for item in report.quick],
                     "engine_background": dict(report.background),
+                    "advisory_scope": report.advisory_scope.to_payload(),
                 }
                 json.dump(payload, stream, ensure_ascii=True, allow_nan=False, indent=2)
                 stream.write("\n")
@@ -413,6 +420,8 @@ def render_report(report: PushReport, *, artifact: Path | None, error: str | Non
         lines.append("Notice: " + " ".join(notices))
     if report.experimental:
         lines.append("Experimental: " + _experimental_line(report.experimental))
+    # The limit notice of the whole report (task 15.2): once per run, with or without defects.
+    lines.append(report.advisory_scope.render())
     if artifact is not None:
         lines.append("Details: " + _short(str(artifact), 4096))
     if report.result.push_disposition == "block":

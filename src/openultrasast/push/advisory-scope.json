@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "status": "provisional",
+  "basis": "No capability is qualified for alerts today: the shipped capability registry (eligibility.json) has verdict NO-GO and enables no declaration. This is the intended v1 advisory scope; it becomes effective only through the M4 evaluation bound to an immutable spent population (valid-detection-benchmark tasks 11.6 and 11.7).",
+  "scope": [
+    {
+      "family": "injection",
+      "label": "injection",
+      "reason": "Injection entails with witnesses on the measured subjects."
+    },
+    {
+      "family": "untrusted_destination",
+      "label": "untrusted destination",
+      "reason": "Untrusted destination entails with witnesses on the measured subjects."
+    },
+    {
+      "family": "config_secrets",
+      "label": "configuration",
+      "reason": "Configuration entails with witnesses on the measured subjects."
+    }
+  ],
+  "exclusions": [
+    {
+      "family": "access_control",
+      "label": "access control",
+      "reason": "Access control does not entail with witnesses on the measured subjects: on an application that splits its route from its data access the obligation is carried, and a carried obligation corroborates by design, so shipping the family would ship silence.",
+      "not_told": "No defect is reported for access control, so a contributor is not told that a change reaches a protected operation without the guard or ownership constraint its siblings carry, even when it does."
+    },
+    {
+      "family": "output_encoding",
+      "label": "output encoding",
+      "reason": "Has not earned a place through evaluation.",
+      "not_told": "No defect is reported for output encoding, so a contributor is not told that a change sends untrusted data to a rendered document or a header without encoding, even when it does."
+    },
+    {
+      "family": "path",
+      "label": "path",
+      "reason": "Has not earned a place through evaluation.",
+      "not_told": "No defect is reported for path, so a contributor is not told that a change lets untrusted input reach a filesystem path, even when it does."
+    },
+    {
+      "family": "prototype",
+      "label": "prototype",
+      "reason": "Has not earned a place through evaluation.",
+      "not_told": "No defect is reported for prototype, so a contributor is not told that a change lets untrusted keys reach an object merge or an attribute assignment, even when it does."
+    },
+    {
+      "family": "deserialization",
+      "label": "deserialization",
+      "reason": "Has not earned a place through evaluation.",
+      "not_told": "No defect is reported for deserialization, so a contributor is not told that a change deserializes untrusted data into objects the process then trusts, even when it does."
+    }
+  ]
+}
