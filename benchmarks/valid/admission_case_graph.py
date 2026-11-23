@@ -435,8 +435,14 @@ def corrected_census(
     )
     ordinary_rows = tuple(EcosystemOrdinaryCensusV3(eco, ordinary[eco]) for eco in sorted(ordinary))
     draft = PopulationCensusV3(
-        request.population_digest, scope_rows, ordinary_rows, request.input_count, False,
-        _ZERO, request.census_review, _ZERO,
+        request.population_digest,
+        scope_rows,
+        ordinary_rows,
+        request.input_count,
+        False,
+        _ZERO,
+        request.census_review,
+        _ZERO,
     )
     if request.census_review.subject_digest != derive_evaluation_census_payload_digest(draft):
         raise refused(AdmissionAdapterReason.CENSUS_MISMATCH)

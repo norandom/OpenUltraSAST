@@ -97,9 +97,7 @@ def resume_spent_sealed_run(
         checkpoint_selectors,
     )
     actual = _actual_retry_identity(candidate, bundles, checkpoint_selectors, plan)
-    if actual.retry_digest != candidate.retry_digest or not retry_identity_matches_authority(
-        candidate, bundles, plan, authority
-    ):
+    if actual.retry_digest != candidate.retry_digest or not retry_identity_matches_authority(candidate, bundles, plan, authority):
         raise AutomaticRetryError(AutomaticRetryAuthorityReason.MISMATCH_AUTHORITY_REQUIRED)
     log = custody.current_log(authority.population_digest)
     if log.status is not PopulationStatus.SPENT or log.receipt_count < 1:

@@ -195,12 +195,7 @@ def _selection_provenance(draw: OrdinaryPopulationDrawV1) -> str:
     return content_digest(
         {
             "history_sources": tuple(
-                sorted(
-                    {
-                        (push.canonical_repository, push.network_identity_digest, push.history_source_digest)
-                        for push in draw.pushes
-                    }
-                )
+                sorted({(push.canonical_repository, push.network_identity_digest, push.history_source_digest) for push in draw.pushes})
             ),
             "accepted_fix_exclusions": tuple(_fix_exclusion_value(item) for item in draw.fix_exclusions),
             "policy_digest": draw.policy_digest,
@@ -527,9 +522,7 @@ def _baseline_binding(
         projection.projection_digest,
         "",
     )
-    binding = ReplacementBaselineBindingV1(
-        **{**vars(draft), "binding_digest": content_digest(_binding_value(draft, include_digest=False))}
-    )
+    binding = ReplacementBaselineBindingV1(**{**vars(draft), "binding_digest": content_digest(_binding_value(draft, include_digest=False))})
     replacement_baseline_binding_bytes(binding)
     return binding
 

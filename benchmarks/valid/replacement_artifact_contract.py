@@ -216,9 +216,7 @@ def _decode_canonical(content: bytes, label: str) -> dict[str, object]:
     if not isinstance(content, bytes) or not content:
         raise ArtifactContractError(f"{label} bytes must be nonempty")
     try:
-        decoded = json.loads(
-            content, object_pairs_hook=_unique_object, parse_constant=_reject_constant, parse_float=_finite_float
-        )
+        decoded = json.loads(content, object_pairs_hook=_unique_object, parse_constant=_reject_constant, parse_float=_finite_float)
     except ArtifactContractError:
         raise
     except (UnicodeError, json.JSONDecodeError, RecursionError) as error:

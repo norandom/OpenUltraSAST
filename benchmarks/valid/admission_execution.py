@@ -337,9 +337,7 @@ def _authority_row(payload: Mapping[str, JsonValue], key: str) -> tuple[str, ...
     return tuple(cast("tuple[str, ...]", payload[key]))
 
 
-def _verify_authority_binding(
-    authority: AutomaticRetryAuthorityV1, run: AdmissionRunRequestV1, preflight: AdmissionPreflightV1
-) -> None:
+def _verify_authority_binding(authority: AutomaticRetryAuthorityV1, run: AdmissionRunRequestV1, preflight: AdmissionPreflightV1) -> None:
     if preflight.retry_authority is None or preflight.retry_authority != authority:
         raise _refused(AdmissionExecutionReason.AUTHORITY_MISMATCHED)
     if (
@@ -350,13 +348,9 @@ def _verify_authority_binding(
         raise _refused(AdmissionExecutionReason.AUTHORITY_MISMATCHED)
     if authority.ordered_arm_ids != tuple(row.arm_id for row in run.plan.registrations):
         raise _refused(AdmissionExecutionReason.AUTHORITY_MISMATCHED)
-    if authority.ordered_checkpoint_slot_digests != tuple(
-        slot.slot_digest for slot in run.plan.declaration.expected_observation_slots
-    ):
+    if authority.ordered_checkpoint_slot_digests != tuple(slot.slot_digest for slot in run.plan.declaration.expected_observation_slots):
         raise _refused(AdmissionExecutionReason.AUTHORITY_MISMATCHED)
-    components = tuple(
-        sorted(row.arm_id for row in run.plan.registrations if row.configuration.kind is ArmKindV3.COMPONENT)
-    )
+    components = tuple(sorted(row.arm_id for row in run.plan.registrations if row.configuration.kind is ArmKindV3.COMPONENT))
     if not components or tuple(row.arm_id for row in run.execution_bindings) != components:
         raise _refused(AdmissionExecutionReason.AUTHORITY_MISMATCHED)
     for ordered, field in (
@@ -379,9 +373,7 @@ def _component_observations(
         reference = result.reference
         if reference is None:
             raise _refused(AdmissionExecutionReason.OBSERVATION_MISSING)
-        accepted = _sealed_read(
-            repository, reference, ArtifactKind.OBSERVATION, policy, AdmissionExecutionReason.OBSERVATION_UNREADABLE
-        )
+        accepted = _sealed_read(repository, reference, ArtifactKind.OBSERVATION, policy, AdmissionExecutionReason.OBSERVATION_UNREADABLE)
         documents = cast("tuple[str, ...]", accepted.artifact.payload["observations"])
         try:
             observations.extend(decode_arm_observation_set(row.encode()) for row in documents)
@@ -396,26 +388,18 @@ def _observation_index(
     observations: tuple[ArmObservationSetV3, ...],
 ) -> tuple[dict[tuple[str, str], ArmObservationSetV3], tuple[str, ...], str]:
     registered = register_combination_plan(plan, registrations)
-    combined_ids = tuple(
-        sorted(row.arm_id for row in plan.registrations if row.configuration.kind is ArmKindV3.COMBINED)
-    )
+    combined_ids = tuple(sorted(row.arm_id for row in plan.registrations if row.configuration.kind is ArmKindV3.COMBINED))
     index = {(row.arm_id, row.input_identity_digest): row for row in observations}
     inputs = tuple(sorted({row.input_identity_digest for row in observations}))
     for combined_id in combined_ids:
         for identity in inputs:
-            components = tuple(
-                ComponentObservationV1(row, (), "")
-                for row in observations
-                if row.input_identity_digest == identity
-            )
+            components = tuple(ComponentObservationV1(row, (), "") for row in observations if row.input_identity_digest == identity)
             derived = combine_observations(registered, combined_id, components).combined_observation
             index[(combined_id, identity)] = derived
     return index, combined_ids, registered.combination_plan_digest
 
 
-def _content_ref(
-    reference: ArtifactReference, request: AdmissionExecutionRequestV1, prefix: str
-) -> canonical.ContentRef:
+def _content_ref(reference: ArtifactReference, request: AdmissionExecutionRequestV1, prefix: str) -> canonical.ContentRef:
     retention = request.observation_retention_policy_digest
     return canonical.ContentRef(
         f"{prefix}/{_SEALED.value}/{reference.content_digest}.json",
@@ -504,14 +488,10 @@ def initial_attempt_event(
     """Build the deterministic initial sealed attempt event for one run."""
     identity = derive_attempt_identity(plan_manifest)
     access = ObservationAccessPolicyV3(tuple(PublicStatusFieldV3), False, False, "")
-    return AttemptEventV3(
-        identity, PreSpendDispositionV3.SEALED, access, 0, 0, status_ref, None, "", review, ""
-    )
+    return AttemptEventV3(identity, PreSpendDispositionV3.SEALED, access, 0, 0, status_ref, None, "", review, "")
 
 
-def initial_attempt_event_payload_digest(
-    plan_manifest: EvaluationPlanManifestV3, status_ref: canonical.ContentRef
-) -> str:
+def initial_attempt_event_payload_digest(plan_manifest: EvaluationPlanManifestV3, status_ref: canonical.ContentRef) -> str:
     """Derive the exact subject an external attempt-event review must sign."""
     event = initial_attempt_event(plan_manifest, status_ref, _pending_review(status_ref))
     event.__post_init__()
@@ -529,9 +509,7 @@ def _compose_manifest(
     sealed: tuple[SealedObservationRefV3, ...],
 ) -> tuple[EvaluationAdmissionManifestV3 | None, str]:
     preflight = request.preflight
-    event = initial_attempt_event(
-        preflight.plan_manifest, request.attempt_status_ref, request.attempt_event_review
-    )
+    event = initial_attempt_event(preflight.plan_manifest, request.attempt_status_ref, request.attempt_event_review)
     event_payload: dict[str, JsonValue] = {
         "schema_version": ATTEMPT_EVENT_DOCUMENT_SCHEMA,
         "event": encode_attempt_event(event).decode(),
@@ -589,9 +567,7 @@ def _compose_manifest(
     return manifest, subject
 
 
-def _classify_observation_read(
-    repository: S3ArtifactRepository, policy: str, reference: ArtifactReference
-) -> AdmissionExecutionReason:
+def _classify_observation_read(repository: S3ArtifactRepository, policy: str, reference: ArtifactReference) -> AdmissionExecutionReason:
     published = _publication_probe(repository, policy, reference)
     if published is None:
         return AdmissionExecutionReason.OBSERVATION_UNREADABLE
@@ -600,17 +576,13 @@ def _classify_observation_read(
     return AdmissionExecutionReason.OBSERVATION_CHANGED
 
 
-def _publication_probe(
-    repository: S3ArtifactRepository, policy: str, reference: ArtifactReference
-) -> bool | None:
+def _publication_probe(repository: S3ArtifactRepository, policy: str, reference: ArtifactReference) -> bool | None:
     """Report whether the sealed identity is also reachable through a public class."""
     try:
         repository.get(
             replace(reference, access_class=ArtifactAccessClass.PUBLIC),
             expected_kind=ArtifactKind.OBSERVATION,
-            authority=artifact_read_authority(
-                ArtifactActorRole.OPERATOR, (), policy, expected_access_policy_digest=policy
-            ),
+            authority=artifact_read_authority(ArtifactActorRole.OPERATOR, (), policy, expected_access_policy_digest=policy),
             expected_access_policy_digest=policy,
         )
     except ArtifactRepositoryError as error:
@@ -673,10 +645,7 @@ def reauthorize_before_spend(
         return SpendAuthorizationV1(False, "", (AdmissionExecutionReason.OBSERVATION_MISSING,), "")
     refusals = [
         reason
-        for reason in (
-            _verify_sealed_observation(repository, custodian_access_policy_digest, sealed)
-            for sealed in sealed_observations
-        )
+        for reason in (_verify_sealed_observation(repository, custodian_access_policy_digest, sealed) for sealed in sealed_observations)
         if reason is not None
     ]
     try:
@@ -785,9 +754,7 @@ def _persist_witness(
     }
     try:
         outcome_payload = cast("dict[str, JsonValue]", dict(json.loads(workflow_outcome_bytes(outcome))))
-        provenance = canonical.content_digest(
-            {"workflow": request.run_request.workflow_digest, "stage": "admission-execution-witness"}
-        )
+        provenance = canonical.content_digest({"workflow": request.run_request.workflow_digest, "stage": "admission-execution-witness"})
         for payload in (outcome_payload, witness):
             content = canonical_artifact_bytes(
                 ArtifactKind.WORKFLOW, payload, access_class=ArtifactAccessClass.OPERATOR_SAFE, provenance_digest=provenance
@@ -809,9 +776,7 @@ def execute_planned_observations(
     _validated_request(request)
     run = request.run_request
     try:
-        authority = resolve_current_retry_authority(
-            journal, repository, custodian_access_policy_digest, run.workflow_digest
-        )
+        authority = resolve_current_retry_authority(journal, repository, custodian_access_policy_digest, run.workflow_digest)
         _verify_authority_binding(authority, run, request.preflight)
     except AdmissionExecutionError as error:
         return _impaired(
@@ -921,9 +886,7 @@ def _freeze_and_authorize(
     run = request.run_request
     try:
         observations = _component_observations(repository, policy, results)
-        index, combined_ids, combination_digest = _observation_index(
-            run.plan, request.combination_registrations, observations
-        )
+        index, combined_ids, combination_digest = _observation_index(run.plan, request.combination_registrations, observations)
         sealed = _seal_observations(repository, policy, request, index)
     except AdmissionExecutionError as error:
         return _impaired(
@@ -953,12 +916,8 @@ def _freeze_and_authorize(
         )
     if manifest is None:
         return AdmissionExecutionV1(None, results, combined_ids, combination_digest, sealed, subject, None, None, None)
-    authorization = reauthorize_before_spend(
-        lifecycle, repository, custody, policy, run, request.preflight, sealed, manifest
-    )
-    product = AdmissionExecutionV1(
-        None, results, combined_ids, combination_digest, sealed, subject, manifest, authorization, None
-    )
+    authorization = reauthorize_before_spend(lifecycle, repository, custody, policy, run, request.preflight, sealed, manifest)
+    product = AdmissionExecutionV1(None, results, combined_ids, combination_digest, sealed, subject, manifest, authorization, None)
     if not authorization.may_spend:
         return _impaired_from_authorization(repository, policy, request, authorization, len(results), product)
     return product
@@ -972,14 +931,8 @@ def _impaired_from_authorization(
     completed_arms: int,
     product: AdmissionExecutionV1,
 ) -> AdmissionExecutionV1:
-    reason = (
-        authorization.refusal_reasons[0]
-        if authorization.refusal_reasons
-        else AdmissionExecutionReason.MANIFEST_INVALID
-    )
-    impaired = _impaired(
-        repository, policy, request, WorkflowPhase.CUSTODY_SPEND, (WorkflowGate.SPEND_AUTHORITY,), reason, completed_arms
-    )
+    reason = authorization.refusal_reasons[0] if authorization.refusal_reasons else AdmissionExecutionReason.MANIFEST_INVALID
+    impaired = _impaired(repository, policy, request, WorkflowPhase.CUSTODY_SPEND, (WorkflowGate.SPEND_AUTHORITY,), reason, completed_arms)
     return AdmissionExecutionV1(
         impaired.refusal_reason,
         product.component_results,

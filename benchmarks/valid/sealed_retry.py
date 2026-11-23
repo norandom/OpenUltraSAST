@@ -144,9 +144,7 @@ def _validate_retry_rows(value: AutomaticRetryIdentityV1) -> None:
         raise AutomaticRetryError(AutomaticRetryAuthorityReason.INVALID_REQUEST)
     for selector in value.checkpoint_selectors:
         selector.__post_init__()
-    identities = tuple(
-        (selector.reference.content_digest, selector.checkpoint_digest) for selector in value.checkpoint_selectors
-    )
+    identities = tuple((selector.reference.content_digest, selector.checkpoint_digest) for selector in value.checkpoint_selectors)
     if len(set(identities)) != size:
         raise AutomaticRetryError(AutomaticRetryAuthorityReason.INVALID_REQUEST)
 
@@ -189,9 +187,7 @@ def build_automatic_retry_identity(
     bundles: tuple[LabelBlindExecutionBundleV1, ...],
     checkpoint_selectors: tuple[CheckpointSelectorV1, ...],
 ) -> AutomaticRetryIdentityV1:
-    if type(bundles) is not tuple or not bundles or any(
-        type(bundle) is not LabelBlindExecutionBundleV1 for bundle in bundles
-    ):
+    if type(bundles) is not tuple or not bundles or any(type(bundle) is not LabelBlindExecutionBundleV1 for bundle in bundles):
         raise AutomaticRetryError(AutomaticRetryAuthorityReason.INVALID_REQUEST)
     if type(checkpoint_selectors) is not tuple or len(checkpoint_selectors) != len(bundles):
         raise AutomaticRetryError(AutomaticRetryAuthorityReason.INVALID_REQUEST)
@@ -199,10 +195,7 @@ def build_automatic_retry_identity(
         bundle.__post_init__()
     if tuple(bundle.arm.arm_id for bundle in bundles) != tuple(sorted(bundle.arm.arm_id for bundle in bundles)):
         raise AutomaticRetryError(AutomaticRetryAuthorityReason.INVALID_REQUEST)
-    shared = {
-        (bundle.population_digest, bundle.freeze_digest, bundle.plan_digest, bundle.input_set_digest)
-        for bundle in bundles
-    }
+    shared = {(bundle.population_digest, bundle.freeze_digest, bundle.plan_digest, bundle.input_set_digest) for bundle in bundles}
     if len(shared) != 1 or shared.pop() != (
         population_digest,
         freeze_digest,
@@ -294,9 +287,7 @@ def _identity_rows(
     plan: RegisteredEvaluationPlanV1,
     authority: AutomaticRetryAuthorityV1,
 ) -> tuple[tuple[object, object], ...]:
-    components = tuple(
-        sorted(row.arm_id for row in plan.registrations if row.configuration.kind is ArmKindV3.COMPONENT)
-    )
+    components = tuple(sorted(row.arm_id for row in plan.registrations if row.configuration.kind is ArmKindV3.COMPONENT))
     registered = {row.arm_id: row.registration_digest for row in plan.registrations}
     return (
         (
@@ -445,9 +436,7 @@ def review_retry_mismatch_authority(
         raise AutomaticRetryError(AutomaticRetryAuthorityReason.INVALID_REQUEST)
     candidate.__post_init__()
     actual = _actual_retry_identity(candidate, bundles, checkpoint_selectors, plan)
-    if actual.retry_digest == candidate.retry_digest and retry_identity_matches_authority(
-        candidate, bundles, plan, authority
-    ):
+    if actual.retry_digest == candidate.retry_digest and retry_identity_matches_authority(candidate, bundles, plan, authority):
         raise AutomaticRetryError(AutomaticRetryAuthorityReason.INVALID_REQUEST)
     try:
         active = lifecycle_authority.require_admission_eligible(authority.population_digest, authority.freeze_digest)
@@ -555,9 +544,7 @@ def _result_value(value: AutomaticRetryResultV1, *, include_digest: bool) -> dic
         "retry_digest": value.retry_digest,
         "component_index": value.component_index,
         "checkpoint_result_digest": None if value.checkpoint is None else value.checkpoint.result_digest,
-        "lifecycle_reference": (
-            None if value.lifecycle_reference is None else _reference_value(value.lifecycle_reference)
-        ),
+        "lifecycle_reference": (None if value.lifecycle_reference is None else _reference_value(value.lifecycle_reference)),
         "lifecycle_projection_digest": value.lifecycle_projection_digest or None,
     }
     if include_digest:
@@ -687,12 +674,7 @@ def resume_pre_spend_sealed_retry(
 ) -> AutomaticRetryResultV1:
     """Resume pre-spend only from the head-selected authority over unchanged identity."""
     _digest(admission_identity_digest)
-    if (
-        type(bundles) is not tuple
-        or not bundles
-        or type(component_index) is not int
-        or not 0 <= component_index < len(bundles)
-    ):
+    if type(bundles) is not tuple or not bundles or type(component_index) is not int or not 0 <= component_index < len(bundles):
         raise AutomaticRetryError(AutomaticRetryAuthorityReason.INVALID_REQUEST)
     authority = resolve_head_selected_retry_authority(journal, repository, access_policy_digest, workflow_digest)
     if custody.current_log(authority.population_digest).status is not PopulationStatus.AVAILABLE:
@@ -705,9 +687,7 @@ def resume_pre_spend_sealed_retry(
         checkpoint_selectors,
     )
     actual = _actual_retry_identity(candidate, bundles, checkpoint_selectors, plan)
-    if actual.retry_digest != candidate.retry_digest or not retry_identity_matches_authority(
-        candidate, bundles, plan, authority
-    ):
+    if actual.retry_digest != candidate.retry_digest or not retry_identity_matches_authority(candidate, bundles, plan, authority):
         return _block_changed_retry(
             authority,
             candidate,

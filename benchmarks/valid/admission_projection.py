@@ -155,8 +155,11 @@ class ScopedDenominatorV1:
 
 def _scope_value(row: ScopedDenominatorV1) -> dict[str, JsonValue]:
     return {
-        "arm_id": row.arm_id, "family_id": row.family_id, "ecosystem": row.ecosystem,
-        "vulnerable_case_digests": row.vulnerable_case_digests, "fixed_case_digests": row.fixed_case_digests,
+        "arm_id": row.arm_id,
+        "family_id": row.family_id,
+        "ecosystem": row.ecosystem,
+        "vulnerable_case_digests": row.vulnerable_case_digests,
+        "fixed_case_digests": row.fixed_case_digests,
         "ordinary_case_digests": row.ordinary_case_digests,
     }
 
@@ -194,11 +197,7 @@ class ExactScopeProjectionV1:
     def __post_init__(self) -> None:
         _digest(self.manifest_digest)
         _digest(self.release_digest)
-        if (
-            type(self.scopes) is not tuple
-            or not self.scopes
-            or any(type(row) is not ScopedDenominatorV1 for row in self.scopes)
-        ):
+        if type(self.scopes) is not tuple or not self.scopes or any(type(row) is not ScopedDenominatorV1 for row in self.scopes):
             raise _refused(AdmissionProjectionReason.INVALID_REQUEST)
         for row in self.scopes:
             row.__post_init__()
@@ -260,13 +259,20 @@ class LabelBlindProofCandidateV1:
 def _candidate_value(candidate: LabelBlindProofCandidateV1) -> JsonValue:
     anchor = candidate.anchor
     return {
-        "arm_id": candidate.arm_id, "family_claim": candidate.family_claim,
-        "ecosystem_claim": candidate.ecosystem_claim, "packet_digest": candidate.packet_digest,
+        "arm_id": candidate.arm_id,
+        "family_claim": candidate.family_claim,
+        "ecosystem_claim": candidate.ecosystem_claim,
+        "packet_digest": candidate.packet_digest,
         "anchor": {
-            "path": anchor.path, "line": anchor.line, "column": anchor.column, "symbol": anchor.symbol,
+            "path": anchor.path,
+            "line": anchor.line,
+            "column": anchor.column,
+            "symbol": anchor.symbol,
         },
-        "flagged_input_digest": candidate.flagged_input_digest, "control_input_digest": candidate.control_input_digest,
-        "record_digest": candidate.record_digest, "receipt_digest": candidate.receipt_digest,
+        "flagged_input_digest": candidate.flagged_input_digest,
+        "control_input_digest": candidate.control_input_digest,
+        "record_digest": candidate.record_digest,
+        "receipt_digest": candidate.receipt_digest,
     }
 
 
@@ -301,7 +307,8 @@ class ProofPromotionV1:
         if demonstrated != (self.attachment is not None) or (demonstrated and not self.candidate_digest):
             raise _refused(AdmissionProjectionReason.INVALID_REQUEST)
         payload: JsonValue = {
-            "schema_version": PROOF_PROMOTION_SCHEMA, "disposition": self.disposition.value,
+            "schema_version": PROOF_PROMOTION_SCHEMA,
+            "disposition": self.disposition.value,
             "candidate_digest": self.candidate_digest,
             "attachment_proof_id": self.attachment.proof_id if self.attachment is not None else None,
         }
@@ -311,8 +318,10 @@ class ProofPromotionV1:
 def _reviewed_manifest(execution: AdmissionExecutionV1) -> EvaluationAdmissionManifestV3:
     manifest = execution.admission_manifest
     if (
-        execution.refusal_reason is not None or manifest is None
-        or execution.spend_authorization is None or execution.spend_authorization.may_spend is not True
+        execution.refusal_reason is not None
+        or manifest is None
+        or execution.spend_authorization is None
+        or execution.spend_authorization.may_spend is not True
     ):
         raise _refused(AdmissionProjectionReason.RELEASE_UNBOUND)
     return manifest
@@ -320,8 +329,10 @@ def _reviewed_manifest(execution: AdmissionExecutionV1) -> EvaluationAdmissionMa
 
 def _validated_request(request: ProjectionRequestV1) -> None:
     if (
-        type(request) is not ProjectionRequestV1 or type(request.release) is not AdmissionSpendReleaseV1
-        or type(request.execution) is not AdmissionExecutionV1 or type(request.selection) is not OrdinarySelectionV1
+        type(request) is not ProjectionRequestV1
+        or type(request.release) is not AdmissionSpendReleaseV1
+        or type(request.execution) is not AdmissionExecutionV1
+        or type(request.selection) is not OrdinarySelectionV1
     ):
         raise _refused(AdmissionProjectionReason.INVALID_REQUEST)
 
@@ -439,8 +450,16 @@ def _scoped_rows(
             )
             rows.append(
                 ScopedDenominatorV1(
-                    arm_id, scope.family_id, scope.ecosystem, vulnerable, fixed, ordinary,
-                    len(vulnerable), len(fixed), len(ordinary), "",
+                    arm_id,
+                    scope.family_id,
+                    scope.ecosystem,
+                    vulnerable,
+                    fixed,
+                    ordinary,
+                    len(vulnerable),
+                    len(fixed),
+                    len(ordinary),
+                    "",
                 )
             )
     return tuple(rows)
@@ -481,10 +500,14 @@ def exact_scope_projection_bytes(projection: ExactScopeProjectionV1) -> bytes:
 
 def _validated_promotion_request(request: ProofPromotionRequestV1) -> None:
     if (
-        type(request) is not ProofPromotionRequestV1 or type(request.release) is not AdmissionSpendReleaseV1
-        or type(request.execution) is not AdmissionExecutionV1 or type(request.selection) is not OrdinarySelectionV1
-        or type(request.label_bytes) is not bytes or not request.label_bytes
-        or type(request.trust) is not ProofTrustPolicy or type(request.basis) is not VerificationBasis
+        type(request) is not ProofPromotionRequestV1
+        or type(request.release) is not AdmissionSpendReleaseV1
+        or type(request.execution) is not AdmissionExecutionV1
+        or type(request.selection) is not OrdinarySelectionV1
+        or type(request.label_bytes) is not bytes
+        or not request.label_bytes
+        or type(request.trust) is not ProofTrustPolicy
+        or type(request.basis) is not VerificationBasis
         or not (request.candidate is None or type(request.candidate) is LabelBlindProofCandidateV1)
         or not (request.record is None or type(request.record) is DifferentialProofRecord)
         or not (request.verification is None or type(request.verification) is ProofVerificationReceipt)
@@ -498,9 +521,7 @@ def _release_judgments(raw: bytes, release: AdmissionSpendReleaseV1) -> dict[str
     try:
         decode_sealed_labels(raw)
         document = json.loads(raw.decode("utf-8"), parse_constant=_reject_constant, parse_float=_finite_float)
-        judgments = {
-            item["change_digest"]: base64.b64decode(item["judgment_base64"], validate=True) for item in document["records"]
-        }
+        judgments = {item["change_digest"]: base64.b64decode(item["judgment_base64"], validate=True) for item in document["records"]}
     except (AdmissionSpendError, AttributeError, TypeError, ValueError, RecursionError):
         raise _refused(AdmissionProjectionReason.JUDGMENT_UNREADABLE) from None
     return judgments
@@ -515,11 +536,7 @@ def _judgment_anchor(judgments: dict[str, bytes], change: str) -> SourceLocation
         canonical_form = type(document) is dict and canonical_json_bytes(document) == judgment
     except (UnicodeDecodeError, TypeError, ValueError, RecursionError):
         raise _refused(AdmissionProjectionReason.JUDGMENT_UNREADABLE) from None
-    if (
-        not canonical_form
-        or frozenset(document) != _JUDGMENT_FIELDS
-        or document.get("schema_version") != GROUND_TRUTH_JUDGMENT_SCHEMA
-    ):
+    if not canonical_form or frozenset(document) != _JUDGMENT_FIELDS or document.get("schema_version") != GROUND_TRUTH_JUDGMENT_SCHEMA:
         raise _refused(AdmissionProjectionReason.JUDGMENT_UNREADABLE)
     try:
         return SourceLocation(document["path"], document["line"], document["column"], document["symbol"])
@@ -639,10 +656,22 @@ def proof_promotion_bytes(product: ProofPromotionV1) -> bytes:
 
 
 __all__ = [
-    "EXACT_SCOPE_PROJECTION_SCHEMA", "GROUND_TRUTH_JUDGMENT_SCHEMA", "PROOF_PROMOTION_SCHEMA",
-    "AdmissionProjectionError", "AdmissionProjectionReason", "ExactScopeProjectionV1",
-    "LabelBlindProofCandidateV1", "ProjectionRequestV1", "ProofDisposition",
-    "ProofPromotionRequestV1", "ProofPromotionV1", "ScopedDenominatorV1", "VerificationBasis",
-    "WholeCoverageV1", "exact_scope_projection_bytes", "project_exact_scopes",
-    "proof_promotion_bytes", "promote_proof_candidate",
+    "EXACT_SCOPE_PROJECTION_SCHEMA",
+    "GROUND_TRUTH_JUDGMENT_SCHEMA",
+    "PROOF_PROMOTION_SCHEMA",
+    "AdmissionProjectionError",
+    "AdmissionProjectionReason",
+    "ExactScopeProjectionV1",
+    "LabelBlindProofCandidateV1",
+    "ProjectionRequestV1",
+    "ProofDisposition",
+    "ProofPromotionRequestV1",
+    "ProofPromotionV1",
+    "ScopedDenominatorV1",
+    "VerificationBasis",
+    "WholeCoverageV1",
+    "exact_scope_projection_bytes",
+    "project_exact_scopes",
+    "proof_promotion_bytes",
+    "promote_proof_candidate",
 ]

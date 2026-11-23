@@ -50,13 +50,32 @@ MINIMUM_ACCEPTED_POSITIVES = 10
 _DIGEST = re.compile(r"[0-9a-f]{64}")
 _RECORD_KEYS = frozenset({"schema_version", "queue_entry_digest", "ecosystem_attestation", "ground_truth_attestation"})
 _ECOSYSTEM_ATTESTATION_KEYS = frozenset(
-    {"candidate_digest", "source_evidence_digest", "producer_identity", "reviewer_identity", "conflict_disclosed",
-     "policy_digest", "policy_satisfied", "decision"}
+    {
+        "candidate_digest",
+        "source_evidence_digest",
+        "producer_identity",
+        "reviewer_identity",
+        "conflict_disclosed",
+        "policy_digest",
+        "policy_satisfied",
+        "decision",
+    }
 )
 _GROUND_TRUTH_ATTESTATION_KEYS = frozenset(
-    {"candidate_digest", "ecosystem_review_digest", "producer_identity", "reviewer_identity", "conflict_disclosed",
-     "policy_digest", "policy_satisfied", "defect_present", "fix_addresses", "in_repository_reachable",
-     "verified_scopes", "model_assistance_digest"}
+    {
+        "candidate_digest",
+        "ecosystem_review_digest",
+        "producer_identity",
+        "reviewer_identity",
+        "conflict_disclosed",
+        "policy_digest",
+        "policy_satisfied",
+        "defect_present",
+        "fix_addresses",
+        "in_repository_reachable",
+        "verified_scopes",
+        "model_assistance_digest",
+    }
 )
 _CLOSED_RECORD_REASONS = frozenset(item.value for item in GroundTruthExclusionReason)
 
@@ -466,9 +485,7 @@ def _record_outcome_value(item: CohortRecordOutcomeV1) -> dict[str, JsonValue]:
 
 
 def _scope_values(scopes: tuple[VerifiedScope, ...]) -> tuple[dict[str, JsonValue], ...]:
-    return tuple(
-        {"vulnerability_family": scope.vulnerability_family, "ecosystem": scope.ecosystem.value} for scope in scopes
-    )
+    return tuple({"vulnerability_family": scope.vulnerability_family, "ecosystem": scope.ecosystem.value} for scope in scopes)
 
 
 def _accepted_value(item: AcceptedGroundTruthV1) -> dict[str, JsonValue]:

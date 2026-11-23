@@ -256,9 +256,7 @@ def successor_head(prior: WorkflowHeadV1, entry: WorkflowJournalEntryV1) -> Work
     )
 
 
-def require_selected_authority(
-    head: WorkflowHeadV1, candidate: ArtifactReference, authority_digest: str
-) -> ArtifactReference:
+def require_selected_authority(head: WorkflowHeadV1, candidate: ArtifactReference, authority_digest: str) -> ArtifactReference:
     """Accept a retry authority only when the CAS head selected exactly it."""
     if candidate != head.retry_authority_ref or authority_digest != head.retry_authority_digest:
         raise WorkflowJournalError(WorkflowJournalReason.AUTHORITY_SUBSTITUTED)
@@ -529,11 +527,7 @@ class S3WorkflowJournal:
         retry_authority_digest: str,
     ) -> WorkflowHeadV1 | None:
         """Select the sealed retry authority in the first head before execution."""
-        if (
-            type(entry) is not WorkflowJournalEntryV1
-            or entry.sequence != 0
-            or entry.previous_entry_digest is not None
-        ):
+        if type(entry) is not WorkflowJournalEntryV1 or entry.sequence != 0 or entry.previous_entry_digest is not None:
             raise WorkflowJournalError(WorkflowJournalReason.INVALID_ENTRY)
         head = WorkflowHeadV1(
             entry.workflow_digest,
@@ -547,9 +541,7 @@ class S3WorkflowJournal:
         )
         _validate_head_entry(head, entry)
         self._persist_entry(entry.workflow_digest, entry.entry_digest, journal_entry_bytes(entry))
-        receipt, conflicted = self._write(
-            workflow_head_key(entry.workflow_digest), journal_head_bytes(head), absent=True
-        )
+        receipt, conflicted = self._write(workflow_head_key(entry.workflow_digest), journal_head_bytes(head), absent=True)
         if conflicted:
             return None
         self._verify_head(head, journal_head_bytes(head), self._require_receipt(receipt))
@@ -630,9 +622,7 @@ class S3WorkflowJournal:
         chain_length = self._validate_chain(digest, entry)
         lease_expired = now >= head.lease_expires_at
         status, reason = _projection(lease_expired)
-        return WorkflowJournalStatus(
-            digest, head, entry, chain_length, entry.phase, entry.counts, lease_expired, status, reason
-        )
+        return WorkflowJournalStatus(digest, head, entry, chain_length, entry.phase, entry.counts, lease_expired, status, reason)
 
     def _validated_head(self, digest: str) -> tuple[WorkflowHeadV1, WorkflowJournalEntryV1, _Receipt]:
         read = self._read(workflow_head_key(digest))
@@ -669,19 +659,14 @@ class S3WorkflowJournal:
             raise WorkflowJournalError(WorkflowJournalReason.CHAIN_BROKEN)
         return entry
 
-    def _validate_successor(
-        self, prior: WorkflowHeadV1, entry: WorkflowJournalEntryV1, head: WorkflowHeadV1
-    ) -> None:
+    def _validate_successor(self, prior: WorkflowHeadV1, entry: WorkflowJournalEntryV1, head: WorkflowHeadV1) -> None:
         if (
             entry.workflow_digest != prior.workflow_digest
             or entry.sequence != prior.sequence + 1
             or entry.previous_entry_digest != prior.entry_digest
         ):
             raise WorkflowJournalError(WorkflowJournalReason.INVALID_SUCCESSOR)
-        if (
-            head.retry_authority_ref != prior.retry_authority_ref
-            or head.retry_authority_digest != prior.retry_authority_digest
-        ):
+        if head.retry_authority_ref != prior.retry_authority_ref or head.retry_authority_digest != prior.retry_authority_digest:
             raise WorkflowJournalError(WorkflowJournalReason.AUTHORITY_SUBSTITUTED)
         if entry.lease_owner_id != prior.lease_owner_id:
             raise WorkflowJournalError(WorkflowJournalReason.LEASE_OWNER_MISMATCH)
@@ -690,16 +675,11 @@ class S3WorkflowJournal:
 
     def _swap_head(self, prior: WorkflowHeadV1, receipt: _Receipt, head: WorkflowHeadV1) -> bool:
         head_body = journal_head_bytes(head)
-        committed, conflicted = self._write(
-            workflow_head_key(head.workflow_digest), head_body, token=receipt.storage_token
-        )
+        committed, conflicted = self._write(workflow_head_key(head.workflow_digest), head_body, token=receipt.storage_token)
         if conflicted:
             return False
         replacement = self._require_receipt(committed)
-        if (
-            replacement.version_id == receipt.version_id
-            or replacement.storage_token == receipt.storage_token
-        ):
+        if replacement.version_id == receipt.version_id or replacement.storage_token == receipt.storage_token:
             raise WorkflowJournalError(WorkflowJournalReason.UNREADABLE_RESPONSE)
         self._verify_head(head, head_body, replacement)
         return True
@@ -722,9 +702,7 @@ class S3WorkflowJournal:
         if current_body != body or current_receipt != receipt or decode_workflow_head(current_body) != head:
             raise WorkflowJournalError(WorkflowJournalReason.READBACK_MISMATCH)
 
-    def _write(
-        self, key: str, body: bytes, *, absent: bool = False, token: str | None = None
-    ) -> tuple[_Receipt | None, bool]:
+    def _write(self, key: str, body: bytes, *, absent: bool = False, token: str | None = None) -> tuple[_Receipt | None, bool]:
         request: dict[str, object] = {
             "Bucket": self._bucket,
             "Key": key,

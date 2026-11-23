@@ -160,9 +160,7 @@ def _validate_resolved_collections(value: ResolvedOperatorReplay) -> None:
     reports, groups = value.reports, value.cases_by_arm
     if type(reports) is not tuple or type(groups) is not tuple or not reports or len(reports) != len(groups):
         raise OperatorReportError(OperatorReportErrorReason.INCONSISTENT_STATE)
-    arm_ids = tuple(
-        _validated_arm_pair(report, group) for report, group in zip(reports, groups, strict=True)
-    )
+    arm_ids = tuple(_validated_arm_pair(report, group) for report, group in zip(reports, groups, strict=True))
     if arm_ids != tuple(sorted(arm_ids)):
         raise OperatorReportError(OperatorReportErrorReason.INCONSISTENT_STATE)
     if type(value.whole_population_coverage) is not WholePopulationCoverageV3:
@@ -305,9 +303,7 @@ def _arm_value(report: ArmEvaluationReportV3, group: ArmAdmissionCasesV3) -> dic
             "degradation_reasons": tuple(item.value for item in evidence.degradation_reasons),
         },
         "demonstrated": _demonstration_value(group),
-        "failed_gate_names": tuple(
-            sorted({name for item in report.scoped_results for name in _failed_gate_names(item)})
-        ),
+        "failed_gate_names": tuple(sorted({name for item in report.scoped_results for name in _failed_gate_names(item)})),
         "scopes": tuple(_scope_value(item) for item in report.scoped_results),
     }
 
@@ -478,9 +474,7 @@ def _arm_lines(arm: Mapping[str, JsonValue]) -> list[str]:
     else:
         combined = cast(Mapping[str, JsonValue], combination)
         components = _joined(combined["component_arm_ids"])
-        lines.append(
-            f"  combination: operator={combined['operator']} components={components} lineage={combined['lineage_digest']}"
-        )
+        lines.append(f"  combination: operator={combined['operator']} components={components} lineage={combined['lineage_digest']}")
     lines.append(
         f"  operational: completed_cases={operational['completed_cases']} deferred_cases={operational['deferred_cases']}"
         f" instrument_failures={operational['instrument_failure_count']} model_failures={operational['model_failure_count']}"

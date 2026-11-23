@@ -35,9 +35,21 @@ from openultrasast.core.canonical import JsonValue, bytes_digest, canonical_byte
 
 REFUSED_QUEUE_EXCLUSIONS_SCHEMA = "openultrasast.valid-detection-benchmark.refused-queue-exclusions.v1"
 _BATCH_KEYS = frozenset(
-    {"schema_version", "ecosystem", "queue_digest", "census_digest", "ecosystem_policy_digest", "ground_truth_policy_digest",
-     "record_outcomes", "pending_entries", "accepted_positives", "minimum_accepted_positives", "status",
-     "insufficient_reason", "batch_digest"}
+    {
+        "schema_version",
+        "ecosystem",
+        "queue_digest",
+        "census_digest",
+        "ecosystem_policy_digest",
+        "ground_truth_policy_digest",
+        "record_outcomes",
+        "pending_entries",
+        "accepted_positives",
+        "minimum_accepted_positives",
+        "status",
+        "insufficient_reason",
+        "batch_digest",
+    }
 )
 
 

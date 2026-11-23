@@ -260,20 +260,14 @@ def _validate_bindings(item: OrdinaryPopulationDrawV1) -> None:
 def _validate_provenance_rows(item: OrdinaryPopulationDrawV1) -> None:
     eligible_rule = OrdinaryDrawRule.ELIGIBLE_FIRST_PARENT_ORDINARY
     eligible = {
-        (row.network_identity_digest, row.tip_revision): row.evidence_digest
-        for row in item.provenance
-        if row.rule is eligible_rule
+        (row.network_identity_digest, row.tip_revision): row.evidence_digest for row in item.provenance if row.rule is eligible_rule
     }
     if set(eligible) != {(push.network_identity_digest, push.tip_revision) for push in item.pushes}:
         raise _mismatch()
     for push in item.pushes:
         if eligible[(push.network_identity_digest, push.tip_revision)] != push.push_digest:
             raise _mismatch()
-    refused = {
-        (row.network_identity_digest, row.tip_revision)
-        for row in item.provenance
-        if row.rule is not eligible_rule
-    }
+    refused = {(row.network_identity_digest, row.tip_revision) for row in item.provenance if row.rule is not eligible_rule}
     if refused & set(eligible):
         raise _mismatch()
     selected = {(push.network_identity_digest, push.tip_revision) for push in item.pushes}

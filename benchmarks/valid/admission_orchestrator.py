@@ -151,10 +151,7 @@ class AdmissionScopeWitnessV1:
     reasons: tuple[str, ...]
 
     def __post_init__(self) -> None:
-        if any(
-            type(item) is not str or not item or len(item) > 128
-            for item in (self.arm_id, self.family_id, self.ecosystem)
-        ):
+        if any(type(item) is not str or not item or len(item) > 128 for item in (self.arm_id, self.family_id, self.ecosystem)):
             raise _refused(AdmissionPreflightReason.INVALID_REQUEST)
         if (
             not self.reasons
@@ -236,9 +233,7 @@ class AutomaticRetryAuthorityV1:
         ):
             if not row or any(_require_digest(item) != item for item in row):
                 raise _refused(AdmissionPreflightReason.INVALID_REQUEST)
-        if not self.ordered_arm_ids or any(
-            type(item) is not str or not item or len(item) > 128 for item in self.ordered_arm_ids
-        ):
+        if not self.ordered_arm_ids or any(type(item) is not str or not item or len(item) > 128 for item in self.ordered_arm_ids):
             raise _refused(AdmissionPreflightReason.INVALID_REQUEST)
         expected = canonical.content_digest(_authority_value(self, include_digest=False))
         if self.authority_digest == "":
@@ -300,17 +295,12 @@ def _planned_scopes(plan: RegisteredEvaluationPlanV1) -> tuple[ScopeKey, ...]:
     return tuple(sorted({scope for row in plan.registrations for scope in row.configuration.exact_scopes}))
 
 
-def _census_scope_rows(
-    plan: RegisteredEvaluationPlanV1, manifest: LabelBlindPopulationManifestV3
-) -> tuple[ExactScopeCensusV3, ...]:
+def _census_scope_rows(plan: RegisteredEvaluationPlanV1, manifest: LabelBlindPopulationManifestV3) -> tuple[ExactScopeCensusV3, ...]:
     planned = _planned_scopes(plan)
     counts = {ScopeKey(row.vulnerability_family, row.ecosystem.value): row.count for row in manifest.scope_census}
     if any(scope not in counts for scope in planned):
         raise _refused(AdmissionPreflightReason.PLAN_COMPOSITION_FAILED)
-    return tuple(
-        ExactScopeCensusV3(scope, counts[scope], counts[scope], counts[scope], counts[scope], counts[scope])
-        for scope in planned
-    )
+    return tuple(ExactScopeCensusV3(scope, counts[scope], counts[scope], counts[scope], counts[scope], counts[scope]) for scope in planned)
 
 
 def _ordinary_rows(
@@ -323,9 +313,7 @@ def _ordinary_rows(
     for row in ordinary_census:
         row.__post_init__()
     ecosystems = tuple(row.ecosystem for row in ordinary_census)
-    if ecosystems != tuple(sorted(set(ecosystems))) or ecosystems != tuple(
-        sorted({scope.ecosystem for scope in _planned_scopes(plan)})
-    ):
+    if ecosystems != tuple(sorted(set(ecosystems))) or ecosystems != tuple(sorted({scope.ecosystem for scope in _planned_scopes(plan)})):
         raise _refused(AdmissionPreflightReason.PLAN_COMPOSITION_FAILED)
     if sum(row.ordinary_push_count for row in ordinary_census) != manifest.input_count - manifest.positive_count:
         raise _refused(AdmissionPreflightReason.PLAN_COMPOSITION_FAILED)
@@ -410,9 +398,7 @@ def admission_manifest_payload_digest(
     review: IndependenceAttestation,
 ) -> str:
     """Derive the deterministic plan-manifest payload subject an external review signs."""
-    return derive_evaluation_plan_manifest_payload_digest(
-        _manifest_draft(plan, census, readiness_digests, custody_log_digest, review)
-    )
+    return derive_evaluation_plan_manifest_payload_digest(_manifest_draft(plan, census, readiness_digests, custody_log_digest, review))
 
 
 def compose_plan_manifest(
@@ -461,20 +447,14 @@ def _validated_request(request: AdmissionRunRequestV1) -> None:
         or not 0 <= request.recorded_runtime_ms <= 1 << 31
     ):
         raise _refused(AdmissionPreflightReason.INVALID_REQUEST)
-    components = tuple(
-        sorted(row.arm_id for row in request.plan.registrations if row.configuration.kind is ArmKindV3.COMPONENT)
-    )
+    components = tuple(sorted(row.arm_id for row in request.plan.registrations if row.configuration.kind is ArmKindV3.COMPONENT))
     if not components or tuple(row.arm_id for row in request.execution_bindings) != components:
         raise _refused(AdmissionPreflightReason.INVALID_REQUEST)
 
 
-def _retry_authority(
-    request: AdmissionRunRequestV1, manifest: LabelBlindPopulationManifestV3
-) -> AutomaticRetryAuthorityV1:
+def _retry_authority(request: AdmissionRunRequestV1, manifest: LabelBlindPopulationManifestV3) -> AutomaticRetryAuthorityV1:
     plan = request.plan
-    components = tuple(
-        sorted(row.arm_id for row in plan.registrations if row.configuration.kind is ArmKindV3.COMPONENT)
-    )
+    components = tuple(sorted(row.arm_id for row in plan.registrations if row.configuration.kind is ArmKindV3.COMPONENT))
     identity = canonical.content_digest(
         {
             "schema_version": RETRY_AUTHORITY_SCHEMA,
@@ -567,9 +547,7 @@ class AdmissionOrchestrator:
 
     def _lifecycle_gate(self, request: AdmissionRunRequestV1) -> PopulationLifecycleProjectionV1:
         try:
-            return self._lifecycle.require_admission_eligible(
-                request.population_digest, request.freeze_digest
-            )
+            return self._lifecycle.require_admission_eligible(request.population_digest, request.freeze_digest)
         except LifecycleError:
             raise _refused(AdmissionPreflightReason.LIFECYCLE_NOT_ADMISSIBLE) from None
 
@@ -644,9 +622,7 @@ class AdmissionOrchestrator:
         self, request: AdmissionRunRequestV1, custody_log_digest: str
     ) -> tuple[EvaluationPlanManifestV3, EvaluationFeasibilityV3]:
         try:
-            census = compose_population_census(
-                request.plan, request.manifest, request.ordinary_census, request.census_review
-            )
+            census = compose_population_census(request.plan, request.manifest, request.ordinary_census, request.census_review)
             plan_manifest = compose_plan_manifest(
                 request.plan,
                 census,
@@ -691,9 +667,7 @@ class AdmissionOrchestrator:
         outcome: BenchmarkWorkflowOutcomeV1,
         witnesses: tuple[AdmissionScopeWitnessV1, ...],
     ) -> None:
-        outcome_payload = cast(
-            "dict[str, JsonValue]", json.loads(workflow_outcome_bytes(outcome))
-        )
+        outcome_payload = cast("dict[str, JsonValue]", json.loads(workflow_outcome_bytes(outcome)))
         witness_payload: dict[str, JsonValue] = {
             "schema_version": PREFLIGHT_WITNESS_SCHEMA,
             "workflow_digest": request.workflow_digest,
@@ -710,18 +684,12 @@ class AdmissionOrchestrator:
                 for row in witnesses
             ),
         }
-        provenance = canonical.content_digest(
-            {"workflow": request.workflow_digest, "stage": "preflight-witness"}
-        )
+        provenance = canonical.content_digest({"workflow": request.workflow_digest, "stage": "preflight-witness"})
         for payload in (outcome_payload, witness_payload):
             self._persist(payload, ArtifactAccessClass.OPERATOR_SAFE, provenance)
 
-    def _persist(
-        self, payload: dict[str, JsonValue], access: ArtifactAccessClass, provenance: str
-    ) -> tuple[ArtifactReference, bytes]:
-        content = canonical_artifact_bytes(
-            ArtifactKind.WORKFLOW, payload, access_class=access, provenance_digest=provenance
-        )
+    def _persist(self, payload: dict[str, JsonValue], access: ArtifactAccessClass, provenance: str) -> tuple[ArtifactReference, bytes]:
+        content = canonical_artifact_bytes(ArtifactKind.WORKFLOW, payload, access_class=access, provenance_digest=provenance)
         reference = artifact_reference(content)
         try:
             self._repository.put_if_absent(content, reference=reference)

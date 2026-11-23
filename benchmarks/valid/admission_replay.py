@@ -238,9 +238,7 @@ def _sealed_payload(
         expected_access_policy_digest=policy,
     )
     try:
-        accepted = repository.get(
-            sealed_reference, expected_kind=kind, authority=authority, expected_access_policy_digest=policy
-        )
+        accepted = repository.get(sealed_reference, expected_kind=kind, authority=authority, expected_access_policy_digest=policy)
     except ArtifactRepositoryError:
         raise _refused(AdmissionReplayReason.REPLAY_INVALID) from None
     payload = accepted.artifact.payload
@@ -256,9 +254,7 @@ def _raw_document(payload: Mapping[str, JsonValue], field: str) -> bytes:
     return document.encode("utf-8")
 
 
-def _bridged_pair(
-    prefix: str, document: bytes, request: AdmissionBridgeRequestV1
-) -> tuple[ContentRef, ResolvedContent]:
+def _bridged_pair(prefix: str, document: bytes, request: AdmissionBridgeRequestV1) -> tuple[ContentRef, ResolvedContent]:
     digest = canonical.bytes_digest(document)
     receipt_digest = canonical.derive_storage_receipt_digest(
         store_identity=request.bridged_store_identity,
@@ -267,12 +263,19 @@ def _bridged_pair(
         retention_policy_digest=request.bridged_retention_policy_digest,
     )
     reference = canonical.ContentRef(
-        f"{prefix}/{digest}.json", digest, "application/json", len(document),
-        request.bridged_retention_policy_digest, receipt_digest,
+        f"{prefix}/{digest}.json",
+        digest,
+        "application/json",
+        len(document),
+        request.bridged_retention_policy_digest,
+        receipt_digest,
     )
     receipt = StorageReceipt(
-        request.bridged_store_identity, digest, len(document),
-        request.bridged_retention_policy_digest, receipt_digest,
+        request.bridged_store_identity,
+        digest,
+        len(document),
+        request.bridged_retention_policy_digest,
+        receipt_digest,
     )
     return reference, ResolvedContent(document, receipt)
 
@@ -284,14 +287,15 @@ def _authorized_manifest(request: AdmissionBridgeRequestV1) -> EvaluationAdmissi
     return execution.admission_manifest
 
 
-def _bridged_observations(
-    request: AdmissionBridgeRequestV1, documents: dict[str, ResolvedContent]
-) -> tuple[SealedObservationRefV3, ...]:
+def _bridged_observations(request: AdmissionBridgeRequestV1, documents: dict[str, ResolvedContent]) -> tuple[SealedObservationRefV3, ...]:
     refs = []
     for sealed in _authorized_manifest(request).observations:
         payload = _sealed_payload(
-            request.repository, request.custodian_access_policy_digest,
-            ArtifactKind.OBSERVATION, sealed.observation, sealed.observation_digest,
+            request.repository,
+            request.custodian_access_policy_digest,
+            ArtifactKind.OBSERVATION,
+            sealed.observation,
+            sealed.observation_digest,
         )
         raw = _raw_document(payload, "observation")
         try:
@@ -311,8 +315,11 @@ def _bridged_history(request: AdmissionBridgeRequestV1, documents: dict[str, Res
     events = []
     for event in history.events:
         payload = _sealed_payload(
-            request.repository, request.custodian_access_policy_digest,
-            ArtifactKind.WORKFLOW, event.event, event.event_digest,
+            request.repository,
+            request.custodian_access_policy_digest,
+            ArtifactKind.WORKFLOW,
+            event.event,
+            event.event_digest,
         )
         raw = _raw_document(payload, "event")
         try:
@@ -341,8 +348,11 @@ def _bridged_graph(
     digests = tuple(sorted(item.result_digest for item in readiness))
     try:
         plan_manifest = compose_plan_manifest(
-            request.run_request.plan, request.preflight.plan_manifest.census, digests,
-            request.preflight.custody_log_digest, request.plan_review,
+            request.run_request.plan,
+            request.preflight.plan_manifest.census,
+            digests,
+            request.preflight.custody_log_digest,
+            request.plan_review,
         )
     except AdmissionOrchestratorError:
         raise _refused(AdmissionReplayReason.INVALID_REQUEST) from None
@@ -352,22 +362,30 @@ def _bridged_graph(
     resolver = BridgedContentResolver(documents, request.run_request.resolver)
     feasibility = preflight_evaluation(plan_manifest, request.context, resolver)
     draft = EvaluationAdmissionManifestV3(
-        plan_manifest, feasibility.feasibility_digest, observations, digests,
-        request.preflight.custody_log_digest, history, _ZERO, request.plan_review, _ZERO,
+        plan_manifest,
+        feasibility.feasibility_digest,
+        observations,
+        digests,
+        request.preflight.custody_log_digest,
+        history,
+        _ZERO,
+        request.plan_review,
+        _ZERO,
     )
     return readiness, plan_manifest, feasibility, draft, resolver
 
 
-def bridged_plan_subject(
-    run_request: AdmissionRunRequestV1, preflight: AdmissionPreflightV1, readiness: object
-) -> str:
+def bridged_plan_subject(run_request: AdmissionRunRequestV1, preflight: AdmissionPreflightV1, readiness: object) -> str:
     """Derive the recomposed plan payload subject an external review signs."""
     if type(run_request) is not AdmissionRunRequestV1 or type(preflight) is not AdmissionPreflightV1:
         raise _refused(AdmissionReplayReason.INVALID_REQUEST)
     digests = tuple(sorted(item.result_digest for item in _validated_readiness(readiness)))
     return admission_manifest_payload_digest(
-        run_request.plan, preflight.plan_manifest.census, digests,
-        preflight.custody_log_digest, preflight.plan_manifest.review,
+        run_request.plan,
+        preflight.plan_manifest.census,
+        digests,
+        preflight.custody_log_digest,
+        preflight.plan_manifest.review,
     )
 
 
@@ -389,9 +407,7 @@ def bridge_core_authorization(request: AdmissionBridgeRequestV1) -> BridgedAdmis
     manifest = replace(draft, payload_digest=payload, review=review)
     manifest = replace(manifest, manifest_digest=derive_evaluation_admission_manifest_digest(manifest))
     try:
-        preparation = authorize_evaluation(
-            manifest, feasibility, readiness, request.context, request.custody, resolver
-        )
+        preparation = authorize_evaluation(manifest, feasibility, readiness, request.context, request.custody, resolver)
     except _CORE_REFUSALS:
         raise _refused(AdmissionReplayReason.REPLAY_INVALID) from None
     return BridgedAdmissionV1(plan_manifest, manifest, feasibility, preparation, resolver)
@@ -403,11 +419,7 @@ def equal_aggregate_weights(plan_manifest: EvaluationPlanManifestV3) -> tuple[Ag
         raise _refused(AdmissionReplayReason.INVALID_REQUEST)
     keys = tuple(
         sorted(
-            {
-                policy.key
-                for configuration in plan_manifest.declaration.arm_configurations
-                for policy in configuration.denominator_policies
-            }
+            {policy.key for configuration in plan_manifest.declaration.arm_configurations for policy in configuration.denominator_policies}
         )
     )
     if not keys:
@@ -553,9 +565,7 @@ def _observation_defect(replay: EvaluationReplayV3) -> bool:
     return False
 
 
-def _completion_defect(
-    replay: EvaluationReplayV3, planned_arm_ids: tuple[str, ...]
-) -> AdmissionReplayReason | None:
+def _completion_defect(replay: EvaluationReplayV3, planned_arm_ids: tuple[str, ...]) -> AdmissionReplayReason | None:
     if _report_defect(replay, planned_arm_ids):
         return AdmissionReplayReason.REPLAY_INCOMPLETE
     if _observation_defect(replay):
@@ -579,9 +589,7 @@ def _scoped_decisions(replay: EvaluationReplayV3) -> tuple[tuple[str, str, str, 
 def _persist_publication(
     repository: S3ArtifactRepository, payload: dict[str, JsonValue], kind: ArtifactKind, provenance: str
 ) -> tuple[ArtifactReference, bytes]:
-    content = canonical_artifact_bytes(
-        kind, payload, access_class=ArtifactAccessClass.OPERATOR_SAFE, provenance_digest=provenance
-    )
+    content = canonical_artifact_bytes(kind, payload, access_class=ArtifactAccessClass.OPERATOR_SAFE, provenance_digest=provenance)
     reference = artifact_reference(content)
     try:
         repository.put_if_absent(content, reference=reference)
@@ -590,9 +598,7 @@ def _persist_publication(
     return reference, content
 
 
-def _operator_reread(
-    repository: S3ArtifactRepository, reference: ArtifactReference, expected_kind: ArtifactKind, content: bytes
-) -> None:
+def _operator_reread(repository: S3ArtifactRepository, reference: ArtifactReference, expected_kind: ArtifactKind, content: bytes) -> None:
     authority = artifact_read_authority(
         ArtifactActorRole.OPERATOR,
         (),
@@ -601,7 +607,9 @@ def _operator_reread(
     )
     try:
         accepted = repository.get(
-            reference, expected_kind=expected_kind, authority=authority,
+            reference,
+            expected_kind=expected_kind,
+            authority=authority,
             expected_access_policy_digest=OPERATOR_READ_POLICY_DIGEST,
         )
     except ArtifactRepositoryError:
@@ -634,9 +642,7 @@ def _persist_outcome(repository: S3ArtifactRepository, outcome: BenchmarkWorkflo
         raise _refused(AdmissionReplayReason.PERSISTENCE_FAILED)
 
 
-def _impaired_publication(
-    request: ReplayPublicationRequestV1, replay: EvaluationReplayV3
-) -> ScopedReplayPublicationV1:
+def _impaired_publication(request: ReplayPublicationRequestV1, replay: EvaluationReplayV3) -> ScopedReplayPublicationV1:
     counts = WorkflowCounts(len(request.planned_arm_ids), len(replay.reports), request.planned_input_count, 0, 0)
     outcome = BenchmarkWorkflowOutcomeV1(
         WorkflowStatus.IMPAIRED,
@@ -660,20 +666,19 @@ def _impaired_publication(
     return ScopedReplayPublicationV1(outcome, None, replay.replay_digest, replay.reports, _scoped_decisions(replay))
 
 
-def _completed_publication(
-    request: ReplayPublicationRequestV1, replay: EvaluationReplayV3
-) -> ScopedReplayPublicationV1:
+def _completed_publication(request: ReplayPublicationRequestV1, replay: EvaluationReplayV3) -> ScopedReplayPublicationV1:
     observations = replay.report_source.observations
     reads = tuple(item.input_read_evidence_digest for item in observations)
     stages = tuple(item.stage_execution_evidence_digest for item in observations)
     provenance = canonical.content_digest({"workflow": request.workflow_digest, "stage": "scoped-evaluation-replay"})
-    reference, content = _persist_publication(
-        request.repository, _replay_payload(replay), ArtifactKind.REPLAY, provenance
-    )
+    reference, content = _persist_publication(request.repository, _replay_payload(replay), ArtifactKind.REPLAY, provenance)
     _operator_reread(request.repository, reference, ArtifactKind.REPLAY, content)
     counts = WorkflowCounts(
-        len(request.planned_arm_ids), len(request.planned_arm_ids), request.planned_input_count,
-        request.planned_input_count, 0,
+        len(request.planned_arm_ids),
+        len(request.planned_arm_ids),
+        request.planned_input_count,
+        request.planned_input_count,
+        0,
     )
     outcome = BenchmarkWorkflowOutcomeV1(
         WorkflowStatus.COMPLETED,

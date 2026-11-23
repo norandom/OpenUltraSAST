@@ -314,8 +314,7 @@ def _answered_entries(
 ) -> dict[str, frozenset[str]]:
     """Entry digests each ecosystem queue has already surrendered to a ledger batch."""
     queued = {
-        ecosystem: {entry.entry_digest for entry in _queue_for(state, ecosystem).entries}
-        for ecosystem in COHORT_SELECTION_ECOSYSTEMS
+        ecosystem: {entry.entry_digest for entry in _queue_for(state, ecosystem).entries} for ecosystem in COHORT_SELECTION_ECOSYSTEMS
     }
     answered: dict[str, set[str]] = {ecosystem: set() for ecosystem in COHORT_SELECTION_ECOSYSTEMS}
     for batch in batches:
@@ -450,8 +449,7 @@ def select_third_cohort_batch(
     try:
         answered = _answered_entries(state, accepted_batches)
         ranked = sorted(
-            _ecosystem_rank(_pending_for(state, answered, ecosystem), ecosystem, facts)
-            for ecosystem in COHORT_SELECTION_ECOSYSTEMS
+            _ecosystem_rank(_pending_for(state, answered, ecosystem), ecosystem, facts) for ecosystem in COHORT_SELECTION_ECOSYSTEMS
         )
         for rank in ranked:
             ecosystem = rank[4]
@@ -519,8 +517,7 @@ def _pending_by_ecosystem(
     than dropping it.
     """
     queued = {
-        ecosystem: {entry.entry_digest for entry in _queue_for(state, ecosystem).entries}
-        for ecosystem in COHORT_SELECTION_ECOSYSTEMS
+        ecosystem: {entry.entry_digest for entry in _queue_for(state, ecosystem).entries} for ecosystem in COHORT_SELECTION_ECOSYSTEMS
     }
     answered: dict[str, set[str]] = {ecosystem: set() for ecosystem in COHORT_SELECTION_ECOSYSTEMS}
     for batch in batches:
@@ -531,18 +528,14 @@ def _pending_by_ecosystem(
             if _review_resolved(outcome) and outcome.queue_entry_digest in queued[ecosystem]:
                 answered[ecosystem].add(outcome.queue_entry_digest)
     return {
-        ecosystem: tuple(
-            entry for entry in _queue_for(state, ecosystem).entries if entry.entry_digest not in answered[ecosystem]
-        )
+        ecosystem: tuple(entry for entry in _queue_for(state, ecosystem).entries if entry.entry_digest not in answered[ecosystem])
         for ecosystem in COHORT_SELECTION_ECOSYSTEMS
     }
 
 
 def _ecosystem_gap(facts: _LedgerFacts) -> tuple[str, ...]:
     """Canonical ecosystems with no accepted positive recorded yet."""
-    return tuple(
-        ecosystem for ecosystem in COHORT_SELECTION_ECOSYSTEMS if facts.accepted_by_ecosystem.get(ecosystem, 0) == 0
-    )
+    return tuple(ecosystem for ecosystem in COHORT_SELECTION_ECOSYSTEMS if facts.accepted_by_ecosystem.get(ecosystem, 0) == 0)
 
 
 def _fourth_ecosystem(
@@ -621,9 +614,7 @@ def _gap_closing_selection(
             ecosystem_policy_digest=eco_policy,
             ground_truth_policy_digest=gt_policy,
         )
-    reason = (
-        CohortSelectionReason.MISSING_ECOSYSTEM_SELECTED if ecosystem_gap else CohortSelectionReason.CLOSURE_GAP_SELECTED
-    )
+    reason = CohortSelectionReason.MISSING_ECOSYSTEM_SELECTED if ecosystem_gap else CohortSelectionReason.CLOSURE_GAP_SELECTED
     return _fourth_selected(
         state,
         ecosystem,
@@ -659,9 +650,7 @@ def _fourth_decision(
         closing = _gap_closing_selection(state, pending_by, facts, census=census, eco_policy=eco_policy, gt_policy=gt_policy)
         if closing is not None:
             return closing
-        ranked = sorted(
-            _ecosystem_rank(pending_by[ecosystem], ecosystem, facts) for ecosystem in COHORT_SELECTION_ECOSYSTEMS
-        )
+        ranked = sorted(_ecosystem_rank(pending_by[ecosystem], ecosystem, facts) for ecosystem in COHORT_SELECTION_ECOSYSTEMS)
         for rank in ranked:
             ecosystem = rank[4]
             if pending_by[ecosystem]:
@@ -766,9 +755,7 @@ def _selection_state(
 ) -> SourcingQueueStateV1:
     """Narrow the selected ecosystem queue to exactly the selected entries."""
     try:
-        full = _require_selection_binding(
-            selection, state, expected_ecosystem_policy_digest, expected_ground_truth_policy_digest
-        )
+        full = _require_selection_binding(selection, state, expected_ecosystem_policy_digest, expected_ground_truth_policy_digest)
         narrowed = _narrowed_queue(selection, full)
         python_queue = narrowed if selection.ecosystem == "python" else state.python_queue
         javascript_queue = narrowed if selection.ecosystem == "javascript" else state.javascript_queue
