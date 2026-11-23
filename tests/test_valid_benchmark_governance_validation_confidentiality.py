@@ -55,7 +55,7 @@ from benchmarks.valid.ordinary_change_contract import (  # noqa: E402
 )
 from benchmarks.valid.ordinary_changes import post_freeze_contamination_retirement  # noqa: E402
 from benchmarks.valid.ordinary_draw import OrdinaryDrawError, OrdinaryDrawReason  # noqa: E402
-from benchmarks.valid.population_material_contract import _manifest_value  # noqa: E402
+from benchmarks.valid.population_material_contract import PERMISSIVE_PUBLIC_LICENSES, _manifest_value  # noqa: E402
 from benchmarks.valid.replacement_artifact_contract import ArtifactKind  # noqa: E402
 from openultrasast.core import canonical  # noqa: E402
 from openultrasast.core.canonical import bytes_digest  # noqa: E402
@@ -160,6 +160,54 @@ def test_permissive_material_without_distribution_approval_remains_private() -> 
 
     assert partition.manifest.public_count == 1
     assert partition.manifest.private_count == 2
+
+
+@pytest.mark.parametrize(
+    "license_class",
+    (materials.LicenseClass.NON_PERMISSIVE, materials.LicenseClass.UNCERTAIN),
+)
+def test_non_permissive_class_with_an_allowlisted_expression_is_never_public(license_class) -> None:
+    assert "MIT" in PERMISSIVE_PUBLIC_LICENSES
+    changes = tuple(_digest(f"class-only-mismatch-{license_class.value}-{index}") for index in range(3))
+    freeze = _freeze(changes)
+    inputs = tuple(
+        materials.PopulationMaterialInputV1(
+            change,
+            license_class if index == 0 else materials.LicenseClass.PERMISSIVE,
+            "MIT",
+            f"source {index}\n".encode(),
+            f"private-label-{index}".encode(),
+            f"review-judgment-{index}".encode(),
+            True,
+        )
+        for index, change in enumerate(changes)
+    )
+    guarded = inputs[0]
+    assert guarded.source_content and guarded.public_distribution_approved
+    assert guarded.license_expression == inputs[1].license_expression
+
+    partition = materials.build_population_material_partition(
+        freeze,
+        inputs,
+        freeze_validator=_Validator(freeze),
+        partition_policy_digest=_digest("partition-policy"),
+    )
+    manifest = partition.manifest
+
+    assert manifest.public_count == 2
+    assert manifest.private_count == 1
+    (opaque,) = manifest.private_refs
+    assert (opaque.change_digest, opaque.license_class) == (guarded.change_digest, license_class)
+    assert guarded.source_content not in materials.public_manifest_bytes(partition)
+    assert all(guarded.source_content not in record.source_content for record in partition.public_source_objects)
+    forged = replace(
+        manifest.public_sources[0],
+        change_digest=guarded.change_digest,
+        source_digest=opaque.source_digest,
+        byte_length=opaque.byte_length,
+    )
+    with pytest.raises(materials.PopulationMaterialError, match="not authorized"):
+        materials.public_source_object_bytes(partition, forged)
 
 
 def test_forged_public_reference_for_private_change_is_refused() -> None:
