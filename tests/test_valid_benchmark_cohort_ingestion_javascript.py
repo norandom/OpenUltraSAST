@@ -90,10 +90,7 @@ def _prepared():
 
 
 def _js_records(state, candidates):
-    return [
-        reviewed_record(entry, candidates[entry.candidate_digest], ecosystem="javascript")[0]
-        for entry in javascript_entries(state)
-    ]
+    return [reviewed_record(entry, candidates[entry.candidate_digest], ecosystem="javascript")[0] for entry in javascript_entries(state)]
 
 
 def _by_reason(outcome):
@@ -205,9 +202,7 @@ def test_every_accepted_and_excluded_javascript_candidate_replays_from_external_
         )
         records.append(content)
         expected[entry.entry_digest] = review
-    unknown = reviewed_record(
-        entries[0], candidates[entries[0].candidate_digest], ecosystem="javascript", entry_digest="3" * 64
-    )[0]
+    unknown = reviewed_record(entries[0], candidates[entries[0].candidate_digest], ecosystem="javascript", entry_digest="3" * 64)[0]
     records.append(unknown)
 
     outcome = _ingest(records, state, candidates)
@@ -267,8 +262,16 @@ def test_javascript_records_are_hostile_decoded_and_label_blind():
     labeled = json.dumps({**json.loads(good), "verdict": "accepted"}, sort_keys=True, separators=(",", ":")).encode("utf-8")
 
     outcome = _ingest(
-        [b"", b"not json at all", b'{"x":NaN}', b'{"x":1e999}', b'{"k":' + b"[" * 20000 + b"]" * 20000 + b"}",
-         spaced, wrong_schema, labeled],
+        [
+            b"",
+            b"not json at all",
+            b'{"x":NaN}',
+            b'{"x":1e999}',
+            b'{"k":' + b"[" * 20000 + b"]" * 20000 + b"}",
+            spaced,
+            wrong_schema,
+            labeled,
+        ],
         state,
         candidates,
     )
@@ -287,9 +290,7 @@ def test_javascript_records_are_hostile_decoded_and_label_blind():
 def test_unknown_duplicate_missing_and_reserved_javascript_records_stay_closed():
     state, candidates = _prepared()
     entries = javascript_entries(state)
-    unknown = reviewed_record(
-        entries[0], candidates[entries[0].candidate_digest], ecosystem="javascript", entry_digest="4" * 64
-    )[0]
+    unknown = reviewed_record(entries[0], candidates[entries[0].candidate_digest], ecosystem="javascript", entry_digest="4" * 64)[0]
     good, _ = reviewed_record(entries[1], candidates[entries[1].candidate_digest], ecosystem="javascript")
     thinned = dict(candidates)
     del thinned[entries[2].candidate_digest]
@@ -309,9 +310,7 @@ def test_unknown_duplicate_missing_and_reserved_javascript_records_stay_closed()
     reserved_authority = authority(resolved, legacy=legacy)
     names = [name for name in JAVASCRIPT_REQUEST_NAMES if name != "js-00"]
     reserved_requests = [request_for(name) for name in names]
-    reserved_state, _ = javascript_cohort_state(
-        reserved_requests, resolver_=resolved, authority_=reserved_authority
-    )
+    reserved_state, _ = javascript_cohort_state(reserved_requests, resolver_=resolved, authority_=reserved_authority)
     reserved_candidates = candidates_for(reserved_requests, resolved)
     assert js_url not in {entry.canonical_repository for entry in javascript_entries(reserved_state)}
     reserved_candidate = next(iter(candidates_for([request_for("js-00")], resolved).values()))

@@ -129,9 +129,7 @@ def test_nonpermissive_and_uncertain_material_stay_behind_opaque_references() ->
         source = materials.resolve_public_source(partition, reference)
         assert source
         assert bytes_digest(source) == reference.source_digest
-    covered = {item.change_digest for item in manifest.private_refs} | {
-        item.change_digest for item in manifest.public_sources
-    }
+    covered = {item.change_digest for item in manifest.private_refs} | {item.change_digest for item in manifest.public_sources}
     assert covered == set(manifest.positive_change_digests)
 
 
@@ -167,9 +165,7 @@ def test_permissive_material_without_distribution_approval_remains_private() -> 
 def test_forged_public_reference_for_private_change_is_refused() -> None:
     partition, artifacts, inputs = _partitioned()
     private_reference = partition.manifest.private_refs[0]
-    private_record = next(
-        item for item in partition.private_records if item.change_digest == private_reference.change_digest
-    )
+    private_record = next(item for item in partition.private_records if item.change_digest == private_reference.change_digest)
     assert private_record.source_content
     permissive = partition.manifest.public_sources[0]
     forged_record = replace(
@@ -197,9 +193,7 @@ def test_forged_public_reference_for_private_change_is_refused() -> None:
 def test_private_and_sealed_resolution_requires_the_custodian_boundary() -> None:
     partition, artifacts, inputs = _partitioned()
     reference = partition.manifest.private_refs[0]
-    matching_label = next(
-        item for item in partition.sealed_label_records if item.change_digest == reference.change_digest
-    )
+    matching_label = next(item for item in partition.sealed_label_records if item.change_digest == reference.change_digest)
     custodian = materials.material_access_authority(
         partition,
         materials.MaterialActorRole.CUSTODIAN,
@@ -381,10 +375,7 @@ def _development_request(bundle, predecessor, checkpoint, selection, resolver, m
 
 def _diagnostic_resolver(selection=None) -> reservation.RepositoryIdentityResolver:
     selection = _authorities()[2] if selection is None else selection
-    networks = {
-        push.network_identity_digest: reservation.build_network_identity(push.canonical_repository)
-        for push in selection.pushes
-    }
+    networks = {push.network_identity_digest: reservation.build_network_identity(push.canonical_repository) for push in selection.pushes}
     return reservation.RepositoryIdentityResolver(tuple(networks.values()))
 
 
@@ -445,16 +436,18 @@ def test_development_opening_is_terminal_and_never_rewrites_prior_evidence() -> 
     manifest, _, selection = _authorities()
     resolver = _diagnostic_resolver(selection)
     request, review_resolver = _development_request(bundle, predecessor, frozen, selection, resolver, manifest)
-    observation_before = _repo(client).get(
-        frozen.reference,
-        expected_kind=ArtifactKind.OBSERVATION,
-        authority=_custodian(),
-        expected_access_policy_digest=ACCESS_POLICY,
-    ).content
+    observation_before = (
+        _repo(client)
+        .get(
+            frozen.reference,
+            expected_kind=ArtifactKind.OBSERVATION,
+            authority=_custodian(),
+            expected_access_policy_digest=ACCESS_POLICY,
+        )
+        .content
+    )
     store_before = dict(client.objects)
-    prior_events = lifecycle_authority.require_admission_eligible(
-        bundle.population_digest, bundle.freeze_digest
-    ).event_digests
+    prior_events = lifecycle_authority.require_admission_eligible(bundle.population_digest, bundle.freeze_digest).event_digests
 
     opened = sealed_diagnostics.open_observation_for_development(
         request,

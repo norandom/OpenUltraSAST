@@ -500,9 +500,13 @@ def test_label_blind_manifest_resolves_exactly_and_stays_label_blind(guard_root)
     _, selection, freeze, partition, manifest = _binding_artifacts(guard_root, binding)
     disclosure, resolver = stored_artifact(b'{"conflicts":[]}', artifact_id="binding-conflicts")
     content = label_blind.validate_label_blind_population_manifest(
-        manifest, freeze, partition, selection, _manifest_review(
-            label_blind.build_label_blind_population_draft(freeze, partition, selection)
-        ), _manifest_policy(), resolver
+        manifest,
+        freeze,
+        partition,
+        selection,
+        _manifest_review(label_blind.build_label_blind_population_draft(freeze, partition, selection)),
+        _manifest_policy(),
+        resolver,
     )
 
     assert content == label_blind.label_blind_population_manifest_bytes(manifest)

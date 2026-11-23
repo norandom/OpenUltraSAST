@@ -289,9 +289,7 @@ def _policy_and_logs() -> tuple[PopulationCustodyPolicy, object, object]:
     return policy, available, append_population_use(available, receipt, policy)
 
 
-def _custody_store(
-    client: _RecordingClient, policy: PopulationCustodyPolicy, report: object | None = None
-) -> S3DurableCustodyStore:
+def _custody_store(client: _RecordingClient, policy: PopulationCustodyPolicy, report: object | None = None) -> S3DurableCustodyStore:
     return S3DurableCustodyStore(
         _durable_settings(),
         client,
@@ -441,15 +439,18 @@ def test_purpose_scoped_settings_load_and_namespaces_stay_secret_free() -> None:
     ("current", "noncurrent"),
     ((None, 1), (0, 1), (-3, 1), (14, 0), (14, None), (True, 1), (14, True)),
 )
-def test_transient_retention_requires_registered_positive_current_and_noncurrent_expiry(
-    current: object, noncurrent: object
-) -> None:
+def test_transient_retention_requires_registered_positive_current_and_noncurrent_expiry(current: object, noncurrent: object) -> None:
     client = _RecordingClient()
     assert _prove_store_nonzero(client, _transient_settings().bucket) > 0
 
     with pytest.raises(store_configuration.StoreConfigurationError):
         store_configuration.RetentionProfile(
-            store_configuration.StorePurpose.TRANSIENT, True, True, True, current, noncurrent  # type: ignore[arg-type]
+            store_configuration.StorePurpose.TRANSIENT,
+            True,
+            True,
+            True,
+            current,
+            noncurrent,  # type: ignore[arg-type]
         )
 
 
@@ -460,7 +461,12 @@ def test_durable_retention_never_registers_current_expiry(current: object, noncu
 
     with pytest.raises(store_configuration.StoreConfigurationError):
         store_configuration.RetentionProfile(
-            store_configuration.StorePurpose.DURABLE, True, True, True, current, noncurrent  # type: ignore[arg-type]
+            store_configuration.StorePurpose.DURABLE,
+            True,
+            True,
+            True,
+            current,
+            noncurrent,  # type: ignore[arg-type]
         )
 
 
@@ -1107,9 +1113,7 @@ def test_journal_head_preserves_the_selected_authority_and_successor_rules() -> 
         lease_expires_at=_at(60),
     )
     with pytest.raises(workflow_journal.WorkflowJournalError) as expired_refusal:
-        journal.append_and_swap(
-            successor.head_digest, expired_heartbeat, workflow_journal.successor_head(successor, expired_heartbeat)
-        )
+        journal.append_and_swap(successor.head_digest, expired_heartbeat, workflow_journal.successor_head(successor, expired_heartbeat))
     assert expired_refusal.value.reason is workflow_journal.WorkflowJournalReason.LEASE_EXPIRED
 
 
@@ -1126,9 +1130,7 @@ def test_concurrent_journal_appends_have_exactly_one_winner() -> None:
     successor = workflow_journal.successor_head(head, entry)
 
     with ThreadPoolExecutor(max_workers=2) as pool:
-        outcomes = tuple(
-            pool.map(lambda _: journal.append_and_swap(head.head_digest, entry, successor), range(2))
-        )
+        outcomes = tuple(pool.map(lambda _: journal.append_and_swap(head.head_digest, entry, successor), range(2)))
 
     assert sorted(outcomes) == [False, True]
     assert journal.current_head(_workflow_digest()).head_digest == successor.head_digest
@@ -1360,12 +1362,15 @@ def test_full_persistence_flow_never_issues_administrator_operations() -> None:
     content, reference = _artifact()
     service = _repo(client)
     assert service.put_if_absent(content, reference=reference) == reference
-    assert service.get(
-        reference,
-        expected_kind=reference.artifact_kind,
-        authority=_authority(artifact_repository.ArtifactActorRole.DETECTOR),
-        expected_access_policy_digest=_READ_POLICY,
-    ).content == content
+    assert (
+        service.get(
+            reference,
+            expected_kind=reference.artifact_kind,
+            authority=_authority(artifact_repository.ArtifactActorRole.DETECTOR),
+            expected_access_policy_digest=_READ_POLICY,
+        ).content
+        == content
+    )
 
     policy, available, spent = _policy_and_logs()
     store = _custody_store(client, policy)

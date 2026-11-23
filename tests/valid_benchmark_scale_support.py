@@ -134,9 +134,7 @@ def component_arm_ids(population: E2EPopulation) -> tuple[str, ...]:
     """Arms that execute on an adapter lane (the combined arm is rule-derived)."""
     from openultrasast.core.evaluation_measurement import ArmKindV3  # noqa: E402
 
-    return tuple(
-        row.arm_id for row in population.plan.registrations if row.configuration.kind is ArmKindV3.COMPONENT
-    )
+    return tuple(row.arm_id for row in population.plan.registrations if row.configuration.kind is ArmKindV3.COMPONENT)
 
 
 def durable_bucket() -> str:
@@ -218,9 +216,7 @@ def probe_objects_factory(total_objects: int) -> Callable[[], Iterator[StreamObj
     return factory
 
 
-def case_objects_factory(
-    population: E2EPopulation, limit: int | None = None
-) -> Callable[[], Iterator[StreamObject]]:
+def case_objects_factory(population: E2EPopulation, limit: int | None = None) -> Callable[[], Iterator[StreamObject]]:
     """Canonical label-blind case-input objects from the scale population."""
 
     def factory() -> Iterator[StreamObject]:
@@ -722,9 +718,7 @@ class ScaleLifecycle:
         def _spend(execution):
             preparation = derive_case_adapter_preparation(self._adapter_request(execution))
             prior = self.environment.store.current_log(case.freeze.population_digest)
-            receipt = record_population_use(
-                preparation.label_release_request, prior, E2E_CUSTODIAN, self.environment.custody_policy
-            )
+            receipt = record_population_use(preparation.label_release_request, prior, E2E_CUSTODIAN, self.environment.custody_policy)
             successor = append_population_use(prior, receipt, self.environment.custody_policy)
             assert self.environment.store.compare_and_swap(prior.log_digest, successor)
             head = self.environment.store.current_log(receipt.population_digest)
@@ -755,7 +749,13 @@ class ScaleLifecycle:
             reference = artifact_reference(content)
             self.environment.repository.put_if_absent(content, reference=reference)
             self.release = AdmissionSpendReleaseV1(
-                None, receipt.receipt_digest, True, len(raw), canonical.bytes_digest(raw), released, reference,
+                None,
+                receipt.receipt_digest,
+                True,
+                len(raw),
+                canonical.bytes_digest(raw),
+                released,
+                reference,
                 canonical.content_digest(value),
             )
             return self.release
@@ -788,15 +788,10 @@ class ScaleLifecycle:
         rekeyed = replace(
             self.release,
             released_cases=tuple(
-                replace(row, case_input_digest=row.underlying_push_digest, case_digest="")
-                for row in self.release.released_cases
+                replace(row, case_input_digest=row.underlying_push_digest, case_digest="") for row in self.release.released_cases
             ),
         )
-        return project_exact_scopes(
-            ProjectionRequestV1(
-                release=rekeyed, execution=self.execution, selection=self.population.selection
-            )
-        )
+        return project_exact_scopes(ProjectionRequestV1(release=rekeyed, execution=self.execution, selection=self.population.selection))
 
     def render_again(self) -> bytes:
         """Deterministic re-render through the committed status command."""

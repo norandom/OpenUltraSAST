@@ -151,9 +151,7 @@ def test_fourth_cohort_closes_the_combined_positive_set():
     assert outcome.insufficient_reason is None
     assert len(outcome.accepted_positives) == len(entries) >= MINIMUM_ACCEPTED_POSITIVES
     assert outcome.pending_entries == ()
-    assert all(
-        scope.ecosystem.value == "javascript" for positive in outcome.accepted_positives for scope in positive.verified_scopes
-    )
+    assert all(scope.ecosystem.value == "javascript" for positive in outcome.accepted_positives for scope in positive.verified_scopes)
     assert all(positive.verified_scopes for positive in outcome.accepted_positives)
 
     closure = project_positive_set_closure((*ledger, outcome))
@@ -303,9 +301,7 @@ def test_fourth_selection_refuses_reweighted_policy_and_stale_census():
     assert changed.status is CohortSelectionStatus.REFUSED
     assert changed.reason is CohortSelectionReason.POLICY_MISMATCH
 
-    reserved = legacy_reservation_source(
-        resolved, repository="https://github.com/fixture/cohort-py4-00", source_digest="c" * 64
-    )
+    reserved = legacy_reservation_source(resolved, repository="https://github.com/fixture/cohort-py4-00", source_digest="c" * 64)
     stale_state, _ = replacement_cohort_state(
         python_names=(*COMBINED_PYTHON_NAMES, *FOURTH_PYTHON_NAMES),
         javascript_names=(),

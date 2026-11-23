@@ -118,9 +118,7 @@ def test_selection_targets_a_missing_ecosystem_to_preserve_both():
     assert dict(selection.accepted_by_ecosystem) == {"python": 12}
     pending = sorted(state.javascript_queue.entries, key=lambda entry: entry.entry_digest)
     assert selection.selected_entries == tuple(entry.entry_digest for entry in pending[:COHORT_BATCH_CAP])
-    assert selection.targeted_families == tuple(
-        sorted({entry.family.vulnerability_family for entry in pending[:COHORT_BATCH_CAP]})
-    )
+    assert selection.targeted_families == tuple(sorted({entry.family.vulnerability_family for entry in pending[:COHORT_BATCH_CAP]}))
 
 
 def test_selection_targets_the_second_vulnerability_family_gap():
@@ -137,10 +135,7 @@ def test_selection_targets_the_second_vulnerability_family_gap():
         weakened_javascript=1,
     )
     ledger_families = {
-        scope.vulnerability_family
-        for batch in ledger
-        for item in batch.accepted_positives
-        for scope in item.verified_scopes
+        scope.vulnerability_family for batch in ledger for item in batch.accepted_positives for scope in item.verified_scopes
     }
     assert ledger_families == {"injection"}
 
@@ -187,9 +182,7 @@ def test_selection_refuses_a_reweighted_policy_after_judgments():
 
 def test_selection_refuses_a_stale_reservation_census():
     state, resolved, ledger = _prepared()
-    reserved = legacy_reservation_source(
-        resolved, repository="https://github.com/fixture/cohort-pyinj-00", source_digest="c" * 64
-    )
+    reserved = legacy_reservation_source(resolved, repository="https://github.com/fixture/cohort-pyinj-00", source_digest="c" * 64)
     stale_state, _ = replacement_cohort_state(authority_=authority(resolver(), legacy=(reserved,)))
     assert stale_state.census_digest != state.census_digest
     assert [entry.entry_digest for entry in stale_state.python_queue.entries] == [
@@ -247,17 +240,14 @@ def test_selection_caps_at_twenty_preferring_family_gaps():
     assert selection.ecosystem == "python"
     assert len(selection.selected_entries) == COHORT_BATCH_CAP
     gap_entries = {
-        entry.entry_digest
-        for entry in state.python_queue.entries
-        if entry.family.vulnerability_family in {"deserialization", "ssrf"}
+        entry.entry_digest for entry in state.python_queue.entries if entry.family.vulnerability_family in {"deserialization", "ssrf"}
     }
     assert gap_entries <= set(selection.selected_entries)
     python_batch = next(batch for batch in ledger if batch.ecosystem == "python")
     unselected = [
         entry
         for entry in state.python_queue.entries
-        if entry.entry_digest in set(python_batch.pending_entries)
-        and entry.entry_digest not in set(selection.selected_entries)
+        if entry.entry_digest in set(python_batch.pending_entries) and entry.entry_digest not in set(selection.selected_entries)
     ]
     assert len(unselected) == 4
     assert {entry.family.vulnerability_family for entry in unselected} == {"injection"}

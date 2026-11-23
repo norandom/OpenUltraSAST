@@ -184,11 +184,7 @@ def _ecosystem_attestation(candidate, decision: EcosystemReviewDecision, **chang
 
 
 def _accepted_ecosystem_review(candidate):
-    decision = (
-        EcosystemReviewDecision.PYTHON
-        if candidate.observed_language == "python"
-        else EcosystemReviewDecision.JAVASCRIPT
-    )
+    decision = EcosystemReviewDecision.PYTHON if candidate.observed_language == "python" else EcosystemReviewDecision.JAVASCRIPT
     return review_repository_ecosystem(
         candidate,
         _ecosystem_attestation(candidate, decision),
@@ -280,9 +276,7 @@ def test_changed_event_bytes_cannot_reproduce_the_accepted_census_identity() -> 
     census = authority.append_influence(_event(resolver))
     assert census.accepted_event_digests
 
-    different_actor = authority.project_census(
-        (_event(resolver, actor="other-producer@example.invalid"),)
-    )
+    different_actor = authority.project_census((_event(resolver, actor="other-producer@example.invalid"),))
 
     assert different_actor.census_digest != census.census_digest
     raw = bytearray(_event(resolver))
@@ -323,9 +317,7 @@ def _foreign_network_event(
         "",
         "",
     )
-    reviewed = reservation.InfluenceEventV1(
-        **{**vars(draft), "review_digest": content_digest(reservation._review_value(draft))}
-    )
+    reviewed = reservation.InfluenceEventV1(**{**vars(draft), "review_digest": content_digest(reservation._review_value(draft))})
     complete = reservation.InfluenceEventV1(
         **{
             **vars(reviewed),
@@ -536,11 +528,7 @@ def test_legacy_model_record_alone_leaves_verification_pending_human() -> None:
 def test_historical_authorization_requires_exact_path_and_digest_pairs() -> None:
     withdrawal = _withdrawal()
     assert withdrawal.candidate.entries
-    entry = next(
-        item
-        for item in withdrawal.candidate.entries
-        if item.path == "benchmarks/valid/pilot/freeze-valid.json"
-    )
+    entry = next(item for item in withdrawal.candidate.entries if item.path == "benchmarks/valid/pilot/freeze-valid.json")
     assert entry.byte_length > 0
 
     authorized = historical.authorize_historical_path(ROOT, entry.path, entry.content_digest, withdrawal)
@@ -551,11 +539,7 @@ def test_historical_authorization_requires_exact_path_and_digest_pairs() -> None
 
 def test_changed_bytes_relocated_paths_and_foreign_digests_are_refused(tmp_path: Path) -> None:
     withdrawal = _withdrawal()
-    entry = next(
-        item
-        for item in withdrawal.candidate.entries
-        if item.path == "benchmarks/valid/pilot/freeze-valid.json"
-    )
+    entry = next(item for item in withdrawal.candidate.entries if item.path == "benchmarks/valid/pilot/freeze-valid.json")
     for relative in historical.PINNED_HISTORICAL_DIGESTS:
         target = tmp_path / relative
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -672,9 +656,7 @@ def test_retirement_is_terminal_and_never_rewrites_prior_evidence() -> None:
 
     assert retired.state is lifecycle.PopulationLifecycleState.RETIRED
     assert not retired.admission_eligible
-    assert retired.event_digests == tuple(
-        lifecycle.decode_lifecycle_event(item).event_digest for item in contents
-    )
+    assert retired.event_digests == tuple(lifecycle.decode_lifecycle_event(item).event_digest for item in contents)
     assert lifecycle.projection_bytes(authority.project(contents[:2])) == before
     with pytest.raises(lifecycle.LifecycleConflict, match="terminal"):
         authority.append(_development(retired.head_event_digest))

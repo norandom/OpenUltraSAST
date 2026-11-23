@@ -176,8 +176,15 @@ def test_review_policy_failures_are_recorded_never_fabricated():
         (None, lambda entry: {"policy_satisfied": False}),
         (None, lambda entry: {"defect_present": None}),
         (None, lambda entry: {"in_repository_reachable": False}),
-        (None, lambda entry: {"defect_present": None, "fix_addresses": None, "in_repository_reachable": None,
-                              "model_assistance_digest": model_only_assistance_digest()}),
+        (
+            None,
+            lambda entry: {
+                "defect_present": None,
+                "fix_addresses": None,
+                "in_repository_reachable": None,
+                "model_assistance_digest": model_only_assistance_digest(),
+            },
+        ),
         (None, lambda entry: {"verified_scopes": ()}),
         (None, lambda entry: {"verified_scopes": (VerifiedScope("injection", "javascript"),)}),
     ]
@@ -194,7 +201,7 @@ def test_review_policy_failures_are_recorded_never_fabricated():
     assert outcome.insufficient_reason is CohortInsufficientReason.INSUFFICIENT_ACCEPTED_POSITIVES
     assert outcome.accepted_positives == ()
     assert sorted(expected_reasons) == sorted(item.reason for item in outcome.record_outcomes)
-    assert outcome.pending_entries == tuple(sorted(entry.entry_digest for entry in entries[len(cases):]))
+    assert outcome.pending_entries == tuple(sorted(entry.entry_digest for entry in entries[len(cases) :]))
 
 
 def test_unknown_entry_missing_candidate_and_duplicate_records_are_closed():
@@ -245,8 +252,16 @@ def test_external_records_are_hostile_decoded_and_label_blind():
     labeled = json.dumps({**json.loads(good), "verdict": "accepted"}, sort_keys=True, separators=(",", ":")).encode("utf-8")
 
     outcome = _ingest(
-        [b"", b"not json at all", b'{"x":NaN}', b'{"x":1e999}', b'{"k":' + b"[" * 20000 + b"]" * 20000 + b"}",
-         spaced, wrong_schema, labeled],
+        [
+            b"",
+            b"not json at all",
+            b'{"x":NaN}',
+            b'{"x":1e999}',
+            b'{"k":' + b"[" * 20000 + b"]" * 20000 + b"}",
+            spaced,
+            wrong_schema,
+            labeled,
+        ],
         state,
         candidates,
     )
@@ -319,9 +334,7 @@ def test_reserved_repositories_cannot_reenter_through_a_record():
     reserved_candidate = next(iter(candidates_for([request_for("py-00")], resolved).values()))
     entry = python_entries(state)[0]
     forged, _ = reviewed_record(entry, reserved_candidate)
-    good_without_entry = [
-        reviewed_record(item, candidates[item.candidate_digest])[0] for item in python_entries(state)[1:]
-    ]
+    good_without_entry = [reviewed_record(item, candidates[item.candidate_digest])[0] for item in python_entries(state)[1:]]
     outcome = _ingest([forged, *good_without_entry], state, candidates)
 
     assert outcome.status is CohortBatchStatus.ACCEPTED

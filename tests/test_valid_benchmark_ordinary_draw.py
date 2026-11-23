@@ -352,9 +352,7 @@ def _full_closed_batches():
         expected_ecosystem_policy_digest=ECOSYSTEM_POLICY,
         expected_ground_truth_policy_digest=GROUND_TRUTH_POLICY,
     )
-    fourth_entries = [
-        entry for entry in state.javascript_queue.entries if entry.entry_digest in set(fourth_selection.selected_entries)
-    ]
+    fourth_entries = [entry for entry in state.javascript_queue.entries if entry.entry_digest in set(fourth_selection.selected_entries)]
     fourth = ingest_fourth_cohort_batch(
         [reviewed_record(entry, by_digest[entry.candidate_digest], ecosystem="javascript")[0] for entry in fourth_entries],
         selection=fourth_selection,
@@ -428,9 +426,21 @@ def test_draw_is_label_blind_and_detector_blind(monkeypatch):
     assert ordinary_population_draw_bytes(plain) == ordinary_population_draw_bytes(laden)
     value = json.loads(ordinary_population_draw_bytes(plain))
     assert set(value) == {
-        "schema_version", "required_per_positive", "policy_digest", "closure_digest", "reservation_census_digest",
-        "positive_change_digests", "per_positive_counts", "repository_receipts", "fix_exclusions", "pushes",
-        "assignments", "exclusions", "provenance", "provenance_digest", "draw_digest",
+        "schema_version",
+        "required_per_positive",
+        "policy_digest",
+        "closure_digest",
+        "reservation_census_digest",
+        "positive_change_digests",
+        "per_positive_counts",
+        "repository_receipts",
+        "fix_exclusions",
+        "pushes",
+        "assignments",
+        "exclusions",
+        "provenance",
+        "provenance_digest",
+        "draw_digest",
     }
     assert value["schema_version"] == ORDINARY_POPULATION_DRAW_SCHEMA
     assert not any("label" in key or "observation" in key for key in value)

@@ -246,12 +246,8 @@ def adapter_request(environment: E2EEnvironment, product: Any) -> AdmissionCaseA
         proof_candidates=case.content.candidate_port,
         census_review=case.adapter_census_review,
         plan_review=case.adapter_plan_review,
-        admission_review=lambda subject: _attestation(
-            subject, _digest("e2e-adapter-admission-producer"), case.disclosure
-        ),
-        release_review=lambda subject: _attestation(
-            subject, _digest("e2e-adapter-release-producer"), case.disclosure
-        ),
+        admission_review=lambda subject: _attestation(subject, _digest("e2e-adapter-admission-producer"), case.disclosure),
+        release_review=lambda subject: _attestation(subject, _digest("e2e-adapter-release-producer"), case.disclosure),
         bridged_store_identity="scoped-admission-v3-bridge",
         bridged_retention_policy_digest=BRIDGE_RETENTION,
     )
@@ -268,9 +264,7 @@ def resume_request(
     now: str = RESUME_HEARTBEAT,
 ) -> run.BenchmarkResumeRequestV1:
     """The 8.6 resume authorities resolved from the current CAS head."""
-    authority = resolve_head_selected_retry_authority(
-        environment.journal, environment.repository, ACCESS_POLICY, WORKFLOW
-    )
+    authority = resolve_head_selected_retry_authority(environment.journal, environment.repository, ACCESS_POLICY, WORKFLOW)
     return run.BenchmarkResumeRequestV1(
         workflow_digest=WORKFLOW,
         admission_identity_digest=authority.admission_identity_digest,
@@ -336,9 +330,7 @@ def _defective_capture(bundle: Any, defect: ExecutionDefect, base: Any) -> Any:
         )
     elif defect in (ExecutionDefect.BUDGET_EXHAUSTED, ExecutionDefect.RESOURCE_LIMIT):
         reason = (
-            ProcessOutcomeReason.BUDGET_EXHAUSTED
-            if defect is ExecutionDefect.BUDGET_EXHAUSTED
-            else ProcessOutcomeReason.RESOURCE_LIMIT
+            ProcessOutcomeReason.BUDGET_EXHAUSTED if defect is ExecutionDefect.BUDGET_EXHAUSTED else ProcessOutcomeReason.RESOURCE_LIMIT
         )
         outcome = execution.impaired_adapter_outcome(bundle, reason, runtime_ms=9)
     return checkpoint.ArmExecutionCaptureV1(outcome, reads, stages, capture.degradations, observations)
@@ -384,8 +376,8 @@ class FailureRun:
             self.review = None
         else:
             self.review = _admission_review(self.case)
-        self.loader = loader if loader is not None else _LabelSource(
-            self.case.labels, self.environment.store, self.case.freeze.population_digest
+        self.loader = (
+            loader if loader is not None else _LabelSource(self.case.labels, self.environment.store, self.case.freeze.population_digest)
         )
         self.extra_markers = markers
         self.crash_before_spend = crash_before_spend
@@ -452,9 +444,7 @@ class FailureRun:
         environment, case = self.environment, self.case
         preparation = derive_case_adapter_preparation(adapter_request(environment, _last_execution(environment)))
         prior = environment.store.current_log(case.freeze.population_digest)
-        receipt = record_population_use(
-            preparation.label_release_request, prior, E2E_CUSTODIAN, environment.custody_policy
-        )
+        receipt = record_population_use(preparation.label_release_request, prior, E2E_CUSTODIAN, environment.custody_policy)
         successor = append_population_use(prior, receipt, environment.custody_policy)
         if self.before_cas is not None:
             self.before_cas()
@@ -505,9 +495,7 @@ class FailureRun:
     def _replay_stage(self, release: Any) -> Any:
         if self.scoring_crash:
             raise RuntimeError(defect_marker(self.slug, "scoring"))
-        self.replay = derive_case_adapter_replay(
-            adapter_request(self.environment, _last_execution(self.environment)), release
-        )
+        self.replay = derive_case_adapter_replay(adapter_request(self.environment, _last_execution(self.environment)), release)
         return self.replay
 
     def _publication_stage(self, replay_value: Any) -> Any:

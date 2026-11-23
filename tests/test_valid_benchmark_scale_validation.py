@@ -180,9 +180,7 @@ def test_scale_core_replay_reports_exact_scopes_for_every_planned_arm(chain: Sca
     assert tuple(report.baseline.arm_id for report in replay.reports) == PLANNED_ARMS
     expected_scopes = {(FAMILY_PY, "python"), (FAMILY_JS, "javascript")}
     for report in replay.reports:
-        assert {(result.key.scope.family_id, result.key.scope.ecosystem) for result in report.scoped_results} == (
-            expected_scopes
-        )
+        assert {(result.key.scope.family_id, result.key.scope.ecosystem) for result in report.scoped_results} == (expected_scopes)
         for result in report.scoped_results:
             for metric in result.metrics:
                 assert metric.denominator > 0

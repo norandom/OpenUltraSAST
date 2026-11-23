@@ -182,14 +182,10 @@ def _rival_custody_spend(failure: FailureRun) -> None:
     from benchmarks.valid.admission_case_adapter import derive_case_adapter_preparation
     from openultrasast.core.custody import append_population_use, record_population_use
 
-    preparation = derive_case_adapter_preparation(
-        adapter_request(failure.environment, failure.environment.last_execution)
-    )
+    preparation = derive_case_adapter_preparation(adapter_request(failure.environment, failure.environment.last_execution))
     store = failure.environment.store
     prior = store.current_log(_population_digest(failure))
-    receipt = record_population_use(
-        preparation.label_release_request, prior, E2E_CUSTODIAN, failure.environment.custody_policy
-    )
+    receipt = record_population_use(preparation.label_release_request, prior, E2E_CUSTODIAN, failure.environment.custody_policy)
     successor = append_population_use(prior, receipt, failure.environment.custody_policy)
     assert store.compare_and_swap(prior.log_digest, successor)
 
@@ -278,9 +274,7 @@ def test_publication_failure_keeps_the_validated_replay_and_never_completes() ->
     _assert_spent_state_preserved(failure, loader_reads=1)
     assert failure.replay is not None
 
-    refusing = S3ArtifactRepository(
-        _settings(StorePurpose.DURABLE), OutcomeRefusingClient(failure.environment.durable)
-    )
+    refusing = S3ArtifactRepository(_settings(StorePurpose.DURABLE), OutcomeRefusingClient(failure.environment.durable))
     with pytest.raises(AdmissionReplayError) as seam:
         publish_scoped_replay(_publication_request(failure, refusing))
     assert seam.value.reason is AdmissionReplayReason.PERSISTENCE_FAILED
@@ -391,9 +385,7 @@ def test_exact_resume_never_reruns_a_completed_arm_and_stale_owners_are_refused(
 def test_mid_run_head_race_reports_workflow_superseded_without_spend() -> None:
     environment = racing_environment()
     race = environment.transient
-    counts = WorkflowCounts(
-        len(environment.case.plan.registrations), 0, len(environment.case.manifest.input_digests), 0, 0
-    )
+    counts = WorkflowCounts(len(environment.case.plan.registrations), 0, len(environment.case.manifest.input_digests), 0, 0)
 
     def _rival() -> None:
         rival = S3WorkflowJournal(_settings(StorePurpose.TRANSIENT), race)

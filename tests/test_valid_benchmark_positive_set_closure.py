@@ -185,9 +185,13 @@ def test_closure_assembler_fails_closed_on_impossible_combinations():
     assert positive_set_closure_bytes(valid)
 
     short = positive_set_closure(
-        **{**based, "total_accepted_positives": 39, "positives_by_ecosystem": {"javascript": 21, "python": 18},
-           "status": PositiveSetClosureStatus.INSUFFICIENT,
-           "reason": PositiveSetClosureReason.INSUFFICIENT_TOTAL_POSITIVES}
+        **{
+            **based,
+            "total_accepted_positives": 39,
+            "positives_by_ecosystem": {"javascript": 21, "python": 18},
+            "status": PositiveSetClosureStatus.INSUFFICIENT,
+            "reason": PositiveSetClosureReason.INSUFFICIENT_TOTAL_POSITIVES,
+        }
     )
     assert short.total_accepted_positives == 39
 

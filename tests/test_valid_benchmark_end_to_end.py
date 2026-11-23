@@ -128,12 +128,8 @@ class _Lifecycle:
             proof_candidates=case.content.candidate_port,
             census_review=case.adapter_census_review,
             plan_review=case.adapter_plan_review,
-            admission_review=lambda subject: _attestation(
-                subject, _digest("e2e-adapter-admission-producer"), case.disclosure
-            ),
-            release_review=lambda subject: _attestation(
-                subject, _digest("e2e-adapter-release-producer"), case.disclosure
-            ),
+            admission_review=lambda subject: _attestation(subject, _digest("e2e-adapter-admission-producer"), case.disclosure),
+            release_review=lambda subject: _attestation(subject, _digest("e2e-adapter-release-producer"), case.disclosure),
             bridged_store_identity="scoped-admission-v3-bridge",
             bridged_retention_policy_digest=_digest("bridge-retention-11-3"),
         )
@@ -172,9 +168,7 @@ class _Lifecycle:
         manifest = self.execution.admission_manifest
         assert manifest is not None
         raw = self.case.labels
-        subject = release_review_subject(
-            manifest.manifest_digest, self.receipt.receipt_digest, self.released_cases, raw
-        )
+        subject = release_review_subject(manifest.manifest_digest, self.receipt.receipt_digest, self.released_cases, raw)
         review = _attestation(subject, _digest("e2e-release-producer"), self.case.disclosure)
         assert review.subject_digest == subject
         value = {
@@ -235,9 +229,7 @@ def test_validated_replay_contains_every_planned_arm_with_exact_scopes(lifecycle
     assert tuple(report.baseline.arm_id for report in replay.reports) == PLANNED_ARMS
     expected_scopes = {(FAMILY_PY, "python"), (FAMILY_JS, "javascript")}
     for report in replay.reports:
-        assert {
-            (result.key.scope.family_id, result.key.scope.ecosystem) for result in report.scoped_results
-        } == expected_scopes
+        assert {(result.key.scope.family_id, result.key.scope.ecosystem) for result in report.scoped_results} == expected_scopes
         assert report.combination_lineage is not None or report.baseline.arm_id != ANCHOR_ARM
         for result in report.scoped_results:
             assert tuple(metric.metric_id for metric in result.metrics) == tuple(MetricId)
@@ -279,8 +271,7 @@ def test_exact_scope_projection_cross_checks_the_core_case_graph(lifecycle: _Lif
     rekeyed = replace(
         lifecycle.release,
         released_cases=tuple(
-            replace(row, case_input_digest=row.underlying_push_digest, case_digest="")
-            for row in lifecycle.release.released_cases
+            replace(row, case_input_digest=row.underlying_push_digest, case_digest="") for row in lifecycle.release.released_cases
         ),
     )
     projection = project_exact_scopes(
@@ -383,9 +374,7 @@ def test_adapter_refusal_matrix_stays_closed_without_partial_replay(lifecycle: _
     wrong_labels = replace(
         lifecycle.release,
         released_cases=tuple(
-            replace(row, family_id="other_family", case_digest="")
-            if row.role.value == "vulnerable" and row.family_id == FAMILY_PY
-            else row
+            replace(row, family_id="other_family", case_digest="") if row.role.value == "vulnerable" and row.family_id == FAMILY_PY else row
             for row in lifecycle.release.released_cases
         ),
     )
@@ -456,9 +445,7 @@ class _RunLifecycle:
                 raise RuntimeError("interrupted before the shared custody spend")
             preparation = derive_case_adapter_preparation(self._adapter_request(execution))
             prior = self.environment.store.current_log(case.freeze.population_digest)
-            receipt = record_population_use(
-                preparation.label_release_request, prior, E2E_CUSTODIAN, self.environment.custody_policy
-            )
+            receipt = record_population_use(preparation.label_release_request, prior, E2E_CUSTODIAN, self.environment.custody_policy)
             successor = append_population_use(prior, receipt, self.environment.custody_policy)
             assert self.environment.store.compare_and_swap(prior.log_digest, successor)
             head = self.environment.store.current_log(receipt.population_digest)
@@ -491,7 +478,13 @@ class _RunLifecycle:
             reference = artifact_reference(content)
             self.environment.repository.put_if_absent(content, reference=reference)
             return AdmissionSpendReleaseV1(
-                None, receipt.receipt_digest, True, len(raw), canonical.bytes_digest(raw), released, reference,
+                None,
+                receipt.receipt_digest,
+                True,
+                len(raw),
+                canonical.bytes_digest(raw),
+                released,
+                reference,
                 canonical.content_digest(value),
             )
 
@@ -536,12 +529,8 @@ class _RunLifecycle:
             proof_candidates=case.content.candidate_port,
             census_review=case.adapter_census_review,
             plan_review=case.adapter_plan_review,
-            admission_review=lambda subject: _attestation(
-                subject, _digest("e2e-adapter-admission-producer"), case.disclosure
-            ),
-            release_review=lambda subject: _attestation(
-                subject, _digest("e2e-adapter-release-producer"), case.disclosure
-            ),
+            admission_review=lambda subject: _attestation(subject, _digest("e2e-adapter-admission-producer"), case.disclosure),
+            release_review=lambda subject: _attestation(subject, _digest("e2e-adapter-release-producer"), case.disclosure),
             bridged_store_identity="scoped-admission-v3-bridge",
             bridged_retention_policy_digest=_digest("bridge-retention-11-3"),
         )

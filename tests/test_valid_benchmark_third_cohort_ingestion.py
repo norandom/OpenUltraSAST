@@ -114,9 +114,7 @@ def test_third_cohort_contributes_ten_accepted_reachable_positives_and_replays()
     assert len(outcome.accepted_positives) == len(entries) >= MINIMUM_ACCEPTED_POSITIVES
     assert outcome.pending_entries == ()
     assert all(item.status.value == "accepted" for item in outcome.record_outcomes)
-    assert all(
-        scope.ecosystem.value == "python" for positive in outcome.accepted_positives for scope in positive.verified_scopes
-    )
+    assert all(scope.ecosystem.value == "python" for positive in outcome.accepted_positives for scope in positive.verified_scopes)
     assert {scope.vulnerability_family for p in outcome.accepted_positives for scope in p.verified_scopes} == {
         "deserialization",
         "ssrf",
@@ -167,8 +165,7 @@ def test_records_outside_the_selected_batch_are_excluded_closed():
     outside = [
         entry
         for entry in state.python_queue.entries
-        if entry.entry_digest in set(python_batch.pending_entries)
-        and entry.entry_digest not in set(selection.selected_entries)
+        if entry.entry_digest in set(python_batch.pending_entries) and entry.entry_digest not in set(selection.selected_entries)
     ]
     assert len(outside) == 4
     assert {entry.family.vulnerability_family for entry in outside} == {"injection"}

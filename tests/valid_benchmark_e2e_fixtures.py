@@ -173,8 +173,7 @@ def _relax_precision(configuration, rule=None):
         replace(
             row,
             precision_rules=tuple(
-                replace(precision, maximum_wilson_width=100.0, minimum_denominator=1, rule_digest="")
-                for precision in row.precision_rules
+                replace(precision, maximum_wilson_width=100.0, minimum_denominator=1, rule_digest="") for precision in row.precision_rules
             ),
             rule_digest="",
         )
@@ -559,9 +558,7 @@ class _CaseContent:
             artifacts.update(base_resolver.artifacts)
         bases = {
             role: _case_result(template_inputs[index], role, _digest("e2e-base-pair"), merged)[0]
-            for index, role in enumerate(
-                (AdmissionCaseRole.VULNERABLE, AdmissionCaseRole.FIXED, AdmissionCaseRole.ORDINARY)
-            )
+            for index, role in enumerate((AdmissionCaseRole.VULNERABLE, AdmissionCaseRole.FIXED, AdmissionCaseRole.ORDINARY))
         }
         read_evidence, stage_evidence = _execution_evidence(population)
         rule = population.combination_rule
@@ -639,9 +636,7 @@ class _CaseContent:
                 for key in {identity.raw, component.case_input_digest}:
                     self.by_wrapper[(arm_id, key)] = legacy_content
                     self.candidates[(arm_id, key)] = (
-                        replace(candidate, observation_digest=observation.observation_digest)
-                        if candidate is not None
-                        else None
+                        replace(candidate, observation_digest=observation.observation_digest) if candidate is not None else None
                     )
                 self.references[(arm_id, identity.raw)] = reference
                 self.observations[(arm_id, identity.raw)] = observation
@@ -769,9 +764,7 @@ class E2EPopulation:
 
     def _arm_configuration(self, arm_id: str, scopes, *, combined: bool = False):
         """Task 11.4 seam: minimum_ordinary beyond the census makes every scope insufficient."""
-        base = _configuration(
-            arm_id, scopes, combined=combined, minimum_ordinary=self.minimum_ordinary, label=f"e2e-{arm_id[4:]}"
-        )
+        base = _configuration(arm_id, scopes, combined=combined, minimum_ordinary=self.minimum_ordinary, label=f"e2e-{arm_id[4:]}")
         return _relax_precision(base, _union_rule()) if combined else _relax_precision(base)
 
     def _identities(self) -> tuple[_InputIdentity, ...]:
@@ -786,9 +779,7 @@ class E2EPopulation:
 
     def _mint_case_content(self) -> None:
         self.content = _CaseContent(self)
-        final_context_case = _with_model_context(
-            (self.catalog_context_case,), self.model_programs, self.model_lineages
-        )[0]
+        final_context_case = _with_model_context((self.catalog_context_case,), self.model_programs, self.model_lineages)[0]
         old = final_context_case.context.evidence
         evidence_context = make_evidence_validation_context(
             family_catalog=old.family_catalog,
@@ -865,9 +856,7 @@ class E2EPopulation:
 
     def slot_for(self, arm_id: str, raw: str):
         return next(
-            slot
-            for slot in self.plan.declaration.expected_observation_slots
-            if slot.arm_id == arm_id and slot.input_identity_digest == raw
+            slot for slot in self.plan.declaration.expected_observation_slots if slot.arm_id == arm_id and slot.input_identity_digest == raw
         )
 
     def run_request(self, **overrides: object) -> AdmissionRunRequestV1:
