@@ -1,0 +1,420 @@
+# Independent evaluation population v4 (PHP, TypeScript, Python). Reserved 2026-11-23.
+#
+# RESERVED, NOT SCANNED. Chosen by web research alone (research-2026-11-23.md, the research record; no candidates
+# file is written for v4): sixteen candidates read through advisories, commit metadata and fix diffs on the web, never
+# by how easy a case looks for this analyzer, from which the maintainer selected twelve on 2026-11-23. No repository
+# was cloned, no scanner or project tooling run on any of them, and none is referenced anywhere in this project's
+# development tree: the research checked it with `git grep` for each OWNER/REPO, bare and as a github.com URL, and the
+# same fixed-string search over benchmarks/, src/, tests/ and plane/ at reservation finds the twelve only in this
+# file and the research record.
+#
+# Why a v4: v1, v2 and v3-php are frozen, so milestone M4's new untouched population is a fourth one. Like v1 and v2
+# it is mixed (four PHP, four TypeScript, four Python cases) and holds multi-language repositories, PHP with its
+# JavaScript (`multi_language_members`), which task 13.4 found is where a second language costs a question its
+# completion. `language` is the research record's primary language as freeze.py spells it (php, typescript, python);
+# `also` is the other language its languages column reports, for PHP and non-PHP cases alike (the v1 and v2 convention).
+#
+# HOLD-OUT RULES (v1's, v2's and v3's): no scanner, quick rule, engine, plane task or model runs on any of these
+# repositories, and no trace, probe or census of them is made, before the population is FROZEN and the freeze commit
+# is recorded. Freezing reads git history, file lists, the sink source at the vulnerable pin and the fix diff only.
+# No rule, fact, query, prompt or scoring change may cite these cases before their evaluation is recorded; any
+# analyzer change made after a v4 result is a retune that v4 cannot qualify.
+# The guard (tests/test_independent_population.py) reads every file under benchmarks/, plane/, src/ and tests/; this
+# directory has not been exempt since commit 731eb8d. It fails the moment one of these repositories is named as
+# github.com/OWNER/REPO outside the reservation's own files. The research record names them, so its exact SHA-256 is
+# pinned in benchmarks/valid/reservation_guard_sources.py: from now on any byte change to it fails the guard too.
+#
+# SELECTION: the maintainer's, 2026-11-23, from the sixteen-candidate menu (research-2026-11-23.md, "Maintainer
+# selection"). The core nine: #1 rtMedia, #2 Drupal core, #3 Known, #7 tianji, #10 Strapi, #13 agenticSeek, #14 Rucio,
+# #15 LlamaFactory, #16 IRRD. Padding, because the guard test requires at least ten cases in every population and the
+# freeze step may drop a case: #8 Vendure, #9 Novu, #5 TYPO3 news. Not selected: #4 Moodle, #6 Admidio,
+# #11 terriajs-server, #12 Postiz. The menu records no selection criteria fixed before its advisories were read.
+# Family ids are the guard test's: SQL injection -> injection; SSRF and the host-header reset-link poisoning ->
+# untrusted_destination; default CORS and Flask debug mode -> config_secrets.
+#
+# `sites` are the sink locations the research record names (`path::function`; `<global>` for file scope), declared
+# before any scan; the first names the sink file. A declared site is never a fix-side guard location (controller
+# decision, 2026-11-23); such a location is described in `notes` or `caveats` only, as for Drupal core. `site_basis`
+# says how each was named: `research-named` here, and `resolved-from-fix-diff` where the freeze resolves a `site_files`
+# entry (a file the research record names without a function) from the fix commit's diff of that file. At reservation
+# freeze.py finds functions in PHP files only, so a TypeScript or Python `site_files` entry resolves to `<module>` there
+# and must be named by hand from the sink source at the vulnerable pin. `sink_evidence` is a short literal from the
+# research record's quotation of the sink file that must appear in that file at the vulnerable pin; it is declared where
+# the sink is file scope, where no function is named, or where the function name is too common to be searched as text.
+#
+# The research record does not say, for any of the twelve, whether the advisory names the fix commit, so
+# `fix_named_by_advisory` is not declared here; it is to be decided per case at freeze. If it is set to `false`, mind
+# that freeze.py's inferred-fix check then looks only at sites labelled `advisory-named`, of which there are none.
+# A second limit: freeze.py's `fix_changes_sites` (lines 200-211) resolves functions in PHP files only, so for the
+# eight TypeScript and Python cases the inferred-fix check can never confirm a fix even after relabelling; that
+# confirmation is then a manual step of the freeze hand review, and the controller names Vendure and Rucio for it.
+# `published` is the date the research record gives with the advisory ids, or says that it gives none. `ancestry`
+# carries the tags and backports the research record states with full SHAs; abbreviated ones stay there.
+#
+# Licences the research could not read must be checked before any result is published: rtMedia (GitHub licence field
+# "none", no licence file at HEAD), Vendure and Novu (NOASSERTION, LICENSE not read) and Strapi ("SEE LICENSE IN
+# LICENSE", not a plain permissive licence).
+#
+# No `benign` pair is declared at reservation: the freeze adds it. The research record proposes one for several
+# cases, to be reviewed at freeze time.
+
+schema_version = 1
+status = "reserved"
+reserved_on = "2026-11-23"
+selected_by = "maintainer"
+selection = "Menu selection of 2026-11-23: the core nine plus three padding cases (12 of the research record's 16 candidates)"
+research = "research-2026-11-23.md"
+protocol = "protocol-v4.md"
+multi_language_members = ["wp-rtmedia-compare-sqli", "drupal-core-entity-query-sqli", "known-unfurl-ssrf", "typo3-news-datemenu-sqli"]
+also_reserved = ["population-v1.toml", "population-v2.toml", "population-v3-php.toml", "../push/ghost-reserved.toml"]
+
+[[case]]
+id = "wp-rtmedia-compare-sqli"
+repo = "https://github.com/rtCamp/rtMedia"
+language = "php"
+also = ["javascript"]
+family = "injection"
+subtype = "SQL injection"
+advisory = ["CVE-2026-16482", "GHSA-qjq8-433v-gm7m"]
+published = "2026-09-11"
+vulnerable = "b7447272f791f1ee8180a17201977af3bd96d9c6"
+fixed = "7b0e50fc228aa52dd0f41b0b1066adfe6a4c49a6"
+ancestry = "parent of the fix, by the research record's convention for a bare commit; tag 4.7.11 = e6ac1e5e0432dcaa11703fa68f3894394c66c6f5; tag 4.7.12 = 0d8e9695a35dd0677c5a34ddca4502a4fa9df785 lies 38 commits after 4.7.11, so use the commit pair"
+sink = "`RTMediaModel::get()` (app/helper/RTMediaModel.php lines 101-116 at the vulnerable commit) appends `$where .= \" AND {$this->table_name}.{$colname} {$compare} ('{$col_val_comapare}')\"` after `$compare = esc_sql( $compare )` only; the same pattern in `RTDBModel::get()` and in the meta-query branch (line 94)"
+source = "`$_REQUEST` copied into the query array by `RTMediaQuery::query()` (app/main/routers/query/RTMediaQuery.php lines 610-611) when the `rtmedia_shortcode` GET parameter is set: top-level keys are filtered, the nested `compare` value is not"
+sites = ["app/helper/RTMediaModel.php::get", "app/helper/db/RTDBModel.php::get"]
+site_basis = { "app/helper/RTMediaModel.php::get" = "research-named", "app/helper/db/RTDBModel.php::get" = "research-named" }
+site_files = []
+sink_evidence = "$colvalue['compare']"
+privilege = "unauthenticated"
+license = "GitHub: none (no licence file at HEAD); the WordPress.org plugin page is the licence source -- not verified [verify before publishing]"
+default_branch = "develop"
+caveats = [
+    "Diff seen: yes (3 files: RTMediaModel.php +5/-4, RTDBModel.php +21/-2, RTMediaQuery.php +1/-1).",
+    "Confidence: high.",
+    "The fix is sink-side and source-side at once; 4.7.11...4.7.12 holds 38 commits with five other security fixes, so use the commit pair.",
+    "CVE-2026-16482 is the Wordfence record (published 2026-09-11, CVSS 7.5, unauthenticated, fixed 4.7.12); GHSA-qjq8-433v-gm7m is the unreviewed mirror.",
+    "WordPress plugin.",
+]
+notes = "`get` is too common to be searched as text, so `sink_evidence` carries a literal from the research record's quotation of the vulnerable code; confirm it at freeze. The fix (2026-07-29) adds a `RTDBModel::sanitize_sql_compare_operator()` allow-list at both sinks and makes `RTMediaQuery::query()` drop array-valued request keys; that source handler is not a declared site."
+
+[[case]]
+id = "drupal-core-entity-query-sqli"
+repo = "https://github.com/drupal/drupal"
+language = "php"
+also = ["javascript"]
+family = "injection"
+subtype = "SQL injection"
+advisory = ["CVE-2026-9082", "GHSA-ghwc-95x2-682j"]
+published = "2026-05-20 (SA-CORE-2026-004)"
+vulnerable = "e4450efdfea863fbc0b04a4e0be77bce96f170e3"
+fixed = "ea9524d9c75dd4fcbaf5d4a823c7f571de7d546c"
+ancestry = "vulnerable pin is tag 11.3.9; tag 11.3.10 = 26adc3e4f17a0710db766703c0aa761cc26e0112 is two commits after the fix (a Symfony/Twig update and the version bump)"
+sink = "`translateCondition()` (core/modules/pgsql/src/EntityQuery/Condition.php lines 25-28 at 11.3.9): `foreach ($condition['value'] as $key => $value)` builds `$where_id = $where_prefix . $key` and appends `'LOWER(:' . $where_id . '),'` to the WHERE fragment, so an array key becomes SQL text"
+source = "request input that becomes array keys of an entity-query condition value; the HTTP entry point was not traced"
+sites = ["core/modules/pgsql/src/EntityQuery/Condition.php::translateCondition"]
+site_basis = { "core/modules/pgsql/src/EntityQuery/Condition.php::translateCondition" = "research-named" }
+site_files = []
+privilege = "unauthenticated (PostgreSQL deployments only)"
+license = "GitHub: none; GPL-2.0-or-later per composer.json"
+default_branch = "main"
+caveats = [
+    "Diff seen: yes (the Sql/Condition.php hunk; the pgsql file read at both tags; the ConditionAggregate.php hunk not read).",
+    "Confidence: medium-high. Advisory, fix commit and sink are certain; the entry point is not pinned.",
+    "CrowdSec titles the case \"JSON:API SQL Injection\"; the HTTP entry point was not traced.",
+    "The fix is 3 files: the pgsql class iterates `array_values($condition['value'])`; `Sql/Condition.php::compile()` and ConditionAggregate.php add `if (is_array($condition['value'])) { $condition['value'] = array_values($condition['value']); }` before `static::translateCondition()`.",
+    "GHSA-ghwc-95x2-682j = CVE-2026-9082 = SA-CORE-2026-004 (\"Highly Critical\" 20/25 on Drupal's scale; CISA KEV per Tenable).",
+]
+notes = "`published` is the date the research record gives for SA-CORE-2026-004. The fix-side guard is not a declared site, although the research record lists it in its sink column: the fix makes `Sql/Condition.php::compile()` (core/lib/Drupal/Core/Entity/Query/Sql/Condition.php) and ConditionAggregate.php normalise the condition value with `array_values` before `static::translateCondition()`. The research record does not say that tag 11.3.9 is the fix's parent; freeze.py checks the order."
+
+[[case]]
+id = "known-unfurl-ssrf"
+repo = "https://github.com/idno/idno"
+language = "php"
+also = ["javascript"]
+family = "untrusted_destination"
+subtype = "SSRF"
+advisory = ["CVE-2026-28508", "GHSA-fcrh-fqxh-6fx6"]
+published = "2026-03-02"
+vulnerable = "981a5e5c88437ba44386f2a97701767a99da86ec"
+fixed = "7a9662f3439fc6b052eac8e68527eebad9555309"
+ancestry = "parent of the fix (itself another security fix); tag 1.6.3 = 8439a0747471559fb1ea9f074b929d390f27e66a; tag 1.6.4 = f9c8cca6ffa252b7816609aef4701e0767313900 is one commit (\"Version bump: 1.6.4\") after the fix"
+sink = "`UnfurledUrl::unfurl()` (Idno/Entities/UnfurledUrl.php) fetches the URL with `Webservice::file_get_contents($url)`"
+source = "`url` parameter of `GET /service/web/unfurl?url=...`, served by `UrlUnfurl::getContent()` (Idno/Pages/Service/Web/UrlUnfurl.php): `$url = trim($this->getInput('url'))`, then `$object->unfurl($url)`"
+sites = ["Idno/Entities/UnfurledUrl.php::unfurl"]
+site_basis = { "Idno/Entities/UnfurledUrl.php::unfurl" = "research-named" }
+site_files = []
+privilege = "unauthenticated"
+license = "GitHub: NOASSERTION; Apache-2.0 per LICENSE"
+default_branch = "dev"
+caveats = [
+    "Diff seen: yes.",
+    "Confidence: high.",
+    "The CSRF gatekeeper was bypassable because `Session::tryAuthUser()` set the API-request flag before verifying the signature; at 1.6.3 the login gatekeeper is commented out (line 42).",
+    "The fix (2026-02-28, 2 files) is source-side and sink-side in one commit: Idno/Core/Session.php moves `setIsAPIRequest(true)` after the signature check; `UnfurledUrl::unfurl()` rejects private and reserved addresses. The release tag is one commit (\"Version bump: 1.6.4\") after the fix.",
+    "CVE-2026-28508: fixed 1.6.4.",
+]
+notes = "The source handler `UrlUnfurl::getContent()` is named in the research record's sink column as the source; it is not a declared site (the fix does not change its file)."
+
+[[case]]
+id = "typo3-news-datemenu-sqli"
+repo = "https://github.com/georgringer/news"
+language = "php"
+also = ["javascript"]
+family = "injection"
+subtype = "SQL injection"
+advisory = ["CVE-2026-8726", "GHSA-g868-j3qm-4j28"]
+published = "not stated in the research record"
+vulnerable = "00a82b55bf01f13d783947584cf47bb2bda116f6"
+fixed = "cec1cd776a32e5cec527575b97ca7b044ceac19c"
+ancestry = "parent of the fix on main; branch backports afa3f4d90f8e385ae1dcf07908d1b8d71727dceb = tag 13.0.2 and d43ae0cd0d698709c87b0a8703c68739f305625f = tag 12.3.2; tags 13.0.1 = b184d78066d590ce4d49760dfd05a63a575ca551 and 12.3.1 = 8e70a11cbfb444c0b1ef6a0db5245324d17aa217"
+sink = "SQL with a missing quote, built in Classes/Domain/Repository/AbstractDemandedRepository.php and Classes/Domain/Repository/NewsRepository.php (the fix is \"[BUGFIX] Add missing quote\"; those hunks were not read)"
+source = "URL parameter on pages using the \"Date Menu of news articles\" plugin; needs that plugin and `disableOverrideDemand` not enabled"
+sites = []
+site_basis = {}
+site_files = ["Classes/Domain/Repository/AbstractDemandedRepository.php", "Classes/Domain/Repository/NewsRepository.php"]
+privilege = "unauthenticated"
+license = "GPL-2.0"
+default_branch = "main"
+caveats = [
+    "Diff seen: partial (only the NewsController.php hunk, an `is_a()` check; the \"missing quote\" hunk in the repository classes was not read).",
+    "Confidence: medium. Advisory, pins and file list are certain; the sink line was not read.",
+    "CVE-2026-8726 / GHSA-g868-j3qm-4j28 = typo3-ext-sa-2026-010: fixed 12.3.2, 13.0.2, 14.0.3.",
+    "The fix (2026-05-18) changes 8 files incl. three changelogs: Classes/Controller/NewsController.php, Classes/Domain/Repository/AbstractDemandedRepository.php, Classes/Domain/Repository/NewsRepository.php.",
+]
+notes = "No function is named for the sink: both site files are to be resolved at freeze from the fix diff, and the sink line read then. The research record names two further backports per OSV, with abbreviated SHAs. `also` carries JavaScript because the research record's languages column gives JavaScript 11 KB beside PHP 753 KB."
+
+[[case]]
+id = "tianji-timezone-sqli"
+repo = "https://github.com/msgbyte/tianji"
+language = "typescript"
+also = []
+family = "injection"
+subtype = "SQL injection"
+advisory = ["CVE-2026-55239", "GHSA-v9jm-vvrj-53c4"]
+published = "not stated in the research record"
+vulnerable = "b7a6efd08ebfaa95a0be2d369cee902d496a07c4"
+fixed = "132ff67907df897d222829ea8ad1a018ff74df48"
+ancestry = "parent of the fix (\"refactor: update translation\"); tag v1.31.28 = 1b591d1034413e198b6edf5007d1803d5852a395; tag v1.31.29 = b22f41c6896e2845a467c088d414dfcd277951d4 is one commit (\"chore: release v1.31.29\") after the fix; OSV's second \"fixed\" SHA is that release commit, not a backport"
+sink = "`getDateQuery()` (src/server/utils/prisma.ts lines 214-227 at the vulnerable commit) builds `Prisma.sql` over the template `to_char(date_trunc('${unit}', ${field} at time zone '${timezone}'), ...)` with the `timezone` string interpolated"
+source = "the `timezone` value of the tRPC `workspaceProcedure` input, validated only as `z.string()` (src/server/model/_schema/filter.ts:8), and the `timezone` HTTP header"
+sites = ["src/server/utils/prisma.ts::getDateQuery"]
+site_basis = { "src/server/utils/prisma.ts::getDateQuery" = "research-named" }
+site_files = []
+privilege = "any workspace member incl. read-only viewer"
+license = "Apache-2.0"
+default_branch = "master"
+caveats = [
+    "Diff seen: yes.",
+    "Confidence: high.",
+    "The fix (2026-06-10, \"fix(security): harden templates and insight sql\", 13 files) is broader than the sink: tagged `Prisma.sql` template with bound values, identifier helpers in src/server/utils/sql.ts, lodash `template` replaced in src/server/utils/template.ts, insights queries hardened.",
+    "Not Express: the advisory paths show a tRPC server (src/server/trpc/trpc.ts).",
+    "CVE-2026-55239: CVSS 8.8, fixed 1.31.29.",
+]
+notes = "Privilege: any authenticated workspace member, including read-only viewers. The research record writes the template inside `Prisma.sql([...])`; only the template is quoted here."
+
+[[case]]
+id = "vendure-language-code-sqli"
+repo = "https://github.com/vendurehq/vendure"
+language = "typescript"
+also = []
+family = "injection"
+subtype = "SQL injection"
+advisory = ["CVE-2026-40887", "GHSA-9pp3-53p2-ww9v"]
+published = "not stated in the research record"
+vulnerable = "65d86ca8ca8dc6a270638f95f43c3dd602d5c92c"
+fixed = "3ff0bc193550002e19c840dfdb8087b1ab18d79e"
+ancestry = "vulnerable pin is tag v3.5.6 and the parent of the fix; a second commit the same day, 32c947d93913271543db822ff905216813640f42, is the other half of the 3.5.7 fix and not in the pair; tag v3.5.7 = f593eb1849f6edc3373585206d40ef6d79a0b39d (2026-04-13)"
+sink = "`getLanguageCode()` (packages/core/src/service/helpers/request-context/request-context.service.ts) takes `req.query.languageCode` unvalidated and feeds packages/core/src/service/services/product.service.ts; the advisory: \"a user-controlled query string parameter is interpolated directly into a raw SQL expression\""
+source = "`languageCode` query parameter (`req.query.languageCode`)"
+sites = ["packages/core/src/service/helpers/request-context/request-context.service.ts::getLanguageCode"]
+site_basis = { "packages/core/src/service/helpers/request-context/request-context.service.ts::getLanguageCode" = "research-named" }
+site_files = ["packages/core/src/service/services/product.service.ts"]
+privilege = "unauthenticated (per the advisory; not traced by the researcher)"
+license = "GitHub: NOASSERTION; LICENSE not read [verify before publishing]"
+default_branch = "master"
+caveats = [
+    "Diff seen: yes (both commits).",
+    "Confidence: high for the diff, medium for the CVE-to-commit mapping.",
+    "The advisory does not say which of the two parameters it means; the `languageCode` commit names the flaw explicitly.",
+    "The fix (2026-04-10, \"fix(core): Fix SQL injection via languageCode query parameter\"): `getLanguageCode()` accepts `req.query.languageCode` only when it matches `/^[a-zA-Z0-9_-]+$/`; product.service.ts follows. A second commit the same day (\"Sanitize search term for Postgres tsquery syntax\") is the other half of the 3.5.7 fix.",
+    "CVE-2026-40887: critical; fixed @vendure/core 3.5.7 and 3.6.2.",
+]
+notes = "The research record names product.service.ts without a function (\"feeds\"), so it is a `site_files` entry: to be resolved at freeze if the fix changes it."
+
+[[case]]
+id = "novu-conditions-webhook-ssrf"
+repo = "https://github.com/novuhq/novu"
+language = "typescript"
+also = []
+family = "untrusted_destination"
+subtype = "SSRF"
+advisory = ["CVE-2026-125114", "GHSA-4x48-cgf9-q33f"]
+published = "not stated in the research record"
+vulnerable = "7e467d9104d4921a5ac2461a252f12987f4f91f6"
+fixed = "87d965eb88340ac7cd262dd52c8015acd092dc68"
+ancestry = "parent of the fix; tag v3.14.0 = d099e1991764f73ecfc1a9700e5ad37b6d8599d9 (2026-02-24); tag v3.15.0 = 92136a19d375f39f3134a6b328cc17a968dd706f (2026-04-13)"
+sink = "the conditions-filter webhook sends POST requests to user-configured URLs with a raw `axios.post()` and no SSRF validation (libs/application-generic/src/usecases/conditions-filter/conditions-filter.usecase.ts, line 261 per the advisory), while the HTTP Request workflow step does validate"
+source = "conditions-filter webhook URL"
+sites = []
+site_basis = {}
+site_files = ["libs/application-generic/src/usecases/conditions-filter/conditions-filter.usecase.ts"]
+sink_evidence = "axios.post"
+privilege = "authenticated (not verified)"
+license = "GitHub: NOASSERTION; LICENSE not read [verify before publishing]"
+default_branch = "next"
+caveats = [
+    "Diff seen: partial (the workflow-step hunk only; the conditions-filter hunk was not read).",
+    "Confidence: medium.",
+    "Privilege: authenticated (not verified).",
+    "The fix (2026-03-25, \"fix(shared): validate condition webhook URLs against SSRF (#10457)\", 4 files): new libs/application-generic/src/utils/ssrf-url-validation.ts (+73), conditions-filter.usecase.ts (+19/-1), and the workflow step now imports the shared `validateUrlSsrf`.",
+    "CVE-2026-125114: fixed @novu/api 3.15.0.",
+]
+notes = "No function is named for the sink: the site is to be resolved at freeze. `sink_evidence` is the call the advisory names, without the parentheses of the research record's `axios.post()`; confirm it in the file at the vulnerable pin."
+
+[[case]]
+id = "strapi-cors-default"
+repo = "https://github.com/strapi/strapi"
+language = "typescript"
+also = ["javascript"]
+family = "config_secrets"
+subtype = "permissive CORS"
+advisory = ["CVE-2025-53092", "GHSA-9329-mxxw-qwf8"]
+published = "not stated in the research record"
+vulnerable = "0e47ec1b0a372a20f2ceb1a335f43b5cb9d6b3fe"
+fixed = "6e535cb756590b98462d993d0655649e58214aeb"
+ancestry = "parent of the fix; the fix pull request is a four-commit series; tag v5.20.0 = 7d7b44aa7c61deeb98fa8ca03856d68f5e93fe82"
+sink = "the `origin` callback of packages/core/core/src/middlewares/cors.ts (at the vulnerable commit): defaults `origin: '*'` with `credentials: true` (lines 16-23); returns array members only on a match but returns a single configured string verbatim (line 62)"
+source = "`Origin` header"
+sites = ["packages/core/core/src/middlewares/cors.ts::origin"]
+site_basis = { "packages/core/core/src/middlewares/cors.ts::origin" = "research-named" }
+site_files = []
+sink_evidence = "origin: '*'"
+privilege = "unauthenticated"
+license = "GitHub: NOASSERTION; packages/core/core/package.json says \"SEE LICENSE IN LICENSE\"; not a plain permissive licence [verify before publishing]"
+default_branch = "develop"
+caveats = [
+    "Diff seen: yes.",
+    "Confidence: medium-high.",
+    "The advisory describes the default as reflecting the request `Origin` with credentials; the researcher's reading of the vulnerable code shows the configured string returned as-is, so the reflection path described by the advisory is not fully explained by what was read.",
+    "The fix (2025-07-28, \"fix: port comparison\", +14/-4): exact match for a single configured origin, `''` (blocked) otherwise. A later commit (\"support wildcards in arrays of origins\") rewrites the same callback.",
+    "CVE-2025-53092: fixed 5.20.0.",
+]
+notes = "`origin` is too common to be searched as text, so `sink_evidence` carries the default from the research record's quotation of lines 16-23; confirm the literal at freeze."
+
+[[case]]
+id = "agenticseek-flask-debug"
+repo = "https://github.com/Fosowl/agenticSeek"
+language = "python"
+also = ["javascript"]
+family = "config_secrets"
+subtype = "debug mode"
+advisory = ["CVE-2026-115727", "GHSA-r5cp-9ffr-m5mf"]
+published = "not stated in the research record"
+vulnerable = "d238f8e5de10e4ece40d93d80fb4daa4c8a2f34b"
+fixed = "409840c033851d861c5c83a91c05fd4a2a75a096"
+ancestry = "parent of the fix (PR #558, 2026-10-15); no release tags in the repository"
+sink = "llm_server/app.py line 53 at the vulnerable commit, in the `__main__` block: `app.run(host='0.0.0.0', threaded=True, debug=True, port=args.port)`, so the Werkzeug debugger is reachable on every interface"
+source = "Werkzeug debugger console"
+sites = ["llm_server/app.py::<global>"]
+site_basis = { "llm_server/app.py::<global>" = "research-named" }
+site_files = []
+sink_evidence = "debug=True"
+privilege = "unauthenticated"
+license = "GPL-3.0"
+default_branch = "main"
+caveats = [
+    "Diff seen: yes.",
+    "Confidence: high.",
+    "The same commit also turns on certificate verification in sources/tools/searxSearch.py; same shape as v1's unfurl case, different repository.",
+    "CVE-2026-115727 is a VulnCheck record; GHSA-r5cp-9ffr-m5mf is the unreviewed mirror.",
+    "Not a deliberately vulnerable training app: it is a maintained agent project (requirements.txt has `flask>=3.1.0`).",
+]
+notes = "The sink is file scope, hence `<global>` and `sink_evidence`, a literal from the research record's quotation of the line. The fix (\"fix(search,llm_server): check TLS certificates and turn off the debug server\") sets `debug=False`."
+
+[[case]]
+id = "rucio-filterengine-sqli"
+repo = "https://github.com/rucio/rucio"
+language = "python"
+also = ["javascript"]
+family = "injection"
+subtype = "SQL injection"
+advisory = ["CVE-2026-29090", "GHSA-6j7p-qjhg-9947"]
+published = "not stated in the research record"
+vulnerable = "b86d68006262463e703fd964067e0031b11cf651"
+fixed = "7bd5e2e304fa8a398143495eb957c9abea6e98ba"
+ancestry = "the research record's \"Minimal pair for CVE-2026-29090\": two commits of a three-commit fix train on master (all 2026-05-05), the vulnerable pin the Oracle-path commit (CVE-2026-29080) and the fixed pin the Postgres commit; the train's third commit, bc4894df7efa3bdf11517e12e9c729c1867dd07e, is not in the pair. The record gives \"Vuln\" is the parent of the fix commit only as its general convention, not for this train; tag 40.1.0 = 3ef402f4c3951e08ddbeb6f64a02f5548c268894; tag 40.1.1 = 434838676b32e56cc8582263bc815a187dd3214e"
+sink = "\"{}->>'{}' {} '{}'\".format(jsonb_column, key, POSTGRES_OP_MAP[oper], value) and five sibling branches in `FilterEngine.create_postgres_query()` (lib/rucio/core/did_meta_plugins/filter_engine.py lines 436-482); the query is run in postgres_meta.py `list_dids()`"
+source = "`filters` of `GET /dids/<scope>/dids/search`, taken through `ast.literal_eval` or raw request arguments (lib/rucio/web/rest/flaskapi/v1/dids.py lines 265-274 at 40.1.0)"
+sites = ["lib/rucio/core/did_meta_plugins/filter_engine.py::create_postgres_query"]
+site_basis = { "lib/rucio/core/did_meta_plugins/filter_engine.py::create_postgres_query" = "research-named" }
+site_files = []
+privilege = "any authenticated user (needs the `postgres_meta` plugin)"
+license = "Apache-2.0"
+default_branch = "master"
+caveats = [
+    "Diff seen: yes (first hunks of the Postgres commit and of the psycopg commit).",
+    "Confidence: medium-high (three-commit fix train, non-default plugin).",
+    "Needs the optional `postgres_meta` metadata plugin (default is `json_meta`).",
+    "The Postgres commit adds a key regex `^[A-Za-z0-9_]+$` and quote escaping; the psycopg commit (`sql.Composable` + `filter_arguments`) is not in the pair.",
+    "CVE-2026-29090: CVSS 9.9, any authenticated user, fixed 35.8.5, 38.5.5, 39.4.2, 40.1.1.",
+]
+notes = "The research record names postgres_meta.py `list_dids()` by basename only, so it is not a declared site."
+
+[[case]]
+id = "llamafactory-chat-ssrf"
+repo = "https://github.com/hiyouga/LlamaFactory"
+language = "python"
+also = []
+family = "untrusted_destination"
+subtype = "SSRF (+ local file read)"
+advisory = ["CVE-2025-61784", "GHSA-527m-2xhr-j27g"]
+published = "2025-10-07"
+vulnerable = "d5bb4e6394409394c4a892571a5bc94fadd874c7"
+fixed = "95b7188090a1018935c9dc072bfc97f24f1c96e9"
+ancestry = "parent of the fix (\"Merge commit from fork\", single parent); tag v0.9.3 = ca75f1edf3cb50343ed1c98605141c3e22075b5f (2025-06-16); tag v0.9.4 = 95ac3f2373b82662c1bd855c284d3379e6a763d3 (2025-12-31, months of history later), so use the commit pair"
+sink = "`_process_request()` (src/llamafactory/api/chat.py) opens a local path or fetches a web URI for image and video inputs: `image_stream = requests.get(image_url, stream=True).raw` with no destination check, and `open(image_url, \"rb\")` for local paths"
+source = "image and video inputs of the chat API request (`image_url`: a web URI or a local path)"
+sites = ["src/llamafactory/api/chat.py::_process_request"]
+site_basis = { "src/llamafactory/api/chat.py::_process_request" = "research-named" }
+site_files = []
+privilege = "authenticated user (per advisory)"
+license = "Apache-2.0"
+default_branch = "main"
+caveats = [
+    "Diff seen: yes.",
+    "Confidence: high.",
+    "The only release tag after the fix is three months later, so use the commit pair.",
+    "The fix (2025-10-07): `check_lfi_path()` / `check_ssrf_url()` calls before both operations; new helpers in src/llamafactory/api/common.py (+62).",
+    "CVE-2025-61784: SSRF and local file inclusion in the chat API; fixed 0.9.4.",
+]
+notes = "Python only. The GitHub search and advisory lists show the older spelling LLaMA-Factory. The guards the fix adds in src/llamafactory/api/common.py are not a declared site."
+
+[[case]]
+id = "irrd-host-header-reset-poisoning"
+repo = "https://github.com/irrdnet/irrd"
+language = "python"
+also = []
+family = "untrusted_destination"
+subtype = "host header injection into reset links (CWE-601/640)"
+advisory = ["CVE-2026-28681", "GHSA-22m3-c7vp-49fj"]
+published = "2026-03-04"
+vulnerable = "d9a159cdfeaf208a2c4e082eb8593ce26ab53007"
+fixed = "cf62df4a49d3891e80b2879d9b324d1af050000c"
+ancestry = "parent of the 4.5.x fix; the 4.4.x twin commit is 8408e0f1b9f47eb2f2e712d6153e32194df05fbb; tags v4.5.0 = 579f0b301a1984e3777b224e41dd629ae3c6c1b5, v4.5.1 = 70e967d42d1f43b667abef3fc60b7810cae04c44 and v4.4.5 = e3084990fae4847dd35936d555031014034c5e20"
+sink = "the web UI builds password-reset and account-creation confirmation links from the attacker-controlled `Host` header in irrd/webui/auth/users.py (function not named; the link construction was not read). The fix adds `Middleware(TrustedHostMiddleware, allowed_hosts=[allowed_host])` in `set_middleware()` (irrd/server/http/app.py) and changes the reset-token hash in users.py"
+source = "`Host` header of the request; the victim opens the link"
+sites = []
+site_basis = {}
+site_files = ["irrd/webui/auth/users.py"]
+privilege = "unauthenticated request, victim opens the link"
+license = "BSD-2-Clause"
+default_branch = "main"
+caveats = [
+    "Diff seen: yes (the 4.4.x hunks).",
+    "Confidence: medium-high for the fix; the framework is Starlette rather than one of the three named ones (pyproject.toml lists starlette and uvicorn, not Flask/Django/FastAPI).",
+    "The 4.4.x commit literally contains unresolved conflict markers in irrd/webui/auth/users.py, so prefer the 4.5.x commit; the sink (link construction from `Host`) was not read.",
+    "The fix (2026-03-01, \"[4.5.x] Add Host header invalidation and invalidate all pw reset tokens\") uses `allowed_host = urlparse(get_setting(\"server.http.url\")).hostname`; irrd/webui/auth/users.py changes the reset-token hash so old tokens die.",
+    "CVE-2026-28681: fixed 4.4.5 and 4.5.1.",
+]
+notes = "The research record's sink column lists the fix location first, `set_middleware()` in irrd/server/http/app.py, and the sink second. The sink file is declared by file only, so that the first site names it; at freeze, name the link-building function from the sink source at the vulnerable pin. `set_middleware()` is a fix-side location outside the sink file and is not a declared site."

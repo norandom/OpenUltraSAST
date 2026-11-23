@@ -11,6 +11,7 @@ PINNED_LEGACY_RESERVATION_SOURCE_DIGESTS = MappingProxyType(
         "benchmarks/independent/research-2026-09-24.md": "2c24df48d93f4cd6bdc71b1b990afacd0de5314127041a9b786baf5c33b4810a",
         "benchmarks/independent/research-2026-09-26.md": "905da0feae5fa1d5e5c71dfc7bca9d6a2ca208fbe30a82345a8209c81d0ab3b6",
         "benchmarks/independent/research-2026-09-30-php.md": "8b87fef5a7d73ff71c23e9b7fb64a0756124ad2429fbffa8df54e87abb8e8feb",
+        "benchmarks/independent/research-2026-11-23.md": "6705c5a9883fb34ca91af82eff0721689299acca0785ab6e849ff0045b64e66b",
         "benchmarks/measurements/2026-10-12-valid-benchmark-pilot/catalog.toml": (
             "32d1353325c475826fde62008225779032cc2f4750a2c7550fc1b7fc933fcdd4"
         ),
