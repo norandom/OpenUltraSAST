@@ -88,6 +88,9 @@ What has not been touched: population v3, 15 PHP cases, frozen as the one-time f
 - A test fails when anything in the tree names one of its repositories.
 - It runs once, after a prediction is committed.
 
+Population v4 is unscanned as well: 11 cases (4 PHP with JavaScript, 4 TypeScript, 3 Python),
+frozen on 2026-11-23, with no protocol and no result yet. The same test guards its repositories.
+
 ## 2. Our approach to detection, step by step
 
 The path changed because hand edits did not transfer. Every gain before 2026-09-30 was a hand
@@ -310,7 +313,8 @@ Data.
   (`src/openultrasast/learn/excerpt.py`). But labels drawn from public advisories are partly in
   the model's training data, and the within-pair numbers carry that.
 - PHP is covered by the engine on real code and by in-sample quick rules. The population that
-  would measure it (v3) is reserved.
+  would measure it (v3) is reserved. Population v4, frozen on 2026-11-23 and unscanned, holds 4
+  PHP cases among its 11.
 
 Measurement debt.
 
@@ -324,6 +328,8 @@ Measurement debt.
   label on unseen code (`2026-10-02-decision-engine-harvest-advisory/record.json`).
 - Population v3 waits for `benchmarks/independent/prediction-v3.json`, which does not exist. It is
   written only after a program is adopted.
+- Population v4 (11 cases, frozen 2026-11-23) is unscanned. No protocol is written for it, so no
+  result exists.
 
 Infrastructure.
 

@@ -98,6 +98,8 @@ User-facing documentation: `README.md`, `docs/architecture.md`, `docs/evaluation
 - **Evaluation.** Populations v1 and v2 are spent and failed every M4 gate (`benchmarks/independent/results-v1.json`,
   `results-v2.json`); v3 (PHP) is frozen and untouched for the one-time final check. The plane increment met its
   gate on the second measurement with a tie-break chosen after the first (`benchmarks/independent/plane-increment-2.json`).
+  Population v4 (11 cases: 4 PHP, 4 TypeScript, 3 Python) was frozen on 2026-11-23 and is unscanned, with no
+  protocol and no result yet.
 - **Providers.** DeepSeek for LLM calls, OpenRouter only for OpenAI embeddings; keys in `.env`, which never
   overrides an exported shell variable.
 

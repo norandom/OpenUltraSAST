@@ -68,7 +68,8 @@ and `facts.function_lines` from prompts and from the retrieval distance.
 `ousast learn labels` (`learn/labels.py`) reads only the sources on a fail-closed allow-list
 (`learn/sources.toml`). The sources are `population-v1`, `population-v2`, `dev-php` (reviewed recipe
 sites), `pairs`, `advisory-fixes`, `adjudications` and `assumed_benign`. A file the list does not name
-is refused before it is opened. The reserved population v3 is excluded unread.
+is refused before it is opened. The reserved population v3 is excluded unread. So is population v4,
+frozen on 2026-11-23.
 
 - **Positives** are declared sites and the vulnerable side of a fix.
 - **Negatives** are two kinds:

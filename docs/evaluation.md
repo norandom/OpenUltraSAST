@@ -60,10 +60,13 @@ A population is a set of real repositories. Its lifecycle has three steps:
 | v2 (17 cases) | spent | engine: recall 0/17, 3 benign alerts, completion 13,206 of 108,374. Tool hunter: recall 1/17, precision 2/14, 1 fixed-side and 16 benign alerts, $8.88. No M4 gate met by either. | `results-v2.json`, `results-v2-hunter.json` |
 | v2, model-driven pipeline | exploratory (v2 already spent) | stopped after 7 of 17 cases when the account emptied: recall 4/7; precision not adjudicated; no gate measurable | `results-v2-model-pipeline.json` |
 | v3 (PHP, 15 cases; one SSRF slot left empty by the selection rule) | frozen, untouched | none: it is the one-time final check, run once under `protocol-v3.md` after a prediction is committed | `population-v3-php.toml`, `freeze-v3-php.json` |
+| v4 (11 cases: 4 PHP with JavaScript, 4 TypeScript, 3 Python) | frozen 2026-11-23, unscanned | none: it has not been scanned, and no protocol is written for it yet | `population-v4.toml`, `freeze-v4.json` |
 
 v3 is reserved. Development and analysis work never reads its cases.
 `tests/test_independent_population.py` fails when anything in the development tree names one
 of its repositories. That covers a recipe, catalog, manifest or measurement.
+The same guard covers population v4, frozen on 2026-11-23 and not scanned. No protocol is
+written for it yet.
 
 ```mermaid
 stateDiagram-v2
@@ -74,6 +77,7 @@ stateDiagram-v2
     note right of Frozen
         v3 (PHP, 15 cases) waits here as the one-time final check,
         run once after a prediction is committed
+        v4 (11 cases, frozen 2026-11-23) waits here too, unscanned
     end note
     note right of Spent
         v1 and v2 are spent

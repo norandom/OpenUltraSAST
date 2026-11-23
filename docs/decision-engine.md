@@ -28,6 +28,7 @@ step-by-step chain that replaced hand edits.
   - recorded adjudications.
 
   "Rejected by the plane" is never a negative. Reserved populations (v3) are not on the list.
+  Neither is population v4 (frozen 2026-11-23).
 - **An AI classifier with local memory, compiled in house in the DSPy style.** The program has
   an instruction, a few demonstrations and up to six retrieved labelled examples. Then come the
   candidate's code excerpt and signals. The model (`deepseek-flash`) answers vulnerable / not

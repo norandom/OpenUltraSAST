@@ -403,6 +403,8 @@ engine pins on kube-ax, model calls on the VM or CI), sized by what G1-G3 kept.
 
 G5. Qualification and rollout: adopt, commit `prediction-v3.json`, spend population v3 once, advisory rollout,
 BLOCK only for families that passed.
+Population v4 (11 cases, frozen 2026-11-23) is the untouched population held for M4: it is not scanned and has
+no protocol yet.
 
 ### Cross-cutting rules
 
@@ -430,6 +432,7 @@ The milestone table below dates from 2026-09-14. Since then (`.kiro/specs/pre-pu
 M1a and M1b are met, M2 is measured NO-GO, and M3 is next, with M4 population preparation in parallel; none of
 M1-M5 is verified and rollout remains NO-GO. Populations v1 and v2 were evaluated and failed every M4 gate
 (`benchmarks/independent/results-v1.json`, `results-v2.json`); v3 (PHP) is frozen for the one-time final check.
+Population v4 (11 cases) was frozen on 2026-11-23 and is unscanned, with no protocol and no result yet.
 
 Work since then moved to: the ax plane as the only agentic executor (`ai-service-plane`, HarnessX retired
 2026-09-30 by `harnessx-removal`), and the learned decision engine (`learned-decision-engine`, task 6 in
