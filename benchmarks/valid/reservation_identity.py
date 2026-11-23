@@ -11,6 +11,7 @@ from openultrasast.core.canonical import JsonValue, content_digest
 
 NETWORK_SCHEMA = "openultrasast.valid-detection-benchmark.repository-network.v1"
 _DIGEST = re.compile(r"[0-9a-f]{64}")
+_GIT_SUFFIX = ".git"
 
 
 class ReservationError(ValueError):
@@ -52,6 +53,13 @@ def _require_digest(value: object, field: str) -> str:
     return value
 
 
+def strip_git_suffix(repository: str) -> str:
+    """Drop a trailing provider clone suffix in any letter case, nothing else."""
+    if repository.lower().endswith(_GIT_SUFFIX):
+        return repository[: len(repository) - len(_GIT_SUFFIX)]
+    return repository
+
+
 def _repository_locator(value: object) -> str:
     text = _require_text(value, "repository locator")
     try:
@@ -67,7 +75,7 @@ def _repository_locator(value: object) -> str:
     if len(parts) != 2:
         raise ReservationError("repository locator must identify owner and repository")
     owner, repository = parts
-    repository = repository.removesuffix(".git")
+    repository = strip_git_suffix(repository)
     if not owner or not repository:
         raise ReservationError("repository locator must identify owner and repository")
     return f"https://{parsed.hostname.lower()}/{owner.lower()}/{repository.lower()}"

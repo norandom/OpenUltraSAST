@@ -23,6 +23,7 @@ from benchmarks.valid.reservation import (
     census_bytes,
 )
 from benchmarks.valid.reservation_guard_sources import PINNED_LEGACY_RESERVATION_SOURCE_DIGESTS
+from benchmarks.valid.reservation_identity import strip_git_suffix
 from openultrasast.core.canonical import JsonValue, content_digest
 
 GUARD_REPORT_SCHEMA = "openultrasast.valid-detection-benchmark.reservation-guard.v1"
@@ -175,7 +176,7 @@ def _historical_paths(root: Path, withdrawal: HistoricalWithdrawalV1 | None) -> 
 
 
 def _repository_matches(content: bytes) -> tuple[str, ...]:
-    values = {match.group(1).decode("ascii").removesuffix(".git") for match in _REPOSITORY.finditer(content)}
+    values = {strip_git_suffix(match.group(1).decode("ascii")) for match in _REPOSITORY.finditer(content)}
     return tuple(sorted(f"https://github.com/{value}" for value in values))
 
 

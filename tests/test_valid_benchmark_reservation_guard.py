@@ -420,3 +420,25 @@ def test_partial_scope_report_and_replacement_acceptance_are_refused(tmp_path: P
             historical_withdrawal=withdrawal,
             reservation_sources=(source,),
         )
+
+
+@pytest.mark.parametrize("suffix", (".Git", ".gIT", ".GIT"))
+def test_mixed_case_git_suffix_reference_is_still_a_reserved_violation(tmp_path: Path, suffix: str) -> None:
+    _scan_roots(tmp_path)
+    authority, census, source = _authority(tmp_path)
+    (tmp_path / "src/leak.txt").write_text(f"see https://GITHUB.com/ACME/Reserved{suffix} for details\n")
+
+    report = reservation_guard.scan_permanent_reservations(
+        tmp_path,
+        scan_roots=("benchmarks", "src", "tests", "plane"),
+        authority=authority,
+        census=census,
+        reservation_sources=(source,),
+    )
+
+    assert report.files_read == 2 and report.bytes_read > 0 and report.reserved_network_count == 1
+    assert tuple((item.path, item.repository) for item in report.violations) == (("src/leak.txt", "https://github.com/ACME/Reserved"),)
+    reserved = authority.resolve_repository("https://github.com/acme/reserved")
+    assert report.violations[0].network_identity_digest == reserved.network_identity_digest
+    with pytest.raises(reservation_guard.ReservationGuardError, match="count=1"):
+        reservation_guard.require_clean_guard(report)

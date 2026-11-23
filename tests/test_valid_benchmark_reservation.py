@@ -250,3 +250,88 @@ def test_network_identity_is_deterministic_and_exact() -> None:
     assert first == second
     with pytest.raises(reservation.ReservationError, match="digest"):
         reservation.RepositoryIdentityResolver((replace(first, network_identity_digest="0" * 64),))
+
+
+_MIXED_CASE_SUFFIXES = (".Git", ".gIT", ".giT", ".GIT")
+
+_CORE_DIGEST = "730da0136fb50945132e8b281e7e28bfc0ce995fbcb2aa04fce24a816a79a0aa"
+
+# (url, canonical member, network identity digest) captured from the unmodified
+# identity function on 2026-11-23. None of these URLs carries a mixed-case ".git"
+# suffix, so its identity must not move when suffix stripping becomes
+# case-insensitive.
+_UNCHANGED_IDENTITIES = (
+    ("https://github.com/acme/core", "https://github.com/acme/core", _CORE_DIGEST),
+    ("https://github.com/acme/core.git", "https://github.com/acme/core", _CORE_DIGEST),
+    ("https://GITHUB.com/ACME/Core.git", "https://github.com/acme/core", _CORE_DIGEST),
+    (
+        "https://github.com/acme/widget.js",
+        "https://github.com/acme/widget.js",
+        "4bb775da3d25c77598ff4d984b3d1e854e4389d081c3f40fa4da3e3e0d9e2d20",
+    ),
+    (
+        "https://github.com/acme/digest.git",
+        "https://github.com/acme/digest",
+        "c8a4e82de9913aae7c9a2b7d15b0d9d4fe6850fc92b549b37b357d4531537f18",
+    ),
+    (
+        "https://github.com/acme/.gitlab",
+        "https://github.com/acme/.gitlab",
+        "7e713fdc633f805b965387050573427596967976e1209385d5f419bebbe1f097",
+    ),
+)
+
+
+@pytest.mark.parametrize("suffix", _MIXED_CASE_SUFFIXES)
+def test_mixed_case_git_suffix_shares_the_lowercase_identity(suffix: str) -> None:
+    plain = reservation.build_network_identity("https://github.com/acme/core")
+    resolver = reservation.RepositoryIdentityResolver((plain,))
+    legacy = reservation.legacy_reservation_source(resolver, repository=plain.canonical_repository, source_digest=LEGACY)
+    authority = reservation.ReservationAuthority(resolver, legacy_sources=(legacy,))
+    mixed_url = "https://GITHUB.com/ACME/Core" + suffix
+
+    mixed = reservation.build_network_identity(mixed_url)
+
+    assert mixed == plain
+    assert mixed.network_identity_digest == plain.network_identity_digest
+    assert resolver.resolve(mixed_url) == plain
+    assert authority.is_reserved(mixed_url, authority.current_census())
+
+
+@pytest.mark.parametrize(
+    "url, canonical",
+    (
+        ("https://github.com/acme/core.gitt", "https://github.com/acme/core.gitt"),
+        ("https://github.com/acme/Core.GitHub", "https://github.com/acme/core.github"),
+        ("https://github.com/acme/digi.t", "https://github.com/acme/digi.t"),
+    ),
+)
+def test_only_the_git_suffix_is_stripped(url: str, canonical: str) -> None:
+    assert reservation.build_network_identity(url).canonical_repository == canonical
+    with pytest.raises(reservation.ReservationError, match="owner and repository"):
+        reservation.build_network_identity("https://GITHUB.com/ACME/.GIT")
+
+
+@pytest.mark.parametrize("url, canonical, digest", _UNCHANGED_IDENTITIES)
+def test_identity_without_a_mixed_case_suffix_is_byte_identical(url: str, canonical: str, digest: str) -> None:
+    network = reservation.build_network_identity(url)
+
+    assert (network.canonical_repository, network.network_identity_digest) == (canonical, digest)
+
+
+def test_related_identity_without_a_mixed_case_suffix_is_byte_identical() -> None:
+    network = reservation.build_network_identity(
+        "https://GITHUB.com/ACME/Core.git",
+        aliases=("https://github.com/acme/core",),
+        former_names=("https://github.com/acme/old-core.git",),
+        redirects=("https://github.com/acme/redirected-core",),
+        forks=("https://github.com/Contributor/Core-Fork.git",),
+    )
+
+    assert network.members == (
+        "https://github.com/acme/core",
+        "https://github.com/acme/old-core",
+        "https://github.com/acme/redirected-core",
+        "https://github.com/contributor/core-fork",
+    )
+    assert network.network_identity_digest == "6b0e4a87982c368045a65c3ff1c0b3cba02b52d5d0d191aa98d38ba7c2667e36"
