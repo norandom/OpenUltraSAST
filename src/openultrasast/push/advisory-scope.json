@@ -49,6 +49,12 @@
       "label": "deserialization",
       "reason": "Has not earned a place through evaluation.",
       "not_told": "No defect is reported for deserialization, so a contributor is not told that a change deserializes untrusted data into objects the process then trusts, even when it does."
+    },
+    {
+      "family": "memory",
+      "label": "memory",
+      "reason": "No memory-safety capability has been evaluated: the only related declaration in the shipped capability registry (eligibility.json) is c/libpng/memory_safety, it is disabled with verdict NO-GO, and its family id memory_safety is not a taxonomy family.",
+      "not_told": "No defect is reported for memory, so a contributor is not told whether a memory-safety defect such as an out-of-bounds access exists in the change, even when it does."
     }
   ]
 }

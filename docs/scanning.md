@@ -204,8 +204,13 @@ Skipped: the changed code has no counterpart in the base revision to compare aga
 Skipped: engine did not run: the code graph could not be built (is Joern installed? ...)
 Skipped: no base revision was analysed, so no engine finding can be called new or worsened
 Notice: Engine checks did not run. Install Joern, or run the hook through ops/ousast-docker. Review the details.
+Scope: provisional, not yet in effect: no family is qualified for alerts yet. Intended v1 advisory scope: injection, untrusted destination, configuration. Not reported as defects: access control, output encoding, path, prototype, deserialization, memory, or any other family outside the scope. Listing a family does not mean the repository was found free of defects in it.
 Details: /home/you/.cache/openultrasast/push/push-12345.json
 ```
+
+The `Scope:` line states which families this tool does not turn into defect alerts while the
+scope is provisional, and that listing a family is not a claim that the repository is free of
+defects in it.
 
 The hook reads these settings from the environment of `git push`:
 

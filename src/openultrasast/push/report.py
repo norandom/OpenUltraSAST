@@ -94,8 +94,12 @@ class PushReport:
             type(value) not in (int, float) or not math.isfinite(value) or value < 0 for value in self.timings.values()
         ):
             raise ValueError("report requires finite nonnegative timings including total_seconds")
-        if not isinstance(self.advisory_scope, AdvisoryScope):
-            raise ValueError("report requires a loaded advisory scope")
+        _require_loaded_scope(self.advisory_scope)
+
+
+def _require_loaded_scope(scope: object) -> None:
+    if not isinstance(scope, AdvisoryScope):
+        raise ValueError("report requires a loaded advisory scope")
 
 
 @dataclass(frozen=True)

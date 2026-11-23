@@ -187,6 +187,7 @@ def test_shipped_record_loads_as_the_declared_provisional_scope():
         ("path", "path"),
         ("prototype", "prototype"),
         ("deserialization", "deserialization"),
+        ("memory", "memory"),
     ]
     assert scope.to_payload() == scope_record()
 
