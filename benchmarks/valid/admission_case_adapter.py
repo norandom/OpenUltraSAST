@@ -139,17 +139,15 @@ def _sealed_raw(
     kind: ArtifactKind,
     field: str,
 ) -> bytes:
-    reference = ArtifactReference(
-        kind, content.content_digest, content.byte_length, expected_digest, ArtifactAccessClass.CUSTODIAN_SEALED
-    )
+    reference = ArtifactReference(kind, content.content_digest, content.byte_length, expected_digest, ArtifactAccessClass.CUSTODIAN_SEALED)
     authority = artifact_read_authority(
-        ArtifactActorRole.CUSTODIAN, (ArtifactReadPermission.CUSTODIAN_SEALED,), policy,
+        ArtifactActorRole.CUSTODIAN,
+        (ArtifactReadPermission.CUSTODIAN_SEALED,),
+        policy,
         expected_access_policy_digest=policy,
     )
     try:
-        accepted = repository.get(
-            reference, expected_kind=kind, authority=authority, expected_access_policy_digest=policy
-        )
+        accepted = repository.get(reference, expected_kind=kind, authority=authority, expected_access_policy_digest=policy)
     except ArtifactRepositoryError:
         raise refused(AdmissionAdapterReason.OBSERVATIONS_UNREADABLE) from None
     payload = accepted.artifact.payload
@@ -168,9 +166,7 @@ def _decode_observation(raw: bytes) -> ArmObservationSetV3:
         raise refused(AdmissionAdapterReason.OBSERVATIONS_UNREADABLE) from None
 
 
-def _bridged_reference(
-    document: bytes, prefix: str, request: AdmissionCaseAdapterRequestV1
-) -> tuple[ContentRef, ResolvedContent]:
+def _bridged_reference(document: bytes, prefix: str, request: AdmissionCaseAdapterRequestV1) -> tuple[ContentRef, ResolvedContent]:
     digest = canonical.bytes_digest(document)
     receipt_digest = canonical.derive_storage_receipt_digest(
         store_identity=request.bridged_store_identity,
@@ -179,12 +175,19 @@ def _bridged_reference(
         retention_policy_digest=request.bridged_retention_policy_digest,
     )
     reference = ContentRef(
-        f"{prefix}/{digest}.json", digest, "application/json", len(document),
-        request.bridged_retention_policy_digest, receipt_digest,
+        f"{prefix}/{digest}.json",
+        digest,
+        "application/json",
+        len(document),
+        request.bridged_retention_policy_digest,
+        receipt_digest,
     )
     receipt = StorageReceipt(
-        request.bridged_store_identity, digest, len(document),
-        request.bridged_retention_policy_digest, receipt_digest,
+        request.bridged_store_identity,
+        digest,
+        len(document),
+        request.bridged_retention_policy_digest,
+        receipt_digest,
     )
     return reference, ResolvedContent(document, receipt)
 
@@ -224,10 +227,16 @@ def _core_form_combined(
             )
         )
     return ArmObservationSetV3(
-        observation.slot_digest, observation.arm_id, observation.input_identity_digest,
-        observation.execution_identity, observation.registered_budget_digest,
-        observation.configuration_digest, observation.input_read_evidence_digest,
-        observation.stage_execution_evidence_digest, tuple(sorted(cases, key=_case_order)), "",
+        observation.slot_digest,
+        observation.arm_id,
+        observation.input_identity_digest,
+        observation.execution_identity,
+        observation.registered_budget_digest,
+        observation.configuration_digest,
+        observation.input_read_evidence_digest,
+        observation.stage_execution_evidence_digest,
+        tuple(sorted(cases, key=_case_order)),
+        "",
     )
 
 
@@ -274,23 +283,31 @@ def _core_form_component(
             )
         )
     return ArmObservationSetV3(
-        observation.slot_digest, observation.arm_id, observation.input_identity_digest,
-        observation.execution_identity, observation.registered_budget_digest,
-        observation.configuration_digest, observation.input_read_evidence_digest,
-        observation.stage_execution_evidence_digest, tuple(sorted(cases, key=_case_order)), "",
+        observation.slot_digest,
+        observation.arm_id,
+        observation.input_identity_digest,
+        observation.execution_identity,
+        observation.registered_budget_digest,
+        observation.configuration_digest,
+        observation.input_read_evidence_digest,
+        observation.stage_execution_evidence_digest,
+        tuple(sorted(cases, key=_case_order)),
+        "",
     )
 
 
 def _case_order(case: ObservationCaseRefV3) -> tuple[str, ...]:
     return (
-        case.case_id_digest, case.case_input_digest, case.underlying_push_digest,
-        case.result_digest, case.outcome_projection.projection_digest, case.proof_candidate_digest or "",
+        case.case_id_digest,
+        case.case_input_digest,
+        case.underlying_push_digest,
+        case.result_digest,
+        case.outcome_projection.projection_digest,
+        case.proof_candidate_digest or "",
     )
 
 
-def _bridge(
-    request: AdmissionCaseAdapterRequestV1, resolve: Callable[[str, str, str], ScopeKey]
-) -> BridgedCaseGraphV1:
+def _bridge(request: AdmissionCaseAdapterRequestV1, resolve: Callable[[str, str, str], ScopeKey]) -> BridgedCaseGraphV1:
     manifest = request.execution.admission_manifest
     assert manifest is not None
     combined = combined_arm_ids(request.plan)
@@ -320,9 +337,7 @@ def _bridge(
         reference, resolved = _bridged_reference(document, "observations/raw", request)
         documents[reference.artifact_id] = resolved
         decoded[(sealed.arm_id, sealed.input_identity_digest)] = core_form
-        sealed_refs.append(
-            replace(sealed, observation=reference, observation_digest=core_form.observation_digest, ref_digest="")
-        )
+        sealed_refs.append(replace(sealed, observation=reference, observation_digest=core_form.observation_digest, ref_digest=""))
     return BridgedCaseGraphV1(decoded, documents, tuple(sealed_refs))
 
 
@@ -408,13 +423,16 @@ def derive_case_adapter_preparation(request: AdmissionCaseAdapterRequestV1) -> E
     """
 
     (
-        validated, _resolve, _bridge, plan_manifest, resolver,
-        feasibility, admission_manifest,
+        validated,
+        _resolve,
+        _bridge,
+        plan_manifest,
+        resolver,
+        feasibility,
+        admission_manifest,
     ) = _bridged_preparation_graph(request)
     try:
-        return authorize_evaluation(
-            admission_manifest, feasibility, validated.readiness, validated.context, validated.custody, resolver
-        )
+        return authorize_evaluation(admission_manifest, feasibility, validated.readiness, validated.context, validated.custody, resolver)
     except _CORE_REFUSALS:
         raise refused(AdmissionAdapterReason.AUTHORIZATION_REFUSED) from None
 
@@ -438,36 +456,32 @@ def _bridged_preparation_graph(request: AdmissionCaseAdapterRequestV1):
     except _CORE_REFUSALS:
         raise refused(AdmissionAdapterReason.CENSUS_MISMATCH) from None
     draft = EvaluationAdmissionManifestV3(
-        plan_manifest, feasibility.feasibility_digest, bridge.sealed, readiness_digests,
-        manifest.custody_log_digest, history, _ZERO, validated.plan_review, _ZERO,
+        plan_manifest,
+        feasibility.feasibility_digest,
+        bridge.sealed,
+        readiness_digests,
+        manifest.custody_log_digest,
+        history,
+        _ZERO,
+        validated.plan_review,
+        _ZERO,
     )
     payload = derive_evaluation_admission_manifest_payload_digest(draft)
-    admission_manifest = replace(
-        draft, payload_digest=payload, review=validated.admission_review(payload)
-    )
-    admission_manifest = replace(
-        admission_manifest, manifest_digest=derive_evaluation_admission_manifest_digest(admission_manifest)
-    )
+    admission_manifest = replace(draft, payload_digest=payload, review=validated.admission_review(payload))
+    admission_manifest = replace(admission_manifest, manifest_digest=derive_evaluation_admission_manifest_digest(admission_manifest))
     return validated, resolve, bridge, plan_manifest, resolver, feasibility, admission_manifest
 
 
-def derive_case_adapter_replay(
-    request: AdmissionCaseAdapterRequestV1, release: AdmissionSpendReleaseV1
-) -> EvaluationReplayV3:
+def derive_case_adapter_replay(request: AdmissionCaseAdapterRequestV1, release: AdmissionSpendReleaseV1) -> EvaluationReplayV3:
     """Convert one reviewed spend release into the scored core V3 replay."""
-
 
     if type(release) is not AdmissionSpendReleaseV1 or release.refusal_reason is not None or not release.released_cases:
         raise refused(AdmissionAdapterReason.RELEASE_REFUSED)
-    validated, resolve, bridge, plan_manifest, resolver, feasibility, admission_manifest = (
-        _bridged_preparation_graph(request)
-    )
+    validated, resolve, bridge, plan_manifest, resolver, feasibility, admission_manifest = _bridged_preparation_graph(request)
     assert_labeled_scopes(validated, planned_arm_scopes(validated.plan), labeled_facts(release))
     view = _pre_spend_view(validated, release)
     try:
-        preparation = authorize_evaluation(
-            admission_manifest, feasibility, validated.readiness, validated.context, view, resolver
-        )
+        preparation = authorize_evaluation(admission_manifest, feasibility, validated.readiness, validated.context, view, resolver)
         receipt = _committed_receipt(validated, release)
         spend = validate_shared_spend(admission_manifest, preparation, receipt, validated.context, validated.custody)
     except _CORE_REFUSALS:
@@ -479,8 +493,18 @@ def derive_case_adapter_replay(
     try:
         return derive_scoped_replay(
             ScopedReplayRequestV1(
-                admission_manifest, feasibility, preparation, receipt, spend, v3_release, groups,
-                ordered_readiness, validated.context, validated.custody, resolver, validated.aggregate,
+                admission_manifest,
+                feasibility,
+                preparation,
+                receipt,
+                spend,
+                v3_release,
+                groups,
+                ordered_readiness,
+                validated.context,
+                validated.custody,
+                resolver,
+                validated.aggregate,
             )
         )
     except _CORE_REFUSALS:
@@ -494,9 +518,7 @@ def _composed_plan_manifest(
     readiness_digests: tuple[str, ...],
 ) -> EvaluationPlanManifestV3:
     try:
-        return compose_plan_manifest(
-            validated.plan, census, readiness_digests, manifest.custody_log_digest, validated.plan_review
-        )
+        return compose_plan_manifest(validated.plan, census, readiness_digests, manifest.custody_log_digest, validated.plan_review)
     except ValueError:
         raise refused(AdmissionAdapterReason.CENSUS_MISMATCH) from None
 

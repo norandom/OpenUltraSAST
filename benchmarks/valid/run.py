@@ -272,9 +272,7 @@ def bound_operator_context(
     custody = S3DurableCustodyStore(
         configuration.durable, durable_client, custody_policy, capability_report, transient_identity, transient_profile
     )
-    orchestrator = AdmissionOrchestrator(
-        lifecycle_authority, repository, custody, journal, executor, custodian_access_policy_digest
-    )
+    orchestrator = AdmissionOrchestrator(lifecycle_authority, repository, custody, journal, executor, custodian_access_policy_digest)
     return BenchmarkOperatorContextV1(configuration, journal, repository, custody, orchestrator)
 
 
@@ -308,9 +306,7 @@ class _Interrupted(Exception):
         self.phase = phase
 
 
-def benchmark_run_command(
-    context: BenchmarkOperatorContextV1, request: BenchmarkRunRequestV1
-) -> OperatorCommandResultV1:
+def benchmark_run_command(context: BenchmarkOperatorContextV1, request: BenchmarkRunRequestV1) -> OperatorCommandResultV1:
     """Preflight, then execute, spend, replay, and publish with durable heartbeats."""
     _validated_context(context)
     _validated_run_request(request)
@@ -323,9 +319,7 @@ def benchmark_run_command(
             return _terminal_result(context, OperatorCommandKind.RUN, execution.impaired_outcome)
         release = _phase(context, request, WorkflowPhase.CUSTODY_SPEND, request.stages.spend, execution)
         if release.refusal_reason is not None:
-            return _terminal_result(
-                context, OperatorCommandKind.RUN, _spend_refused(request, release)
-            )
+            return _terminal_result(context, OperatorCommandKind.RUN, _spend_refused(request, release))
         replay = _phase(context, request, WorkflowPhase.SCORING, request.stages.replay, release)
         publication = _phase(context, request, WorkflowPhase.REPORTING, request.stages.publication, replay)
     except _Interrupted as interrupted:
@@ -333,9 +327,7 @@ def benchmark_run_command(
     return _completed_result(context, publication, replay)
 
 
-def _spend_refused(
-    request: BenchmarkRunRequestV1, release: AdmissionSpendReleaseV1
-) -> BenchmarkWorkflowOutcomeV1:
+def _spend_refused(request: BenchmarkRunRequestV1, release: AdmissionSpendReleaseV1) -> BenchmarkWorkflowOutcomeV1:
     prior = request.preflight_request
     return BenchmarkWorkflowOutcomeV1(
         WorkflowStatus.IMPAIRED,
@@ -412,9 +404,7 @@ def _heartbeat(context: BenchmarkOperatorContextV1, request: BenchmarkRunRequest
         raise OperatorCommandError(OperatorCommandReason.WORKFLOW_SUPERSEDED)
 
 
-def _interrupted(
-    context: BenchmarkOperatorContextV1, request: BenchmarkRunRequestV1, phase: WorkflowPhase
-) -> BenchmarkWorkflowOutcomeV1:
+def _interrupted(context: BenchmarkOperatorContextV1, request: BenchmarkRunRequestV1, phase: WorkflowPhase) -> BenchmarkWorkflowOutcomeV1:
     prior = request.preflight_request
     spent = context.custody.current_log(prior.population_digest).status is PopulationStatus.SPENT
     return BenchmarkWorkflowOutcomeV1(
@@ -454,16 +444,12 @@ def _terminal_result(
     return _rendered(command, outcome, None, reference)
 
 
-def benchmark_resume_command(
-    context: BenchmarkOperatorContextV1, request: BenchmarkResumeRequestV1
-) -> OperatorCommandResultV1:
+def benchmark_resume_command(context: BenchmarkOperatorContextV1, request: BenchmarkResumeRequestV1) -> OperatorCommandResultV1:
     """Resume one interrupted workflow from the durable store via the 8.6 seams."""
     _validated_context(context)
     _validated_resume_request(request)
     _require_workflow(context, request.workflow_digest, request.now)
-    counts = WorkflowCounts(
-        len(request.plan.registrations), 0, len(request.plan.declaration.expected_observation_slots), 0, 0
-    )
+    counts = WorkflowCounts(len(request.plan.registrations), 0, len(request.plan.declaration.expected_observation_slots), 0, 0)
     head = context.journal.acquire_expired_lease(
         request.workflow_digest,
         context.journal.current_head(request.workflow_digest).head_digest,
@@ -520,9 +506,7 @@ def _validated_identity(request: BenchmarkResumeRequestV1, names: tuple[str, ...
             raise OperatorCommandError(OperatorCommandReason.INVALID_REQUEST)
 
 
-def _resume_outcome(
-    context: BenchmarkOperatorContextV1, request: BenchmarkResumeRequestV1
-) -> BenchmarkWorkflowOutcomeV1:
+def _resume_outcome(context: BenchmarkOperatorContextV1, request: BenchmarkResumeRequestV1) -> BenchmarkWorkflowOutcomeV1:
     population = request.bundles[0].population_digest
     spent = context.custody.current_log(population).status is PopulationStatus.SPENT
     if spent:
@@ -558,9 +542,7 @@ def _resume_outcome(
         mismatch_authority=request.mismatch_authority,
     )
     reasons = (
-        (WorkflowReasonCode.INTERRUPTED,)
-        if result.status is AutomaticRetryStatus.RESUMED
-        else (WorkflowReasonCode.INSTRUMENT_FAILURE,)
+        (WorkflowReasonCode.INTERRUPTED,) if result.status is AutomaticRetryStatus.RESUMED else (WorkflowReasonCode.INSTRUMENT_FAILURE,)
     )
     if result.status is AutomaticRetryStatus.BLOCKED:
         raise OperatorCommandError(OperatorCommandReason.RESUME_BLOCKED)
@@ -590,9 +572,7 @@ def _resume_envelope(
         request.plan.plan_digest,
         request.workflow_digest,
         spent,
-        WorkflowCounts(
-            len(request.plan.registrations), 0, len(request.plan.declaration.expected_observation_slots), 0, 0
-        ),
+        WorkflowCounts(len(request.plan.registrations), 0, len(request.plan.declaration.expected_observation_slots), 0, 0),
         (),
         (DegradationCode.AUTOMATIC_RETRY_USED,),
         request.runtime_ms,
@@ -603,9 +583,7 @@ def _resume_envelope(
     )
 
 
-def benchmark_status_command(
-    context: BenchmarkOperatorContextV1, request: BenchmarkStatusRequestV1
-) -> OperatorCommandResultV1:
+def benchmark_status_command(context: BenchmarkOperatorContextV1, request: BenchmarkStatusRequestV1) -> OperatorCommandResultV1:
     """Surface terminal outcomes first, else the validated journal head projection."""
     _validated_context(context)
     _validated_status_request(request)
@@ -636,9 +614,7 @@ def _validated_status_request(request: object) -> None:
         raise OperatorCommandError(OperatorCommandReason.INVALID_REQUEST)
 
 
-def _require_workflow(
-    context: BenchmarkOperatorContextV1, workflow_digest: str, now: str
-) -> WorkflowJournalStatus:
+def _require_workflow(context: BenchmarkOperatorContextV1, workflow_digest: str, now: str) -> WorkflowJournalStatus:
     try:
         return context.journal.rebuild_status(workflow_digest, now)
     except WorkflowJournalError as error:
@@ -675,9 +651,7 @@ def _resolved_replay(
     return resolve_operator_replay(reference, content, replay)
 
 
-def _operator_read(
-    context: BenchmarkOperatorContextV1, reference: ArtifactReference, kind: ArtifactKind
-) -> AcceptedArtifact:
+def _operator_read(context: BenchmarkOperatorContextV1, reference: ArtifactReference, kind: ArtifactKind) -> AcceptedArtifact:
     authority = artifact_read_authority(
         ArtifactActorRole.OPERATOR,
         (),
@@ -723,17 +697,13 @@ def _head_projection(
     )
 
 
-def _persist_terminal_outcome(
-    context: BenchmarkOperatorContextV1, outcome: BenchmarkWorkflowOutcomeV1
-) -> ArtifactReference:
+def _persist_terminal_outcome(context: BenchmarkOperatorContextV1, outcome: BenchmarkWorkflowOutcomeV1) -> ArtifactReference:
     payload = cast("dict[str, JsonValue]", json.loads(workflow_outcome_bytes(outcome)))
     content = canonical_artifact_bytes(
         ArtifactKind.WORKFLOW,
         payload,
         access_class=ArtifactAccessClass.OPERATOR_SAFE,
-        provenance_digest=content_digest(
-            {"provenance": OPERATOR_OUTCOME_PROVENANCE, "outcome": outcome.outcome_digest}
-        ),
+        provenance_digest=content_digest({"provenance": OPERATOR_OUTCOME_PROVENANCE, "outcome": outcome.outcome_digest}),
     )
     reference = artifact_reference(content)
     try:

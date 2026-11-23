@@ -326,9 +326,7 @@ def _validated_request(request: AdmissionSpendRequestV1) -> None:
         seen.add((family, ecosystem))
 
 
-def label_open_request(
-    population_digest: str, admission_manifest_digest: str, custody_log_digest: str
-) -> PopulationUseRequest:
+def label_open_request(population_digest: str, admission_manifest_digest: str, custody_log_digest: str) -> PopulationUseRequest:
     """Build the deterministic label-open request the exact successor appends."""
     return PopulationUseRequest(
         _digest(population_digest),
@@ -348,9 +346,7 @@ def _decode_label_record(item: object) -> GroundTruthLabelV1:
         judgment = base64.b64decode(item["judgment_base64"], validate=True)
         truth = json.loads(label.decode("utf-8"), parse_constant=_reject_constant, parse_float=_finite_float)
         exact_truth = (
-            type(truth) is dict
-            and frozenset(truth) == _LABEL_FIELDS | {"schema_version"}
-            and canonical_json_bytes(truth) == label
+            type(truth) is dict and frozenset(truth) == _LABEL_FIELDS | {"schema_version"} and canonical_json_bytes(truth) == label
         )
     except (AttributeError, TypeError, ValueError, RecursionError):
         raise _refused(AdmissionSpendReason.LABELS_UNREADABLE) from None
@@ -424,9 +420,7 @@ def _custodian_authority(policy_digest: str) -> ArtifactReadAuthority:
     )
 
 
-def _sealed_observation_document(
-    repository: S3ArtifactRepository, policy: str, sealed: SealedObservationRefV3
-) -> bytes:
+def _sealed_observation_document(repository: S3ArtifactRepository, policy: str, sealed: SealedObservationRefV3) -> bytes:
     reference = ArtifactReference(
         ArtifactKind.OBSERVATION,
         sealed.observation.content_digest,
@@ -455,9 +449,7 @@ def _sealed_observation_document(
         raise _refused(AdmissionSpendReason.OBSERVATIONS_UNREADABLE) from None
 
 
-def _validate_census(
-    labels: tuple[GroundTruthLabelV1, ...], scope_census: tuple[tuple[str, str, int], ...]
-) -> None:
+def _validate_census(labels: tuple[GroundTruthLabelV1, ...], scope_census: tuple[tuple[str, str, int], ...]) -> None:
     counts: dict[tuple[str, str], int] = {}
     for label in labels:
         key = (label.family_id, label.ecosystem)
@@ -536,9 +528,7 @@ def _authorized_manifest(execution: AdmissionExecutionV1) -> EvaluationAdmission
     return execution.admission_manifest
 
 
-def _spend_custody(
-    request: AdmissionSpendRequestV1, manifest: EvaluationAdmissionManifestV3
-) -> PopulationUseReceipt:
+def _spend_custody(request: AdmissionSpendRequestV1, manifest: EvaluationAdmissionManifestV3) -> PopulationUseReceipt:
     try:
         prior = request.custody.current_log(request.population_digest)
     except DurableCustodyStoreError:
@@ -569,9 +559,7 @@ def _spend_custody(
     return receipt
 
 
-def _reread_committed_successor(
-    request: AdmissionSpendRequestV1, successor: PopulationCustodyLog, receipt: PopulationUseReceipt
-) -> None:
+def _reread_committed_successor(request: AdmissionSpendRequestV1, successor: PopulationCustodyLog, receipt: PopulationUseReceipt) -> None:
     try:
         head = request.custody.current_log(receipt.population_digest)
         validate_population_custody_log(head, request.custody_policy, current=request.custody)
@@ -687,9 +675,7 @@ def _persist_release(
     subject: str,
 ) -> ArtifactReference:
     try:
-        content = canonical_artifact_bytes(
-            ArtifactKind.WORKFLOW, dict(payload), access_class=_SEALED, provenance_digest=subject
-        )
+        content = canonical_artifact_bytes(ArtifactKind.WORKFLOW, dict(payload), access_class=_SEALED, provenance_digest=subject)
         reference = artifact_reference(content)
         repository.put_if_absent(content, reference=reference)
         accepted = repository.get(
@@ -780,9 +766,7 @@ def _release_after_spend(
         reference = _persist_release(request.repository, request.custodian_access_policy_digest, payload, subject)
     except AdmissionSpendError as error:
         return _refusal(error.reason, receipt.receipt_digest, label_read, label_digest, True)
-    return AdmissionSpendReleaseV1(
-        None, receipt.receipt_digest, True, label_read, label_digest, cases, reference, release_digest
-    )
+    return AdmissionSpendReleaseV1(None, receipt.receipt_digest, True, label_read, label_digest, cases, reference, release_digest)
 
 
 __all__ = [
