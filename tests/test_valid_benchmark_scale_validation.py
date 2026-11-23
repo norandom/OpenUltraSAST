@@ -16,6 +16,7 @@ import json
 import sys
 import tracemalloc
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -34,6 +35,7 @@ from valid_benchmark_scale_support import (  # noqa: E402
     SCALE_REQUIRED_PER_POSITIVE,
     ScaleLifecycle,
     StreamFault,
+    TimingAdapterProxy,
     case_objects_factory,
     component_arm_ids,
     default_population_shape,
@@ -126,7 +128,7 @@ def test_streaming_validation_grows_with_supplied_artifacts_per_batch(population
     assert small.consumed_objects == 256 and full.consumed_objects == 840
     assert full.byte_count > small.byte_count > 0
     assert full.batch_count > small.batch_count > 0
-    assert full.runtime_ms >= 0 and small.runtime_ms >= 0
+    assert full.runtime_ms > 0 and small.runtime_ms > 0
     repeat = run_streaming_validation(case_objects_factory(population, 256), 64, 256)
     assert repeat.chain_digest == small.chain_digest
 
@@ -158,8 +160,32 @@ def test_cold_warm_and_per_arm_runtime_receipts_are_retained(population, chain) 
     assert lane_arms == set(component_arms)
     assert "arm-combined" not in lane_arms
     for _arm, runtime_ms in chain.arm_runtimes:
-        assert runtime_ms >= 0
+        assert runtime_ms > 0
     assert len(chain.arm_runtimes) == len(component_arms)
+
+
+class _NoopAdapter:
+    """A committed-adapter stand-in: the timing proxy only needs an `execute`."""
+
+    def execute(self, bundle: object) -> object:  # noqa: ANN201 - test seam type
+        return bundle
+
+
+def test_frozen_clock_measurements_are_recorded_as_one_millisecond(monkeypatch) -> None:
+    """A zero elapsed reading must never become a 0 ms receipt, which `>= 0` would accept."""
+    frozen = SimpleNamespace(perf_counter=lambda: 1000.0)
+    monkeypatch.setattr("valid_benchmark_scale_support.time", frozen)
+    proxy = TimingAdapterProxy(_NoopAdapter())
+    proxy.execute(SimpleNamespace(arm=SimpleNamespace(arm_id="probe-arm")))
+    assert proxy.arm_runtimes == [("probe-arm", 1)]
+    receipt = run_streaming_validation(probe_objects_factory(8), 4, 8)
+    assert receipt.status is WorkflowStatus.COMPLETED and receipt.consumed_objects == 8
+    assert receipt.runtime_ms == 1
+    from valid_benchmark_scale_support import BoundedExecutionLane  # noqa: E402
+
+    lane = stream_with_lane(probe_objects_factory(8), 4, 8, BoundedExecutionLane(maxsize=2))
+    assert lane.receipt.status is WorkflowStatus.COMPLETED and lane.receipt.consumed_objects == 8
+    assert lane.receipt.runtime_ms == 1
 
 
 def test_execution_tier_projection_covers_every_input_without_scoring(chain: ScaleLifecycle) -> None:

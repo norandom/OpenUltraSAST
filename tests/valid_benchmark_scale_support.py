@@ -346,7 +346,7 @@ def run_streaming_validation(
         reasons.append(WorkflowReasonCode.INTERRUPTED)
     elif consumed != declared_total and not reasons:
         reasons.append(WorkflowReasonCode.INSTRUMENT_FAILURE)
-    runtime_ms = int((time.perf_counter() - started) * 1000)
+    runtime_ms = max(1, int((time.perf_counter() - started) * 1000))
     status = WorkflowStatus.IMPAIRED if reasons or consumed != declared_total else WorkflowStatus.COMPLETED
     return StreamRunReceipt(
         status,
@@ -397,7 +397,7 @@ class TimingAdapterProxy:
         started = time.perf_counter()
         result = self._inner.execute(bundle)
         arm_id = getattr(getattr(bundle, "arm", None), "arm_id", "unknown-arm")
-        self.arm_runtimes.append((arm_id, max(0, int((time.perf_counter() - started) * 1000))))
+        self.arm_runtimes.append((arm_id, max(1, int((time.perf_counter() - started) * 1000))))
         return result
 
 
@@ -500,7 +500,7 @@ def stream_with_lane(
         consumed += len(batch)
         total_bytes += sum(len(item.raw) for item in batch)
         chain = _chain_step(chain, _lane_marker(batch)[2])
-    runtime_ms = int((time.perf_counter() - started) * 1000)
+    runtime_ms = max(1, int((time.perf_counter() - started) * 1000))
     impaired = bool(refusals) or consumed < declared_total
     receipt = StreamRunReceipt(
         WorkflowStatus.IMPAIRED if impaired else WorkflowStatus.COMPLETED,
