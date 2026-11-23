@@ -273,6 +273,7 @@ def _ledger_facts(batches: Sequence[CohortBatchOutcomeV1]) -> _LedgerFacts:
             eco_policy = _closed_digest(batch.ecosystem_policy_digest)
             gt_policy = _closed_digest(batch.ground_truth_policy_digest)
             digests.add(_closed_digest(batch.batch_digest))
+            _closed_vocabulary(batch.pending_entries, _DIGEST)
             batch_families: set[str] = set()
             for positive in batch.accepted_positives:
                 for scope in positive.verified_scopes:
@@ -501,13 +502,21 @@ def _pending_by_ecosystem(
     state: SourcingQueueStateV1,
     batches: Sequence[CohortBatchOutcomeV1],
 ) -> dict[str, tuple[ReviewQueueEntryV1, ...]]:
-    """Pending entries per ecosystem from every batch's resolved records.
+    """Pending entries per ecosystem, derived from every batch's record outcomes.
 
-    A record resolves its entry only through the committed review machinery:
-    accepted positives and review-level exclusions answer the entry, while
-    unreadable or evidence-invalid records leave it pending. A narrowed
-    selection batch therefore surrenders exactly the entries its records
-    resolved, never the whole shared queue.
+    A record resolves its entry only when it is an accepted record or carries
+    a review-level exclusion reason; unreadable or evidence-invalid records
+    leave it pending. Reading records instead of a batch's ``pending_entries``
+    keeps a narrowed selection batch from answering the whole shared queue:
+    only entries whose records resolved are marked answered here.
+
+    This view is not equivalent to the third round's ``pending_entries`` view
+    in one corner. Ingestion marks an entry answered as soon as its review
+    pair validates, so a record then excluded as a conflicting accepted review
+    is absent from ``pending_entries`` and the third round counts it answered,
+    while here it stays pending because that exclusion reason is not
+    review-level. The fourth round therefore offers such an entry again rather
+    than dropping it.
     """
     queued = {
         ecosystem: {entry.entry_digest for entry in _queue_for(state, ecosystem).entries}

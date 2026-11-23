@@ -39,6 +39,7 @@ from benchmarks.valid.cohort_selection import (  # noqa: E402
     CohortSelectionStatus,
     cohort_selection,
     cohort_selection_bytes,
+    select_fourth_cohort_batch,
     select_third_cohort_batch,
 )
 from benchmarks.valid.cohort_selection_store import (  # noqa: E402
@@ -304,6 +305,43 @@ def test_malformed_ledgers_and_states_fail_closed():
 
     with pytest.raises(CohortSelectionStateError):
         _select({"python_queue": ()}, ledger)
+
+
+@pytest.mark.parametrize(
+    "select",
+    (select_third_cohort_batch, select_fourth_cohort_batch),
+    ids=("third", "fourth"),
+)
+def test_forged_pending_entries_outside_the_durable_shape_fail_closed(select) -> None:
+    state, _, ledger = _prepared()
+    batch = next(item for item in ledger if item.pending_entries)
+    intact = replace(batch, pending_entries=tuple(batch.pending_entries))
+    rest = tuple(item for item in ledger if item is not batch)
+
+    def decided(pending_entries):
+        return select(
+            state=state,
+            accepted_batches=(replace(batch, pending_entries=pending_entries), *rest),
+            expected_ecosystem_policy_digest=ECOSYSTEM_POLICY,
+            expected_ground_truth_policy_digest=GROUND_TRUTH_POLICY,
+        )
+
+    baseline = decided(intact.pending_entries)
+    assert baseline.status is CohortSelectionStatus.SELECTED
+    assert intact.pending_entries and all(len(item) == 64 for item in intact.pending_entries)
+
+    for forged in (
+        list(intact.pending_entries),
+        set(intact.pending_entries),
+        iter(intact.pending_entries),
+        intact.pending_entries[0],
+        (*intact.pending_entries[:-1], "not-a-digest"),
+        (*intact.pending_entries, intact.pending_entries[0]),
+        None,
+    ):
+        with pytest.raises(CohortSelectionStateError) as error:
+            decided(forged)
+        assert error.value.reason is CohortSelectionStateReason.STATE_MISMATCH
 
 
 def test_selection_module_and_outputs_avoid_out_of_scope_machinery():
