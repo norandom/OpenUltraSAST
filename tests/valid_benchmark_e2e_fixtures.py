@@ -648,7 +648,15 @@ class _CaseContent:
 class E2EPopulation:
     """Full synthetic two-ecosystem admission population with core case content."""
 
-    def __init__(self, *, pairs_python: int = PAIRS_PY, pairs_javascript: int = PAIRS_JS, mint_cases: bool = True) -> None:
+    def __init__(
+        self,
+        *,
+        pairs_python: int = PAIRS_PY,
+        pairs_javascript: int = PAIRS_JS,
+        mint_cases: bool = True,
+        minimum_ordinary: int = 2,
+    ) -> None:
+        self.minimum_ordinary = minimum_ordinary
         positives = _positive_identities(pairs_python, pairs_javascript)
         self.freeze = _freeze(positives)
         self.selection = _selection(self.freeze)
@@ -660,23 +668,9 @@ class E2EPopulation:
         scopes = tuple(sorted(((FAMILY_PY, "python"), (FAMILY_JS, "javascript"))))
         self.plan = register_evaluation_plan(
             registrations=(
-                _registration(
-                    ArmRole.COMBINED,
-                    _relax_precision(
-                        _configuration("arm-combined", scopes, combined=True, minimum_ordinary=2, label="e2e-combined"),
-                        _union_rule(),
-                    ),
-                ),
-                _registration(
-                    ArmRole.EXPERIMENTAL,
-                    _relax_precision(
-                        _configuration("arm-experimental", scopes, minimum_ordinary=2, label="e2e-experimental")
-                    ),
-                ),
-                _registration(
-                    ArmRole.SHIPPED,
-                    _relax_precision(_configuration("arm-shipped", scopes, minimum_ordinary=2, label="e2e-shipped")),
-                ),
+                _registration(ArmRole.COMBINED, self._arm_configuration("arm-combined", scopes, combined=True)),
+                _registration(ArmRole.EXPERIMENTAL, self._arm_configuration("arm-experimental", scopes)),
+                _registration(ArmRole.SHIPPED, self._arm_configuration("arm-shipped", scopes)),
             ),
             population_digest=self.manifest.population_digest,
             freeze_digest=self.manifest.freeze_digest,
@@ -756,6 +750,13 @@ class E2EPopulation:
         self.adapter_plan_review = None
         if mint_cases:
             self._mint_case_content()
+
+    def _arm_configuration(self, arm_id: str, scopes, *, combined: bool = False):
+        """Task 11.4 seam: minimum_ordinary beyond the census makes every scope insufficient."""
+        base = _configuration(
+            arm_id, scopes, combined=combined, minimum_ordinary=self.minimum_ordinary, label=f"e2e-{arm_id[4:]}"
+        )
+        return _relax_precision(base, _union_rule()) if combined else _relax_precision(base)
 
     def _identities(self) -> tuple[_InputIdentity, ...]:
         rows = list(self.positive_rows.values())
