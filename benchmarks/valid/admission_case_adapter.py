@@ -66,13 +66,19 @@ from benchmarks.valid.admission_case_graph import (  # noqa: E402
     scope_resolver,
     validate_adapter_request,
 )
+from benchmarks.valid.admission_execution import AdmissionExecutionV1
 from benchmarks.valid.admission_orchestrator import compose_plan_manifest
 from benchmarks.valid.admission_replay import (
     BridgedContentResolver,
     ScopedReplayRequestV1,
     derive_scoped_replay,
 )
-from benchmarks.valid.admission_spend import AdmissionSpendReleaseV1
+from benchmarks.valid.admission_spend import (
+    AdmissionSpendReleaseV1,
+    AdmissionSpendRequestV1,
+    CustodyCompareAndSwap,
+    commit_preparation_spend_and_release,
+)
 from benchmarks.valid.artifact_repository import (
     ArtifactActorRole,
     ArtifactReadPermission,
@@ -86,7 +92,7 @@ from benchmarks.valid.replacement_artifact_contract import (
     ArtifactReference,
 )
 from openultrasast.core import canonical
-from openultrasast.core.canonical import ContentRef, ResolvedContent, StorageReceipt
+from openultrasast.core.canonical import ContentRef, ContentResolver, ResolvedContent, StorageReceipt
 from openultrasast.core.custody import PopulationUseReceipt
 from openultrasast.core.evaluation_admission import (
     EvaluationAdmissionV3Error,
@@ -111,6 +117,7 @@ from openultrasast.core.evaluation_observation import (
 from openultrasast.core.evaluation_plan import EvaluationPlanManifestV3, PopulationCensusV3
 from openultrasast.core.evaluation_replay import EvaluationReplayV3
 from openultrasast.core.evaluation_spend import EvaluationPreparationV3
+from openultrasast.core.factpack import IndependenceAttestation, ReviewIndependencePolicy
 
 _ZERO = "0" * 64
 _DECODE_FAILURES = (AttributeError, KeyError, RecursionError, TypeError, UnicodeDecodeError, ValueError)
@@ -534,9 +541,57 @@ def bind_case_adapter_replay_stage(
     return stage
 
 
+def bind_case_adapter_spend_stage(
+    request: AdmissionCaseAdapterRequestV1,
+    *,
+    custody: CustodyCompareAndSwap,
+    custodian_identity: str,
+    positive_change_digests: tuple[str, ...],
+    scope_census: tuple[tuple[str, str, int], ...],
+    load_labels: Callable[[], bytes],
+    review: IndependenceAttestation,
+    review_policy: ReviewIndependencePolicy,
+    resolver: ContentResolver,
+) -> Callable[[AdmissionExecutionV1], AdmissionSpendReleaseV1]:
+    """Bind one production spend stage that roots the custody receipt in the core preparation.
+
+    The stage derives the exact pre-spend preparation of ``request.execution`` and commits
+    the shared spend from its label-release request, so the post-spend replay (bound to the
+    same execution) binds the committed receipt. A product that differs from
+    ``request.execution`` is refused before any custody read or write. The custody policy is
+    the adapter context's: the one the core validates the receipt chain against.
+    """
+
+    def stage(execution: AdmissionExecutionV1) -> AdmissionSpendReleaseV1:
+        if request.execution != execution:
+            raise refused(AdmissionAdapterReason.INVALID_REQUEST)
+        preparation = derive_case_adapter_preparation(request)
+        return commit_preparation_spend_and_release(
+            AdmissionSpendRequestV1(
+                execution=execution,
+                custody=custody,
+                repository=request.repository,
+                custodian_access_policy_digest=request.custodian_access_policy_digest,
+                custody_policy=request.context.evidence.custody_policy,
+                custodian_identity=custodian_identity,
+                population_digest=request.population_digest,
+                positive_change_digests=positive_change_digests,
+                scope_census=scope_census,
+                load_labels=load_labels,
+                review=review,
+                review_policy=review_policy,
+                resolver=resolver,
+            ),
+            preparation,
+        )
+
+    return stage
+
+
 __all__ = [
     "BridgedCaseGraphV1",
     "bind_case_adapter_replay_stage",
+    "bind_case_adapter_spend_stage",
     "derive_case_adapter_preparation",
     "derive_case_adapter_replay",
 ]

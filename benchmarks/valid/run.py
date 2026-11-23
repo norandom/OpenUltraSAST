@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import TypeVar, cast
 
-from benchmarks.valid.admission_case_adapter import bind_case_adapter_replay_stage
+from benchmarks.valid.admission_case_adapter import bind_case_adapter_replay_stage, bind_case_adapter_spend_stage
 from benchmarks.valid.admission_case_graph import AdmissionCaseAdapterRequestV1
 from benchmarks.valid.admission_execution import (
     AdmissionExecutionError,
@@ -747,6 +747,7 @@ __all__ = [
     "benchmark_run_command",
     "benchmark_status_command",
     "bind_case_adapter_replay_stage",
+    "bind_case_adapter_spend_stage",
     "bound_operator_context",
     "validated_operator_configuration",
 ]
