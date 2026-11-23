@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import StrEnum
 from typing import TypeVar, cast
 
@@ -306,6 +306,13 @@ class _Interrupted(Exception):
         self.phase = phase
 
 
+class _InvalidProduct(Exception):
+    """Internal marker carrying the phase whose stage returned no product of its declared type."""
+
+    def __init__(self, phase: WorkflowPhase) -> None:
+        self.phase = phase
+
+
 def benchmark_run_command(context: BenchmarkOperatorContextV1, request: BenchmarkRunRequestV1) -> OperatorCommandResultV1:
     """Preflight, then execute, spend, replay, and publish with durable heartbeats."""
     _validated_context(context)
@@ -314,16 +321,18 @@ def benchmark_run_command(context: BenchmarkOperatorContextV1, request: Benchmar
     if preflight.insufficient_outcome is not None:
         return _terminal_result(context, OperatorCommandKind.RUN, preflight.insufficient_outcome)
     try:
-        execution = _phase(context, request, WorkflowPhase.ARM_EXECUTION, request.stages.execution, preflight)
+        execution = _phase(context, request, WorkflowPhase.ARM_EXECUTION, request.stages.execution, preflight, AdmissionExecutionV1)
         if execution.impaired_outcome is not None:
             return _terminal_result(context, OperatorCommandKind.RUN, execution.impaired_outcome)
-        release = _phase(context, request, WorkflowPhase.CUSTODY_SPEND, request.stages.spend, execution)
+        release = _phase(context, request, WorkflowPhase.CUSTODY_SPEND, request.stages.spend, execution, AdmissionSpendReleaseV1)
         if release.refusal_reason is not None:
             return _terminal_result(context, OperatorCommandKind.RUN, _spend_refused(request, release))
-        replay = _phase(context, request, WorkflowPhase.SCORING, request.stages.replay, release)
-        publication = _phase(context, request, WorkflowPhase.REPORTING, request.stages.publication, replay)
+        replay = _phase(context, request, WorkflowPhase.SCORING, request.stages.replay, release, EvaluationReplayV3)
+        publication = _phase(context, request, WorkflowPhase.REPORTING, request.stages.publication, replay, ScopedReplayPublicationV1)
     except _Interrupted as interrupted:
         return _terminal_result(context, OperatorCommandKind.RUN, _interrupted(context, request, interrupted.phase))
+    except _InvalidProduct as invalid:
+        return _terminal_result(context, OperatorCommandKind.RUN, _instrument_failure(context, request, invalid.phase))
     return _completed_result(context, publication, replay)
 
 
@@ -374,6 +383,7 @@ def _phase(
     phase: WorkflowPhase,
     stage: Callable[..., _T],
     prior: object,
+    product_type: type[_T],
 ) -> _T:
     try:
         product = stage(prior)
@@ -382,6 +392,8 @@ def _phase(
     except Exception:
         raise _Interrupted(phase) from None
     _heartbeat(context, request, phase)
+    if type(product) is not product_type:
+        raise _InvalidProduct(phase)
     return product
 
 
@@ -424,6 +436,17 @@ def _interrupted(context: BenchmarkOperatorContextV1, request: BenchmarkRunReque
         "",
         None,
         "",
+    )
+
+
+def _instrument_failure(
+    context: BenchmarkOperatorContextV1, request: BenchmarkRunRequestV1, phase: WorkflowPhase
+) -> BenchmarkWorkflowOutcomeV1:
+    """A stage returned no product of its declared type: a measurement failure; the spent flag stays durable."""
+    return replace(
+        _interrupted(context, request, phase),
+        reason_codes=(WorkflowReasonCode.INSTRUMENT_FAILURE,),
+        outcome_digest="",
     )
 
 

@@ -725,3 +725,40 @@ def test_command_refusals_stay_closed_without_caller_content() -> None:
         run.benchmark_resume_command(crashed.context(), crashed.resume_request(workflow_digest=_digest("missing-workflow")))
     assert unknown.value.reason is run.OperatorCommandReason.WORKFLOW_UNKNOWN
     assert str(unknown.value) == "operator_command_workflow_unknown"
+
+
+_STAGE_PHASES = (
+    ("execution", WorkflowPhase.ARM_EXECUTION),
+    ("spend", WorkflowPhase.CUSTODY_SPEND),
+    ("replay", WorkflowPhase.SCORING),
+    ("publication", WorkflowPhase.REPORTING),
+)
+_WRONG_PRODUCT = "not-a-stage-product"
+
+
+@pytest.mark.parametrize("product", [None, _WRONG_PRODUCT], ids=["none", "wrong-type"])
+@pytest.mark.parametrize(("stage_name", "phase"), _STAGE_PHASES)
+def test_run_command_closes_a_missing_or_wrong_typed_stage_product(monkeypatch, stage_name, phase, product) -> None:
+    """A stage product of the wrong type is a measurement failure, never a raw AttributeError."""
+    environment = _CommandEnv()
+    stages = replace(environment.stages(replay=_scoped_replay(monkeypatch)[1]), **{stage_name: lambda _prior: product})
+
+    result = run.benchmark_run_command(environment.context(), environment.run_request(stages))
+
+    assert result.command is run.OperatorCommandKind.RUN
+    assert result.outcome.status is WorkflowStatus.IMPAIRED
+    assert result.outcome.phase is phase
+    assert result.outcome.reason_codes == (WorkflowReasonCode.INSTRUMENT_FAILURE,)
+    assert result.outcome.evaluation_replay_ref is None
+    spent = phase in (WorkflowPhase.SCORING, WorkflowPhase.REPORTING)
+    assert result.outcome.labels_spent is spent
+    assert _custody_status(environment) is (PopulationStatus.SPENT if spent else PopulationStatus.AVAILABLE)
+    assert environment.loader.reads == int(spent)
+    assert not any(operation.startswith("put:replays/") for operation in environment.durable.operations)
+    assert result.outcome_reference is not None
+    status = run.benchmark_status_command(environment.context(), environment.status_request(result.outcome_reference))
+    assert status.outcome == result.outcome
+    assert status.report_bytes == result.report_bytes
+    assert result.report_text.isascii()
+    assert _WRONG_PRODUCT not in result.report_text
+    assert "Traceback" not in result.report_text
