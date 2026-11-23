@@ -36,7 +36,7 @@ from test_valid_benchmark_admission_execution import (  # noqa: E402
     _stage_rows,
     _union_rule,
 )
-from test_valid_benchmark_admission_spend import LABEL_MARKER  # noqa: E402
+from test_valid_benchmark_admission_spend import LABEL_MARKER, _scope_census  # noqa: E402
 from test_valid_benchmark_arm_registry import _registration  # noqa: E402
 from test_valid_benchmark_orchestrator import (  # noqa: E402
     ACCESS_POLICY,
@@ -55,6 +55,8 @@ from test_valid_benchmark_orchestrator import (  # noqa: E402
 from benchmarks.valid import admission_spend as spend  # noqa: E402
 from benchmarks.valid import isolated_execution as execution  # noqa: E402
 from benchmarks.valid import observation_checkpoint as checkpoint  # noqa: E402
+from benchmarks.valid.admission_case_adapter import bind_case_adapter_spend_stage, derive_case_adapter_preparation  # noqa: E402
+from benchmarks.valid.admission_case_graph import AdmissionCaseAdapterRequestV1  # noqa: E402
 from benchmarks.valid.admission_execution import AdmissionExecutionRequestV1  # noqa: E402
 from benchmarks.valid.admission_orchestrator import (  # noqa: E402
     AdmissionExecutionBindingV1,
@@ -111,6 +113,7 @@ from openultrasast.core.admission_context import make_admission_validation_conte
 from openultrasast.core.canonical import ResolvedContent  # noqa: E402
 from openultrasast.core.custody import (  # noqa: E402
     empty_population_custody_log,
+    record_population_use,
 )
 from openultrasast.core.evaluation_case_outcome import (  # noqa: E402
     CaseOutcomeProjectionPolicyV3,
@@ -1062,4 +1065,43 @@ def authorized_execution(environment: E2EEnvironment):
         review=_admission_review(environment.case),
         attempt_review=_attempt_review(environment.case, preflight),
         status_ref=environment.case.status_ref,
+    )
+
+
+def bound_spend_stage(environment: E2EEnvironment, request: AdmissionCaseAdapterRequestV1, loader):
+    """Bind the production spend stage for one adapter request over an e2e environment.
+
+    The CAS store is the environment's durable custody store and the custodian is the
+    e2e custodian. The external release review is minted over the subject the
+    preparation-rooted receipt will produce: that receipt is predicted exactly as the
+    core will record it against the available head, and is never appended or swapped here.
+    Bind while the population is still available: the label-blind preparation the
+    prediction derives is refused once the shared spend has committed.
+    """
+    case = environment.case
+    population = case.freeze.population_digest
+    manifest = request.execution.admission_manifest
+    assert manifest is not None
+    census = _scope_census(case.freeze)
+    use = derive_case_adapter_preparation(request).label_release_request
+    receipt = record_population_use(use, environment.store.current_log(population), E2E_CUSTODIAN, environment.custody_policy)
+    released = spend.join_released_cases(
+        request.execution,
+        environment.repository,
+        request.custodian_access_policy_digest,
+        spend.decode_sealed_labels(case.labels),
+        case.freeze.positive_change_digests,
+        census,
+    )
+    subject = spend.release_review_subject(manifest.manifest_digest, receipt.receipt_digest, released, case.labels)
+    return bind_case_adapter_spend_stage(
+        request,
+        custody=environment.store,
+        custodian_identity=E2E_CUSTODIAN,
+        positive_change_digests=case.freeze.positive_change_digests,
+        scope_census=census,
+        load_labels=loader,
+        review=_attestation(subject, _digest("e2e-release-producer"), case.disclosure),
+        review_policy=_policy(),
+        resolver=case.evidence_resolver,
     )

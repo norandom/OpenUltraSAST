@@ -19,12 +19,10 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from test_valid_benchmark_admission_spend import _scope_census  # noqa: E402
 from test_valid_benchmark_orchestrator import ACCESS_POLICY, _attestation, _digest  # noqa: E402
 from test_valid_benchmark_run import _environ, _evidence  # noqa: E402
 from valid_benchmark_e2e_fixtures import (  # noqa: E402
     ANCHOR_ARM,
-    E2E_CUSTODIAN,
     EXPERIMENTAL_ARM,
     FAMILY_JS,
     FAMILY_PY,
@@ -32,6 +30,7 @@ from valid_benchmark_e2e_fixtures import (  # noqa: E402
     E2EEnvironment,
     E2EPopulation,
     authorized_execution,
+    bound_spend_stage,
 )
 
 from benchmarks.valid import run  # noqa: E402
@@ -51,12 +50,7 @@ from benchmarks.valid.admission_case_graph import (  # noqa: E402
 )
 from benchmarks.valid.admission_projection import ProjectionRequestV1, project_exact_scopes  # noqa: E402
 from benchmarks.valid.admission_replay import ReplayPublicationRequestV1, publish_scoped_replay  # noqa: E402
-from benchmarks.valid.admission_spend import (  # noqa: E402
-    AdmissionSpendReleaseV1,
-    decode_sealed_labels,
-    join_released_cases,
-    release_review_subject,
-)
+from benchmarks.valid.admission_spend import CASE_RELEASE_DOCUMENT_SCHEMA, release_review_subject  # noqa: E402
 from benchmarks.valid.artifact_repository import (  # noqa: E402
     ArtifactActorRole,
     ArtifactReadPermission,
@@ -65,16 +59,10 @@ from benchmarks.valid.artifact_repository import (  # noqa: E402
 from benchmarks.valid.replacement_artifact_contract import (  # noqa: E402
     ArtifactAccessClass,
     ArtifactKind,
-    artifact_reference,
-    canonical_artifact_bytes,
 )
 from benchmarks.valid.workflow_outcome import WorkflowCounts, WorkflowStatus  # noqa: E402
 from openultrasast.core import canonical  # noqa: E402
-from openultrasast.core.custody import (  # noqa: E402
-    PopulationStatus,
-    append_population_use,
-    record_population_use,
-)
+from openultrasast.core.custody import PopulationStatus, validate_population_custody_log  # noqa: E402
 from openultrasast.core.evaluation_measurement import MetricId  # noqa: E402
 from openultrasast.core.evaluation_report import AdmissionDecision  # noqa: E402
 
@@ -105,9 +93,9 @@ class _Lifecycle:
         self.request = self._adapter_request()
         self.preparation = derive_case_adapter_preparation(self.request)
         self.loader = _LabelSource(self.case.labels, self.environment.store, self.case.freeze.population_digest)
-        self.receipt = self._commit_shared_spend()
-        self.released_cases = self._join_released_cases()
-        self.release = self._release_product()
+        self.release = self._commit_shared_spend()
+        self.receipt = self._committed_receipt()
+        self._reread_sealed_release()
         self.replay = derive_case_adapter_replay(self.request, self.release)
 
     def _adapter_request(self) -> AdmissionCaseAdapterRequestV1:
@@ -135,55 +123,31 @@ class _Lifecycle:
         )
 
     def _commit_shared_spend(self):
+        """Bind the production spend stage while the population is available, then commit through it."""
         prior = self.environment.store.current_log(self.case.freeze.population_digest)
         assert prior.status is PopulationStatus.AVAILABLE
-        receipt = record_population_use(
-            self.preparation.label_release_request,
-            prior,
-            E2E_CUSTODIAN,
-            self.environment.custody_policy,
-        )
-        successor = append_population_use(prior, receipt, self.environment.custody_policy)
-        assert self.environment.store.compare_and_swap(prior.log_digest, successor)
-        head = self.environment.store.current_log(receipt.population_digest)
+        self.spend_stage = bound_spend_stage(self.environment, self.request, self.loader)
+        release = self.spend_stage(self.execution)
+        assert release.refusal_reason is None
+        return release
+
+    def _committed_receipt(self):
+        """The receipt read back from the store head the production stage committed."""
+        head = self.environment.store.current_log(self.case.freeze.population_digest)
         assert head.status is PopulationStatus.SPENT
-        assert head.log_digest == successor.log_digest
-        assert head.receipt_count == receipt.sequence and head.receipts[-1] == receipt
-        assert self.loader.reads == 0
+        validate_population_custody_log(head, self.environment.custody_policy)
+        receipt = head.receipts[-1]
+        assert head.receipt_count == receipt.sequence
+        assert receipt.receipt_digest == self.release.custody_receipt_digest
+        assert self.loader.reads == 1
         return receipt
 
-    def _join_released_cases(self):
-        raw = self.loader()
-        labels = decode_sealed_labels(raw)
-        return join_released_cases(
-            self.execution,
-            self.environment.repository,
-            ACCESS_POLICY,
-            labels,
-            self.case.freeze.positive_change_digests,
-            _scope_census(self.case.freeze),
-        )
-
-    def _release_product(self):
+    def _reread_sealed_release(self):
+        """Reread the sealed release as the custodian: reviewed shape, bound to the committed receipt."""
         manifest = self.execution.admission_manifest
         assert manifest is not None
-        raw = self.case.labels
-        subject = release_review_subject(manifest.manifest_digest, self.receipt.receipt_digest, self.released_cases, raw)
-        review = _attestation(subject, _digest("e2e-release-producer"), self.case.disclosure)
-        assert review.subject_digest == subject
-        value = {
-            "admission_manifest_digest": manifest.manifest_digest,
-            "custody_receipt_digest": self.receipt.receipt_digest,
-            "label_bytes_digest": canonical.bytes_digest(raw),
-            "label_bytes_read": len(raw),
-            "case_digests": tuple(row.case_digest for row in self.released_cases),
-        }
-        release_digest = canonical.content_digest(value)
-        content = canonical_artifact_bytes(
-            ArtifactKind.WORKFLOW, dict(value), access_class=ArtifactAccessClass.CUSTODIAN_SEALED, provenance_digest=subject
-        )
-        reference = artifact_reference(content)
-        self.environment.repository.put_if_absent(content, reference=reference)
+        reference = self.release.review_reference
+        assert reference is not None
         accepted = self.environment.repository.get(
             reference,
             expected_kind=ArtifactKind.WORKFLOW,
@@ -195,17 +159,22 @@ class _Lifecycle:
             ),
             expected_access_policy_digest=ACCESS_POLICY,
         )
-        assert accepted.content == content
-        return AdmissionSpendReleaseV1(
-            None,
-            self.receipt.receipt_digest,
-            True,
-            len(raw),
-            canonical.bytes_digest(raw),
-            self.released_cases,
-            reference,
-            release_digest,
-        )
+        assert accepted.reference == reference
+        assert accepted.artifact.access_class is ArtifactAccessClass.CUSTODIAN_SEALED
+        payload = accepted.artifact.payload
+        raw = self.case.labels
+        released = self.release.released_cases
+        assert payload["schema_version"] == CASE_RELEASE_DOCUMENT_SCHEMA
+        assert payload["admission_manifest_digest"] == manifest.manifest_digest
+        assert payload["custody_receipt_digest"] == self.receipt.receipt_digest
+        assert payload["label_bytes_digest"] == canonical.bytes_digest(raw)
+        assert payload["label_bytes_read"] == len(raw)
+        assert payload["case_digests"] == tuple(row.case_digest for row in released)
+        subject = release_review_subject(manifest.manifest_digest, self.receipt.receipt_digest, released, raw)
+        assert payload["review"]["subject_digest"] == subject
+        assert accepted.artifact.provenance_digest == subject
+        reviewed = {key: value for key, value in payload.items() if key not in {"release_digest", "cases"}}
+        assert payload["release_digest"] == self.release.release_digest == canonical.content_digest(reviewed)
 
 
 @pytest.fixture(scope="module")
@@ -350,6 +319,23 @@ def test_sub_forty_freeze_is_non_authorizing_without_spend_or_adapter_activity()
     assert "admission_preflight_freeze_not_admission_class" in str(refused.value)
 
 
+def test_bound_spend_stage_refuses_a_product_that_is_not_the_bound_execution(lifecycle: _Lifecycle) -> None:
+    """The lifecycle's spend stage is bound to one execution product; a differing one never reaches custody."""
+    store = lifecycle.environment.store
+    population = lifecycle.case.freeze.population_digest
+    head = store.current_log(population)
+    forged = replace(lifecycle.execution, component_results=())
+    assert forged != lifecycle.execution
+    assert forged.admission_manifest == lifecycle.execution.admission_manifest
+
+    with pytest.raises(AdmissionAdapterError) as refused:
+        lifecycle.spend_stage(forged)
+
+    assert refused.value.reason is AdmissionAdapterReason.INVALID_REQUEST
+    assert store.current_log(population) == head
+    assert lifecycle.loader.reads == 1
+
+
 def test_adapter_refusal_matrix_stays_closed_without_partial_replay(lifecycle: _Lifecycle) -> None:
     def _request(**overrides: object) -> AdmissionCaseAdapterRequestV1:
         return replace(lifecycle.request, **overrides)
@@ -443,50 +429,7 @@ class _RunLifecycle:
         def _spend(execution):
             if self.crash_before_spend:
                 raise RuntimeError("interrupted before the shared custody spend")
-            preparation = derive_case_adapter_preparation(self._adapter_request(execution))
-            prior = self.environment.store.current_log(case.freeze.population_digest)
-            receipt = record_population_use(preparation.label_release_request, prior, E2E_CUSTODIAN, self.environment.custody_policy)
-            successor = append_population_use(prior, receipt, self.environment.custody_policy)
-            assert self.environment.store.compare_and_swap(prior.log_digest, successor)
-            head = self.environment.store.current_log(receipt.population_digest)
-            assert head.status is PopulationStatus.SPENT and head.receipts[-1] == receipt
-            raw = self.loader()
-            labels = decode_sealed_labels(raw)
-            released = join_released_cases(
-                execution,
-                self.environment.repository,
-                ACCESS_POLICY,
-                labels,
-                case.freeze.positive_change_digests,
-                _scope_census(case.freeze),
-            )
-            manifest = execution.admission_manifest
-            assert manifest is not None
-            subject = release_review_subject(manifest.manifest_digest, receipt.receipt_digest, released, raw)
-            value = {
-                "admission_manifest_digest": manifest.manifest_digest,
-                "custody_receipt_digest": receipt.receipt_digest,
-                "label_bytes_digest": canonical.bytes_digest(raw),
-                "label_bytes_read": len(raw),
-                "case_digests": tuple(row.case_digest for row in released),
-            }
-            from benchmarks.valid.replacement_artifact_contract import artifact_reference, canonical_artifact_bytes  # noqa: E402
-
-            content = canonical_artifact_bytes(
-                ArtifactKind.WORKFLOW, dict(value), access_class=ArtifactAccessClass.CUSTODIAN_SEALED, provenance_digest=subject
-            )
-            reference = artifact_reference(content)
-            self.environment.repository.put_if_absent(content, reference=reference)
-            return AdmissionSpendReleaseV1(
-                None,
-                receipt.receipt_digest,
-                True,
-                len(raw),
-                canonical.bytes_digest(raw),
-                released,
-                reference,
-                canonical.content_digest(value),
-            )
+            return bound_spend_stage(self.environment, self._adapter_request(execution), self.loader)(execution)
 
         def _replay(release):
             self.replay = derive_case_adapter_replay(self._adapter_request(_last_execution(self.environment)), release)
