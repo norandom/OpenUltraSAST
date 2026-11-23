@@ -17,6 +17,8 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import TypeVar, cast
 
+from benchmarks.valid.admission_case_adapter import bind_case_adapter_replay_stage
+from benchmarks.valid.admission_case_graph import AdmissionCaseAdapterRequestV1
 from benchmarks.valid.admission_execution import (
     AdmissionExecutionError,
     AdmissionExecutionV1,
@@ -761,6 +763,7 @@ def _rendered(
 
 __all__ = [
     "OPERATOR_COMMAND_SCHEMA",
+    "AdmissionCaseAdapterRequestV1",
     "BenchmarkOperatorContextV1",
     "BenchmarkResumeRequestV1",
     "BenchmarkRunRequestV1",
@@ -773,6 +776,7 @@ __all__ = [
     "benchmark_resume_command",
     "benchmark_run_command",
     "benchmark_status_command",
+    "bind_case_adapter_replay_stage",
     "bound_operator_context",
     "validated_operator_configuration",
 ]

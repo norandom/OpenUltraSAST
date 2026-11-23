@@ -240,7 +240,7 @@ class S3ArtifactRepository:
         invalid = False
         try:
             accepted = accept_artifact(content, reference=reference)
-        except ArtifactContractError:
+        except (ArtifactContractError, RecursionError):
             invalid = True
             accepted = None
         if invalid or accepted is None:

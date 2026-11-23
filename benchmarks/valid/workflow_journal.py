@@ -12,6 +12,7 @@ labels, payloads, secrets, and customer content have no entry point.
 from __future__ import annotations
 
 import json
+import math
 import re
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -372,12 +373,30 @@ def _unique_object(pairs: list[tuple[str, object]]) -> dict[str, object]:
     return value
 
 
+def _journal_reject_constant(name: str) -> None:
+    raise WorkflowJournalError(WorkflowJournalReason.MALFORMED_CONTENT) from ValueError(f"non-canonical JSON constant: {name}")
+
+
+def _journal_finite_float(text: str) -> float:
+    value = float(text)
+    if not math.isfinite(value):
+        raise WorkflowJournalError(WorkflowJournalReason.MALFORMED_CONTENT) from ValueError(f"non-finite JSON number: {text}")
+    return value
+
+
 def _decode_canonical(content: bytes) -> dict[str, object]:
     if type(content) is not bytes or not content:
         raise WorkflowJournalError(WorkflowJournalReason.MALFORMED_CONTENT)
     try:
-        decoded = json.loads(content, object_pairs_hook=_unique_object)
-    except (UnicodeError, json.JSONDecodeError):
+        decoded = json.loads(
+            content,
+            object_pairs_hook=_unique_object,
+            parse_constant=_journal_reject_constant,
+            parse_float=_journal_finite_float,
+        )
+    except WorkflowJournalError:
+        raise
+    except (UnicodeError, json.JSONDecodeError, RecursionError):
         raise WorkflowJournalError(WorkflowJournalReason.MALFORMED_CONTENT) from None
     if type(decoded) is not dict or canonical_json_bytes(decoded) != content:
         raise WorkflowJournalError(WorkflowJournalReason.MALFORMED_CONTENT)

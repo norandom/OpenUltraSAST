@@ -318,7 +318,7 @@ def _case_ref(bundle, slot):
     return ObservationCaseRefV3(
         _digest(f"case-{bundle.arm.arm_id}-{slot.input_identity_digest}"),
         slot.input_identity_digest,
-        _digest(f"push-{slot.input_identity_digest}"),
+        slot.input_identity_digest,
         _digest(f"result-{bundle.arm.arm_id}-{slot.input_identity_digest}"),
         projection,
         None,

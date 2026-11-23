@@ -494,10 +494,10 @@ def join_released_cases(
         except (ValueError, RecursionError):
             raise _refused(AdmissionSpendReason.OBSERVATIONS_UNREADABLE) from None
         for case in observation.cases:
-            matched: GroundTruthLabelV1 | None = index.get(case.case_input_digest)
-            if case.case_input_digest in positives and matched is None:
+            matched: GroundTruthLabelV1 | None = index.get(case.underlying_push_digest)
+            if case.underlying_push_digest in positives and matched is None:
                 raise _refused(AdmissionSpendReason.JOIN_INCOMPLETE)
-            seen.add(case.case_input_digest)
+            seen.add(case.underlying_push_digest)
             cases.append(
                 ReleasedCaseV1(
                     sealed.arm_id,

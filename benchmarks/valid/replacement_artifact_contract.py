@@ -8,6 +8,7 @@ replacement benchmark.
 from __future__ import annotations
 
 import json
+import math
 import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
@@ -200,14 +201,27 @@ def _unique_object(pairs: list[tuple[str, object]]) -> dict[str, object]:
     return value
 
 
+def _reject_constant(name: str) -> None:
+    raise ArtifactContractError(f"{name} constant is not canonical JSON")
+
+
+def _finite_float(text: str) -> float:
+    value = float(text)
+    if not math.isfinite(value):
+        raise ArtifactContractError("non-finite JSON numbers are unreadable")
+    return value
+
+
 def _decode_canonical(content: bytes, label: str) -> dict[str, object]:
     if not isinstance(content, bytes) or not content:
         raise ArtifactContractError(f"{label} bytes must be nonempty")
     try:
-        decoded = json.loads(content, object_pairs_hook=_unique_object)
+        decoded = json.loads(
+            content, object_pairs_hook=_unique_object, parse_constant=_reject_constant, parse_float=_finite_float
+        )
     except ArtifactContractError:
         raise
-    except (UnicodeError, json.JSONDecodeError) as error:
+    except (UnicodeError, json.JSONDecodeError, RecursionError) as error:
         raise ArtifactContractError(f"{label} bytes are unreadable") from error
     if not isinstance(decoded, dict):
         raise ArtifactContractError(f"{label} must be a canonical JSON object")

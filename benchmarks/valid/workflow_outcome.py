@@ -11,6 +11,7 @@ digest over the canonical redacted projection.
 from __future__ import annotations
 
 import json
+import math
 import re
 from dataclasses import dataclass
 from enum import StrEnum
@@ -387,14 +388,38 @@ def _unique_object(pairs: list[tuple[str, object]]) -> dict[str, object]:
     return value
 
 
+def _outcome_reject_constant(name: str) -> None:
+    raise WorkflowOutcomeError(WorkflowOutcomeErrorReason.MALFORMED_CONTENT) from _constant_cause(name)
+
+
+def _outcome_finite_float(text: str) -> float:
+    value = float(text)
+    if not math.isfinite(value):
+        raise WorkflowOutcomeError(WorkflowOutcomeErrorReason.MALFORMED_CONTENT) from _overflow_cause(text)
+    return value
+
+
+def _constant_cause(name: str) -> ValueError:
+    return ValueError(f"non-canonical JSON constant: {name}")
+
+
+def _overflow_cause(text: str) -> ValueError:
+    return ValueError(f"non-finite JSON number: {text}")
+
+
 def _decode_canonical(content: bytes) -> dict[str, object]:
     if type(content) is not bytes or not content:
         raise WorkflowOutcomeError(WorkflowOutcomeErrorReason.MALFORMED_CONTENT)
     try:
-        decoded = json.loads(content, object_pairs_hook=_unique_object)
+        decoded = json.loads(
+            content,
+            object_pairs_hook=_unique_object,
+            parse_constant=_outcome_reject_constant,
+            parse_float=_outcome_finite_float,
+        )
     except WorkflowOutcomeError:
         raise
-    except (UnicodeError, json.JSONDecodeError):
+    except (UnicodeError, json.JSONDecodeError, RecursionError):
         raise WorkflowOutcomeError(WorkflowOutcomeErrorReason.MALFORMED_CONTENT) from None
     if type(decoded) is not dict:
         raise WorkflowOutcomeError(WorkflowOutcomeErrorReason.MALFORMED_CONTENT)
