@@ -61,6 +61,7 @@ from openultrasast.core.evaluation_observation import (
     SealedObservationRefV3,
     decode_arm_observation_set,
 )
+from openultrasast.core.evaluation_spend import EvaluationPreparationV3
 from openultrasast.core.factpack import (
     FactPackValidationError,
     IndependenceAttestation,
@@ -528,7 +529,11 @@ def _authorized_manifest(execution: AdmissionExecutionV1) -> EvaluationAdmission
     return execution.admission_manifest
 
 
-def _spend_custody(request: AdmissionSpendRequestV1, manifest: EvaluationAdmissionManifestV3) -> PopulationUseReceipt:
+def _spend_custody(
+    request: AdmissionSpendRequestV1,
+    manifest: EvaluationAdmissionManifestV3,
+    use: PopulationUseRequest | None = None,
+) -> PopulationUseReceipt:
     try:
         prior = request.custody.current_log(request.population_digest)
     except DurableCustodyStoreError:
@@ -540,12 +545,9 @@ def _spend_custody(request: AdmissionSpendRequestV1, manifest: EvaluationAdmissi
     ):
         raise _refused(AdmissionSpendReason.CUSTODY_HEAD_UNAVAILABLE)
     try:
-        receipt = record_population_use(
-            label_open_request(request.population_digest, manifest.manifest_digest, prior.log_digest),
-            prior,
-            request.custodian_identity,
-            request.custody_policy,
-        )
+        if use is None:
+            use = label_open_request(request.population_digest, manifest.manifest_digest, prior.log_digest)
+        receipt = record_population_use(use, prior, request.custodian_identity, request.custody_policy)
         successor = append_population_use(prior, receipt, request.custody_policy)
     except (PopulationCustodyError, TypeError, ValueError):
         raise _refused(AdmissionSpendReason.CUSTODY_HEAD_UNAVAILABLE) from None
@@ -721,6 +723,24 @@ def commit_spend_and_release(request: AdmissionSpendRequestV1) -> AdmissionSpend
     return _release_after_spend(request, manifest, receipt)
 
 
+def commit_preparation_spend_and_release(request: AdmissionSpendRequestV1, preparation: EvaluationPreparationV3) -> AdmissionSpendReleaseV1:
+    """Commit the shared spend from an exact core preparation's label-release request, then release.
+
+    The core binds a shared spend only when the committed receipt was minted from
+    ``preparation.label_release_request``. Custody, label release, join, and release review
+    then run exactly as ``commit_spend_and_release`` runs them.
+    """
+    _validated_request(request)
+    if type(preparation) is not EvaluationPreparationV3:
+        raise _refused(AdmissionSpendReason.INVALID_REQUEST)
+    try:
+        manifest = _authorized_manifest(request.execution)
+        receipt = _spend_custody(request, manifest, preparation.label_release_request)
+    except AdmissionSpendError as error:
+        return _refusal(error.reason, "", 0, "", False)
+    return _release_after_spend(request, manifest, receipt)
+
+
 def _release_after_spend(
     request: AdmissionSpendRequestV1,
     manifest: EvaluationAdmissionManifestV3,
@@ -781,6 +801,7 @@ __all__ = [
     "GroundTruthLabelV1",
     "ReleasedCaseV1",
     "commit_spend_and_release",
+    "commit_preparation_spend_and_release",
     "decode_sealed_labels",
     "join_released_cases",
     "label_open_request",

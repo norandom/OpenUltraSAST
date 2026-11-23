@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import base64
+import copy
 import json
 import sys
 from dataclasses import replace
+from functools import lru_cache
 from pathlib import Path
 
 import pytest
@@ -18,6 +20,7 @@ from test_valid_benchmark_admission_execution import (  # noqa: E402
     _case,
     _Env,
 )
+from test_valid_benchmark_admission_replay import _core_context, _mint_bridge_products  # noqa: E402
 from test_valid_benchmark_orchestrator import (  # noqa: E402
     ACCESS_POLICY,
     CUSTODIAN,
@@ -29,6 +32,7 @@ from test_valid_benchmark_orchestrator import (  # noqa: E402
 )
 
 from benchmarks.valid import admission_spend as spend  # noqa: E402
+from benchmarks.valid.admission_replay import bridge_core_authorization  # noqa: E402
 from benchmarks.valid.admission_spend import (  # noqa: E402
     AdmissionSpendReason,
     AdmissionSpendRequestV1,
@@ -50,6 +54,8 @@ from openultrasast.core.custody import (  # noqa: E402
     append_population_use,
     record_population_use,
 )
+from openultrasast.core.evaluation_admission import validate_shared_spend  # noqa: E402
+from openultrasast.core.evaluation_spend import EvaluationSharedSpendError, EvaluationSpendBindingV3  # noqa: E402
 
 LABEL_MARKER = b"confidential-ground-truth-judgment"
 
@@ -90,6 +96,23 @@ class _RacedCustody:
             rival = PopulationUseRequest(self._population, "rival-arm", LineagePurpose.ADMISSION_LABEL_OPEN, True, None, prior.log_digest)
             receipt = record_population_use(rival, prior, self._custodian, self._policy)
             assert self._inner.compare_and_swap(prior.log_digest, append_population_use(prior, receipt, self._policy))
+        return self._inner.compare_and_swap(expected_log_digest, replacement)
+
+
+class _CountingCustody:
+    """Pass-through custody port counting head reads and compare-and-swap calls."""
+
+    def __init__(self, inner) -> None:
+        self._inner = inner
+        self.reads = 0
+        self.swaps = 0
+
+    def current_log(self, population_digest: str):
+        self.reads += 1
+        return self._inner.current_log(population_digest)
+
+    def compare_and_swap(self, expected_log_digest: str, replacement) -> bool:
+        self.swaps += 1
         return self._inner.compare_and_swap(expected_log_digest, replacement)
 
 
@@ -569,3 +592,207 @@ def test_decode_sealed_labels_is_strict_and_closed() -> None:
         decode_sealed_labels(raw.replace(spend.SEALED_LABEL_OBJECT_SCHEMA.encode(), b"unknown-schema"))
     with pytest.raises(spend.AdmissionSpendError):
         decode_sealed_labels(raw.replace(b'"label_digest"', b'"label-digest"', 1))
+
+
+@lru_cache(maxsize=1)
+def _core_bridge():
+    """The committed 8.5 bridge: a real core preparation minted over a fresh available head of the 8.3 case.
+
+    The bridge products are minted fresh (never the replay suite's cached store, which its own
+    spend test leaves spent) so the preparation never depends on test ordering.
+    """
+    return bridge_core_authorization(_mint_bridge_products()[-1])
+
+
+class _MovedHeadCustody:
+    """Serve an available head a rival moved with one label-blind use after the execution was authorized.
+
+    The durable store accepts only the available-to-spent transition, so this core-valid head is
+    served through the custody port the spend accepts while the backing store stays untouched.
+    """
+
+    def __init__(self, store, head) -> None:
+        self._store = store
+        self._head = head
+        self.swaps = 0
+
+    def current_log(self, population_digest: str):
+        return self._head
+
+    def compare_and_swap(self, expected_log_digest: str, replacement) -> bool:
+        self.swaps += 1
+        return self._store.compare_and_swap(expected_log_digest, replacement)
+
+
+def _preparation_review(environment: _SpendEnv, preparation) -> object:
+    """External post-spend review over the subject the preparation-rooted receipt will produce."""
+    manifest = environment.product.admission_manifest
+    prior = environment.custody.current_log(environment.population)
+    receipt = record_population_use(preparation.label_release_request, prior, CUSTODIAN, environment.custody_policy)
+    cases = join_released_cases(
+        environment.product,
+        environment.repository,
+        ACCESS_POLICY,
+        decode_sealed_labels(environment.loader.payload),
+        environment.case.freeze.positive_change_digests,
+        _scope_census(environment.case.freeze),
+    )
+    subject = release_review_subject(manifest.manifest_digest, receipt.receipt_digest, cases, environment.loader.payload)
+    return _attestation(subject, _digest("release-producer"), environment.disclosure)
+
+
+def _rival_spend(environment: _SpendEnv) -> None:
+    """Commit a rival label-open receipt first so the authorized head is no longer available."""
+    prior = environment.custody.current_log(environment.population)
+    rival = PopulationUseRequest(environment.population, "rival-arm", LineagePurpose.ADMISSION_LABEL_OPEN, True, None, prior.log_digest)
+    receipt = record_population_use(rival, prior, CUSTODIAN, environment.custody_policy)
+    assert environment.custody.compare_and_swap(prior.log_digest, append_population_use(prior, receipt, environment.custody_policy))
+
+
+def _spent_through(path: str, preparation) -> tuple[_SpendEnv, object, object]:
+    """Spend one fresh available head through one minting path; return the environment, release, receipt."""
+    environment = _SpendEnv(_case())
+    head = environment.custody.current_log(environment.population)
+    assert head.status is PopulationStatus.AVAILABLE
+    assert head.log_digest == preparation.authority.custody_log_digest
+    if path == "legacy":
+        product = commit_spend_and_release(environment.spend_request())
+    else:
+        review = _preparation_review(environment, preparation)
+        product = spend.commit_preparation_spend_and_release(environment.spend_request(review=review), preparation)
+    assert product.refusal_reason is None
+    assert environment.loader.reads == 1
+    assert product.labels_spent is True
+    assert product.review_reference is not None and product.released_cases
+    receipt = environment.custody.current_log(environment.population).receipts[-1]
+    assert product.custody_receipt_digest == receipt.receipt_digest
+    return environment, product, receipt
+
+
+def _core_check(custody, receipt, bridge):
+    """The same core check for both sides: the binding it returned or the refusal it raised."""
+    try:
+        return validate_shared_spend(bridge.admission_manifest, bridge.preparation, receipt, _core_context()[0], custody)
+    except EvaluationSharedSpendError as error:
+        return error
+
+
+def test_preparation_spend_receipt_binds_in_core_where_the_legacy_label_open_receipt_is_refused() -> None:
+    """One byte-identical available head per minting path (a population spends once); the same core check binds one."""
+    bridge = _core_bridge()
+    preparation = bridge.preparation
+
+    legacy_environment, legacy, legacy_receipt = _spent_through("legacy", preparation)
+    environment, product, receipt = _spent_through("preparation", preparation)
+
+    assert legacy_environment.product.admission_manifest == environment.product.admission_manifest
+    assert legacy.released_cases == product.released_cases
+    assert legacy.label_bytes_digest == product.label_bytes_digest == canonical.bytes_digest(environment.loader.payload)
+    assert receipt.request == preparation.label_release_request
+    assert legacy_receipt.request.arm_id == spend.LABEL_OPEN_ARM_ID
+    assert legacy_receipt.request.influenced_artifact_digest == environment.product.admission_manifest.manifest_digest
+    assert legacy_receipt.request != preparation.label_release_request
+    sealed = [row for row in environment.sealed_workflow_payloads() if row[1] == spend.CASE_RELEASE_DOCUMENT_SCHEMA]
+    assert len(sealed) == 1
+
+    bound = _core_check(environment.custody, receipt, bridge)
+
+    assert type(bound) is EvaluationSpendBindingV3
+    assert bound.receipt_digest == receipt.receipt_digest == product.custody_receipt_digest
+    assert bound.preparation_digest == preparation.preparation_digest
+
+    refused = _core_check(legacy_environment.custody, legacy_receipt, bridge)
+
+    assert type(refused) is EvaluationSharedSpendError
+    assert str(refused) == "shared-spend receipt does not match the preparation"
+
+
+def test_preparation_spend_refuses_a_head_a_rival_already_spent_before_any_write() -> None:
+    preparation = _core_bridge().preparation
+    environment = _SpendEnv(_case())
+    _rival_spend(environment)
+    moved = environment.custody.current_log(environment.population)
+    assert moved.status is PopulationStatus.SPENT
+
+    product = spend.commit_preparation_spend_and_release(environment.spend_request(), preparation)
+
+    _assert_refusal(environment, product, AdmissionSpendReason.CUSTODY_HEAD_UNAVAILABLE, reads=0, committed=False)
+    assert environment.custody.current_log(environment.population) == moved
+
+
+def test_preparation_spend_refuses_a_moved_but_available_head_before_any_write() -> None:
+    preparation = _core_bridge().preparation
+    environment = _SpendEnv(_case())
+    prior = environment.custody.current_log(environment.population)
+    blind = PopulationUseRequest(environment.population, "rival-arm", LineagePurpose.ADMISSION_LABEL_OPEN, False, None, prior.log_digest)
+    receipt = record_population_use(blind, prior, CUSTODIAN, environment.custody_policy)
+    moved = append_population_use(prior, receipt, environment.custody_policy)
+    assert moved.status is PopulationStatus.AVAILABLE
+    assert moved.log_digest != preparation.label_release_request.expected_log_digest
+    custody = _MovedHeadCustody(environment.custody, moved)
+
+    product = spend.commit_preparation_spend_and_release(environment.spend_request(custody=custody), preparation)
+
+    _assert_refusal(environment, product, AdmissionSpendReason.CUSTODY_HEAD_UNAVAILABLE, reads=0, committed=False)
+    assert custody.swaps == 0
+    assert environment.custody.current_log(environment.population) == prior
+
+
+def test_preparation_spend_loses_the_custody_compare_and_swap_closed() -> None:
+    preparation = _core_bridge().preparation
+    base = _SpendEnv(_case())
+    raced = _RacedCustody(base.custody, base.population, CUSTODIAN, base.custody_policy)
+    environment = _SpendEnv(_case(), custody=raced)
+
+    product = spend.commit_preparation_spend_and_release(environment.spend_request(), preparation)
+
+    _assert_refusal(environment, product, AdmissionSpendReason.CUSTODY_CONFLICT, reads=0, committed=False)
+    head = environment.custody.current_log(environment.population)
+    assert head.status is PopulationStatus.SPENT
+    assert head.receipts[-1].request.arm_id == "rival-arm"
+
+
+@pytest.mark.parametrize("labels", [b"", b"not-json"], ids=["empty", "malformed"])
+def test_preparation_spend_with_unreadable_labels_keeps_the_committed_spend_closed(labels: bytes) -> None:
+    preparation = _core_bridge().preparation
+    environment = _SpendEnv(_case(), labels=labels)
+
+    product = spend.commit_preparation_spend_and_release(environment.spend_request(), preparation)
+
+    _assert_refusal(environment, product, AdmissionSpendReason.LABELS_UNREADABLE, reads=1, committed=True)
+    head = environment.custody.current_log(environment.population)
+    assert head.status is PopulationStatus.SPENT
+    assert head.receipts[-1].request == preparation.label_release_request
+    assert product.custody_receipt_digest == head.receipts[-1].receipt_digest
+
+
+def test_preparation_spend_refuses_a_value_that_is_not_the_core_preparation_before_any_write() -> None:
+    environment = _SpendEnv(_case())
+    manifest = environment.product.admission_manifest
+    prior = environment.custody.current_log(environment.population)
+    not_a_preparation = label_open_request(environment.population, manifest.manifest_digest, prior.log_digest)
+
+    with pytest.raises(spend.AdmissionSpendError) as raised:
+        spend.commit_preparation_spend_and_release(environment.spend_request(), not_a_preparation)
+
+    assert raised.value.reason is AdmissionSpendReason.INVALID_REQUEST
+    assert environment.custody.current_log(environment.population) == prior
+    assert environment.loader.reads == 0
+
+
+def test_legacy_spend_refuses_a_forged_custody_log_digest_only_after_the_head_check() -> None:
+    """The label-open request is minted from the head the custody check accepted, never before it."""
+    environment = _SpendEnv(_case())
+    custody = _CountingCustody(environment.custody)
+    forged = copy.copy(environment.product.admission_manifest)
+    object.__setattr__(forged, "custody_log_digest", "not-a-digest")
+    prior = environment.custody.current_log(environment.population)
+
+    product = commit_spend_and_release(
+        environment.spend_request(execution=replace(environment.product, admission_manifest=forged), custody=custody)
+    )
+
+    _assert_refusal(environment, product, AdmissionSpendReason.CUSTODY_HEAD_UNAVAILABLE, reads=0, committed=False)
+    assert custody.reads == 1
+    assert custody.swaps == 0
+    assert environment.custody.current_log(environment.population) == prior
