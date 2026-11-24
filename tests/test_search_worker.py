@@ -141,7 +141,10 @@ def test_run_timeout_truncation_and_disk_bound(tmp_path):
     result = worker.tool("run", {"command": ["/usr/bin/python3", "-I", "-c", 'print("x" * 20000)']})
     assert result["truncated"] and len(result["stdout"]) == 16384
     worker.limits["disk_bytes"] = 4096
-    result = worker.tool("run", {"command": ["/usr/bin/python3", "-I", "-c", 'open("/scratch/full", "wb").write(b"x" * 16384)']})
+    # Close inside the program: with a write buffer of 16 KiB or more the error surfaces only at flush,
+    # and an unclosed file flushed at interpreter exit leaves exit status 0.
+    overflow = 'with open("/scratch/full", "wb") as stream: stream.write(b"x" * 16384)'
+    result = worker.tool("run", {"command": ["/usr/bin/python3", "-I", "-c", overflow]})
     assert result["exit_code"] != 0
     assert "No space left" in result["stderr"]
 
