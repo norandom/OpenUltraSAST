@@ -14,6 +14,8 @@
 > that cluster under roadmap G4 (`.kiro/steering/roadmap.md`, section of 2026-10-04). Their text below is kept
 > as written. G4 (detection on push for any repository: `ousast plane scan --base --head`, engine pins on kube-ax,
 > model calls on the VM or CI) is the new target for group 7, sized by what G1-G3 keep.
+>
+> **2026-11-24.** The local kind cluster is stopped and the code stays; see the last section of this file.
 
 One task group per increment of `design.md` section 7, in that order; a later group never starts before the
 earlier group's kind proof is recorded. Every task ships with its tests; a task is done when its tests pass in
@@ -293,3 +295,26 @@ go-ahead** with a ceiling; steps that need a hand on a cluster that does not exi
     `kind-tooling` memory and `.kiro/steering/overview.md` current-state line updated; `/kiro-spec-status`.
   - Evidence: every record 01-07 linked from the runbook's checklist.
   - _Requirements: 7.1, 7.2_
+
+---
+
+## The local cluster is stopped, and the code stays (2026-11-24)
+
+The maintainer decided to stop the local kind cluster and keep the code until groups 3 to 8 are re-planned. It
+was torn down on 2026-11-24 with `ops/ax/down.sh`. What was true when the decision was taken:
+
+- Nothing on the product's main line used the cluster or its stores. A scan, the pre-push hook and the MCP
+  server import no store: 0 matches for `boto3`, `S3Store`, `FileStore`, `MemoryStore` or the reconciler under
+  `src/openultrasast/push`, `mcp.py`, `run.py`, `harness.py` and the hunter tools, and `cli.py` imports the
+  plane only inside its `ousast plane` handlers. The memory store is remote.
+- The rustfs inside the cluster was Substrate's snapshot store, read and written by Substrate's own components
+  only. Its 11.5 MB, with Substrate's postgres data (67.5 MB), are kept on the development machine in
+  `~/.cache/ousast/kind-ousast-pvc-backup-2026-11-24.tgz` (a file copy; no restore has been tried).
+- Search-with-proof produced its first demonstrated finding on hosted kube-ax
+  (`search-with-proof/HANDOFF.md`), and its code takes from `plane/` only `memory.py` and `budget.py`.
+- The admission that decides rollout does not depend on the local cluster
+  (`valid-detection-benchmark/requirements.md`: "operating execution-plane infrastructure" is out of scope).
+
+`ops/ax/up.sh` recreates the cluster; a cold bring-up has not been timed. Whether the executor code is deleted
+(`src/openultrasast/plane/`, `ops/ax`, `ops/k8s`, `plane/Dockerfile.runner` are the candidates) is decided at
+the re-plan. The kube context `kind-ousast` went with the cluster.
