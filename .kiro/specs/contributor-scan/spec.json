@@ -1,7 +1,7 @@
 {
   "feature_name": "contributor-scan",
   "created_at": "2026-09-08T20:00:00Z",
-  "updated_at": "2026-11-24T13:18:45.436115+00:00",
+  "updated_at": "2026-11-24T16:53:30.184851+00:00",
   "language": "en",
   "phase": "implementation",
   "approvals": {
@@ -66,6 +66,11 @@
       "at": "2026-11-24T13:18:45.436115+00:00",
       "source": "approved",
       "action": "Later decisions of the same day, recorded at the time of writing. Task 5.2 pins lfnovo/open-notebook at 89eac04c (v1.8.3, MIT), chosen by the maintainer from a shortlist, with CVE-2026-33589 and CVE-2026-33588 as its two labelled path-traversal findings. The scan's false-positive ledger stays in .openultrasast/calibration/, shared with other calibration stores, but is written only when a scan learns something, and a read-only tree records that it could not be written (task 3.1). The docker build cache may be pruned and the engine image rebuilt; benchmarks/valid and benchmarks/unseen are kept out of the image (task 3.2)."
+    },
+    {
+      "at": "2026-11-24T16:53:30.184851+00:00",
+      "source": "approved",
+      "action": "Decisions taken after the maintainer asked to stop, recorded at the time of writing. Run retention for task 3.1: after each scan, with no OPENULTRASAST_RUNS_DIR set, runs in the default location older than 30 days are removed; the scan's own run and anything not named like a run are never touched; OPENULTRASAST_RUNS_RETENTION_DAYS sets the days and 0 disables it; a failed prune never fails the scan. A push follows a local gate, the whole test suite and every CI command passing locally, while GitHub CI stays red for reasons in other specs. The next session also repairs GitHub CI, splits _run_scan, guards the cache when a scan meets a directory that contains it, and moves the benchmark runs to the cache. One documentation commit brings up to date the kind-cluster wording, the roadmap Position table, the ir-consolidation brief and the old run location in another spec. Tasks 5.14, 7.3, 7.7, 7.8 and 5.9 close on the fresh pmpro measurement. The libpng re-measurement and the release workflow fix belong to task 3.2 part 2."
     }
   ],
   "implementation_verification": {

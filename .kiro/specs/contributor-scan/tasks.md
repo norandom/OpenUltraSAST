@@ -380,6 +380,13 @@
     `benchmarks/repos/measure.py` follows the printed run directory. Still open here: part B, the readable
     summary; `ousast benchmark` and its MCP twin still write under `<target>/.openultrasast/benchmarks/` and
     no user doc names them; `_run_scan` stays over the complexity cap (18), touched by one line.
+  - _Run retention added 2026-11-24, by maintainer decision (commit `17d46c0`)._ With no `OPENULTRASAST_RUNS_DIR`
+    set, a scan removes the runs in the default location older than 30 days after writing its manifest
+    (`OPENULTRASAST_RUNS_RETENTION_DAYS`; `0` keeps every run). The scan's own run, anything not named like a run,
+    symlinks and a chosen location are never touched, and a failed prune is one notice, also in the MCP results.
+    Decided for the next session, not yet done: move `ousast benchmark` and its MCP twin to the cache and name them
+    in the docs; skip the cache when a scan meets a directory that contains it; split `_run_scan` (complexity 18
+    against a cap of 10) in its own commit before more scan-path work.
 
 - [ ] 3.2 Build and verify the image
   - `docker compose build`, then run a real scan through it and through the shell wrapper. The Dockerfile and
@@ -388,6 +395,11 @@
     same findings as a native run; the target mount is read-only; the network is off by default.
   - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5_
   - _Depends: 3.1_
+  - _Decided 2026-11-24, before part 2 runs._ Part 2 also carries two things the maintainer assigned to it: the
+    release workflow's image job gets the pinned base arguments (it passes none today, the same defect compose had,
+    and the v2.1.0-alpha.1 job failed); and libpng is scanned natively and in the image for the parity check, with
+    what the entailment at `contrib/examples/iccfrompng.c:124` does at HEAD recorded against the roadmap's second
+    release criterion.
 
 ## Group 4 — Close the deferred decisions
 
@@ -614,6 +626,8 @@
   - Observable: a missing-capability finding on a plugin that has one, and silence on one that checks.
   - _Requirements: 8.1, 9.1_
   - _Depends: 5.6_
+  - _Decided 2026-11-24:_ closes on the fresh pmpro measurement in the image when this task's own completion
+    criterion holds there; otherwise it stays open with the fresh number recorded.
 
 - [ ] 5.10 A PHP CPG large enough to matter that actually loads
   - `php2cpg` builds a 4.3MB CPG for a 637-file plugin with no errors, and importing it throws during
@@ -1064,6 +1078,8 @@
   - Observable: taint requests issued per scan, and whether the query completes at all on `pmpro`.
   - _Requirements: 4.2, 9.1_
   - _Depends: 5.13_
+  - _Decided 2026-11-24:_ closes on the fresh pmpro measurement in the image when this task's own completion
+    criterion holds there; otherwise it stays open with the fresh number recorded.
 
 - [ ] 5.12 The ranker knows one framework, and everything else lands in "unknown"
   - > "the ranker hardcodes wp nodes etc. which means it's not generalizeable. I'd like the LLM to be a
@@ -1293,6 +1309,8 @@ the ontology describes libraries, frameworks and language constructs, never repo
   - **It is not sufficient, and that is the useful half of the result.** The 500-region run still fails in the same way at the same cost, because 406 questions at roughly one and a half seconds each still exceed the 300-second per-batch ceiling. This lever moved the volume; the ceiling is a separate limit and pre-push 13.3 still cannot reach the population that holds its target without it. Evidence: `benchmarks/measurements/2026-09-22-tier-zero-pruning.json`.
   - _Boundary: contributor-scan scan budget_
   - _Requirements: 4.1, 6.3, 8.1_
+  - _Decided 2026-11-24:_ closes on the fresh pmpro measurement in the image when this task's own completion
+    criterion holds there; otherwise it stays open with the fresh number recorded.
 - [ ] 7.4 One matcher, used by every query
   - Four query files carry near-copies of the same token matcher and each acquired the same defect separately: the configuration matcher needed a receiver check the dominance matcher already had, and the sink matcher searched a whole node's text including its comments. Six instances of one bug class are listed in the pre-push design's invariants.
   - Extract one matcher with callee confinement and word boundaries built in, and have taint, dominance and config use it. A rule in a document gets rediscovered; a rule in a constructor does not.
@@ -1324,6 +1342,8 @@ the ontology describes libraries, frameworks and language constructs, never repo
   - _Boundary: contributor-scan scan budget, cpg backend_
   - _Depends: 7.3_
   - _Requirements: 4.1, 6.3, 8.1_
+  - _Decided 2026-11-24:_ closes on the fresh pmpro measurement in the image when this task's own completion
+    criterion holds there; otherwise it stays open with the fresh number recorded.
 
 - [ ] 7.8 Portion the work instead of capping it: a kill keeps what finished
   - **Asked for by the maintainer on 2026-09-22, after 7.7.** A hard per-invocation ceiling is all-or-nothing: a batch killed at 301 s loses every answer it had already computed, and the retry then pays a fresh JVM start per part to ask them all again. Measured on the plugin: 116 requests killed at 300 s, eight restarts, and the same everywhere-sinks in every part.
@@ -1337,6 +1357,8 @@ the ontology describes libraries, frameworks and language constructs, never repo
   - _Boundary: cpg backend, contributor-scan scan budget, taint query_
   - _Depends: 7.7_
   - _Requirements: 4.1, 6.3, 8.1_
+  - _Decided 2026-11-24:_ closes on the fresh pmpro measurement in the image when this task's own completion
+    criterion holds there; otherwise it stays open with the fresh number recorded.
 
 - [x] 7.9 Size portions from what each answer cost, and tell a transient kill from an expensive question
   - **The next lever named by 7.8, and the trace said it was a different lever.** Re-read on 2026-09-23, the 7.8 run's sizer did not lose completion to expensive families so much as to a death spiral: after two kills the budget fell to 3 sink visits per portion and never recovered. Portions of 3–6 visits finished in 25–30 s, which under the assumed 70 s fixed start read as "no information", so the budget could shrink and never grow — and the rest of the run paid a JVM start per handful of requests.
