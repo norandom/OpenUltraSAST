@@ -1,7 +1,7 @@
 {
   "feature_name": "contributor-scan",
   "created_at": "2026-09-08T20:00:00Z",
-  "updated_at": "2026-11-24T10:41:15.412732+00:00",
+  "updated_at": "2026-11-24T13:18:45.436115+00:00",
   "language": "en",
   "phase": "implementation",
   "approvals": {
@@ -56,6 +56,16 @@
       "at": "2026-11-24T10:05:00+00:00",
       "source": "approved",
       "action": "Closed the memory-family decision (task 4.1): \"C memory-safety beyond string-function misuse is out of scope. Record that, and say so per corpus slice.\" Task 5.3 and task 2.13 are withdrawn; task 2.15 closes on its recorded-decision branch. Kept evidence_level beside rung (task 4.2): \"Keep both, record why. No output change for JSON, SARIF or MCP consumers. Record the reason in the spec and docs, and revisit when detection-core revises its consumer contract.\""
+    },
+    {
+      "at": "2026-11-24T10:05:00+00:00",
+      "source": "approved",
+      "action": "Set the course for the implementation run: task 7.1 closes as superseded (its instrument was deleted on 2026-10-13); 5.12 covers facts and generic features only and is to record why it drops the LLM-ranker clause; 7.2 lands first and 5.6 closes on its measurement while 5.1 is deferred; the subject for 5.2 is proposed by the agent and chosen by the maintainer before anything is pinned or scanned; a native scan writes to the user cache directory by default (task 3.1); both stages run autonomously; a push only after the whole test suite and every CI check pass."
+    },
+    {
+      "at": "2026-11-24T13:18:45.436115+00:00",
+      "source": "approved",
+      "action": "Later decisions of the same day, recorded at the time of writing. Task 5.2 pins lfnovo/open-notebook at 89eac04c (v1.8.3, MIT), chosen by the maintainer from a shortlist, with CVE-2026-33589 and CVE-2026-33588 as its two labelled path-traversal findings. The scan's false-positive ledger stays in .openultrasast/calibration/, shared with other calibration stores, but is written only when a scan learns something, and a read-only tree records that it could not be written (task 3.1). The docker build cache may be pruned and the engine image rebuilt; benchmarks/valid and benchmarks/unseen are kept out of the image (task 3.2)."
     }
   ],
   "implementation_verification": {

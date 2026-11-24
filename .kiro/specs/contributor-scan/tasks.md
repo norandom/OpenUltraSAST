@@ -434,6 +434,10 @@
     vendored; the slice reports as its own row; every pair states a licence.
   - _Requirements: 9.1, 9.4, 9.5, 9.6, 9.7_
   - _Depends: 3.2_
+  - _Deferred 2026-11-24, by maintainer decision._ Task 3.2 comes first in stage 2. Task 7.2 lands before
+    tasks 5.6 and 5.1: sanitizers keyed to the weakness they prevent, with host tests and one measurement on
+    the pinned WordPress plugin (`pmpro`), and task 5.6 closes on that evidence. That closes 5.6 before this
+    task, so the same decision sets aside the `_Depends: 5.1_` line it carries. This task follows task 3.2.
 
 - [ ] 5.2 More vibe-code pairs, and at least one as a whole repository
   - The pair corpus has 70 vibe-py and 17 vfc-js pairs, all excerpts. Group 2 showed that excerpts cannot
@@ -447,6 +451,11 @@
   - _Requirements: 9.1, 9.2, 4.1_
   - The slice where the stated audience works, currently 35 pairs. Same read-check discipline.
   - _Requirements: 9.3, 9.4, 9.5, 9.6, 9.7_
+  - _Subject chosen by the maintainer 2026-11-24, from a shortlist:_ `lfnovo/open-notebook` (MIT) at
+    `89eac04c` (tag v1.8.3). The shortlist's two labelled path-traversal vulnerabilities are CVE-2026-33589 and
+    CVE-2026-33588, CWE-22 as the GitHub advisories classify them, family `path`, both in
+    `api/routers/sources.py` at that commit. Those advisories and OSV also record other vulnerabilities that
+    affect this version. No recipe and no measurement yet.
 
 - [x] 5.3 Real-world C library CVEs
   - libpng and the image libraries, OpenSSH, libpam, kernel modules. **Gated on 4.1**: until the memory
@@ -1238,7 +1247,7 @@ established nothing and every one failed for an ontology reason, so this group i
 efficiency actually lives. The design amendment above states the constraint these tasks work under:
 the ontology describes libraries, frameworks and language constructs, never repositories.
 
-- [ ] 7.1 Report what a repository calls that the ontology does not model
+- [x] 7.1 Report what a repository calls that the ontology does not model
   - Census the call names, and the receiver-qualified spellings, that appear in a repository's first-party graph; subtract everything any fact table names; rank the remainder by how often it is called and by how close it sits to a modelled source. The output is a measured worklist of what this tool is blind to here.
   - It needs no dataflow, which is why it is cheap: the same structural pass that answers 17,700 requests in 44 s already walks every call.
   - **It reports candidates, not entries.** A candidate becomes ontology only when someone resolves it to a library API, states the weakness class and records provenance. Nothing may be added because a subject called it.
@@ -1248,6 +1257,11 @@ the ontology describes libraries, frameworks and language constructs, never repo
   - _It had to be taught what is not an API._ The first run ranked `_tmp_3.push` and `__ecma.Array.factory` first, which is how the frontend lowers a destructuring and an array literal, and a Cypress suite and a Gruntfile held four of the next five. Both are now separated, because noise at the top of a worklist is how a worklist stops being read. Evidence: `benchmarks/measurements/2026-09-21-ontology-coverage-nodegoat.json`.
   - _Boundary: shipped semantic facts, evaluation harness_
   - _Requirements: 6.2, 8.1_
+  - _Closed as superseded 2026-11-24, by maintainer decision._ The instrument was built on 2026-09-21
+    (`benchmarks/push/ontology_gap.py` with `cpg/queries/vocabulary.sc`: 0beae46, b0500ec) and measured on
+    NodeGoat only. It was retired with the other cuts on 2026-10-13 (f5a904b), so no such instrument exists
+    at HEAD; the NodeGoat record above is what survives. Its successor is the detection-core fact-pack
+    workstream. Not rebuilt here.
 - [ ] 7.2 Key sanitizers to the weakness they actually prevent
   - The sanitizer list is flat across families, and that forces a false choice which is now measured: adding WordPress's `esc_attr` removes eighteen output-encoding false positives on one plugin and simultaneously hides a real SQL injection, because no HTML escaper stops SQL injection. `php.toml` has carried a comment predicting exactly this since before the measurement existed.
   - Key each sanitizer to the weakness class it discharges, so a family consults the cleansers that apply to it. Do not solve it by choosing which defect to keep.
