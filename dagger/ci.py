@@ -44,6 +44,12 @@ async def _run_checks() -> None:
             .from_("python:3.11-bookworm")
             .with_directory("/src", source)
             .with_workdir("/src")
+            # The mounted tree carries no `.git` (excluded above), and tests that enumerate tracked
+            # files, such as the detection-core migration gate, need an index: give them this tree's.
+            # The tree can be owned by another user than the container's, so git must trust it first.
+            .with_exec(["git", "config", "--system", "--add", "safe.directory", "/src"])
+            .with_exec(["git", "init", "-q"])
+            .with_exec(["git", "add", "-A"])
             .with_exec(["python", "-m", "pip", "install", "uv"])
             # uv run re-syncs the environment to the lockfile's default extras unless told not to, which silently
             # removed the extras below before pytest ran.
