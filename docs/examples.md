@@ -4,7 +4,11 @@ Each example stands on its own. A scan writes its run under
 `~/.cache/openultrasast/runs/<scan-id>/`, or under `$XDG_CACHE_HOME/openultrasast/runs/` when
 that variable is set to an absolute path, and prints that path. `OPENULTRASAST_RUNS_DIR`
 overrides the location: an absolute path is used as given, and a relative one is resolved against
-the current working directory, never against the target.
+the current working directory, never against the target. Once a scan has written its run to the
+default location, with no `OPENULTRASAST_RUNS_DIR` set, the runs there that are older than 30 days
+are removed, and `ousast` prints one `notice:` line when it removes any;
+`OPENULTRASAST_RUNS_RETENTION_DAYS` sets the number of days (`0` keeps every run), and nothing is
+ever removed from a location chosen with `OPENULTRASAST_RUNS_DIR`.
 
 A scan that rejects or holds a finding writes one file into the scanned tree, and only when that
 file's content would change:

@@ -188,6 +188,10 @@ loads settings. Every run writes `manifest.json`, `findings.json`, `verification
 variable is set to an absolute path. The scan prints that path (`run_dir=<path>`).
 `OPENULTRASAST_RUNS_DIR` moves the run directory: an absolute path is used as given, and a relative
 one is resolved against the current working directory, never against the directory being scanned.
+After a scan writes its run to the default location, with no `OPENULTRASAST_RUNS_DIR` set, the runs
+there older than 30 days are removed, and `ousast` prints one `notice:` line when it removes any;
+`OPENULTRASAST_RUNS_RETENTION_DAYS` sets the number of days (`0` keeps every run), and nothing is
+ever removed from a location chosen with `OPENULTRASAST_RUNS_DIR`.
 
 A scan that rejects or holds a finding writes one file into the scanned tree,
 `<target>/.openultrasast/calibration/false_positive_learnings.json`, and only when that file's

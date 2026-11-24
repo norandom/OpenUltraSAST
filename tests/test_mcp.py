@@ -1,8 +1,12 @@
 """Narrow MCP server: tool listing, scan→status flow, and surface safety (Phase 12)."""
 
+import errno
 import io
 import json
 from pathlib import Path
+
+import pytest
+from test_run_pruning import _default_cache, _earlier_run, _refuse_removal
 
 from openultrasast.mcp import McpServer, serve
 
@@ -101,6 +105,7 @@ def test_scan_then_status_and_findings(tmp_path: Path, monkeypatch) -> None:  # 
 
     scan = _call(server, "openultrasast.scan", {"path": str(_repo(tmp_path)), "mode": "quick"})
     assert not scan["isError"] and scan["scan_id"]
+    assert scan["notices"] == []  # a run root of its own is never pruned, so the scan has nothing to say
     run_dir = scan["run_dir"]
 
     status = _call(server, "openultrasast.status", {"run_dir": run_dir})
@@ -135,6 +140,42 @@ def test_export_report_returns_markdown(tmp_path: Path, monkeypatch) -> None:  #
     scan = _call(server, "openultrasast.scan", {"path": str(_repo(tmp_path)), "mode": "quick"})
     report = _call(server, "openultrasast.export_report", {"run_dir": scan["run_dir"], "format": "markdown"})
     assert report["format"] == "markdown" and report["content"]
+
+
+def test_scan_result_carries_the_notice_of_the_runs_the_scan_removed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    runs = _default_cache(tmp_path, monkeypatch)
+    expired = _earlier_run(runs, 40)
+
+    result = _call(McpServer(), "openultrasast.scan", {"path": str(_repo(tmp_path)), "mode": "quick"})
+
+    assert not result["isError"]
+    assert result["notices"] == [f"removed 1 run older than 30 days from {runs}"]
+    assert not expired.exists()
+
+
+def test_scan_result_carries_the_notice_of_a_removal_that_was_refused(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    runs = _default_cache(tmp_path, monkeypatch)
+    expired = _earlier_run(runs, 40)
+    refusal = PermissionError(errno.EACCES, "Permission denied", str(expired))
+    _refuse_removal(monkeypatch, expired, refusal)
+
+    result = _call(McpServer(), "openultrasast.scan", {"path": str(_repo(tmp_path)), "mode": "quick"})
+
+    assert result["exit_code"] == 0
+    assert result["notices"] == [f"old runs could not be removed from {runs}: {refusal}"]
+
+
+def test_benchmark_result_carries_the_notice_of_the_runs_the_scan_removed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    runs = _default_cache(tmp_path, monkeypatch)
+    _repo(tmp_path)
+    _earlier_run(runs, 40)
+    manifest = tmp_path / "benchmark.toml"
+    manifest.write_text('name = "py-smoke"\nlanguage = "python"\n\n[source]\npath = "repo"\n')
+
+    result = _call(McpServer(), "openultrasast.benchmark", {"manifest": str(manifest), "mode": "quick"})
+
+    assert not result["isError"]
+    assert result["notices"] == [f"removed 1 run older than 30 days from {runs}"]
 
 
 # ---- stdio loop -------------------------------------------------------------

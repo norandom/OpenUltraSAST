@@ -75,6 +75,7 @@ def _scan(args: dict[str, Any]) -> dict[str, Any]:
         "mode": mode,
         "finding_count": outcome.finding_count,
         "exit_code": outcome.exit_code,
+        "notices": list(outcome.notices),
     }
 
 
@@ -182,6 +183,7 @@ def _benchmark(args: dict[str, Any]) -> dict[str, Any]:
         "missed": metrics.missed_findings_total,
         "false_positives": metrics.false_positive_findings_total,
         "recall": metrics.recall,
+        "notices": list(outcome.notices),
     }
 
 

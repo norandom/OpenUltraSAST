@@ -203,17 +203,37 @@ def _user_cache_dir() -> Path:
     return Path.home() / ".cache"
 
 
+def _runs_dir_override() -> str:
+    """The `OPENULTRASAST_RUNS_DIR` set in the environment; empty when runs go to the default location."""
+    return os.environ.get("OPENULTRASAST_RUNS_DIR", "")
+
+
+def runs_dir_is_overridden() -> bool:
+    """Whether `OPENULTRASAST_RUNS_DIR` names where runs go. Wherever it points, that location is never pruned."""
+    return bool(_runs_dir_override())
+
+
 def _runs_dir() -> str:
     """Where a scan creates its run: the user's cache, unless `OPENULTRASAST_RUNS_DIR` says otherwise.
 
     Always absolute, and taken from the working directory when the override is relative, never from the
     target: a run inside the analysed tree is what this default exists to prevent.
     """
-    override = os.environ.get("OPENULTRASAST_RUNS_DIR")
+    override = _runs_dir_override()
     if not override:
         return str(_user_cache_dir() / "openultrasast" / "runs")
     path = Path(override)
     return str(path if path.is_absolute() else Path.cwd() / path)
+
+
+def _runs_retention_days() -> int:
+    """How long a run stays in the default cache before a later scan removes it; 0 keeps every run."""
+    value = os.environ.get("OPENULTRASAST_RUNS_RETENTION_DAYS", "").strip()
+    if not value:
+        return 30
+    if not value.isdecimal():
+        raise ValueError(f"OPENULTRASAST_RUNS_RETENTION_DAYS must be a whole number of days, 0 or more, not {value!r}")
+    return int(value)
 
 
 @dataclass(frozen=True)
@@ -232,6 +252,7 @@ class ResolvedConfig:
     # Read from the environment each time a config is built, so one made without `load_config` lands in the
     # same place.
     runs_dir: str = field(default_factory=_runs_dir)
+    runs_retention_days: int = field(default_factory=_runs_retention_days)
 
 
 def load_config(config_path: Path | None = None, *, dotenv: bool = True) -> ResolvedConfig:

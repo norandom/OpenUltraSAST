@@ -18,7 +18,9 @@ it wrote.
    still exits 0 and records a degradation.
 4. Read the printed `scan_id=` and `run_dir=` lines; the run directory is `~/.cache/openultrasast/runs/<scan-id>/`
    (`$XDG_CACHE_HOME/openultrasast/runs/` when that variable is set to an absolute path; `OPENULTRASAST_RUNS_DIR`
-   overrides it).
+   overrides it). After a scan, with no `OPENULTRASAST_RUNS_DIR` set, the runs in that default location older than
+   30 days are removed (`OPENULTRASAST_RUNS_RETENTION_DAYS` sets the number of days and `0` keeps every run), and
+   nothing is removed from a location chosen with `OPENULTRASAST_RUNS_DIR`.
 5. Report the finding count, how many the verifier accepted, and **every** recorded degradation
    (`manifest.json`, key `degradations`). No findings plus a degradation is not a clean scan: the scan
    answered a smaller question than it was asked.

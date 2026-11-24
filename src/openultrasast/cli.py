@@ -71,7 +71,7 @@ from .repos import resolve as resolve_repo
 from .repos import select as select_repo
 from .repos import verify as verify_repo
 from .ruleset import DEFAULT_RULESET_DIR, load_ruleset
-from .run import ScanRun, create_scan_run
+from .run import ScanRun, create_scan_run, prune_scan_runs
 from .scoring import build_score_artifact
 from .semantic import (
     OverlayRecord,
@@ -816,6 +816,7 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
         ),
     )
     runtime.finish(status="succeeded")
+    prune_notices = prune_scan_runs(config, keep=run.root)
     return ScanOutcome(
         scan_id=run.scan_id,
         run_dir=run.root,
@@ -828,7 +829,8 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
             f"language not covered: {item['language']} ({item['count']} files)"
             for item in runtime.state["degradations"]
             if item.get("reason") == "language_not_covered"
-        ),
+        )
+        + prune_notices,
     )
 
 
