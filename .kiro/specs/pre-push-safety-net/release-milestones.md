@@ -261,6 +261,13 @@ and release readiness complete if their mandatory criteria are satisfied.
 Owner: pre-push-safety-net admission, packaging and release validation.
 Requirements: 3.1–3.5, 5.1–5.5, 6.5, 7.1–7.4.
 
+**Also owned here, by the maintainer's decision of 2026-11-24 ("File under M5"):** regenerating
+the shipped registry, `src/openultrasast/push/eligibility.json`. Evidence on record (the task 15.2
+note in this spec's `tasks.md`; the valid-detection-benchmark `tasks.md`): the file was last
+written at commit `b506516` (2026-09-13), its bindings match the code of that commit and no
+binding at HEAD, so `load_registry` returns `stale` with zero capabilities and the hook emits no
+admitted alert. The hook stays silent until M5 regenerates the registry.
+
 ## Execution and reporting contract
 
 Use M1a → M1b → M2 → M3 → M4 → M5 as the critical path. Preparation may overlap, but later
