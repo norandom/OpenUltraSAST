@@ -25,3 +25,8 @@ benchmarks/measurements/*
 !benchmarks/measurements/2026-09-13-admission-policy-smoke.json
 # A label source of `ousast learn` (src/openultrasast/learn/sources.toml).
 !benchmarks/measurements/2026-09-30-harnessx-removal-baseline/pairs.json
+
+# The image is published on every tag, so the reserved populations stay out of it. The scan path reads neither;
+# the hunter's contamination report reads them from a checkout, not from the image.
+benchmarks/valid
+benchmarks/unseen

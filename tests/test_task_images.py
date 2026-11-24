@@ -197,3 +197,11 @@ def test_base_preserves_executor_build_toolchains():
     for directory in ("doc", "man", "info"):
         assert f"path-exclude=/usr/share/{directory}/*" in common
         assert f" /usr/share/{directory}/*" in common
+
+
+def test_reserved_populations_stay_out_of_the_image():
+    patterns = [line.strip() for line in read(".dockerignore").splitlines()]
+    patterns = [line for line in patterns if line and not line.startswith("#")]
+    for population in ("benchmarks/valid", "benchmarks/unseen"):
+        assert population in patterns, f"{population} is not excluded from the build context"
+        assert not any(line.startswith(f"!{population}") for line in patterns), f"{population} is let back in"
