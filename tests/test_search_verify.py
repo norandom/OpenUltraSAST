@@ -1,6 +1,7 @@
 """Schema-only verification, owned observations and adversarial public inputs."""
 
 import json
+import os
 import socket
 
 import pytest
@@ -23,10 +24,29 @@ def edit(demo, change):
     path.write_text(json.dumps(value))
 
 
+def skip_without_private_netns():
+    """The SSRF oracle's private loopback is `unshare --user --map-root-user --net` (oracles.py:151)."""
+    import subprocess
+
+    command = [
+        "/usr/bin/unshare",
+        *([] if _sandbox.isolation_mode() == "root-no-userns" else ["--user", "--map-root-user"]),
+        "--net",
+        "/bin/true",
+    ]
+    try:
+        probe = subprocess.run(command, capture_output=True, text=True, timeout=10)
+    except (OSError, subprocess.SubprocessError) as exc:
+        pytest.skip("private network namespace unavailable: " + type(exc).__name__)
+    if probe.returncode:
+        pytest.skip("host refuses the private network namespace: " + probe.stderr.strip()[-200:])
+
+
 @pytest.mark.parametrize("family", ["path", "sql", "command", "ssrf"])
 @pytest.mark.sandbox
 def test_real_differential(tmp_path, family):
     if family == "ssrf":
+        skip_without_private_netns()
         try:
             with socket.socket():
                 pass
@@ -242,6 +262,7 @@ HTTPServer(('127.0.0.1', 18765), Handler).serve_forever()
 
 @pytest.mark.sandbox
 def test_private_namespace_handoff_without_sockets(tmp_path):
+    skip_without_private_netns()
     import subprocess
 
     from openultrasast.sandbox import SandboxJob
@@ -717,6 +738,7 @@ def test_http_driver_polls_eight_second_listener_before_get_and_steps(tmp_path, 
 
 @pytest.mark.parametrize("task_boundary", [False, True])
 @pytest.mark.parametrize("config", ["arguments", "environment", "files"])
+@pytest.mark.skipif(not os.access("/usr/bin/node", os.X_OK), reason="node runtime /usr/bin/node is not installed")
 @pytest.mark.sandbox
 def test_node_directory_option_uses_owned_fixture(pair, config, task_boundary):
     sides, demo = pair

@@ -26,8 +26,12 @@ def test_real_browser_executes_not_reflects():
     except OSError as exc:
         # A present binary is insufficient on restricted hosts. Only known
         # host permission denials skip; ordinary browser failures remain failures.
-        if "Operation not permitted" in str(exc) or "Permission denied" in str(exc):
-            pytest.skip("host denies browser isolation/socket setup: " + str(exc))
+        # oracles.py raises a fixed message `from` the launch error: the cause carries the evidence.
+        cause = exc.__cause__ or exc
+        evidence = " ".join(str(part) for part in (cause, getattr(cause, "stderr", None)))
+        denied = next((text for text in ("No usable sandbox", "Operation not permitted", "Permission denied") if text in evidence), None)
+        if denied:
+            pytest.skip("host denies browser isolation/socket setup: " + denied)
         raise
     assert observed
     assert not browser(html.escape(payload), "nonce")
