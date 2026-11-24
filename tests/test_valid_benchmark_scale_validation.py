@@ -8,12 +8,18 @@ per-batch nonzero read receipts, cold/warm and per-arm runtime receipts, a
 bounded execution lane whose busy refusal is an impairment rather than a
 detector result or an infrastructure diagnosis, and truncated streams that
 report impairment instead of a partial clean result.
+
+One opt-in rehearsal (OPENULTRASAST_FULL_SCALE_REHEARSAL=1) runs the whole
+lifecycle at the full 840-input scale with per-stage wall-clock times; it is
+skipped by default because it takes twenty minutes or more.
 """
 
 from __future__ import annotations
 
 import json
+import os
 import sys
+import time
 import tracemalloc
 from pathlib import Path
 from types import SimpleNamespace
@@ -32,6 +38,7 @@ from valid_benchmark_scale_support import (  # noqa: E402
     CORE_REPLAY_DECLARATION,
     EXECUTION_TIER_INPUTS,
     EXECUTION_TIER_PUSHES_PER_ECOSYSTEM,
+    SCALE_INPUTS,
     SCALE_REQUIRED_PER_POSITIVE,
     ScaleLifecycle,
     StreamFault,
@@ -55,9 +62,12 @@ from valid_benchmark_scale_support import (  # noqa: E402
 )
 
 from benchmarks.valid import run  # noqa: E402
-from benchmarks.valid.workflow_outcome import WorkflowStatus  # noqa: E402
+from benchmarks.valid.workflow_outcome import WorkflowReasonCode, WorkflowStatus  # noqa: E402
 from openultrasast.core.custody import PopulationStatus  # noqa: E402
 from openultrasast.core.evaluation_measurement import MetricId  # noqa: E402
+
+FULL_SCALE_REHEARSAL_VARIABLE = "OPENULTRASAST_FULL_SCALE_REHEARSAL"
+FULL_SCALE_REHEARSAL_TIMINGS = Path("/tmp/opencode/item9-full-scale-timings.json")
 
 
 @pytest.fixture(scope="module")
@@ -277,6 +287,23 @@ def test_incomplete_scale_stream_reports_impairment_never_partial_clean(fault: S
     assert vocabulary_findings(report.decode("ascii")) == ()
 
 
+def test_full_scale_rehearsal_completes_the_lifecycle_at_840_inputs() -> None:
+    """Opt-in rehearsal of the real population size, skipped by default: twenty minutes or more."""
+    if os.environ.get(FULL_SCALE_REHEARSAL_VARIABLE) != "1":
+        pytest.skip(f"set {FULL_SCALE_REHEARSAL_VARIABLE}=1 to opt in: two 840-input executions, 20 minutes or more")
+    population = scale_population()
+    identity = _population_identity(population)
+    timings = _RehearsalTimings()
+    started = time.perf_counter()
+    try:
+        chain = ScaleLifecycle(population=population, timings=timings)
+    finally:
+        timings["total_s"] = round(time.perf_counter() - started, 3)
+    assert SCALE_INPUTS == 840, "the rehearsal no longer names the real population size"
+    _assert_full_scale_lifecycle(chain, SCALE_INPUTS)
+    assert _population_identity(population) == identity, "the rehearsal changed the cached scale population"
+
+
 def _operator_environ():
     from test_valid_benchmark_run import _environ  # noqa: E402
 
@@ -317,3 +344,63 @@ def _saturated_lane():
     lane = BoundedExecutionLane(maxsize=2)
     record = stream_with_lane(probe_objects_factory(840), 60, 840, lane)
     return lane, record
+
+
+def _assert_full_scale_lifecycle(chain: ScaleLifecycle, inputs: int) -> None:
+    """Every stage returned its product, the replay is published, nothing is impaired or interrupted."""
+    assert len(chain.population.manifest.input_digests) == inputs
+    assert chain.execution.refusal_reason is None and chain.execution.impaired_outcome is None
+    assert chain.admission_review.subject_digest == chain.execution.manifest_subject_digest
+    assert chain.execution.admission_manifest is not None
+    assert chain.release is not None and chain.release.refusal_reason is None
+    assert chain.replay is not None
+    assert chain.publication is not None and chain.publication.replay_reference is not None
+    assert chain.publication.outcome.status is WorkflowStatus.COMPLETED
+    assert chain.publication.replay_digest == chain.replay.replay_digest
+    outcome = chain.result.outcome
+    assert outcome.status is WorkflowStatus.COMPLETED
+    assert outcome.status is not WorkflowStatus.IMPAIRED and WorkflowReasonCode.INTERRUPTED not in outcome.reason_codes
+    assert outcome.reason_codes == () and outcome.labels_spent is True
+    assert outcome.counts.completed_arms == outcome.counts.planned_arms == len(PLANNED_ARMS)
+    assert outcome.evaluation_replay_ref is not None
+    assert {arm for arm, runtime_ms in chain.arm_runtimes if runtime_ms > 0} == set(component_arm_ids(chain.population))
+    assert tuple(report.baseline.arm_id for report in chain.replay.reports) == PLANNED_ARMS
+    unique = {case.underlying_push_digest for group in chain.replay.cases_by_arm for case in group.cases}
+    assert chain.replay.whole_population_coverage.underlying_push_count == len(unique) == inputs
+    first = chain.result.report_bytes
+    assert first == chain.render_again()
+    assert redaction_findings(first) == ()
+    document = json.loads(first)
+    assert document["status"] == "completed"
+    assert {arm["arm_id"] for arm in document["replay"]["arms"]} == set(PLANNED_ARMS)
+    receipt = run_streaming_validation(case_objects_factory(chain.population), 64, inputs)
+    assert receipt.status is WorkflowStatus.COMPLETED and receipt.reason_codes == ()
+    assert receipt.consumed_objects == inputs and receipt.all_batches_nonzero
+
+
+def _population_identity(population) -> tuple:
+    """What the other tests of this module read from the cached scale population."""
+    return (
+        population.freeze.population_digest,
+        population.freeze.freeze_digest,
+        population.manifest.manifest_digest,
+        population.plan.plan_digest,
+        population.plan_manifest.manifest_digest,
+        population.labels,
+        len(population.cases),
+        len(population.selection.pushes),
+    )
+
+
+class _RehearsalTimings(dict):
+    """Stage wall-clock seconds, written through after every stage so a killed rehearsal leaves its numbers."""
+
+    def __setitem__(self, key: str, value: float) -> None:
+        super().__setitem__(key, value)
+        FULL_SCALE_REHEARSAL_TIMINGS.parent.mkdir(parents=True, exist_ok=True)
+        FULL_SCALE_REHEARSAL_TIMINGS.write_text(_timings_text(self), encoding="ascii")
+        print(f"full-scale rehearsal wall-clock seconds, {key}: {value}")
+
+
+def _timings_text(timings: dict[str, float]) -> str:
+    return json.dumps(timings, indent=2, sort_keys=True) + "\n"

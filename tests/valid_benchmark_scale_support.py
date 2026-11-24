@@ -608,20 +608,24 @@ def _execution_subject(environment: E2EEnvironment, case: E2EPopulation) -> str:
 
 
 class ScaleLifecycle:
-    """One execution-tier lifecycle: timed arms, spend, release, projection, replay, reporting.
+    """One lifecycle over one population: timed arms, spend, release, projection, replay, reporting.
 
-    A single committed run-command lifecycle over the execution-tier
-    population: the preflight harvest mints the admission-review subject,
-    the run stages execute every planned arm (per-arm runtime receipts are
-    retained through the timing adapter proxy), commit the one shared spend,
-    derive the exact-scope projection inputs, publish the one validated core
-    replay, and render the deterministic redacted operator report.
+    A single committed run-command lifecycle over the population (the
+    execution-tier population unless the caller supplies another, such as the
+    full 840-input scale population): the preflight harvest mints the
+    admission-review subject for that population, the run stages execute every
+    planned arm (per-arm runtime receipts are retained through the timing
+    adapter proxy), commit the one shared spend, derive the exact-scope
+    projection inputs, publish the one validated core replay, and render the
+    deterministic redacted operator report. A caller-supplied timings record
+    receives the wall-clock seconds of each stage.
     """
 
-    def __init__(self) -> None:
-        self.population = execution_tier_population()
+    def __init__(self, population: E2EPopulation | None = None, timings: dict[str, float] | None = None) -> None:
+        self.timings = timings
+        self.population = execution_tier_population() if population is None else population
         harvest = E2EEnvironment(self.population)
-        subject = _execution_subject(harvest, self.population)
+        subject = self._timed("execution_harvest_s", lambda: _execution_subject(harvest, self.population))()
         self.environment = E2EEnvironment(self.population)
         self.case = self.population
         self.admission_review = _attestation(subject, _digest("scale-admission-producer"), self.population.disclosure)
@@ -643,7 +647,20 @@ class ScaleLifecycle:
         )
         self.execution = self.environment.last_execution
         self.arm_runtimes = tuple(self.environment.adapter.arm_runtimes)
-        self.projection = self._projection()
+        self.projection = self._timed("projection_s", self._projection)()
+
+    def _timed(self, stage_name: str, stage):
+        """Wrap one stage, always called as before; its wall-clock seconds land in the record when one was supplied."""
+
+        def timed(*args):
+            started = time.perf_counter()
+            try:
+                return stage(*args)
+            finally:
+                if self.timings is not None:
+                    self.timings[stage_name] = round(time.perf_counter() - started, 3)
+
+        return timed
 
     def _operator_context(self):
         return run.bound_operator_context(
@@ -719,7 +736,12 @@ class ScaleLifecycle:
             )
             return self.publication
 
-        return run.BenchmarkRunStagesV1(_execution, _spend, _replay, _publication)
+        return run.BenchmarkRunStagesV1(
+            self._timed("execution_s", _execution),
+            self._timed("spend_s", _spend),
+            self._timed("replay_s", _replay),
+            self._timed("publication_s", _publication),
+        )
 
     def _projection(self):
         assert self.release is not None
