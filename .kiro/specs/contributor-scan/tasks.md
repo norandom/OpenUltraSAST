@@ -465,7 +465,13 @@
     `89eac04c` (tag v1.8.3). The shortlist's two labelled path-traversal vulnerabilities are CVE-2026-33589 and
     CVE-2026-33588, CWE-22 as the GitHub advisories classify them, family `path`, both in
     `api/routers/sources.py` at that commit. Those advisories and OSV also record other vulnerabilities that
-    affect this version. No recipe and no measurement yet.
+    affect this version.
+  - _Part 1 landed 2026-11-24: the recipe._ `benchmarks/repos/open-notebook.toml` pins the commit, states the
+    licence and counts the files by language, and holds one `[[known]]` entry for each of the eight advisories
+    whose range covers the pin, five in scope and three out with the reason in each; no rung is asserted. Three
+    in-scope entries cannot be found from the checkout alone as the scan reads it today: two hand the value to a
+    dependency that performs the sink, and one sits in a YAML file no scan opens. Not yet measured: that is part
+    2, to be run in the image.
 
 - [x] 5.3 Real-world C library CVEs
   - libpng and the image libraries, OpenSSH, libpam, kernel modules. **Gated on 4.1**: until the memory

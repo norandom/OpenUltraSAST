@@ -1,0 +1,250 @@
+# Open Notebook 1.8.3 -- a research assistant with a FastAPI backend and a Next.js frontend. This is the
+# vibe-code checkout task 5.2 asked for, and the first recipe with two languages in one tree.
+#
+# This is a DETECTION checkout, and NOT YET MEASURED: no scan of this tree has been run, and nothing below says
+# which rung anything will be found at. measure.py writes that.
+#
+# Two things about it decide how a result must be read.
+#
+# Most of the sinks are NOT in the checkout: content-core performs the file read and the HTTP request, and
+# ai-prompter the template render. The tree holds the line that hands the value over and nothing downstream of
+# it, so every such entry names that line, says so in its weakness, and claims nothing about where a finding
+# could land. That is out of scope only where the FIX is in the dependency as well. For CVE-2026-33587 no Python
+# line of the fix is in the checkout: its part of 1a35240e raises ai-prompter in pyproject.toml and uv.lock and
+# touches nothing else, so nothing a scan reads separates the vulnerable tree from the fixed one. For the read
+# and the fetch the fix is a guard added at a line in this tree, and a check the tree already applies to a
+# sibling (_resolve_source_file for one, the credential router's validate_url for the other), so the pair can be
+# separated from the tree alone and the entry stays in scope with the mechanism named and no rung predicted.
+#
+# Eight advisories have affected ranges that cover this commit. They are not eight defects. The two SSRF reports
+# are one fetch here, because the check the later one races against does not exist at this commit, and the
+# command endpoint is a second door to the file read and the fetch, not a third sink.
+#
+# Size, measured on 2026-11-24 against the pinned tree with `git ls-files` (462 files) and `wc -l`, which counts
+# newlines and includes blanks and comments:
+#
+#     Python        101 files   21948 lines   (12 test files, 2619 lines, all under tests/)
+#     TS and JS     197 files   33378 lines   (.ts 78, .tsx 116, .js 1, .mjs 2; 7 are *.test.ts(x))
+#
+# The backend is api/, commands/ and open_notebook/; the frontend is frontend/src/. The format has no include or
+# exclude list: measure.py copies the checkout minus .git and runs the scan over all of it with the shipped
+# defaults, and the scan's own walk decides what it opens. That walk (product_files in
+# src/openultrasast/source.py) drops tests, docs and examples and keeps only extensions its language table maps,
+# so it opens 277 of the 462: 89 Python files (19329 lines) and 188 TS/JS files (32854 lines). There is no
+# node_modules and no build output to exclude, because neither is tracked and a fresh checkout has neither.
+#
+# What that walk does NOT open decides one entry. docker-compose.yml and supervisord.single.conf have no
+# extension the language table maps, so the credential they ship is outside every file a scan reads. A `missed`
+# on that entry describes the file set, and should be read as that and not as a judgement.
+#
+# learn/labels.py:_recipes reads that entry the other way, as a positive label. No source in learn/sources.toml
+# names this recipe today; the one recipes source, dev-php, names the three WordPress recipes.
+# Listed there, _recipes takes every in-scope entry at its word and emits one labelled 1 at
+# `docker-compose.yml::surrealdb`, a function that does not exist, with language `unknown`, on a path that walk
+# never opens. benchmarks/learn/build_features.py then records that row like any other, with the language closed to
+# `other`: only pairs are checked for a declared function. It never becomes an example, because the excerpt builder
+# finds no body for `surrealdb` in a YAML file, and that is not inert: the row counts as recorded without an excerpt,
+# and a source where more than a tenth of its recorded rows have no excerpt fails the memory build (exit 2). dev-php
+# has three labels, so once this pin is harvested this entry alone would fail it.
+#
+# The advisories, verified in the code rather than taken from the advisory text:
+#
+#   CVE-2026-33588  wholly inside the checkout, in two adjacent functions of api/routers/sources.py:
+#
+#                       new_filename = original_filename                 # :54
+#                       full_path = file_path / new_filename             # :58
+#                       with open(file_path, "wb") as f:                 # :74
+#
+#                   1a35240e (v1.8.4) takes os.path.basename() of the name and refuses a resolved path that does
+#                   not start with the resolved upload folder.
+#
+#   CVE-2026-33589  the request's own path, adopted and queued unread:
+#
+#                       final_file_path = file_path or source_data.file_path   # api/routers/sources.py:322
+#                       content_state["file_path"] = final_file_path           # :328
+#
+#                   The same file already contains the test the fix adds, guarding a sibling and not this path:
+#                   _resolve_source_file resolves both paths and refuses one outside the uploads folder (:580-587).
+#                   The read is extract_content's, at open_notebook/graphs/source.py:78.
+#
+#   CVE-2026-33587  a transformation prompt handed to a template engine:
+#
+#                       system_prompt = Prompter(template_text=transformation_template_text).render(  # transformation.py:40
+#
+#                   in open_notebook/graphs/transformation.py. The render is ai-prompter's (0.3.1 in uv.lock) and
+#                   the fix only raises the dependency constraint (pyproject.toml, uv.lock), so it has no Python
+#                   line at all.
+#
+#   GHSA-w9fr-j4xj-h467 and GHSA-mg8j-fmqp-8rx8
+#                   one fetch. api/routers/sources.py:319 copies the link URL into the job unread and
+#                   open_notebook/graphs/source.py:78 hands the whole state to the dependency:
+#
+#                       content_state["url"] = source_data.url                  # sources.py:319
+#                       processed_state = await extract_content(content_state)  # graphs/source.py:78
+#
+#                   validate_url exists at this commit, but only on the credential router, which calls it at
+#                   api/routers/credentials.py:147 and :203; 9045ea50 (v1.11.0) is what calls it here.
+#
+#   GHSA-754c-3r3r-7cfj  the same two values by another door. api/routers/commands.py takes `command`, `app` and
+#                   `input` from the body and submits them at :55 with no field validation, and
+#                   commands/source_commands.py:107 passes content_state to the graph as given. The guards this
+#                   advisory says are bypassed were added in 1.8.4 and 1.11.0; neither is here, and the source
+#                   router has none either, so at this commit the door bypasses nothing. It is still the second
+#                   unguarded way in. With OPEN_NOTEBOOK_PASSWORD unset, PasswordAuthMiddleware passes every
+#                   request (api/auth.py:32-33), so "authenticated user" in the advisories means a deployment
+#                   that set it.
+#
+#   GHSA-qf22-jgcg-83jv  docker-compose.yml:4 starts the database with `--user root --pass root` and :7 publishes
+#                   it as `8000:8000` with no host address. The same pair is in supervisord.single.conf:8 and
+#                   .env.example:17-18, and the README's install snippet (:117-:134) repeats the compose file.
+#
+#   GHSA-fjjw-p65j-gm2x  open_notebook/ai/provision.py:36 logs the model object itself at DEBUG. The repr that
+#                   prints its api_key field belongs to esperanto 2.20.0 (uv.lock), which is not in the tree.
+#
+# Three published advisories on this package do not cover this commit and are deliberately NOT entries, because a
+# recipe can only name what is present. GHSA-2wr8-9h8v-j8cm (remote code execution through React Server
+# Components in the bundled Next.js, CVE-2025-55182, CWE-502) affects versions below 1.2.4; this commit declares
+# `next ^16.1.7` at frontend/package.json:44 and locks 16.1.7. GHSA-5wj9-f8q5-8f9c (the order_by of
+# GET /api/notebooks interpolated into SurrealQL, CWE-89) was fixed in 1.8.3, which is this commit: it allowlists
+# the field and the direction at api/routers/notebooks.py:27-58. GHSA-prvj-2pjx-4433 (podcast paths, filed as
+# CWE-22 with CWE-73 and CWE-552) had its write half fixed in 1.8.2, and this commit names episode directories by
+# UUID at commands/podcast_commands.py:35. A finding on the notebooks ORDER BY is against a fixed site. The
+# podcast read and delete endpoints are a subtler case: they still lack the containment check 1.11.0 adds
+# (api/routers/podcasts.py:34-38), but the advisory says the stored path they use was reachable only through
+# GHSA-5wj9, which is closed here. Not an entry, and not noise either.
+#
+# One entry carries one family, which is all the format has. Where an advisory files several CWEs the entry takes
+# the family of the weakness at its declared line and names the others in its weakness text, so that a single
+# finding is never counted twice. Three entries are out of scope: one because its fix is in a dependency along
+# with its sink (CVE-2026-33587), one because it describes a bypass of a check that is not at this commit and
+# would count one finding twice (GHSA-mg8j-fmqp-8rx8), and one because no family decides its weakness, which is
+# libpng's reason (GHSA-fjjw-p65j-gm2x, CWE-532).
+#
+# measure.py records the same note beside all three in `known_outcomes`:
+# "this engine arbitrates no family that decides this weakness". That is true only of GHSA-fjjw-p65j-gm2x:
+# `injection` decides CWE-1336 and `untrusted_destination` decides CWE-918, so the other two are out for the
+# reasons above, and their weakness text, not that note, says why.
+#
+# What the Python fact tables say, read on 2026-11-24 and offered as the mechanism to check a result against
+# rather than a prediction of it (ruleset/semantic/python.toml): `open` is a modelled CWE-22 sink, and `urlopen`,
+# `requests.*` and `httpx.*` are modelled CWE-918 sinks; no table names `extract_content` or `Prompter`. The
+# source table names Flask's `request.*` and Django's request attributes. Nothing names a FastAPI form parameter,
+# an uploaded file's `filename` or a field of a pydantic body model, which is how every value in these advisories
+# enters. Whether a flow can begin at all in this framework is the first thing a measurement will say.
+#
+# Vibe-code provenance, as the pinned tree carries it rather than as the project describes itself: seventeen
+# CLAUDE.md instruction files (the root, api/, commands/, six under frontend/src/, seven under open_notebook/,
+# prompts/) and two workflows that run a coding agent. .github/workflows/claude.yml runs Claude Code when an
+# issue, a review or a comment names `@claude`; claude-code-review.yml has it review every pull request. The
+# contributing guide at this commit does not say in words that contributions are agent-written. The sentence that
+# does -- "A large share of contributions -- including our own -- are written with coding agents" -- is in
+# docs/7-DEVELOPMENT/contributing.md at HEAD and is not in this tree.
+
+name = "open-notebook"
+url = "https://github.com/lfnovo/open-notebook.git"
+commit = "89eac04c63e1a5e6d96e65747c0770243ae7e95b"
+language = "python, typescript"
+license = "MIT"
+license_file = "LICENSE"
+measures = ["detection"]
+note = """
+Tag v1.8.3, dated 2026-04-07. Three entries were fixed in tag v1.8.4 and the rest in v1.11.0, v1.15.0 and v1.15.1.
+Nothing is vendored -- the recipe fetches on request and CI never does. Licence MIT: LICENSE at the pin opens
+"MIT License, Copyright (c) 2024 Luis Novo". 462 tracked files: 101 Python (21948 lines) and 197 TypeScript or
+JavaScript (33378 lines) by wc -l.
+
+Vibe-code provenance, as the pinned tree carries it: seventeen CLAUDE.md instruction files (the root, api/,
+commands/, six under frontend/src/, seven under open_notebook/, prompts/) and two workflows that run a coding
+agent -- .github/workflows/claude.yml runs Claude Code when an issue, a review or a comment names it, and
+claude-code-review.yml has it review every pull request. The contributing guide at this commit,
+docs/7-DEVELOPMENT/contributing.md, does not yet say that contributions are agent-written; the sentence that does
+was added to that file after v1.8.3 and is not in this tree.
+
+Not yet measured. No scan of this checkout has been run, and no rung is asserted anywhere in this file.
+"""
+
+[[known]]
+id = "CVE-2026-33588"
+family = "path"
+weakness = "arbitrary file write by path traversal: the multipart filename is used as the whole name (`new_filename = original_filename`, :54), joined to the uploads folder (:58) and opened to write (:74) with neither a basename nor a containment test, so `../` in the name puts the file outside that folder"
+file = "api/routers/sources.py"
+function = "save_uploaded_file"
+line = 74
+reference = "GHSA-x4q2-89g5-594v, fixed in 1a35240e (v1.8.4): generate_unique_filename takes os.path.basename() of the name and refuses a resolved path that does not start with the resolved upload folder; verified in the checkout at api/routers/sources.py:54, :58 and :74"
+in_scope = true
+
+[[known]]
+id = "CVE-2026-33589"
+family = "path"
+weakness = "arbitrary file read (local file inclusion): for an upload-type source the JSON body's `file_path` is adopted as the file to extract (`final_file_path = file_path or source_data.file_path`, :322) and queued at :328 with no test that it lies under the uploads directory, so any file the process can read becomes the source's text. The read itself is performed by content-core's extract_content, called at open_notebook/graphs/source.py:78, which is not in the checkout; the same file already applies the missing test to a sibling, in _resolve_source_file (:580-587)"
+file = "api/routers/sources.py"
+function = "create_source"
+line = 322
+reference = "GHSA-842v-h4cj-r646, fixed in 1a35240e (v1.8.4): Path(final_file_path).resolve() must start with the resolved uploads folder or the request is refused; verified in the checkout at api/routers/sources.py:322 and :328"
+in_scope = true
+
+# Out of scope although `injection` decides CWE-1336: the fix is a dependency bump, so the sink is not in the
+# checkout and neither is any line of the fix.
+[[known]]
+id = "CVE-2026-33587"
+family = "injection"
+weakness = "server-side template injection: a transformation prompt stored through POST /api/transformations is rendered as a Jinja2 template, so template expressions in it run Python on the server. Out of scope because the render that is the sink is in the ai-prompter 0.3.1 distribution and not in the checkout, which holds only the hand-off at :40. No scan of this tree can decide it, and 'not found' would not be a miss"
+file = "open_notebook/graphs/transformation.py"
+function = "run_transformation"
+line = 40
+reference = "GHSA-f35w-wx37-26q7, fixed in 1a35240e (v1.8.4) by requiring ai-prompter >= 0.4, which renders in a SandboxedEnvironment; verified in the checkout at open_notebook/graphs/transformation.py:33 and :40, with the prompt stored at api/routers/transformations.py:57"
+in_scope = false
+
+[[known]]
+id = "GHSA-w9fr-j4xj-h467"
+family = "untrusted_destination"
+weakness = "server-side request forgery: the `url` of a link source is copied into the extraction job unread (api/routers/sources.py:319) and the whole content_state is handed to extract_content at :78, so the worker requests whatever scheme and host the caller names, loopback and cloud metadata included (CWE-918, the family declared here; the advisory also files CWE-73 of the path family, for a file:// URL). The request itself is made inside content-core, which is not in the checkout; the tree already holds the guard the fix reuses, validate_url on the credential router (api/routers/credentials.py:147)"
+file = "open_notebook/graphs/source.py"
+function = "content_process"
+line = 78
+reference = "fixed in 9045ea50 (v1.11.0), which calls validate_url(source_data.url, 'source') immediately above api/routers/sources.py:319; verified in the checkout at :319 and at open_notebook/graphs/source.py:78. OSV's record for CVE-2026-90769 describes this defect and cites that fix commit, but lists no GHSA alias, and the advisory page names no CVE"
+in_scope = true
+
+# Out of scope at this commit, and on the same line as the entry above: the check it races against does not
+# exist here, so one finding must not be counted twice.
+[[known]]
+id = "GHSA-mg8j-fmqp-8rx8"
+family = "untrusted_destination"
+weakness = "DNS rebinding between checking a link URL and fetching it: a hostname that resolves to a public address when validated can resolve to loopback or cloud metadata when the worker connects (CWE-367, with CWE-918). Out of scope at this commit for two reasons. The validate_url() check it races against was added in 1.11.0 and is not here, so this line is the same unvalidated fetch as GHSA-w9fr-j4xj-h467 and is measured there, once. And CWE-367 is declared by no family"
+file = "open_notebook/graphs/source.py"
+function = "content_process"
+line = 78
+reference = "fixed in 1.15.1, which requires content-core 2.2.1; the advisory's affected range (<= 1.15.0) covers this commit and names this call. Verified in the checkout at open_notebook/graphs/source.py:78: validate_url exists only in api/credentials_service.py and is called only from the credential router"
+in_scope = false
+
+[[known]]
+id = "GHSA-754c-3r3r-7cfj"
+family = "access_control"
+weakness = "the generic command endpoint accepts any registered command with any input object: POST /api/commands/jobs takes `command`, `app` and `input` from the body and submits them (:55) with no field validation, so `process_source` with a content_state naming an arbitrary `file_path` or `url` reaches the file read and the fetch above by a second door (CWE-862 as filed, the family declared here; the advisory's impact text also names CWE-22 and CWE-918). At this commit the door bypasses nothing, because the guards it was reported against date from 1.8.4 and 1.11.0 and the source router has none either"
+file = "api/routers/commands.py"
+function = "execute_command"
+line = 55
+reference = "fixed in 1.15.1; the advisory's affected range (<= 1.15.0) covers this commit; verified in the checkout at api/routers/commands.py:18 and :55, api/command_service.py:28, and commands/source_commands.py:107 where content_state is passed on as given"
+in_scope = true
+
+# `function` holds the compose service: a credential shipped in a process definition has no function to live in.
+[[known]]
+id = "GHSA-qf22-jgcg-83jv"
+family = "config_secrets"
+weakness = "default database credentials shipped, and the database published on every interface: the compose file starts SurrealDB with `--user root --pass root` (:4) and publishes it as `8000:8000` with no host address (:7), so anyone who can reach the port is root on the database. CWE-798 for the credential is the family declared here; CWE-284 and CWE-306 for the exposure belong to access_control, which one entry cannot also carry. The same pair is at supervisord.single.conf:8 and .env.example:17-18. None of those files has an extension the scan's language table maps, so a miss here describes the file set"
+file = "docker-compose.yml"
+function = "surrealdb"
+line = 4
+reference = "fixed in 1.11.0, which binds the port to 127.0.0.1 and takes the credentials from the environment; verified in the checkout at docker-compose.yml:4 and :7"
+in_scope = true
+
+# `unknown` is the closed taxonomy's name for no family admitted; CWE-532 is in no family's list.
+[[known]]
+id = "GHSA-fjjw-p65j-gm2x"
+family = "unknown"
+weakness = "insertion of sensitive information into a log file (CWE-532): provision_langchain_model logs the whole model object at DEBUG (`logger.debug(f\"Using model: {model}\")`, :36) and, as the advisory reads the esperanto dataclass, its default repr prints the api_key field, so the provider key reaches any log sink that takes DEBUG. Out of scope because no family in ruleset/families.toml declares CWE-532: this engine has no family for the class, so 'not found' is not a miss"
+file = "open_notebook/ai/provision.py"
+function = "provision_langchain_model"
+line = 36
+reference = "the advisory names 1.15.0 as the patched version and its affected range (<= 1.14.0) covers this commit; verified in the checkout at open_notebook/ai/provision.py:36. The fix is not in that file: line 36 reads the same at v1.15.0, v1.15.1 and main. What 1.15.0 raises is the dependency, to esperanto>=2.28.0 from 2.25.1 at v1.14.0, whose LanguageModel declares api_key with repr=False. The repr the pin depends on is in esperanto 2.20.0 (uv.lock), which is not in the checkout"
+in_scope = false

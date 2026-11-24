@@ -58,6 +58,7 @@ HEAD today and not at the pinned commit, where it is still `LICENSE`.
 | `pmpro` | php | 117k lines, 637 files | detection, envelope | Paid Memberships Pro 2.9.7. CVE-2023-23488 is an unauthenticated SQL injection whose value reaches the sink inside the function that receives it -- the shape the PHP fact tables were built for. 2.9.8 wraps it in `$wpdb->prepare`, so the pair separates. |
 | `mwwpform` | php | MW WP Form 5.0.3 | detection | CVE-2023-6559, an arbitrary file deletion. The fix adds `realpath()`, `is_file()` and a directory-confinement test, all of which the facts already carry, so this is a pair the engine can separate rather than merely flag. |
 | `wpstatistics` | php | WP Statistics 13.1.x | detection | CVE-2022-25148, an unauthenticated SQL injection that crosses `add_filter`/`apply_filters`. Pinned because it is NOT expected to be found: a table of hits teaches nothing about where the engine stops. |
+| `open-notebook` | python, typescript | 55k lines, 298 files | detection | Open Notebook 1.8.3, a vibe-code research assistant (FastAPI backend, Next.js frontend) with eight published advisories whose ranges cover the pin. The first checkout with two languages in one tree, and the first where most sinks sit in a dependency: content-core makes the file read and the HTTP request and ai-prompter the template render, and, of the entries with a sink call, only CVE-2026-33588's is in the tree, so the recipe holds the line that hands the value over and predicts no rung. Not yet measured. |
 
 ## WordPress, class by class
 
