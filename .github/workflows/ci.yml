@@ -50,7 +50,11 @@ jobs:
 
   dagger:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # pytest alone runs past 20 minutes in the container: run 45352669096 was cancelled at 89 percent,
+    # after about 20 minutes of pytest, before any summary was printed. Eleven tests then failed early
+    # for want of a git index; run to their end, and with the slow last 11 percent of the suite, the job
+    # needs about 40 minutes on that runner.
+    timeout-minutes: 60
     env:
       # Must match dagger-io (0.21.7) and dagger/_engine/_version.py CLI_VERSION
       # so the engine image tag is deterministic. The dagger-for-github action
