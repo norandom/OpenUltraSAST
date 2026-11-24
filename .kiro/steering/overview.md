@@ -184,9 +184,16 @@ invocation per query kind.
 
 ## What is not true yet
 
-- **The C story does not work.** `c/memory` has produced zero true positives and three distinct classes of
-  false one. It models string functions; libpng overflows through arithmetic, and its library code never
-  calls a sink we model. This is structural, not tuning.
+- **The C story does not work, and its scope is now decided.** `c/memory` has produced zero true positives
+  and three distinct classes of false one. It models string functions; libpng overflows through arithmetic,
+  and its library code never calls a sink we model. This is structural, not tuning. **Decided by the
+  maintainer on 2026-11-24 (contributor-scan task 4.1): "C memory-safety beyond string-function misuse is out
+  of scope. Record that, and say so per corpus slice."** The evidence on record: the family models calls, not
+  arithmetic; no execution tier is adopted, since `Rung.EXECUTION_CONFIRMED` has no producer; and in the
+  real-world `vfc` slice no pair is labelled as going through a string API the `memory` family models (129 of
+  176 carry no sink label). With it the C harvest (task 5.3) and the allocated-destination rule (task 2.13)
+  are withdrawn, and the pair corpus README says so for every slice that holds C pairs. The evidence on record
+  and the counts are in the spec's amendment record.
 - **Two languages are demonstrated.** Python end to end, and PHP on a real plugin slice where it found a
   real CVE. Ruby and Go still have **zero families** — Joern parses them and the engine says nothing.
 - **Not at repository scale for PHP.** The 637-file checkout does not load; the 2-file slice does. That

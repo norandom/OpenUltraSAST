@@ -27,19 +27,37 @@ Pairs in this directory **must not** join `LANGUAGE_MANIFESTS`.
 ## Slices
 
 - **local** — in-tree fixture counterparts (`app.py` vs `safe.py`, …). CI gate:
-  every local pair must pass (`python -m openultrasast.pair_gate`).
+  every local pair must pass (`python -m openultrasast.pair_gate`). Its one
+  C++ pair (`local-cpp-buffer`) exercises string APIs the `memory` family
+  models, so it is inside the scope that stays (decision of 2026-11-24,
+  under `vfc`).
 - **github** — real commit/function pairs (SVEN, CWE-Bench-Java, NVD patterns).
   Measured, not a 90% smoke gate. Misses here are the honesty / evolve-the-harness
   dashboard.
 - **sast** — OWASP Benchmark Java/Python true-vs-false files and Juliet
   bad-vs-good sinks (`benchmarks/pairs/sast/`). Score is Youden (TPR − FPR).
-  Honesty dashboard, not a CI fail.
+  Honesty dashboard, not a CI fail. Its two C pairs (`juliet-c-cwe134-printf`,
+  `juliet-c-cwe121-strcpy`) go through string APIs the `memory` family models, so
+  they are inside the scope that stays (decision of 2026-11-24, under `vfc`).
 - **vfc** — reviewed isolated functions from OpenSSL, Firefox, Chromium, and
   curl (`benchmarks/pairs/vfc/`). Overlay vs inventory scoreboard. Honesty
   dashboard, not a CI fail. Training labels (vuln vs fixed) are
   `vfc/training/manifest.jsonl` (vuln vs fixed, one snapshot per line).
   Grow with a blobless `git log --grep=CVE-202` mine plus `vfc/harvest.py`,
   then `vfc/generate_catalog.py` (maintainer, not CI).
+  **The model layer decides none of this slice** (counts taken from
+  `vfc/catalog.toml` on 2026-11-24). 176 pairs: 173 in C or C++, 3 without a
+  language. No pair is labelled as going through a string API that the
+  `memory` family models (`gets`, `strcpy`, `strcat`, `sprintf` or a
+  non-literal format string): 129 pairs carry no sink label, and of the 16
+  distinct named sinks (across 47 pairs) the most common are `NULL` (15
+  pairs), `memcpy` (13) and `free` (4). 130 pairs record their mechanism only
+  as `other`; 44 name one of the mechanisms the `memory` family declares. The
+  family's own `verifier` is `"none"`. By maintainer decision of 2026-11-24, C
+  memory-safety beyond string-function misuse is out of scope, so these pairs
+  are not waiting for a rule. The harvest that would have grown the slice for
+  the model layer is withdrawn (contributor-scan task 5.3); the mine above
+  grows the overlay scoreboard only.
 - **vibe-py** — Real-Vuln-Benchmark functions (`benchmarks/pairs/vibe-py/`):
   Python web repos pinned by commit, one vulnerable function per pair with a
   false-positive trap from the same repo as the fixed twin. Today only the 15

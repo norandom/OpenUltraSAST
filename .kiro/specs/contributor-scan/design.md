@@ -266,7 +266,8 @@ each; everything past exhaustion counted into `regions_unjudged`.
 2. **Scale it (Req 3, 4).** Budget and ranking, then the first run against a pinned known-vulnerable
    checkout, the measurement that has never been taken and can reshape the rest.
 3. **Ship it (Req 5, 6).** Contributor output; build and verify the image that is currently only defined.
-4. **Close the deferred (Req 7).** The memory decision; retire `evidence_level`.
+4. **Close the deferred (Req 7).** The memory decision; retire `evidence_level`. *(Decided 2026-11-24: both
+   are recorded and `evidence_level` is kept; see the amendment record in requirements.md.)*
 5. **Grow the corpus (Req 9).** PHP/WordPress first: the families the model arbitrates best. C CVEs only
    after 7.1.
 6. **Regression baselines (Req 10).**

@@ -557,7 +557,7 @@ distrust SAST.
 
 PHP moves up: it is the shortest path from here to a target the maintainer named, and it is the case the
 existing arbiter is best suited to. The C decision moves up with it, because criterion 4 needs `c/memory`
-either earning its place or being scoped, and scoping it is cheap.
+either earning its place or being scoped, and scoping it is cheap. Taken on 2026-11-24: scoped.
 
 ## The one test everything is ordered by
 
@@ -610,10 +610,14 @@ Only after a scan finishes is there any point tuning what it finds.
 8. For **2.14**, check control dependence. It is absent from both CPGs, so every guard question runs on CFG dominance. Find
    out whether Joern's CDG pass can be applied from the query script and what it costs. If it cannot, that is
    a real bound on what this engine can reason about and should be recorded as one.
-9. **2.13** covers a destination allocated to size. It is deliberately blocked on 6, so the rule can be measured for what
-   it *silences* as well as what it clears.
+9. **2.13** was to cover a `strcpy` copy into a destination allocated to fit. **Withdrawn 2026-11-24:** its
+   Observable needs a second C checkout with a genuine CWE-121, and the harvest that was to supply one (5.3)
+   is withdrawn.
 10. Ship **Group 3–4**: contributor output, the Docker image, the memory-family decision, and retirement of
-    `evidence_level` now that the rung carries the meaning.
+    `evidence_level`. **Decided 2026-11-24:** C memory-safety beyond string-function misuse is out of scope
+    (contributor-scan task 4.1, so the C harvest in 5.3 is withdrawn), and `evidence_level` stays beside `rung`
+    as the overlay pipeline's own vocabulary, with the reason recorded (task 4.2). Revisit it when detection-core
+    revises its consumer contract.
 
 ## Alongside — keep the codebase from growing into the problem
 
@@ -632,6 +636,9 @@ Only after a scan finishes is there any point tuning what it finds.
 
 The order matters: **question 1 lands before question 2 starts**, or adopting an IR makes
 the growth problem worse rather than better.
+
+**Overtaken 2026-11-24:** C memory-safety beyond string-function misuse is out of scope (contributor-scan task
+4.1), so question 2 is not pursued.
 
 ## After — the feedback loop
 

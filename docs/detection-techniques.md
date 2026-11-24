@@ -161,6 +161,13 @@ A frontend is the Joern parser that turns one language into a CPG.
 | Java | `javasrc2cpg` | |
 | C, C++ | `c2cpg` | Adds `c_bounds_arithmetic_unmodeled`; the `memory` family models calls, not arithmetic (`ruleset/families.toml:91`). |
 
+C memory-safety beyond string-function misuse is out of scope (maintainer decision, 2026-11-24;
+contributor-scan task 4.1). The `memory` family stays scoped to the string and format APIs it
+names, and makes no claim about arithmetic overflows: an index, a pointer offset or a computed
+`memcpy` size. No execution tier is adopted to reach them. The labels on record, counted on
+2026-11-24: of the 176 pairs in the real-world `vfc` slice, none is labelled as going through a
+string API the family models, and 129 carry no sink label.
+
 Joern is pinned at `v4.0.625` in the image (`Dockerfile:14`, `docker-compose.yml:15`,
 `ops/joern.py`), on `eclipse-temurin:21-jre-noble` (`Dockerfile:12`). The pin stayed there after
 the graph fix. That decision is recorded in `2026-09-20-php-runtime-after-graph-fix.json`
@@ -727,3 +734,15 @@ The three representations are kept separate on purpose. A finding carries the ru
 degradations of the representation that produced it. So a reader can tell a flow the graph
 entailed from a statement a regex matched. A reader can also tell "did not look" from "looked
 and found nothing".
+
+`evidence_level` is kept beside `rung` for the same reason (decided 2026-11-24: both stay;
+contributor-scan task 4.2). They are not two names for one thing. `rung` is the model ladder's
+verdict (`model/ladder.py`): suspicion, `model_corroborated`, `model_entailed`,
+`execution_confirmed`, raised only by the arbiter and only with a verdict behind it.
+`evidence_level` is the pattern and overlay pipeline's own vocabulary (`verification.py`,
+`EvidenceLevel`): suspicion, `static_corroboration`, `crash_reproduced`,
+`root_cause_explained`, `exploit_demonstrated`, `patch_validated`. The verification records
+read it, ranking reads it, and the report uses it to group pattern-only matches. Folding one
+vocabulary into the other would either present a text match as a model verdict or change the
+JSON, SARIF and MCP output and the `min_evidence_level` declared on all 52 rules. A reader
+must never take `static_corroboration` as `model_corroborated`.

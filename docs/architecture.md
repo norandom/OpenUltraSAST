@@ -84,6 +84,9 @@ suspicion ─▶ static_corroboration ─▶ crash_reproduced ─▶ root_cause_
   call-graph, route, CLI, parser or dynamic evidence;
 - `static_corroboration` with function-level reachability: `ACCEPTED`.
 
+The rung ladder above and this evidence ladder are two vocabularies kept apart on purpose: a text
+match is `static_corroboration` here and is not a rung. `detection-techniques.md` says why.
+
 A rejected finding becomes a **scoped false-positive learning** (`calibration.py`). It has a
 scope and a reason from a fixed taxonomy: `unreachable_path`, `missing_attacker_control`,
 `sanitizer_disproved`, `static_rule_mismatch`, `incorrect_model_assumption`, `duplicate`,

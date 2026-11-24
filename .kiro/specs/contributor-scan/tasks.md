@@ -235,7 +235,7 @@
   - _Requirements: 8.1, 8.2_
   - _Depends: 2.9_
 
-- [ ] 2.13 A destination allocated to size is bounded too
+- [x] 2.13 A destination allocated to size is bounded too
   - 2.12's remainder, and libpng's last entailed finding: `strcpy(output + len, ".icc")` at
     contrib/examples/iccfrompng.c:124, where `output = malloc(len + 5)` and a five-byte copy lands at offset
     `len`. It fits exactly. There is no comparison anywhere, so the bound rule cannot see it -- the
@@ -248,6 +248,9 @@
     Without the second half this task should not be closed.
   - _Requirements: 8.1, 8.2_
   - _Depends: 2.12, 5.3_
+  - _Withdrawn 2026-11-24, with task 5.3._ Its Observable needs a second C checkout with a genuine CWE-121,
+    which 5.3 was to supply. The maintainer's decision on task 4.1 withdrew that harvest, so the rule is not
+    extended and the entailment at `contrib/examples/iccfrompng.c:124` stands until it is re-measured.
 
 - [ ] 2.14 Control dependence is not populated, and two arbiters want it
   - Measured, not assumed: **0 of 13,184 calls in the libpng CPG and 0 of 1,152 in the vampi CPG have a
@@ -265,7 +268,7 @@
   - _Requirements: 4.2, 8.1_
   - _Depends: 2.12_
 
-- [ ] 2.15 A C checkout whose CVE goes through a sink we model
+- [x] 2.15 A C checkout whose CVE goes through a sink we model
   - libpng cannot demonstrate a C true positive, and pinning an older vulnerable commit would not change
     that. **Every one of the twelve files using `strcpy`/`strcat`/`sprintf`/`gets` is under `contrib/`; the
     library itself uses none of them.** Its overflows are array and pointer arithmetic and `memcpy` sizing,
@@ -293,6 +296,9 @@
     leave it implying it covers a class it cannot see.
   - _Requirements: 4.1, 4.4_
   - _Depends: 2.12_
+  - _Closed 2026-11-24 on its recorded-decision branch._ The decision that `c/memory` is scoped to
+    string-function misuse and makes no claim about arithmetic overflows is recorded under task 4.1 and in
+    the amendment record at the end of `requirements.md`. No such checkout was pinned.
 
 - [x] 2.16 Say what `c/memory` actually covers, or retire it
   - Its score so far is zero true positives and every finding a false one: 26 from a substring match, 3 from
@@ -375,19 +381,30 @@
 
 ## Group 4 — Close the deferred decisions
 
-- [ ] 4.1 The memory-family decision
+- [x] 4.1 The memory-family decision
   - Either reach `memory` through an adopted execution tier, or record explicitly that C memory-safety is out
     of scope. 173 of the 176 real-world CVE pairs sit idle behind a stub; the decision gates Req 9.2.
   - Observable: the decision and its reason are recorded where a later reader finds them; if out of scope,
     the corpus says so per slice.
   - _Requirements: 7.1, 7.3_
+  - _Closed 2026-11-24 on the out-of-scope branch._ Maintainer decision, verbatim: "C memory-safety beyond
+    string-function misuse is out of scope. Record that, and say so per corpus slice." The evidence on record
+    for it, which is not a reason the maintainer stated, is in the amendment record at the end of
+    `requirements.md`, in the steering overview and roadmap, and in `docs/detection-techniques.md`.
+    `benchmarks/pairs/README.md` says so per slice, for `vfc`, `sast` and `local`. Req 9.2 is left unmet by
+    the withdrawal of task 5.3; its text stands.
 
-- [ ] 4.2 Retire `evidence_level`
+- [x] 4.2 Retire `evidence_level`
   - It duplicates `rung` in intent. Retire it, or record why both are kept. Note the legacy value
     `static_corroboration` comes from the flat-IR overlay, which Req 4.4 of the predecessor demotes to the
     suspicion band — so a straight rename would overstate it.
   - Observable: one vocabulary, or a recorded reason for two; SARIF and JSON consumers considered.
   - _Requirements: 7.2, 7.3_
+  - _Closed 2026-11-24 on the recorded-reason branch._ Maintainer decision, verbatim: "Keep both, record
+    why. No output change for JSON, SARIF or MCP consumers. Record the reason in the spec and docs, and
+    revisit when detection-core revises its consumer contract." The reason is in the amendment record at the
+    end of `requirements.md`, in `docs/detection-techniques.md` and in `docs/architecture.md`. JSON, SARIF
+    and MCP output are unchanged.
 
 ## Group 5 — Grow the corpus
 
@@ -431,11 +448,13 @@
   - The slice where the stated audience works, currently 35 pairs. Same read-check discipline.
   - _Requirements: 9.3, 9.4, 9.5, 9.6, 9.7_
 
-- [ ] 5.3 Real-world C library CVEs
+- [x] 5.3 Real-world C library CVEs
   - libpng and the image libraries, OpenSSH, libpam, kernel modules. **Gated on 4.1**: until the memory
     decision closes these would join 173 idle pairs.
   - _Requirements: 9.2, 9.4, 9.5, 9.6_
   - _Depends: 4.1_
+  - _Withdrawn 2026-11-24._ The maintainer's decision on task 4.1 put C memory-safety beyond string-function
+    misuse out of scope, so this harvest would only add idle pairs. Req 9.2 is left unmet; its text stands.
 
 - [x] 5.4 WordPress entry points, and the one-verdict-per-region limit
   - Two things stand between the PHP facts and a WordPress result, and the second was found by running the

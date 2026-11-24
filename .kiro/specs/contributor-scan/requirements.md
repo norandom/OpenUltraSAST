@@ -240,3 +240,48 @@ reasoned claim. Task 2.17 carries that half.
   stopped free work visible at all.
 * **Req 11.2's byte-identical gates held through every one of nine defect fixes**, which says the same thing
   from the other side: the corpus could not have caught any of them.
+
+## Amendment record, deferred decisions (approved 2026-11-24)
+
+The maintainer closed the two deferred decisions of Requirement 7 on 2026-11-24. Neither decision rewrites a
+numbered acceptance criterion above. The decisions are quoted verbatim. The evidence listed under each is what
+was on record when the choice was made, not a reason the maintainer stated.
+
+| decision | discharges | consequence |
+| --- | --- | --- |
+| "C memory-safety beyond string-function misuse is out of scope. Record that, and say so per corpus slice." | Req 7.1 | Task 4.1 closes on the record. Task 5.3, the harvest of Req 9.2 that was gated on Req 7.1, is withdrawn. Task 2.13 is withdrawn with it. Task 2.15 closes on its recorded-decision branch. |
+| "Keep both, record why. No output change for JSON, SARIF or MCP consumers. Record the reason in the spec and docs, and revisit when detection-core revises its consumer contract." | Req 7.2 | Task 4.2 closes on the record. The scope line above, "retiring `evidence_level`", and design step 4, "retire `evidence_level`", are discharged by this record, not by a retirement. |
+
+**What the first decision means here.** In task 2.15's words: `c/memory` is scoped to string-function misuse
+and makes no claim about arithmetic overflows. Nothing beyond that scope is built or adopted for C. The pair
+corpus README says so for each slice that holds C pairs: `vfc`, `sast` and `local`. Requirement 9.2, the
+real-world C library CVEs, is left unmet by the withdrawal of task 5.3; its text stands.
+
+**The evidence on record for it.**
+
+- The `memory` family models calls, not arithmetic, and says so in its own `limits` (`ruleset/families.toml`).
+- `c/memory` has produced zero true positives and three classes of false positive; libpng is the one
+  measured C checkout.
+- No execution tier is adopted: `Rung.EXECUTION_CONFIRMED` has no producer in `src/`.
+- Labels, counted from `benchmarks/pairs/vfc/catalog.toml` on 2026-11-24: of the 176 pairs, 129 carry no sink
+  label, and none of the 16 distinct named sinks (across 47 pairs) is one the `memory` family models: `gets`,
+  `strcpy`, `strcat`, `sprintf` or a non-literal format string.
+
+**Why 2.13 is withdrawn.** 2.13 would stop `c/memory` entailing a `strcpy` into a destination allocated to
+fit, which is inside the scope that stays. Its Observable needs a second C checkout with a genuine CWE-121,
+because a rule extended until one checkout is clean is the overfitting Req 8 exists to prevent, and it depends
+on 5.3 for that checkout. With the harvest withdrawn there is no second checkout, so the rule is not extended.
+By task 2.13's own account the entailment at `contrib/examples/iccfrompng.c:124` was libpng's last one
+(`benchmarks/measurements/2026-09-09-repo-libpng-bounds.json`). Nothing removes it now, so the roadmap's
+second release criterion, zero known-false entailed findings on every pinned checkout, is not expected to
+hold on libpng. That is to be re-measured, not assumed.
+
+**Why both vocabularies are kept.** They are not two names for one thing. `rung` is the model ladder's
+verdict, raised only by the arbiter with a verdict behind it. `evidence_level` is the pattern and overlay
+pipeline's own vocabulary (`verification.py`, `EvidenceLevel`). The overlay assigns only `suspicion` and
+`static_corroboration` today, so the difference a reader meets is `static_corroboration` against
+`model_corroborated`: a text match must not be presented as a model verdict. The verification records and the
+ranker read `evidence_level`, the report uses it to group pattern-only matches, and 52 rule keys declare
+`min_evidence_level`. Removing the field would change the JSON, SARIF and MCP output, which the decision rules
+out. A single vocabulary is a consumer-contract change and belongs to detection-core; the decision is
+revisited when detection-core revises that contract.
