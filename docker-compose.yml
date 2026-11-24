@@ -13,6 +13,9 @@ services:
       context: .
       args:
         JOERN_VERSION: ${JOERN_VERSION:-v4.0.625}
+        # The base is pinned by digest, the same pin CI builds from (plane/task-base.digest): a bare tag can move.
+        TASK_BASE_TAG: ${TASK_BASE_TAG:-base-b696c08}
+        TASK_BASE_DIGEST: ${TASK_BASE_DIGEST:-sha256:0f374138fcb49fef41609d323cc80b6c2324b1e798d3a2aee5c8038b8c7ac3aa}
     image: openultrasast:${OUSAST_VERSION:-dev}
     volumes:
       - ${TARGET:-.}:/target:ro                       # the repository under analysis, read-only
@@ -26,6 +29,8 @@ services:
       # goes unasked. Passed through rather than baked in, so no key is ever in an image layer.
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      # A scan's run directory would otherwise land in the container's home and be lost when the container exits.
+      OPENULTRASAST_RUNS_DIR: /reports/runs
       TMPDIR: /work
     # A CPG build is memory-hungry, and two Joern JVMs at once is what triggered an out-of-memory kill on a
     # 7.7 GB machine during this project's measurements.

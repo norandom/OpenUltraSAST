@@ -47,6 +47,17 @@ def test_digest_required_and_code_last(name, variant):
     assert not any("venv /venv" in line for line in lines)
 
 
+def test_compose_builds_from_the_pinned_base():
+    """`docker compose build` takes no arguments, so the base it resolves is whatever these defaults say."""
+    ref = json.loads(read("plane/task-base.digest"))["base"]
+    tag, digest = re.fullmatch(r"ghcr.io/norandom/ousast-task-base:(base-[a-z0-9-]+)@(sha256:[0-9a-f]{64})", ref).groups()
+    service = yaml.load(read("docker-compose.yml"), Loader=yaml.BaseLoader)["services"]["ousast"]
+    for name, default in (("TASK_BASE_TAG", tag), ("TASK_BASE_DIGEST", digest)):
+        default_ref = f"${{{name}:-{default}}}"
+        assert service["build"]["args"].get(name) == default_ref, f"{name} does not default to {default} (plane/task-base.digest)"
+    assert service["environment"]["OPENULTRASAST_RUNS_DIR"].startswith("/reports/")
+
+
 def test_shared_ancestry_and_replay_exact_engine():
     base = read("plane/Dockerfile.base")
     assert "FROM ghcr.io/norandom/ax-task-runner:v0.3.1 AS base" in base
