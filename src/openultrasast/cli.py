@@ -100,7 +100,12 @@ class ScanOutcome:
 
 
 if TYPE_CHECKING:
-    pass
+    from .hunter import HunterTrajectory
+    from .mapping.legacy import EntryPointRecord
+    from .policy import CwePolicy
+    from .rank import RankingScore
+    from .ruleset import PatternRule
+    from .stages import StagePlan
 
 
 def _configure_logging() -> None:
@@ -535,6 +540,49 @@ def _scan(path: Path, config_path: Path, mode: str, fail_on: str) -> int:
     return outcome.exit_code
 
 
+@dataclass(frozen=True)
+class _RunFiles:
+    """Where a run writes its artifacts. Nine field names are the keys the manifest lists them under; `manifest` is its own path."""
+
+    findings: Path
+    verification: Path
+    markdown: Path
+    sarif: Path
+    manifest: Path
+    score: Path
+    trajectories: Path
+    fusion: Path
+    complexity_map: Path
+    overlay: Path
+
+
+def _run_files(root: Path) -> _RunFiles:
+    return _RunFiles(
+        findings=root / "findings.json",
+        verification=root / "verification.json",
+        markdown=root / "report.md",
+        sarif=root / "report.sarif",
+        manifest=root / "manifest.json",
+        score=root / "score.json",
+        trajectories=root / "traces" / "hunter_trajectories.jsonl",
+        fusion=root / "fusion.json",
+        complexity_map=root / "complexity_map.json",
+        overlay=root / "overlay.json",
+    )
+
+
+@dataclass(frozen=True)
+class _MapStage:
+    """What the MAP stage hands to the reports; a scan that did not request the stage keeps the defaults."""
+
+    complexity_map: complexity_map.ComplexityMap | None = None
+    overlay_records: list[OverlayRecord] | None = None
+    obligations: dict[str, dict[str, object]] | None = None
+    obligations_summary: dict[str, object] | None = None
+    model: dict[str, object] | None = None
+    complexity: dict[str, object] | None = None
+
+
 def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOutcome:
     if not path.exists() or not path.is_dir():
         raise SystemExit(f"scan path is not a directory: {path}")
@@ -550,8 +598,151 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
     )
     write_harness_config(config=config, path=run.root / "harness.json")
     runtime.start(mode=mode, target=run.target)
-    policy = runtime.run_stage("policy_load", load_policy)
+    policy, ruleset, targets, entry_points = _map_scan_targets(runtime, run, config, mode)
     ledger_path = run.target / CALIBRATION_DIR / "false_positive_learnings.json"
+    provenance = runtime.run_stage("provenance", lambda: fingerprint(run.target))
+    rankings = runtime.run_stage("rank", lambda: rank_targets(targets))
+    prior_learnings = load_false_positive_learnings(ledger_path)
+    rankings, calibrations = runtime.run_stage("calibrate", lambda: calibrate_rankings(rankings, prior_learnings))
+    applied_calibrations = [calibration for calibration in calibrations if calibration.applied_learning_ids]
+    write_rankings(rankings, run.root / "rank" / "ranking.json")
+    write_ranking_calibrations(calibrations, run.root / "calibration" / "applied_calibrations.json")
+
+    findings, trajectories = _collect_findings(
+        runtime, run, config, mode, targets=targets, rankings=rankings, ruleset=ruleset, policy=policy
+    )
+    files = _run_files(run.root)
+    write_findings(findings, files.findings)
+    if trajectories:
+        write_hunter_trajectories(trajectories, files.trajectories)
+
+    verifications, fusion_decisions = _verify_and_fuse(
+        runtime, run, config, mode, findings=findings, prior_learnings=prior_learnings, ledger_path=ledger_path, files=files
+    )
+    cwe_by_rule = {rule.rule_id: rule.cwe for rule in ruleset}
+    rule_cwe_by_id = {finding.finding_id: cwe_by_rule.get(finding.finding_id.split(":", 1)[0], "") for finding in findings}
+    # A confirmed false positive (prior-scan learning) lowers a finding's effective
+    # reachability multiplier in the score instead of deleting the rule.
+    reachability_override = fp_reachability_overrides(findings, prior_learnings)
+    score_artifact = runtime.run_stage(
+        "score",
+        lambda: build_score_artifact(
+            findings,
+            rule_cwe_by_id,
+            policy,
+            k=config.score.k,
+            min_score=config.score.min_score,
+            block_severity_reachable=config.score.block_severity_reachable,
+            blocking=config.score.blocking,
+            reachability_override=reachability_override,
+        ),
+    )
+    files.score.write_text(json.dumps(score_artifact.to_dict(), indent=2, sort_keys=True) + "\n")
+    plan = record_completed(plan, Stage.STATIC)
+    map_stage = _MapStage()
+    if Stage.MAP in plan.requested:
+        plan, map_stage, findings, verifications = _run_map_stage(
+            runtime,
+            run,
+            config,
+            plan=plan,
+            targets=targets,
+            findings=findings,
+            verifications=verifications,
+            entry_points=entry_points,
+            hunter_model=hunter_model,
+            files=files,
+        )
+    if Stage.REGRESS in plan.requested:
+        runtime.state["degradations"].append(skip_as_degradation(Stage.REGRESS, "regress_retired"))
+        plan = record_skip(plan, Stage.REGRESS, "regress_retired")
+    # Req 5.6: what each family could see, for the report. Absent when the model layer did not run --
+    # and a scan with no model layer states no limits because it made no claims.
+    coverage_rows = map_stage.model.get("coverage") if isinstance(map_stage.model, dict) else None
+    coverage_for_report = coverage_rows if isinstance(coverage_rows, list) and coverage_rows else None
+    runtime.run_stage(
+        "report",
+        lambda: write_markdown_report(
+            findings,
+            files.markdown,
+            verifications,
+            redact=config.hardening.redact_secrets,
+            complexity_map=map_stage.complexity_map,
+            overlay=map_stage.overlay_records,
+            obligations=map_stage.obligations or None,
+            obligations_summary=map_stage.obligations_summary or None,
+            coverage=coverage_for_report,
+            # Degradations are coverage facts: an empty graph, a graph built in parts, a query that never
+            # ran. Kept out of the report they leave the reader unable to tell "nothing was found" from
+            # "nothing was looked at".
+            degradations=list(runtime.state.get("degradations") or ()),
+        ),
+    )
+    runtime.run_stage(
+        "sarif",
+        lambda: write_sarif_report(
+            findings,
+            verifications,
+            files.sarif,
+            overlay=map_stage.overlay_records,
+            obligations=map_stage.obligations or None,
+        ),
+    )
+    runtime.run_stage(
+        "manifest",
+        lambda: write_manifest(
+            run=run,
+            findings=findings,
+            verifications=verifications,
+            artifact_paths=_artifact_paths(
+                findings=files.findings,
+                verification=files.verification,
+                markdown=files.markdown,
+                sarif=files.sarif,
+                score=files.score,
+                trajectories=files.trajectories if trajectories else None,
+                fusion=files.fusion if fusion_decisions else None,
+                complexity_map=files.complexity_map if map_stage.complexity is not None else None,
+                overlay=files.overlay if map_stage.overlay_records is not None else None,
+            ),
+            path=files.manifest,
+            score=score_artifact.to_dict(),
+            degradations=runtime.state["degradations"] or None,
+            fusion=[_fusion_summary(decision) for decision in fusion_decisions] or None,
+            stages=stages_payload(plan),
+            complexity=map_stage.complexity,
+            provenance=provenance.to_dict(),
+            obligations=map_stage.obligations_summary,
+            model=map_stage.model,
+        ),
+    )
+    runtime.finish(status="succeeded")
+    prune_notices = prune_scan_runs(config, keep=run.root)
+    return ScanOutcome(
+        scan_id=run.scan_id,
+        run_dir=run.root,
+        file_target_count=len(targets),
+        ranked_target_count=len(rankings),
+        finding_count=len(findings),
+        calibrations_applied=len(applied_calibrations),
+        exit_code=scan_exit_code(findings, verifications, fail_on),
+        notices=tuple(
+            f"language not covered: {item['language']} ({item['count']} files)"
+            for item in runtime.state["degradations"]
+            if item.get("reason") == "language_not_covered"
+        )
+        + prune_notices,
+    )
+
+
+def _map_scan_targets(
+    runtime: HarnessRuntime,
+    run: ScanRun,
+    config: ResolvedConfig,
+    mode: str,
+) -> tuple[dict[str, CwePolicy], tuple[PatternRule, ...], list[FileTarget], list[EntryPointRecord]]:
+    """The policy and ruleset the scan runs under, and the targets and entry points every later stage reads."""
+    policy = runtime.run_stage("policy_load", load_policy)
     rule_ledger_path = run.target / CALIBRATION_DIR / "rule_policy.json"
     ruleset = runtime.run_stage("ruleset_load", lambda: load_ruleset(DEFAULT_RULESET_DIR, rule_ledger_path))
     runtime.run_stage("policy_check", lambda: assert_rules_resolve(ruleset, policy))
@@ -576,13 +767,21 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
     write_entry_points(entry_points, run.root / "mapping" / "entry_points.json")
     targets = attach_reachability_hints(targets, entry_points)
     write_preprocess_artifact(snapshot, targets, run.root / "preprocess" / "file_targets.json")
-    provenance = runtime.run_stage("provenance", lambda: fingerprint(run.target))
-    rankings = runtime.run_stage("rank", lambda: rank_targets(targets))
-    prior_learnings = load_false_positive_learnings(ledger_path)
-    rankings, calibrations = runtime.run_stage("calibrate", lambda: calibrate_rankings(rankings, prior_learnings))
-    applied_calibrations = [calibration for calibration in calibrations if calibration.applied_learning_ids]
-    write_rankings(rankings, run.root / "rank" / "ranking.json")
-    write_ranking_calibrations(calibrations, run.root / "calibration" / "applied_calibrations.json")
+    return policy, ruleset, targets, entry_points
+
+
+def _collect_findings(
+    runtime: HarnessRuntime,
+    run: ScanRun,
+    config: ResolvedConfig,
+    mode: str,
+    *,
+    targets: list[FileTarget],
+    rankings: list[RankingScore],
+    ruleset: tuple[PatternRule, ...],
+    policy: dict[str, CwePolicy],
+) -> tuple[list[StaticFinding], list[HunterTrajectory]]:
+    """The hunter pool's findings in standard mode, the quick rules' otherwise, without the shadow findings and within the budget."""
     if mode == "standard":
         hunter_result = runtime.run_stage(
             "hunter_pool",
@@ -618,220 +817,177 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
             {"stage": "budget", "reason": "max_findings_exceeded", "requested": max_findings, "actual": len(findings)}
         )
         findings = findings[:max_findings]
-    findings_path = run.root / "findings.json"
-    verification_path = run.root / "verification.json"
-    markdown_path = run.root / "report.md"
-    sarif_path = run.root / "report.sarif"
-    manifest_path = run.root / "manifest.json"
-    trajectories_path = run.root / "traces" / "hunter_trajectories.jsonl"
-    write_findings(findings, findings_path)
-    if trajectories:
-        write_hunter_trajectories(trajectories, trajectories_path)
+    return findings, trajectories
+
+
+def _verify_and_fuse(
+    runtime: HarnessRuntime,
+    run: ScanRun,
+    config: ResolvedConfig,
+    mode: str,
+    *,
+    findings: list[StaticFinding],
+    prior_learnings: list[FalsePositiveLearning],
+    ledger_path: Path,
+    files: _RunFiles,
+) -> tuple[list[VerificationResult], list[FusionDecision]]:
+    """Verification of every finding, the learnings it feeds to the ledger, and the fusion decisions."""
     verifications = runtime.run_stage("verify", lambda: verify_findings(findings))
-    write_verification_results(verifications, verification_path)
+    write_verification_results(verifications, files.verification)
     runtime.run_stage(
         "record_calibration",
         lambda: _persist_calibration_feedback(run, ledger_path, prior_learnings, findings, verifications, runtime),
     )
     # Fusion: deterministic two-panel adjudication for triggered findings (standard mode).
     fusion_decisions: list[FusionDecision] = []
-    fusion_path = run.root / "fusion.json"
     if mode == "standard" and config.fusion.enabled:
         fusion_decisions = runtime.run_stage(
             "fusion",
             lambda: fuse_findings(findings, verifications, high_assurance=config.fusion.high_assurance),
         )
         if fusion_decisions:
-            fusion_path.write_text(json.dumps([decision.to_dict() for decision in fusion_decisions], indent=2, sort_keys=True) + "\n")
-    cwe_by_rule = {rule.rule_id: rule.cwe for rule in ruleset}
-    rule_cwe_by_id = {finding.finding_id: cwe_by_rule.get(finding.finding_id.split(":", 1)[0], "") for finding in findings}
-    # A confirmed false positive (prior-scan learning) lowers a finding's effective
-    # reachability multiplier in the score instead of deleting the rule.
-    reachability_override = fp_reachability_overrides(findings, prior_learnings)
-    score_artifact = runtime.run_stage(
-        "score",
-        lambda: build_score_artifact(
+            files.fusion.write_text(json.dumps([decision.to_dict() for decision in fusion_decisions], indent=2, sort_keys=True) + "\n")
+    return verifications, fusion_decisions
+
+
+def _map_and_overlay(
+    runtime: HarnessRuntime,
+    run: ScanRun,
+    *,
+    targets: list[FileTarget],
+    findings: list[StaticFinding],
+    files: _RunFiles,
+) -> tuple[complexity_map.ComplexityMap, list[OverlayRecord], SemanticFacts | FactLoadError, list[StaticFinding]]:
+    """The complexity map, the overlay, the facts the overlay and the obligations read, and the findings they extend."""
+    built_map = runtime.run_stage(
+        "map",
+        lambda: complexity_map.build_complexity_map(
+            targets,
             findings,
-            rule_cwe_by_id,
-            policy,
-            k=config.score.k,
-            min_score=config.score.min_score,
-            block_severity_reachable=config.score.block_severity_reachable,
-            blocking=config.score.blocking,
-            reachability_override=reachability_override,
+            files.complexity_map,
+            repo_files=[target.path for target in targets],
+            ledger_path=run.target / CALIBRATION_DIR / "complexity_ledger.json",
         ),
     )
-    score_path = run.root / "score.json"
-    score_path.write_text(json.dumps(score_artifact.to_dict(), indent=2, sort_keys=True) + "\n")
-    plan = record_completed(plan, Stage.STATIC)
-    complexity_payload: dict[str, object] | None = None
-    complexity_map_path = run.root / "complexity_map.json"
-    overlay_path = run.root / "overlay.json"
-    built_map = None
-    overlay_records: list[OverlayRecord] = []
-    wrote_overlay = False
+    facts_or_error: SemanticFacts | FactLoadError
+    try:
+        facts_or_error = load_facts()
+    except FactLoadError as exc:
+        facts_or_error = exc
+        runtime.state["degradations"].append({"stage": "overlay", "reason": "facts_unavailable", "detail": str(exc)})
+    overlay_records = list(
+        runtime.run_stage(
+            "overlay",
+            lambda: adjudicate(root=run.target, targets=targets, findings=findings, facts=facts_or_error),
+        )
+    )
+    write_overlay(overlay_records, files.overlay)
+    coverage_findings = [finding_from_coverage(record) for record in overlay_records if record.disposition == "coverage"]
+    if coverage_findings:
+        seen = {finding.finding_id for finding in findings}
+        extra = [item for item in coverage_findings if item.finding_id not in seen]
+        if extra:
+            findings = findings + extra
+            write_findings(findings, files.findings)
+    return built_map, overlay_records, facts_or_error, findings
+
+
+def _add_obligation_and_model_findings(
+    runtime: HarnessRuntime,
+    run: ScanRun,
+    config: ResolvedConfig,
+    *,
+    targets: list[FileTarget],
+    findings: list[StaticFinding],
+    files: _RunFiles,
+    entry_points: list[EntryPointRecord],
+    facts_or_error: SemanticFacts | FactLoadError,
+    hunter_model: str | None,
+) -> tuple[list[StaticFinding], dict[str, object] | None, dict[str, dict[str, object]], dict[str, object]]:
+    """The findings of the other MAP proposers: obligations without a dominating discharger, then the model layer."""
     obligations_payload: dict[str, object] | None = None
-    model_payload: dict[str, object] | None = None
     obligations_cited: dict[str, dict[str, object]] = {}
-    if Stage.MAP in plan.requested:
-        built_map = runtime.run_stage(
-            "map",
-            lambda: complexity_map.build_complexity_map(
-                targets,
-                findings,
-                complexity_map_path,
-                repo_files=[target.path for target in targets],
-                ledger_path=run.target / CALIBRATION_DIR / "complexity_ledger.json",
-            ),
-        )
-        facts_or_error: SemanticFacts | FactLoadError
-        try:
-            facts_or_error = load_facts()
-        except FactLoadError as exc:
-            facts_or_error = exc
-            runtime.state["degradations"].append({"stage": "overlay", "reason": "facts_unavailable", "detail": str(exc)})
-        overlay_records = list(
-            runtime.run_stage(
-                "overlay",
-                lambda: adjudicate(root=run.target, targets=targets, findings=findings, facts=facts_or_error),
-            )
-        )
-        write_overlay(overlay_records, overlay_path)
-        wrote_overlay = True
-        coverage_findings = [finding_from_coverage(record) for record in overlay_records if record.disposition == "coverage"]
-        if coverage_findings:
-            seen = {finding.finding_id for finding in findings}
-            extra = [item for item in coverage_findings if item.finding_id not in seen]
-            if extra:
-                findings = findings + extra
-                write_findings(findings, findings_path)
-        if config.obligations.enabled:
-            obligation_findings, obligations_payload, obligations_cited = _check_obligations(
-                root=run.target,
-                targets=targets,
-                entries=entry_points,
-                facts=facts_or_error,
-                settings=config.obligations,
-                runtime=runtime,
-                hunter_model=hunter_model,
-            )
-            if obligation_findings:
-                findings = rank_obligations(findings + obligation_findings)
-                write_findings(findings, findings_path)
-        # Fifth MAP proposer: the model layer (contributor-scan Req 1). Additive -- it adds findings beside
-        # the pattern, overlay and obligation ones and removes none of them.
-        model_findings, model_payload = _run_model_layer(
+    if config.obligations.enabled:
+        obligation_findings, obligations_payload, obligations_cited = _check_obligations(
             root=run.target,
             targets=targets,
             entries=entry_points,
-            settings=config.model,
+            facts=facts_or_error,
+            settings=config.obligations,
             runtime=runtime,
-            config=config,
+            hunter_model=hunter_model,
         )
-        if model_findings:
-            findings = findings + model_findings
-            write_findings(findings, findings_path)
-        plan = record_completed(plan, Stage.MAP)
-        if not hunter_model:
-            runtime.state["degradations"].append(skip_as_degradation(Stage.MAP, "hunter_model_unavailable"))
-        else:
-            built_map, findings, verifications = _attach_tool_hunter(
-                root=run.target,
-                built_map=built_map,
-                findings=findings,
-                verifications=verifications,
-                hunter_model=hunter_model,
-                max_hotspots=config.complexity.max_hunter_hotspots,
-                max_findings=max_findings,
-                findings_path=findings_path,
-                verification_path=verification_path,
-                complexity_map_path=complexity_map_path,
-                runtime=runtime,
-            )
-        complexity_payload = {
-            "hotspot_count": len(built_map.hotspots),
-            "heuristic_only": built_map.heuristic_only,
-        }
-    if Stage.REGRESS in plan.requested:
-        runtime.state["degradations"].append(skip_as_degradation(Stage.REGRESS, "regress_retired"))
-        plan = record_skip(plan, Stage.REGRESS, "regress_retired")
-    # Req 5.6: what each family could see, for the report. Absent when the model layer did not run --
-    # and a scan with no model layer states no limits because it made no claims.
-    coverage_rows = model_payload.get("coverage") if isinstance(model_payload, dict) else None
-    coverage_for_report = coverage_rows if isinstance(coverage_rows, list) and coverage_rows else None
-    runtime.run_stage(
-        "report",
-        lambda: write_markdown_report(
-            findings,
-            markdown_path,
-            verifications,
-            redact=config.hardening.redact_secrets,
-            complexity_map=built_map,
-            overlay=overlay_records if wrote_overlay else None,
-            obligations=obligations_cited or None,
-            obligations_summary=obligations_payload or None,
-            coverage=coverage_for_report,
-            # Degradations are coverage facts: an empty graph, a graph built in parts, a query that never
-            # ran. Kept out of the report they leave the reader unable to tell "nothing was found" from
-            # "nothing was looked at".
-            degradations=list(runtime.state.get("degradations") or ()),
-        ),
+        if obligation_findings:
+            findings = rank_obligations(findings + obligation_findings)
+            write_findings(findings, files.findings)
+    # Fifth MAP proposer: the model layer (contributor-scan Req 1). Additive -- it adds findings beside
+    # the pattern, overlay and obligation ones and removes none of them.
+    model_findings, model_payload = _run_model_layer(
+        root=run.target,
+        targets=targets,
+        entries=entry_points,
+        settings=config.model,
+        runtime=runtime,
+        config=config,
     )
-    runtime.run_stage(
-        "sarif",
-        lambda: write_sarif_report(
-            findings,
-            verifications,
-            sarif_path,
-            overlay=overlay_records if wrote_overlay else None,
-            obligations=obligations_cited or None,
-        ),
+    if model_findings:
+        findings = findings + model_findings
+        write_findings(findings, files.findings)
+    return findings, obligations_payload, obligations_cited, model_payload
+
+
+def _run_map_stage(
+    runtime: HarnessRuntime,
+    run: ScanRun,
+    config: ResolvedConfig,
+    *,
+    plan: StagePlan,
+    targets: list[FileTarget],
+    findings: list[StaticFinding],
+    verifications: list[VerificationResult],
+    entry_points: list[EntryPointRecord],
+    hunter_model: str | None,
+    files: _RunFiles,
+) -> tuple[StagePlan, _MapStage, list[StaticFinding], list[VerificationResult]]:
+    """The plan's MAP stage: the complexity map with its overlay, the other proposers, and the tool hunter."""
+    built_map, overlay_records, facts_or_error, findings = _map_and_overlay(runtime, run, targets=targets, findings=findings, files=files)
+    findings, obligations_payload, obligations_cited, model_payload = _add_obligation_and_model_findings(
+        runtime,
+        run,
+        config,
+        targets=targets,
+        findings=findings,
+        files=files,
+        entry_points=entry_points,
+        facts_or_error=facts_or_error,
+        hunter_model=hunter_model,
     )
-    runtime.run_stage(
-        "manifest",
-        lambda: write_manifest(
-            run=run,
+    plan = record_completed(plan, Stage.MAP)
+    if not hunter_model:
+        runtime.state["degradations"].append(skip_as_degradation(Stage.MAP, "hunter_model_unavailable"))
+    else:
+        built_map, findings, verifications = _attach_tool_hunter(
+            root=run.target,
+            built_map=built_map,
             findings=findings,
             verifications=verifications,
-            artifact_paths=_artifact_paths(
-                findings=findings_path,
-                verification=verification_path,
-                markdown=markdown_path,
-                sarif=sarif_path,
-                score=score_path,
-                trajectories=trajectories_path if trajectories else None,
-                fusion=fusion_path if fusion_decisions else None,
-                complexity_map=complexity_map_path if complexity_payload is not None else None,
-                overlay=overlay_path if wrote_overlay else None,
-            ),
-            path=manifest_path,
-            score=score_artifact.to_dict(),
-            degradations=runtime.state["degradations"] or None,
-            fusion=[_fusion_summary(decision) for decision in fusion_decisions] or None,
-            stages=stages_payload(plan),
-            complexity=complexity_payload,
-            provenance=provenance.to_dict(),
-            obligations=obligations_payload,
-            model=model_payload,
-        ),
-    )
-    runtime.finish(status="succeeded")
-    prune_notices = prune_scan_runs(config, keep=run.root)
-    return ScanOutcome(
-        scan_id=run.scan_id,
-        run_dir=run.root,
-        file_target_count=len(targets),
-        ranked_target_count=len(rankings),
-        finding_count=len(findings),
-        calibrations_applied=len(applied_calibrations),
-        exit_code=scan_exit_code(findings, verifications, fail_on),
-        notices=tuple(
-            f"language not covered: {item['language']} ({item['count']} files)"
-            for item in runtime.state["degradations"]
-            if item.get("reason") == "language_not_covered"
+            hunter_model=hunter_model,
+            max_hotspots=config.complexity.max_hunter_hotspots,
+            max_findings=config.hardening.max_findings,
+            findings_path=files.findings,
+            verification_path=files.verification,
+            complexity_map_path=files.complexity_map,
+            runtime=runtime,
         )
-        + prune_notices,
+    map_stage = _MapStage(
+        complexity_map=built_map,
+        overlay_records=overlay_records,
+        obligations=obligations_cited,
+        obligations_summary=obligations_payload,
+        model=model_payload,
+        complexity={"hotspot_count": len(built_map.hotspots), "heuristic_only": built_map.heuristic_only},
     )
+    return plan, map_stage, findings, verifications
 
 
 def _attach_tool_hunter(

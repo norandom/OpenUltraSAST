@@ -379,7 +379,7 @@
     the learnings in the run directory. Proven by tests and by runs of the real CLI;
     `benchmarks/repos/measure.py` follows the printed run directory. Still open here: part B, the readable
     summary; `ousast benchmark` and its MCP twin still write under `<target>/.openultrasast/benchmarks/` and
-    no user doc names them; `_run_scan` stays over the complexity cap (18), touched by one line.
+    no user doc names them.
   - _Run retention added 2026-11-24, by maintainer decision (commit `17d46c0`)._ With no `OPENULTRASAST_RUNS_DIR`
     set, a scan removes the runs in the default location older than 30 days after writing its manifest
     (`OPENULTRASAST_RUNS_RETENTION_DAYS`; `0` keeps every run). The scan's own run, anything not named like a run,
@@ -387,6 +387,15 @@
     Decided for the next session, not yet done: move `ousast benchmark` and its MCP twin to the cache and name them
     in the docs; skip the cache when a scan meets a directory that contains it; split `_run_scan` (complexity 18
     against a cap of 10) in its own commit before more scan-path work.
+  - _`_run_scan` split 2026-11-24 (third session), by the decision above._ `src/openultrasast/cli.py` now has the
+    stage sequence in `_run_scan` and six private helpers beside it, with two small records: one for the artifacts
+    a run writes, one for what the MAP stage hands to the reports. `_run_scan` was complexity 18 and 124 logical
+    lines and is 5 and 45, against the caps of 10 and 50 in `code-standards.md` (logical lines by the tokenize
+    method of the detection-core final gate). No statement changed. Evidence on record: ruff, mypy and the three
+    gates pass; the 38 test files that import the CLI or the MCP server pass (563 passed, 11 skipped); scans by
+    the code before and after agree artifact for artifact in quick mode and in standard mode with and without the
+    tool hunter. `_main`, `_pre_push` and `_plane` in the same file were already over the complexity cap and are
+    not touched.
 
 - [ ] 3.2 Build and verify the image
   - `docker compose build`, then run a real scan through it and through the shell wrapper. The Dockerfile and
