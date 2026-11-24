@@ -485,6 +485,129 @@ def test_tier_zero_pairs_are_not_asked_and_nothing_else_is_skipped(tmp_path: Pat
     assert not any(d.get("reason") == "query_failed" for d in result.degradations)
 
 
+_SINK_ROW = {
+    "kind": "sink",
+    "sink": "os.system(x)",
+    "sinkLine": "4",
+    "sinkMethod": "run",
+    "sinkArity": 1,
+    "sinkArg0Literal": False,
+    "cleansedOnCall": False,
+}
+
+
+def _sinks_of(family: str) -> tuple[str, ...]:
+    """The sink names a request for ``family`` carries, which is how a request names its family."""
+    from openultrasast.model.scan import _spec_for
+    from openultrasast.model.specs import TaintSpec
+
+    spec = _spec_for(family, "python")
+    assert isinstance(spec, TaintSpec)
+    return tuple(spec.sinks)
+
+
+def _by_question(requests):  # type: ignore[no-untyped-def]
+    """The requests of one pass, keyed by the question each asks: its file and its family's sinks."""
+    return {(str(p["file"]), tuple(p["sinks"])): p for p in requests}
+
+
+class _RecordingBackend:
+    """Keeps every request the scan asks, the evidence pass and the arbitration apart."""
+
+    def __init__(self, vectors) -> None:  # type: ignore[no-untyped-def]
+        self._vectors = vectors
+        self.evidence: list[dict[str, object]] = []
+        self.arbitration: list[dict[str, object]] = []
+
+    def available(self) -> bool:
+        return True
+
+    def build(self, root, *, language=""):  # type: ignore[no-untyped-def]
+        from openultrasast.cpg.backend import CpgResult
+
+        names = [str(p) for p in root.rglob("*.py")]
+
+        def batch(kind, requests):  # type: ignore[no-untyped-def]
+            if any(p.get("evidenceOnly") == "true" for p in requests.values()):
+                self.evidence.extend(dict(p) for p in requests.values())
+                return {rid: self._vectors(p) for rid, p in requests.items()}
+            if kind == "taint":
+                self.arbitration.extend(dict(p) for p in requests.values())
+            return {rid: [] for rid in requests}
+
+        return CpgResult(
+            cpg_path=Path("cpg.bin"),
+            run=lambda q, p: [],
+            run_batch=lambda kind, requests: {
+                "__census__": [{"methods": len(names), "files": len(names), "file_names": names}],
+                **batch(kind, requests),
+            },
+        )
+
+
+def _scan_two_depths(tmp_path: Path, vectors):  # type: ignore[no-untyped-def]
+    """Scan an entry point, whose question follows the call graph, and a file the walker fell back on, whose
+    question does not. Each asks ``injection`` and ``deserialization``."""
+    from openultrasast.model.regions import ScanRegion
+    from openultrasast.model.scan import ScanBudget, scan_repository
+
+    families = ("injection", "deserialization")
+    regions = [
+        ScanRegion(path="handler.py", function="handle", language="python", families=families, rank=0.9, source="entry_point"),
+        ScanRegion(path="fallback.py", function=None, language="python", families=families, rank=0.9, source="file_fallback"),
+    ]
+    for region in regions:
+        (tmp_path / region.path).write_bytes(b"print(1)\n")
+    backend = _RecordingBackend(vectors)
+    result = scan_repository(tmp_path, regions, backend=backend, client=None, model="", budget=ScanBudget(max_model_calls=0))
+    return result, backend
+
+
+def _deserialization_absent(params):  # type: ignore[no-untyped-def]
+    """The engine's rows on a repository that holds `injection` sinks and no `deserialization` sink at all."""
+    if tuple(params["sinks"]) == _sinks_of("deserialization"):
+        return [{"kind": "summary", "sinks": 0, "sourceLocal": False, "familyInRepo": False}]
+    return [{"kind": "summary", "sinks": 1, "sourceLocal": True, "familyInRepo": True}, _SINK_ROW]
+
+
+def _sink_in_every_scope(_params):  # type: ignore[no-untyped-def]
+    return [{"kind": "summary", "sinks": 1, "sourceLocal": True, "familyInRepo": True}, _SINK_ROW]
+
+
+def test_a_family_absent_from_the_repository_is_never_asked_at_any_call_depth(tmp_path: Path) -> None:
+    """contributor-scan 5.14, first rule: repository-level, exact at any `callDepth`. Paid Memberships Pro never
+    calls `unserialize`, and 487 of its `deserialization` questions were asked of nothing. When no file of the
+    repository holds a sink of a family, no scope can hold one either, so the family is not asked of an entry
+    point, whose question follows the call graph, any more than of a file the walker fell back on."""
+    result, backend = _scan_two_depths(tmp_path, _deserialization_absent)
+
+    asked = set(_by_question(backend.arbitration))
+    assert asked == {("handler.py", _sinks_of("injection")), ("fallback.py", _sinks_of("injection"))}, (
+        "a family with no sink anywhere in the repository reached the engine"
+    )
+    deferred = {(q.identity.path, q.identity.family, q.reason) for q in result.scope.deferred}
+    assert deferred == {("handler.py", "deserialization", "tier_zero"), ("fallback.py", "deserialization", "tier_zero")}
+
+
+def test_the_evidence_that_prunes_a_question_is_asked_over_that_question_s_own_scope(tmp_path: Path) -> None:
+    """contributor-scan 5.14, second rule: scope-level, exact at `callDepth=0` only. Above zero the sink may live
+    in a reachable method in another file, so a vector computed over the region's own file would defer a question
+    that could have found a flow. The evidence pass is therefore asked about the scope the arbiter would have
+    been: the same request, at the arbiter's own call depth."""
+    from openultrasast.model.scan import ENTRY_POINT_CALL_DEPTH
+
+    _, backend = _scan_two_depths(tmp_path, _sink_in_every_scope)
+
+    evidence_by_question = {key: {k: v for k, v in p.items() if k != "evidenceOnly"} for key, p in _by_question(backend.evidence).items()}
+    assert {key[0]: p["callDepth"] for key, p in evidence_by_question.items()} == {
+        "handler.py": str(ENTRY_POINT_CALL_DEPTH),
+        "fallback.py": "0",
+    }
+    assert evidence_by_question == _by_question(backend.arbitration), (
+        "the scope that prunes a question drifted from the scope that arbitrates it"
+    )
+
+
 def test_the_budget_is_spent_by_evidence_when_asked(tmp_path: Path) -> None:
     """Phase 2 of flow-aware-ranking. With `order_by_evidence`, the evidence pass runs over every region and
     the region cap is cut from the (tier, score) order, so a low-ranked region with an open sink and a

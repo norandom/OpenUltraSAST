@@ -158,6 +158,21 @@ def test_partial_evidence_batch_is_unknown_not_tier_zero(tmp_path):
     assert result.family_coverage[0].deferred == 1
 
 
+def test_a_pruned_question_is_recorded_as_skipped_and_never_as_an_outcome(tmp_path):
+    """contributor-scan 5.14: a skipped question is recorded as skipped, not as answered. `question_outcomes`
+    is the list of questions the engine was asked -- the family census counts its requests from it -- so a
+    tier-zero question belongs in `scope.deferred`, with its reason, and nowhere else. Recorded as completed it
+    would be a verdict; recorded as unanswered it would read as a scan that failed to ask."""
+    result = scan_repository(
+        source(tmp_path, "a.py", "b.py"),
+        [region("a.py"), region("b.py")],
+        backend=Backend({"a.py": vector(False), "b.py": vector()}),
+        ranking_mode="evidence",
+    )
+    assert [(q.identity.path, q.reason) for q in result.scope.deferred] == [("a.py", "tier_zero")]
+    assert [o.identity.path for o in result.question_outcomes] == ["b.py"], "a pruned question is neither answered nor left unanswered"
+
+
 def test_later_timeout_retains_raw_answer_without_claiming_arbitration(tmp_path):
     import time
 

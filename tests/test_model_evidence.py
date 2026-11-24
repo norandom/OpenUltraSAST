@@ -44,6 +44,14 @@ def test_no_sink_anywhere_in_the_repository_is_tier_zero_at_any_depth() -> None:
     assert e is not None and e.tier == TIER_EXCLUDE
 
 
+def test_a_summary_that_does_not_say_the_family_is_absent_excludes_nothing() -> None:
+    """The repository-wide cut acts on an explicit answer. An engine that omits `familyInRepo` has not said the
+    family is nowhere in the repository, and reading silence as absence would make every pair tier 0."""
+    rows = [{key: value for key, value in SUMMARY.items() if key != "familyInRepo"}, _sink("os.system(cmd)")]
+    e = evidence_from_rows(rows, entry=True)
+    assert e is not None and e.tier != TIER_EXCLUDE
+
+
 def test_a_sink_with_no_source_is_asked_last() -> None:
     e = evidence_from_rows([SUMMARY, _sink('$wpdb->get_row("... $id")')])
     assert e is not None and e.tier == TIER_NO_SOURCE
