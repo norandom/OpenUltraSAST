@@ -1,13 +1,23 @@
 # End-to-end examples
 
-Each example stands on its own. Artifacts land under `<target>/.openultrasast/runs/<scan-id>/`.
-`.openultrasast/` is gitignored.
+Each example stands on its own. A scan writes its run under
+`~/.cache/openultrasast/runs/<scan-id>/`, or under `$XDG_CACHE_HOME/openultrasast/runs/` when
+that variable is set to an absolute path, and prints that path. `OPENULTRASAST_RUNS_DIR`
+overrides the location: an absolute path is used as given, and a relative one is resolved against
+the current working directory, never against the target.
+
+A scan that rejects or holds a finding writes one file into the scanned tree, and only when that
+file's content would change:
+`<target>/.openultrasast/calibration/false_positive_learnings.json` (`.openultrasast/` is
+gitignored in this repository, not in one of your own); on a read-only tree the scan records
+`ledger_not_written` instead and keeps the learnings in the run directory.
 
 ## 1. Quick scan a local repo (deterministic, no keys)
 
 ```bash
 uv run ousast scan /path/to/code --mode quick
-run=/path/to/code/.openultrasast/runs/<scan-id>
+# the scan prints: run_dir=/home/you/.cache/openultrasast/runs/<scan-id>
+run=/home/you/.cache/openultrasast/runs/<scan-id>
 cat  "$run/report.md"       # findings + evidence (secrets redacted)
 jq . "$run/score.json"      # 0–100 project score + gate verdict
 "$run/report.sarif"         # SARIF for code-scanning / IDEs

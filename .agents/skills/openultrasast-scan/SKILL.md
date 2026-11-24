@@ -16,7 +16,9 @@ it wrote.
 3. Start with `--mode quick` unless the task needs the Joern model layer (`standard`) or sandboxed
    regression snippets (`deep`). Check the prerequisites below first; a mode whose engine is missing
    still exits 0 and records a degradation.
-4. Read the printed `scan_id=` and `run_dir=` lines; the run directory is `.openultrasast/runs/<scan-id>/`.
+4. Read the printed `scan_id=` and `run_dir=` lines; the run directory is `~/.cache/openultrasast/runs/<scan-id>/`
+   (`$XDG_CACHE_HOME/openultrasast/runs/` when that variable is set to an absolute path; `OPENULTRASAST_RUNS_DIR`
+   overrides it).
 5. Report the finding count, how many the verifier accepted, and **every** recorded degradation
    (`manifest.json`, key `degradations`). No findings plus a degradation is not a clean scan: the scan
    answered a smaller question than it was asked.
@@ -66,6 +68,10 @@ Each entry in `manifest.json` `degradations` is `{"stage": ..., "reason": ...}`.
   but has no line in `report.md`'s "What could not be analysed" section.
 - `hunter_model_unavailable` (stage `map`): `[models] hunter` is unset, so the tool hunter did not run.
   Recorded on every standard scan without that setting; it is expected, not an error.
+- `ledger_not_written` (stage `record_calibration`): the scan rejected or held a finding and could not write the
+  false-positive ledger into the analysed tree, as on a read-only mount. Recorded whenever such a scan has a
+  learning the tree's ledger does not already hold; the learnings are in this run's
+  `calibration/false_positive_learnings.json`, and the next scan starts without them.
 - coverage facts from the graph, rendered in `report.md` under "What could not be analysed":
   `cpg_empty`, `cpg_build_failed`, `cpg_sharded`, `files_unparsed`, `query_failed`,
   `query_budget_reserved`, `query_too_expensive`, `budget_exhausted`, `regions_truncated`,
@@ -97,13 +103,18 @@ above, and that is what `--fail-on verified` counts. There is no configurable re
 
 ## Run artifacts
 
-Under `.openultrasast/runs/<scan-id>/`:
+Under `~/.cache/openultrasast/runs/<scan-id>/`:
 
 - `report.md`, `report.sarif` (SARIF 2.1.0 for code hosts and IDEs), `manifest.json` (stages, degradations, model payload)
 - `findings.json`, `verification.json`, `score.json`, `shadow_findings.json` (rules shipped as `shadow`)
 - `harness.json`: the resolved harness configuration the run used
 - standard: `fusion.json`, `complexity_map.json`, `overlay.json`; deep: `verdicts.json`
 - `calibration/false_positive_learnings.json`, `rank/ranking.json`, `mapping/`, `preprocess/`, `trace/events.jsonl`
+
+The only write a scan makes into the scanned tree is the ledger
+`<target>/.openultrasast/calibration/false_positive_learnings.json`: a scan that rejects or holds a finding
+writes it only when that file's content would change; on a read-only tree the scan records `ledger_not_written`
+instead and keeps the learnings in this run directory's `calibration/false_positive_learnings.json`.
 
 ## Changed code only
 

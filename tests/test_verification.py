@@ -84,7 +84,7 @@ def test_cli_scan_writes_accepted_and_rejected_verifications(tmp_path: Path, mon
     (repo / "app.py").write_text(
         "@app.route('/admin')\ndef admin():\n    return eval(request.data)\n\ndef helper(value):\n    return exec(value)\n"
     )
-    monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", ".runs")
+    monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", str(repo / ".runs"))
 
     assert main(["scan", str(repo), "--mode", "quick"]) == 0
 

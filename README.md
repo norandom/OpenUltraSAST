@@ -182,9 +182,17 @@ A missing engine is a recorded degradation (`cpg_unavailable`, `regress_retired`
 clean result.
 
 `--fail-on never|findings|verified|worth-fixing` sets the exit code. `--config openultrasast.toml`
-loads settings. Every run writes these files under `<target>/.openultrasast/runs/<scan-id>/`:
-`manifest.json`, `findings.json`, `verification.json`, `score.json`, `report.md`, `report.sarif`
-and `trace/events.jsonl`.
+loads settings. Every run writes `manifest.json`, `findings.json`, `verification.json`,
+`score.json`, `report.md`, `report.sarif` and `trace/events.jsonl` under
+`~/.cache/openultrasast/runs/<scan-id>/`, or under `$XDG_CACHE_HOME/openultrasast/runs/` when that
+variable is set to an absolute path. The scan prints that path (`run_dir=<path>`).
+`OPENULTRASAST_RUNS_DIR` moves the run directory: an absolute path is used as given, and a relative
+one is resolved against the current working directory, never against the directory being scanned.
+
+A scan that rejects or holds a finding writes one file into the scanned tree,
+`<target>/.openultrasast/calibration/false_positive_learnings.json`, and only when that file's
+content would change; on a read-only tree the scan records `ledger_not_written` instead and keeps
+the learnings in the run directory.
 
 `ousast pre-push` (experimental) analyses the commits a push would publish against their base.
 First, the quick rules run on the changed lines. Then the engine compares head with base, and only

@@ -89,6 +89,14 @@ def main(argv: list[str] | None = None) -> int:
     return 0
 
 
+def _printed_run_dir(stdout: str) -> Path | None:
+    """The `run_dir=<path>` line the scan prints: where the run went, wherever the default or the override puts it."""
+    for line in stdout.splitlines():
+        if line.startswith("run_dir="):
+            return Path(line.removeprefix("run_dir="))
+    return None
+
+
 def _copy(root: Path, work: Path) -> None:
     if work.exists():
         shutil.rmtree(work)
@@ -107,8 +115,8 @@ def _scan(work: Path, mode: str, config: Path | None = None) -> dict[str, object
     wall = round(time.monotonic() - started, 2)
     peak_kb = max(resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss, before)
 
-    runs = sorted((work / ".openultrasast" / "runs").glob("*/"))
-    manifest = runs[-1] / "manifest.json" if runs else None
+    run_dir = _printed_run_dir(proc.stdout)
+    manifest = run_dir / "manifest.json" if run_dir is not None else None
     if proc.returncode not in (0, 1) or manifest is None or not manifest.is_file():
         # Req 4.3: a repository that cannot be processed records the stage it failed at, not an opaque error.
         return {
@@ -123,7 +131,7 @@ def _scan(work: Path, mode: str, config: Path | None = None) -> dict[str, object
 
     data = json.loads(manifest.read_text())
     model = dict(data.get("model", {}))
-    findings = _findings(runs[-1])
+    findings = _findings(run_dir)
     return {
         "completed": True,
         "exit_code": proc.returncode,

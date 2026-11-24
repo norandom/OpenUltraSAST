@@ -47,9 +47,9 @@ def test_probe_off_yields_no_javascript_grammar(monkeypatch: pytest.MonkeyPatch)
 
 def test_standard_javascript_is_unadjudicated_without_extra(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("OPENULTRASAST_TREE_SITTER_PROBE", "0")
-    monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", ".runs")
     repo = tmp_path / "repo"
     repo.mkdir()
+    monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", str(repo / ".runs"))
     (repo / "app.js").write_text("eval(req.query.x)\n")
     assert main(["scan", str(repo), "--mode", "standard"]) == 0
     run_dir = sorted((repo / ".runs").iterdir())[-1]
@@ -61,9 +61,9 @@ def test_standard_javascript_is_unadjudicated_without_extra(tmp_path: Path, monk
 
 def test_quick_scan_without_extra_still_inventories(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("OPENULTRASAST_TREE_SITTER_PROBE", "0")
-    monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", ".runs")
     repo = tmp_path / "repo"
     repo.mkdir()
+    monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", str(repo / ".runs"))
     (repo / "app.py").write_text("def run():\n    return eval(request.args)\n")
     assert main(["scan", str(repo), "--mode", "quick"]) == 0
     run_dir = sorted((repo / ".runs").iterdir())[-1]

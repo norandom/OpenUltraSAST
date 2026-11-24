@@ -36,7 +36,7 @@ def test_rejected_finding_demotes_its_scope_on_the_next_scan(tmp_path: Path, mon
     (repo / "app.py").write_text("@app.route('/x')\ndef view():\n    return eval(request.data)\n")
     # Helper eval with no entry point -> unknown reachability -> rejected -> learning.
     (repo / "lib.py").write_text("def helper(x):\n    return eval(x)\n")
-    monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", ".runs")
+    monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", str(repo / ".runs"))
     ledger = repo / ".openultrasast" / "calibration" / "false_positive_learnings.json"
 
     # --- First scan: produces the learning, applies nothing yet ---------------

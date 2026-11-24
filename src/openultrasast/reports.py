@@ -440,6 +440,10 @@ _COVERAGE_DEGRADATIONS: dict[str, str] = {
         "language not covered: {language} ({count} files). No quick rules{engine} exist for it, so **silence about "
         "these files is not a clean result**."
     ),
+    "ledger_not_written": (
+        "The false-positive ledger in the analysed tree could not be written, so this scan's learnings are kept "
+        "only in this run directory and the next scan starts without them. {detail}"
+    ),
 }
 
 

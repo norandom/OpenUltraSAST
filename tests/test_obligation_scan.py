@@ -29,7 +29,7 @@ def _repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     repo = tmp_path / "repo"
     repo.mkdir()
     (repo / "app.py").write_text(APP)
-    monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", ".runs")
+    monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", str(repo / ".runs"))
     monkeypatch.setenv("OPENULTRASAST_SANDBOX_PROBE", "0")
     return repo
 

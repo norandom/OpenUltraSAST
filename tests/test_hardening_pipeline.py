@@ -25,7 +25,7 @@ def _run(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, config_body: str | 
     repo = tmp_path / "repo"
     repo.mkdir(parents=True)
     (repo / "app.py").write_text(_VULN_WITH_SECRET)
-    monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", ".runs")
+    monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", str(repo / ".runs"))
     argv = ["scan", str(repo), "--mode", "quick"]
     if config_body is not None:
         cfg = tmp_path / "openultrasast.toml"

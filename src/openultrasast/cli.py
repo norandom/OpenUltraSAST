@@ -631,7 +631,7 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
     write_verification_results(verifications, verification_path)
     runtime.run_stage(
         "record_calibration",
-        lambda: _persist_calibration_feedback(run, ledger_path, prior_learnings, findings, verifications),
+        lambda: _persist_calibration_feedback(run, ledger_path, prior_learnings, findings, verifications, runtime),
     )
     # Fusion: deterministic two-panel adjudication for triggered findings (standard mode).
     fusion_decisions: list[FusionDecision] = []
@@ -887,11 +887,19 @@ def _persist_calibration_feedback(
     prior_learnings: list[FalsePositiveLearning],
     findings: list[StaticFinding],
     verifications: list[VerificationResult],
+    runtime: HarnessRuntime,
 ) -> list[FalsePositiveLearning]:
     # Store rejected or held findings as scoped learnings for the next scan.
     new_learnings = learnings_from_verifications(findings, verifications)
     merged = merge_false_positive_learnings(prior_learnings, new_learnings)
-    write_false_positive_learnings(merged, ledger_path)
+    if merged != prior_learnings:
+        # The ledger is the one thing a scan still writes into the analysed tree, so it is written only when its
+        # content would change: a false positive already in the store is not a new learning. A tree that refuses
+        # the write (mounted read-only) is recorded, not fatal.
+        try:
+            write_false_positive_learnings(merged, ledger_path)
+        except OSError as exc:
+            runtime.state["degradations"].append({"stage": "record_calibration", "reason": "ledger_not_written", "detail": str(exc)})
     write_false_positive_learnings(new_learnings, run.root / "calibration" / "false_positive_learnings.json")
     return merged
 

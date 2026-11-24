@@ -80,7 +80,7 @@ def test_standard_mode_writes_hunter_trajectory_and_manifest_ref(tmp_path: Path,
     repo = tmp_path / "repo"
     repo.mkdir()
     (repo / "app.py").write_text("@app.route('/admin')\ndef admin():\n    return eval(request.data)\n")
-    monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", ".runs")
+    monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", str(repo / ".runs"))
 
     assert main(["scan", str(repo), "--mode", "standard", "--fail-on", "verified"]) == 1
 

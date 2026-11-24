@@ -218,7 +218,7 @@ def test_standard_scripted_hunter_emits_tool_hunter_suspicion(tmp_path: Path, mo
 
     repo = _standard_repo(tmp_path)
     config = _write_hunter_config(tmp_path)
-    monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", ".runs")
+    monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", str(repo / ".runs"))
     monkeypatch.setenv("OPENULTRASAST_HUNTER_CLIENT", "scripted")
     docker_argv = _guard_docker(monkeypatch)
     hunter_calls: list[int] = []
@@ -254,7 +254,7 @@ def test_dump_only_hunter_client_emits_no_hunter_findings(tmp_path: Path, monkey
 
     repo = _standard_repo(tmp_path)
     config = _write_hunter_config(tmp_path)
-    monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", ".runs")
+    monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", str(repo / ".runs"))
     monkeypatch.setenv("OPENULTRASAST_HUNTER_CLIENT", "dump-only")
     docker_argv = _guard_docker(monkeypatch)
     hunter_calls: list[int] = []

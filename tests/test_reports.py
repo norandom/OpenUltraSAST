@@ -167,7 +167,7 @@ def test_cli_scan_writes_sarif_manifest_and_honors_fail_policy(tmp_path: Path, m
     repo = tmp_path / "repo"
     repo.mkdir()
     (repo / "app.py").write_text("@app.route('/admin')\ndef admin():\n    return eval(request.data)\n")
-    monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", ".runs")
+    monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", str(repo / ".runs"))
 
     assert main(["scan", str(repo), "--mode", "quick", "--fail-on", "verified"]) == 1
 
@@ -187,7 +187,7 @@ def test_quick_scan_report_is_inventory_without_map_or_docker(tmp_path: Path, mo
     repo = tmp_path / "repo"
     repo.mkdir()
     (repo / "app.py").write_text("@app.route('/admin')\ndef admin():\n    return eval(request.data)\n")
-    monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", ".runs")
+    monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", str(repo / ".runs"))
 
     docker_argv: list[list[str]] = []
     original_run = subprocess.run
@@ -232,7 +232,7 @@ def test_standard_scan_writes_complexity_map_without_docker(tmp_path: Path, monk
     repo = tmp_path / "repo"
     repo.mkdir()
     (repo / "app.py").write_text("@app.route('/admin')\ndef admin():\n    return eval(request.data)\n")
-    monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", ".runs")
+    monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", str(repo / ".runs"))
 
     docker_argv: list[list[str]] = []
     original_run = subprocess.run
@@ -276,7 +276,7 @@ def test_standard_scan_records_hunter_model_unavailable_when_model_unset(tmp_pat
     repo = tmp_path / "repo"
     repo.mkdir()
     (repo / "app.py").write_text("@app.route('/admin')\ndef admin():\n    return eval(request.data)\n")
-    monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", ".runs")
+    monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", str(repo / ".runs"))
 
     assert main(["scan", str(repo), "--mode", "standard"]) == 0
 
@@ -569,17 +569,44 @@ def test_every_recorded_scan_degradation_is_rendered(tmp_path) -> None:  # type:
         assert needle in text, needle
 
 
-def test_quick_scan_names_a_language_nothing_covers(tmp_path, capsys) -> None:  # type: ignore[no-untyped-def]
+def test_an_unwritable_ledger_is_stated_in_the_report(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    """What was not written, and where this scan's learnings are instead: a reader told only a code cannot
+    find them."""
+    path = tmp_path / "report.md"
+    write_markdown_report(
+        [],
+        path,
+        [],
+        degradations=[
+            {
+                "stage": "record_calibration",
+                "reason": "ledger_not_written",
+                "detail": "[Errno 30] Read-only file system: '/target/.openultrasast/calibration/false_positive_learnings.json'",
+            }
+        ],
+    )
+    section = path.read_text().split("### What could not be analysed", 1)[1]
+    assert (
+        "The false-positive ledger in the analysed tree could not be written, so this scan's learnings are kept "
+        "only in this run directory and the next scan starts without them. [Errno 30] Read-only file system: "
+        "'/target/.openultrasast/calibration/false_positive_learnings.json'"
+    ) in section
+    assert "`ledger_not_written`" not in section
+
+
+def test_quick_scan_names_a_language_nothing_covers(tmp_path, monkeypatch, capsys) -> None:  # type: ignore[no-untyped-def]
+    monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", str(tmp_path / "runs"))
     """pre-push 17.2 / Req 9.2: a Go-only tree is not a silent zero."""
     (tmp_path / "run.go").write_text('package main\n\nimport "os/exec"\n\nfunc run(c string) { exec.Command("sh", "-c", c).Run() }\n')
     assert main(["scan", str(tmp_path), "--mode", "quick"]) == 0
     assert "notice: language not covered: go (1 files)" in capsys.readouterr().out
-    report = next((tmp_path / ".openultrasast" / "runs").iterdir()) / "report.md"
+    report = next((tmp_path / "runs").iterdir()) / "report.md"
     assert "Not a clean result for go (1 files)" in report.read_text()
 
 
 @pytest.mark.parametrize("fail_on, expected", [("never", 0), ("findings", 1), ("verified", 1)])
 def test_deep_scan_records_retirement_without_running_snippets(tmp_path, monkeypatch, fail_on, expected):
+    monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", str(tmp_path / "runs"))
     (tmp_path / "app.py").write_text("@app.route('/admin')\ndef admin():\n    return eval(request.data)\n")
 
     def guard(command, *args, **kwargs):
@@ -590,7 +617,7 @@ def test_deep_scan_records_retirement_without_running_snippets(tmp_path, monkeyp
     original_run = subprocess.run
     monkeypatch.setattr(subprocess, "run", guard)
     assert main(["scan", str(tmp_path), "--mode", "deep", "--fail-on", fail_on]) == expected
-    run_dir = next((tmp_path / ".openultrasast" / "runs").iterdir())
+    run_dir = next((tmp_path / "runs").iterdir())
     manifest = json.loads((run_dir / "manifest.json").read_text())
     retired = {"stage": "regress", "reason": "regress_retired"}
     assert manifest["stages"] == {

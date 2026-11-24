@@ -24,6 +24,16 @@ def _repos_offline(monkeypatch: pytest.MonkeyPatch, tmp_path_factory: pytest.Tem
     monkeypatch.setenv("OPENULTRASAST_REPO_CACHE", str(tmp_path_factory.mktemp("repo-cache")))
 
 
+@pytest.fixture(autouse=True)
+def _scan_runs_under_tmp_path(monkeypatch: pytest.MonkeyPatch, tmp_path_factory: pytest.TempPathFactory) -> None:
+    """A scan run never lands in the developer's real cache, whatever a test forgets to redirect.
+
+    The default run root is `~/.cache/openultrasast/runs`, so a test that scans without naming a location
+    would write there. The override points every such test at its own temporary directory instead.
+    """
+    monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", str(tmp_path_factory.mktemp("scan-runs")))
+
+
 @pytest.fixture
 def assert_cold_import():  # type: ignore[no-untyped-def]
     """Run ``code`` in a fresh interpreter and assert it exits 0.

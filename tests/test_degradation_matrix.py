@@ -70,8 +70,9 @@ def test_retired_regress_stage_is_skipped_by_name(tmp_path: Path, monkeypatch: p
     from openultrasast.cli import main
 
     (tmp_path / "app.py").write_text("import os\n\n\ndef run(cmd):\n    os.system(cmd)\n")
+    monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", str(tmp_path / "runs"))
     assert main(["scan", str(tmp_path), "--mode", "deep"]) in {0, 1}
-    runs = sorted((tmp_path / ".openultrasast" / "runs").iterdir())
+    runs = sorted((tmp_path / "runs").iterdir())
     manifest = json.loads((runs[-1] / "manifest.json").read_text())
     reasons = {item["reason"] for item in manifest.get("degradations", [])}
     assert "regress_retired" in reasons

@@ -4,7 +4,7 @@ import json
 import logging
 import os
 import tomllib
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Literal
 
@@ -195,6 +195,27 @@ class PushConfig(Contract):
             raise ValueError("push deadlines, cancellation allowance and cache limit must be positive")
 
 
+def _user_cache_dir() -> Path:
+    """`$XDG_CACHE_HOME` when it is set and absolute, otherwise `~/.cache` (the XDG base-directory rule)."""
+    override = os.environ.get("XDG_CACHE_HOME", "")
+    if override and Path(override).is_absolute():
+        return Path(override)
+    return Path.home() / ".cache"
+
+
+def _runs_dir() -> str:
+    """Where a scan creates its run: the user's cache, unless `OPENULTRASAST_RUNS_DIR` says otherwise.
+
+    Always absolute, and taken from the working directory when the override is relative, never from the
+    target: a run inside the analysed tree is what this default exists to prevent.
+    """
+    override = os.environ.get("OPENULTRASAST_RUNS_DIR")
+    if not override:
+        return str(_user_cache_dir() / "openultrasast" / "runs")
+    path = Path(override)
+    return str(path if path.is_absolute() else Path.cwd() / path)
+
+
 @dataclass(frozen=True)
 class ResolvedConfig:
     models: ModelConfig = ModelConfig()
@@ -208,7 +229,9 @@ class ResolvedConfig:
     obligations: ObligationsConfig = ObligationsConfig()
     model: ModelLayerConfig = ModelLayerConfig()
     push: PushConfig = PushConfig()
-    runs_dir: str = ".openultrasast/runs"
+    # Read from the environment each time a config is built, so one made without `load_config` lands in the
+    # same place.
+    runs_dir: str = field(default_factory=_runs_dir)
 
 
 def load_config(config_path: Path | None = None, *, dotenv: bool = True) -> ResolvedConfig:
@@ -232,7 +255,6 @@ def load_config(config_path: Path | None = None, *, dotenv: bool = True) -> Reso
         obligations=_load_obligations(data.get("obligations", {})),
         model=_load_model(data.get("model", {})),
         push=PushConfig.from_payload(data.get("push", {})),
-        runs_dir=os.environ.get("OPENULTRASAST_RUNS_DIR", ".openultrasast/runs"),
     )
 
 

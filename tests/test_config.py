@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from openultrasast.config import RetiredConfigError, load_config, load_dotenv, write_resolved_config
+from openultrasast.config import ResolvedConfig, RetiredConfigError, load_config, load_dotenv, write_resolved_config
 
 
 def test_load_config_reads_toml(tmp_path: Path) -> None:
@@ -185,3 +185,45 @@ def test_load_dotenv_sets_missing_keys_only(tmp_path: Path, monkeypatch) -> None
 
     assert os.environ["OPENROUTER_API_KEY"] == "already-set"
     assert os.environ["S3_REGION"] == "us-east-1"
+
+
+def test_runs_dir_defaults_to_the_user_cache(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("OPENULTRASAST_RUNS_DIR", raising=False)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
+
+    assert Path(load_config(None).runs_dir) == tmp_path / "cache" / "openultrasast" / "runs"
+
+
+@pytest.mark.parametrize("xdg", ["", "relative/cache"])
+def test_an_empty_or_relative_xdg_cache_home_falls_back_to_the_home_cache(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, xdg: str
+) -> None:
+    monkeypatch.delenv("OPENULTRASAST_RUNS_DIR", raising=False)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("XDG_CACHE_HOME", xdg)
+
+    assert Path(load_config(None).runs_dir) == tmp_path / ".cache" / "openultrasast" / "runs"
+
+
+def test_the_runs_dir_override_wins_and_an_absolute_one_is_used_as_given(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
+    link = tmp_path / "link"
+    link.symlink_to(tmp_path, target_is_directory=True)
+    monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", str(link / "runs"))
+
+    assert Path(load_config(None).runs_dir) == link / "runs"
+
+
+def test_a_relative_runs_dir_override_is_taken_from_the_working_directory(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    working = tmp_path / "working"
+    working.mkdir()
+    monkeypatch.chdir(working)
+    monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", ".runs")
+
+    assert Path(load_config(None).runs_dir) == working / ".runs"
+
+
+def test_a_config_built_without_the_loader_follows_the_same_override(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", str(tmp_path / "runs"))
+
+    assert ResolvedConfig().runs_dir == str(tmp_path / "runs")

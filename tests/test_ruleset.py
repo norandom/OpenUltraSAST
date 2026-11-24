@@ -59,7 +59,7 @@ def test_disabled_rule_via_ledger_does_not_fire_in_scan(tmp_path: Path, monkeypa
     ledger_dir = repo / ".openultrasast" / "calibration"
     ledger_dir.mkdir(parents=True)
     (ledger_dir / "rule_policy.json").write_text(json.dumps({"python-unsafe-eval": {"status": "disabled"}}))
-    monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", ".runs")
+    monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", str(repo / ".runs"))
 
     assert main(["scan", str(repo), "--mode", "quick"]) == 0
 

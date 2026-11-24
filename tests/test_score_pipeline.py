@@ -15,7 +15,7 @@ def test_scan_writes_score_artifact_and_manifest_block(tmp_path: Path, monkeypat
     repo = tmp_path / "repo"
     repo.mkdir()
     (repo / "app.py").write_text("@app.route('/x')\ndef view():\n    return eval(request.data)\n")
-    monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", ".runs")
+    monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", str(repo / ".runs"))
 
     assert main(["scan", str(repo), "--mode", "quick"]) == 0
 
@@ -33,7 +33,7 @@ def test_scan_fails_loud_when_an_enabled_rule_cwe_is_unmapped(tmp_path: Path, mo
     repo = tmp_path / "repo"
     repo.mkdir()
     (repo / "app.py").write_text("x = 1\n")
-    monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", ".runs")
+    monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", str(repo / ".runs"))
     unmapped = SimpleNamespace(rule_id="bogus", cwe="CWE-99999", status="enabled")
     real_loader = cli.load_ruleset
     monkeypatch.setattr(cli, "load_ruleset", lambda *a, **k: (*real_loader(*a, **k), unmapped))

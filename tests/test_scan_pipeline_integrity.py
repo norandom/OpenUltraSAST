@@ -31,7 +31,7 @@ def _scan(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, mode: str, config_
     repo = tmp_path / "repo"
     repo.mkdir(parents=True)
     (repo / "app.py").write_text(_VULN)
-    monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", ".runs")
+    monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", str(repo / ".runs"))
     monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
     monkeypatch.delenv("OPENULTRASAST_HUNTER_CLIENT", raising=False)
     argv = ["scan", str(repo), "--mode", mode]

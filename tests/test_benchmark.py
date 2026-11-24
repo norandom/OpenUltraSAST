@@ -142,7 +142,7 @@ evidence = "memcpy copies attacker-controlled input"
 """.strip()
         + "\n"
     )
-    monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", ".runs")
+    monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", str(repo / ".runs"))
 
     assert main(["benchmark", str(manifest_path), "--mode", "quick"]) == 0
 

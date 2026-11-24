@@ -142,7 +142,7 @@ def test_standard_scan_emits_fusion_artifact_and_manifest_block(tmp_path: Path, 
     repo = tmp_path / "repo"
     repo.mkdir()
     (repo / "app.py").write_text("@app.route('/admin')\ndef admin():\n    return eval(request.data)\n")
-    monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", ".runs")
+    monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", str(repo / ".runs"))
     assert main(["scan", str(repo), "--mode", "standard"]) == 0
 
     run_dir = sorted((repo / ".runs").iterdir())[-1]
@@ -159,7 +159,7 @@ def test_quick_scan_does_not_emit_fusion(tmp_path: Path, monkeypatch: pytest.Mon
     repo = tmp_path / "repo"
     repo.mkdir()
     (repo / "app.py").write_text("@app.route('/admin')\ndef admin():\n    return eval(request.data)\n")
-    monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", ".runs")
+    monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", str(repo / ".runs"))
     assert main(["scan", str(repo), "--mode", "quick"]) == 0
 
     run_dir = sorted((repo / ".runs").iterdir())[-1]

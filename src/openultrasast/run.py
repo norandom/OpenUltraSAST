@@ -19,7 +19,7 @@ def create_scan_run(target: Path, config: ResolvedConfig) -> ScanRun:
     resolved_target = target.resolve()
     timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     scan_id = f"{timestamp}-{uuid4().hex[:8]}"
-    root = resolved_target / config.runs_dir / scan_id
+    root = Path(config.runs_dir) / scan_id
     root.mkdir(parents=True, exist_ok=False)
     (root / "preprocess").mkdir()
     write_resolved_config(config, root / "resolved_config.json")

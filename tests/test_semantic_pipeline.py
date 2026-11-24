@@ -78,7 +78,7 @@ def test_quick_scan_writes_no_overlay(tmp_path: Path, monkeypatch: pytest.Monkey
     repo = tmp_path / "repo"
     repo.mkdir()
     (repo / "app.py").write_text("def run():\n    return eval(request.args)\n")
-    monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", ".runs")
+    monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", str(repo / ".runs"))
     assert main(["scan", str(repo), "--mode", "quick"]) == 0
     run_dir = _latest_run(repo)
     assert not (run_dir / "overlay.json").exists()
@@ -90,7 +90,7 @@ def test_standard_scan_writes_overlay_without_executing_target(tmp_path: Path, m
     repo = tmp_path / "repo"
     repo.mkdir()
     (repo / "app.py").write_text("def run():\n    return eval(request.args)\n")
-    monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", ".runs")
+    monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", str(repo / ".runs"))
     monkeypatch.setenv("OPENULTRASAST_SANDBOX_PROBE", "0")
     assert main(["scan", str(repo), "--mode", "standard"]) == 0
     run_dir = _latest_run(repo)
@@ -130,7 +130,7 @@ def test_unlabeled_messy_tree_has_both_dispositions(tmp_path: Path, monkeypatch:
     repo.mkdir()
     (repo / "broken.py").write_text("eval(request.args)\ndef oops(\n")
     (repo / "app.py").write_text("def run():\n    return eval(request.args)\n")
-    monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", ".runs")
+    monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", str(repo / ".runs"))
     assert main(["scan", str(repo), "--mode", "standard"]) == 0
     overlay = json.loads((_latest_run(repo) / "overlay.json").read_text())["records"]
     by_path = {}

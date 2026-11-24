@@ -370,6 +370,16 @@
     — absent rather than zero when a slice is missing.
   - _Requirements: 5.1, 5.2, 5.3, 5.4, 8.1, 8.2_
   - _Depends: 1.3_
+  - _Part A landed 2026-11-24: where a scan writes._ A native scan creates its run under the user cache
+    (`~/.cache/openultrasast/runs/<scan-id>/` by default; `OPENULTRASAST_RUNS_DIR` still wins), prints
+    `run_dir=<path>` once, and leaves the analysed tree byte-identical unless it learns. The one write a scan
+    makes into the tree is the calibration ledger,
+    `<target>/.openultrasast/calibration/false_positive_learnings.json`, by maintainer decision: written only
+    when its content would change; on a read-only tree the scan records `ledger_not_written` and completes with
+    the learnings in the run directory. Proven by tests and by runs of the real CLI;
+    `benchmarks/repos/measure.py` follows the printed run directory. Still open here: part B, the readable
+    summary; `ousast benchmark` and its MCP twin still write under `<target>/.openultrasast/benchmarks/` and
+    no user doc names them; `_run_scan` stays over the complexity cap (18), touched by one line.
 
 - [ ] 3.2 Build and verify the image
   - `docker compose build`, then run a real scan through it and through the shell wrapper. The Dockerfile and
