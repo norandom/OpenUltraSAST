@@ -191,7 +191,9 @@ one is resolved against the current working directory, never against the directo
 After a scan writes its run to the default location, with no `OPENULTRASAST_RUNS_DIR` set, the runs
 there older than 30 days are removed, and `ousast` prints one `notice:` line when it removes any;
 `OPENULTRASAST_RUNS_RETENTION_DAYS` sets the number of days (`0` keeps every run), and nothing is
-ever removed from a location chosen with `OPENULTRASAST_RUNS_DIR`.
+ever removed from a location chosen with `OPENULTRASAST_RUNS_DIR`. A scan does not read the files
+under its runs directory when that directory lies inside the scanned path; when this leaves source
+files out of the scan, `ousast` prints one `notice:` line naming the directory and how many.
 
 `ousast benchmark` writes its run to the same runs directory, as
 `<runs_dir>/<benchmark-run-id>/` beside the scan runs, and prints that path
