@@ -30,6 +30,7 @@ async def _run_checks() -> None:
         source = client.host().directory(
             ".",
             exclude=[
+                ".env",  # local settings and keys (.env.example lists them); CI has no .env: a checkout has only tracked files
                 ".git",
                 ".mypy_cache",
                 ".pytest_cache",
