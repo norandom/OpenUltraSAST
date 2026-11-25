@@ -163,6 +163,7 @@ def _artifacts(args: dict[str, Any]) -> dict[str, Any]:
 def _benchmark(args: dict[str, Any]) -> dict[str, Any]:
     from .benchmark import create_benchmark_run, evaluate_benchmark, load_benchmark_manifest, load_findings, resolve_benchmark_source
     from .cli import _run_scan
+    from .config import load_config
 
     manifest_path = Path(_require(args, "manifest"))
     if not manifest_path.is_file():
@@ -170,8 +171,10 @@ def _benchmark(args: dict[str, Any]) -> dict[str, Any]:
     mode = str(args.get("mode", "quick"))
     manifest = load_benchmark_manifest(manifest_path)
     target = resolve_benchmark_source(manifest_path, manifest)
-    run = create_benchmark_run(target, manifest)
-    outcome = _run_scan(target, Path(str(args.get("config", "openultrasast.toml"))), mode, "never")
+    config_path = Path(str(args.get("config", "openultrasast.toml")))
+    config = load_config(config_path if config_path.exists() else None)
+    outcome = _run_scan(target, config_path, mode, "never")
+    run = create_benchmark_run(Path(config.runs_dir), manifest)
     result = evaluate_benchmark(
         run=run, mode=mode, findings=load_findings(outcome.run_dir / "findings.json"), scan_id=outcome.scan_id, scan_run_dir=outcome.run_dir
     )

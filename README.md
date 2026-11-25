@@ -193,6 +193,11 @@ there older than 30 days are removed, and `ousast` prints one `notice:` line whe
 `OPENULTRASAST_RUNS_RETENTION_DAYS` sets the number of days (`0` keeps every run), and nothing is
 ever removed from a location chosen with `OPENULTRASAST_RUNS_DIR`.
 
+`ousast benchmark` writes its run to the same runs directory, as
+`<runs_dir>/<benchmark-run-id>/` beside the scan runs, and prints that path
+(`benchmark_run_dir=<path>`); run retention removes it like a scan run. The MCP tool
+`openultrasast.benchmark` uses the same directory.
+
 A scan that rejects or holds a finding writes one file into the scanned tree,
 `<target>/.openultrasast/calibration/false_positive_learnings.json`, and only when that file's
 content would change; on a read-only tree the scan records `ledger_not_written` instead and keeps

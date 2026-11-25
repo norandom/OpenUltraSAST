@@ -1100,10 +1100,11 @@ def _benchmark(manifest_path: Path, config_path: Path, mode: str) -> int:
         raise SystemExit(f"benchmark manifest is not a file: {manifest_path}")
     manifest = load_benchmark_manifest(manifest_path)
     target = resolve_benchmark_source(manifest_path, manifest)
-    run = create_benchmark_run(target, manifest)
+    config = load_config(config_path if config_path.exists() else None)
     started_at = perf_counter()
     outcome = _run_scan(target, config_path, mode, "never")
     runtime_seconds = perf_counter() - started_at
+    run = create_benchmark_run(Path(config.runs_dir), manifest)
     findings = _load_scan_findings(outcome.run_dir)
     baseline_findings = load_baseline_findings(manifest_path, manifest)
     result = evaluate_benchmark(

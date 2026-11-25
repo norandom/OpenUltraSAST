@@ -182,10 +182,15 @@ def resolve_benchmark_source(manifest_path: Path, manifest: BenchmarkManifest) -
     return source.resolve()
 
 
-def create_benchmark_run(target: Path, manifest: BenchmarkManifest) -> BenchmarkRun:
+def create_benchmark_run(runs_dir: Path, manifest: BenchmarkManifest) -> BenchmarkRun:
+    """A run beside the scan runs, named like one so that run retention removes it.
+
+    Create it once its scan has returned: a run that exists while a scan prunes can be taken for an old
+    one when the scan outlasts the retention window.
+    """
     timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     benchmark_run_id = f"{timestamp}-{uuid4().hex[:8]}"
-    root = target.resolve() / ".openultrasast" / "benchmarks" / benchmark_run_id
+    root = runs_dir / benchmark_run_id
     root.mkdir(parents=True, exist_ok=False)
     return BenchmarkRun(benchmark_run_id=benchmark_run_id, root=root, manifest=manifest)
 

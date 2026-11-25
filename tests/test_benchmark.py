@@ -1,5 +1,8 @@
 import json
+from datetime import UTC, datetime, timedelta, tzinfo
 from pathlib import Path
+
+from test_run_pruning import _default_cache
 
 from openultrasast.benchmark import (
     create_benchmark_run,
@@ -10,6 +13,7 @@ from openultrasast.benchmark import (
 )
 from openultrasast.cli import main
 from openultrasast.findings import StaticFinding
+from openultrasast.run import prune_old_runs
 
 
 def test_benchmark_manifest_loads_expected_findings(tmp_path: Path) -> None:
@@ -103,7 +107,7 @@ evidence = "memcpy copies attacker-controlled input"
         + "\n"
     )
     manifest = load_benchmark_manifest(manifest_path)
-    run = create_benchmark_run(repo, manifest)
+    run = create_benchmark_run(repo / ".runs", manifest)
 
     result = evaluate_benchmark(run=run, mode="quick", findings=[], scan_id="scan-1", scan_run_dir=repo / ".runs" / "scan-1")
     write_benchmark_artifacts(run, manifest_path, result)
@@ -146,8 +150,9 @@ evidence = "memcpy copies attacker-controlled input"
 
     assert main(["benchmark", str(manifest_path), "--mode", "quick"]) == 0
 
-    benchmark_dir = sorted((repo / ".openultrasast" / "benchmarks").iterdir())[-1]
-    payload = json.loads((benchmark_dir / "benchmark_result.json").read_text())
+    [scoreboard] = sorted((repo / ".runs").glob("*/benchmark_result.json"))
+    assert not (repo / ".openultrasast" / "benchmarks").exists()
+    payload = json.loads(scoreboard.read_text())
 
     assert payload["benchmark_name"] == "cpp-smoke"
     assert payload["metrics"]["expected_findings_total"] == 1
@@ -155,6 +160,40 @@ evidence = "memcpy copies attacker-controlled input"
     assert payload["metrics"]["recall"] == 1.0
     assert payload["metrics"]["precision"] == 1.0
     assert payload["metrics"]["artifact_links"]["findings"].endswith("findings.json")
+
+
+def test_run_retention_removes_a_benchmark_run_like_a_scan_run(tmp_path: Path) -> None:
+    manifest_path = tmp_path / "benchmark.toml"
+    manifest_path.write_text('name = "cpp-smoke"\nlanguage = "c_cpp"\n\n[source]\npath = "repo"\n')
+    runs = tmp_path / "runs"
+
+    run = create_benchmark_run(runs, load_benchmark_manifest(manifest_path))
+
+    assert run.root.parent == runs
+    assert prune_old_runs(runs, retention_days=30, now=datetime.now(UTC) + timedelta(days=31)) == [run.root]
+
+
+class _FortyDaysAgo(datetime):
+    """Stands in for the clock that names a benchmark run: that run then started forty days ago."""
+
+    @classmethod
+    def now(cls, tz: tzinfo | None = None) -> datetime:
+        return datetime.now(UTC) - timedelta(days=40)
+
+
+def test_benchmark_keeps_its_run_when_its_scan_outlasts_the_retention(tmp_path: Path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / "app.py").write_text("@app.route('/admin')\ndef admin():\n    return eval(request.data)\n")
+    manifest = tmp_path / "benchmark.toml"
+    manifest.write_text('name = "py-smoke"\nlanguage = "python"\n\n[source]\npath = "repo"\n')
+    runs = _default_cache(tmp_path, monkeypatch)
+    monkeypatch.setattr("openultrasast.benchmark.datetime", _FortyDaysAgo)
+
+    assert main(["benchmark", str(manifest), "--mode", "quick"]) == 0
+
+    [scoreboard] = runs.glob("*/benchmark_result.json")
+    assert json.loads(scoreboard.read_text())["benchmark_name"] == "py-smoke"
 
 
 def test_benchmark_matching_uses_function_sink_and_evidence_text(tmp_path: Path) -> None:
@@ -182,7 +221,7 @@ evidence = "attacker-controlled memcpy"
         + "\n"
     )
     manifest = load_benchmark_manifest(manifest_path)
-    run = create_benchmark_run(repo, manifest)
+    run = create_benchmark_run(repo / ".runs", manifest)
     findings = [
         _finding(
             finding_id="c-unsafe-memory-copy:src/vuln.cpp:9",
@@ -226,7 +265,7 @@ evidence = "memcpy"
         + "\n"
     )
     manifest = load_benchmark_manifest(manifest_path)
-    run = create_benchmark_run(repo, manifest)
+    run = create_benchmark_run(repo / ".runs", manifest)
     findings = [
         _finding(
             finding_id="c-shell-exec:src/other.cpp:12",
@@ -299,7 +338,7 @@ evidence = "memcpy copies attacker-controlled input"
         + "\n"
     )
     manifest = load_benchmark_manifest(manifest_path)
-    run = create_benchmark_run(repo, manifest)
+    run = create_benchmark_run(repo / ".runs", manifest)
     baseline_findings = load_baseline_findings(manifest_path, manifest)
     unrelated_finding = _finding(
         finding_id="c-shell-exec:src/other.cpp:12",
@@ -372,7 +411,7 @@ evidence = "system runs attacker input"
         + "\n"
     )
     manifest = load_benchmark_manifest(manifest_path)
-    run = create_benchmark_run(repo, manifest)
+    run = create_benchmark_run(repo / ".runs", manifest)
     findings = [
         _finding(
             finding_id="c-unsafe-memory-copy:src/vuln.cpp:9",

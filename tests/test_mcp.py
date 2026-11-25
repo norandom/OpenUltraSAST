@@ -178,6 +178,21 @@ def test_benchmark_result_carries_the_notice_of_the_runs_the_scan_removed(tmp_pa
     assert result["notices"] == [f"removed 1 run older than 30 days from {runs}"]
 
 
+def test_a_benchmark_run_sits_beside_the_scan_runs_not_in_the_scanned_tree(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    runs = _default_cache(tmp_path, monkeypatch)
+    repo = _repo(tmp_path)
+    manifest = tmp_path / "benchmark.toml"
+    manifest.write_text('name = "py-smoke"\nlanguage = "python"\n\n[source]\npath = "repo"\n')
+
+    result = _call(McpServer(), "openultrasast.benchmark", {"manifest": str(manifest), "mode": "quick"})
+
+    assert not result["isError"]
+    benchmark_run = runs / result["benchmark_run_id"]
+    assert benchmark_run.is_dir()
+    assert any((path / "manifest.json").is_file() for path in runs.iterdir() if path != benchmark_run)
+    assert not (repo / ".openultrasast" / "benchmarks").exists()
+
+
 # ---- stdio loop -------------------------------------------------------------
 
 
