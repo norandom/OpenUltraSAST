@@ -14,6 +14,7 @@ import pytest
 from openultrasast import cli
 from openultrasast.cli import main
 from openultrasast.config import ResolvedConfig
+from openultrasast.preprocess import enumerate_source_files
 
 LEDGER = ".openultrasast/calibration/false_positive_learnings.json"
 LEDGER_DIRECTORIES = {".openultrasast", ".openultrasast/calibration"}
@@ -223,6 +224,94 @@ def test_a_relative_runs_dir_override_is_taken_from_the_working_directory_not_th
     (run,) = (working / ".runs").iterdir()
     assert (run / "report.md").is_file()
     assert not (repo / ".runs").exists()
+
+
+def _runs_inside(repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, form: str) -> Path:
+    """The runs directory inside the scanned tree: by the override, by the default location, or by the override
+    through a symlink (as macOS keeps `/tmp`)."""
+    monkeypatch.delenv("OPENULTRASAST_RUNS_DIR", raising=False)
+    runs = repo / (".cache/openultrasast/runs" if form == "default_location" else ".runs")
+    runs.mkdir(parents=True)
+    if form == "default_location":
+        monkeypatch.setenv("XDG_CACHE_HOME", str(repo / ".cache"))
+    elif form == "symlinked_override":
+        link = tmp_path / "runs-link"
+        link.symlink_to(runs, target_is_directory=True)
+        monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", str(link))
+    else:
+        monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", str(runs))
+    return runs
+
+
+def _files_read(run: Path) -> list[str]:
+    return [target["path"] for target in json.loads((run / "preprocess" / "file_targets.json").read_text())["file_targets"]]
+
+
+@pytest.mark.parametrize("form", ["override", "default_location", "symlinked_override"])
+def test_a_scan_skips_the_runs_directory_when_it_lies_inside_the_scanned_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], form: str
+) -> None:
+    repo = _target(tmp_path)
+    runs = _runs_inside(repo, tmp_path, monkeypatch, form)
+    # A constructed case, since no run of this package keeps a source file: one with the finding under study,
+    # under the runs directory.
+    (runs / "earlier").mkdir()
+    (runs / "earlier" / "copy.py").write_text((repo / "app.py").read_text())
+
+    assert _scan(repo) == 0
+
+    (run,) = [path for path in runs.iterdir() if path.name != "earlier"]
+    assert _files_read(run) == ["app.py", "pkg/lib.py"]
+    assert re.findall(r"^findings=(\d+)$", capsys.readouterr().out, flags=re.MULTILINE) == ["1"]
+
+
+def test_only_the_runs_directory_is_skipped_the_rest_of_the_cache_is_read(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    repo = _target(tmp_path)
+    runs = _runs_inside(repo, tmp_path, monkeypatch, "default_location")
+    copy = (repo / "app.py").read_text()
+    # The last two are not the runs directory either: a sibling that shares its name's prefix, and a directory
+    # of that name elsewhere in the tree.
+    for kept in (runs / "earlier", runs.parent / "other", runs.parent / "runs-other", repo / "elsewhere" / "runs"):
+        kept.mkdir(parents=True)
+        (kept / "copy.py").write_text(copy)
+
+    assert _scan(repo) == 0
+
+    (run,) = [path for path in runs.iterdir() if path.name != "earlier"]
+    assert _files_read(run) == [
+        ".cache/openultrasast/other/copy.py",
+        ".cache/openultrasast/runs-other/copy.py",
+        "app.py",
+        "elsewhere/runs/copy.py",
+        "pkg/lib.py",
+    ]
+
+
+@pytest.mark.parametrize("where", ["a_parent_of_the_target", "the_target_itself"])
+def test_a_target_that_lies_inside_the_runs_directory_is_read_as_it_was(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], where: str
+) -> None:
+    # The runs directory is skipped where it lies inside the scanned path, not the other way round: set to a
+    # working directory or to `.`, it must not silence the scan.
+    repo = _target(tmp_path)
+    monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", str(tmp_path if where == "a_parent_of_the_target" else repo))
+
+    assert _scan(repo) == 0
+
+    (printed,) = re.findall(r"^run_dir=(.+)$", capsys.readouterr().out, flags=re.MULTILINE)
+    assert _files_read(Path(printed)) == ["app.py", "pkg/lib.py"]
+
+
+def test_the_runs_directory_is_found_under_a_relative_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    # The scan passes a resolved root; a direct caller need not, and the skip must hold for both.
+    (tmp_path / "runs" / "earlier").mkdir(parents=True)
+    for name in ("app.py", "runs/earlier/copy.py"):
+        (tmp_path / name).write_text("x = 1\n")
+    monkeypatch.chdir(tmp_path)
+
+    assert [path.as_posix() for path in enumerate_source_files(Path("."), Path("runs"))] == ["app.py"]
 
 
 def test_no_test_can_write_a_scan_run_into_the_developers_cache(tmp_path_factory: pytest.TempPathFactory) -> None:

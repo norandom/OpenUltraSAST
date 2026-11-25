@@ -62,9 +62,10 @@ def preprocess_repository(
     root: Path,
     output_path: Path | None = None,
     static_hints: list[object] | None = None,
+    skip: Path | None = None,
 ) -> tuple[RepoSnapshot, list[FileTarget]]:
     resolved = root.resolve()
-    files = enumerate_source_files(resolved)
+    files = enumerate_source_files(resolved, skip)
     targets = [build_file_target(resolved, path) for path in files]
     if static_hints:
         from .mapping import attach_static_hints
@@ -93,9 +94,15 @@ def write_preprocess_artifact(snapshot: RepoSnapshot, targets: list[FileTarget],
     output_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
 
 
-def enumerate_source_files(root: Path) -> list[Path]:
+def enumerate_source_files(root: Path, skip: Path | None = None) -> list[Path]:
+    """Every source file under `root`, in repository path order.
+
+    `skip` names a directory the caller keeps its own output in, the runs directory of a scan. When it lies
+    inside `root`, nothing under it is taken for source, so a scan reads neither an earlier run nor its own.
+    """
     patterns = _load_ignore_patterns(root)
     tracked = _tracked_files(root) if patterns else None
+    excluded = _excluded_directory(root, skip)
     paths: list[Path] = []
     for path in root.rglob("*"):
         if (
@@ -104,11 +111,23 @@ def enumerate_source_files(root: Path) -> list[Path]:
             or _has_ignored_dir(root, path)
             or _is_ignored(root, path, patterns, tracked)
             or _is_vendored(root, path)
+            or (excluded is not None and path.is_relative_to(excluded))
         ):
             continue
         if detect_language(path) != "unknown":
             paths.append(path)
     return sorted(paths, key=lambda item: item.relative_to(root).as_posix())
+
+
+def _excluded_directory(root: Path, skip: Path | None) -> Path | None:
+    """`skip` as a path under `root`, or None when there is nothing to skip: no `skip` was given, or it is
+    `root` itself or lies above it, which leaves the tree read as it was."""
+    if skip is None:
+        return None
+    resolved, named = root.resolve(), skip.resolve()
+    if named == resolved or not named.is_relative_to(resolved):
+        return None
+    return root / named.relative_to(resolved)
 
 
 def build_file_target(root: Path, path: Path) -> FileTarget:

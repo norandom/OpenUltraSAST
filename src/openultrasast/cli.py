@@ -750,7 +750,12 @@ def _map_scan_targets(
     write_static_hints(static_hints, run.root / "mapping" / "static_hints.json")
     snapshot, targets = runtime.run_stage(
         "preprocess",
-        lambda: preprocess_repository(run.target, run.root / "preprocess" / "file_targets.json", static_hints),
+        lambda: preprocess_repository(
+            run.target,
+            run.root / "preprocess" / "file_targets.json",
+            static_hints,
+            skip=Path(config.runs_dir),
+        ),
     )
     # A language nothing here covers is named, never a silent zero (pre-push 17.2, Requirement 9.2).
     for language, count in uncovered_languages(targets, ruleset, engine=mode != "quick"):
