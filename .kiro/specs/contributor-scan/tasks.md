@@ -396,6 +396,32 @@
     the code before and after agree artifact for artifact in quick mode and in standard mode with and without the
     tool hunter. `_main`, `_pre_push` and `_plane` in the same file were already over the complexity cap and are
     not touched.
+  - _Benchmark runs beside the scan runs, 2026-11-25 (fourth session), commit `9e4983f`, by the decision above._
+    `ousast benchmark` and its MCP twin write `<runs_dir>/<benchmark-run-id>/`, beside the scan runs, and create
+    the run once the scan has returned: created first, the run was under the scan's own retention while the scan
+    ran. README.md and docs/examples.md name the location. This closes, above, "move `ousast benchmark` and its
+    MCP twin to the cache and name them in the docs" and the open item "still write under
+    `<target>/.openultrasast/benchmarks/` and no user doc names them". Left for the maintainer: no committed test
+    pins the MCP twin's order; the reviewer's optional fix is the clock patch of
+    `test_benchmark_keeps_its_run_when_its_scan_outlasts_the_retention`, applied in the MCP test.
+  - _The runs directory is skipped, 2026-11-25 (fourth session), commit `56c4620`._ The maintainer's decision, as
+    the handover records it: "a scan skips the runs directory when it lies inside the scanned path"; "the runs
+    directory only (`config.runs_dir`, the default location or `OPENULTRASAST_RUNS_DIR`); the other directories
+    under `~/.cache/openultrasast` are not skipped". `preprocess_repository` and `enumerate_source_files` take a
+    `skip` directory, and the preprocess stage of a scan passes `Path(config.runs_dir)`. This closes "skip the
+    cache when a scan meets a directory that contains it" above; that wording is overtaken by the decision quoted
+    here, which names the runs directory only. Evidence on record, not decisions: the skip applies only where the
+    runs directory lies inside the scanned path, so a target that is the runs directory or lies inside it is read
+    as before (the reading of the decision that the independent reviewer confirmed; a first cut that skipped more
+    was narrowed, test first); the skip is silent, nothing in the output counts the files left out; no run of this
+    package keeps a source file today (the reviewer's count: a quick run holds 15 files, all `.json`, `.jsonl`,
+    `.md` or `.sarif`), so the copied file in the tests is a constructed case; the nine test files around the
+    change pass (113 passed), the 37 files that exercise the scan path pass (362 passed), ruff, mypy, the three
+    gates and compileall pass, and runs of the real CLI against the code at `9e4983f` read the same files and
+    report the same findings for every shape but the decided one. Left for the maintainer: whether a scan should
+    say when it left files out under its runs directory; whether a scan whose target lies inside its runs
+    directory should be named (it is read as before and prints nothing about it); a sentence for the user docs,
+    since README.md and docs/examples.md say where a run goes and not what a scan reads.
 
 - [ ] 3.2 Build and verify the image
   - `docker compose build`, then run a real scan through it and through the shell wrapper. The Dockerfile and
