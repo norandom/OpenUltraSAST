@@ -11,15 +11,16 @@ Model-driven work over whole repositories runs on a separate agentic plane. The 
 - A Task carries its own `budget: {usd, calls}`.
 
 ax is the only executor. It is google/ax, Google's controller that runs agent tasks, over Agent Substrate (its
-sandboxed actor runtime). It runs in a single-node kind cluster (Kubernetes in Docker) on the maintainer's host.
-There is no local subprocess path.
+sandboxed actor runtime). It runs in a single-node kind cluster (Kubernetes in Docker) on the maintainer's
+host. That cluster is stopped since 2026-11-24: the code stays, `ops/ax/up.sh` recreates the cluster,
+and whether the executor code is deleted is decided at the plane re-plan. There is no local subprocess path.
 
 Where to read more:
 
 - Bring-up and the host's lessons are in [ax on this host](ops/ax/README.md).
-- [Deployment](deployment.md) shows where each part runs today. The reconciler and the receiver run on the host.
-  The tasks run in gVisor (a sandboxing kernel) on Agent Substrate. It also covers what a separate Kubernetes
-  cluster would take (planned).
+- [Deployment](deployment.md) shows where each part ran before the cluster was stopped. The reconciler and the
+  receiver run on the host. The tasks run in gVisor (a sandboxing kernel) on Agent Substrate. It also covers what
+  a separate Kubernetes cluster would take (planned).
 - This page draws the flow.
 
 Sources: `src/openultrasast/plane/reconciler.py`, `router.py`, `egress.py`, `runner.py`,
@@ -140,7 +141,7 @@ flowchart LR
 ax is a Kubernetes application over Agent Substrate. Every Task runs the one runner image as an actor. Each actor
 occupies a whole worker. This code base targets two profiles:
 
-- `kind` on a server VM (today).
+- `kind` on a server VM. Its cluster on the maintainer's host is stopped since 2026-11-24; the code stays.
 - `k3s` in production (planned). There the same CLI submits Runs remotely, and the tasks deliver to the S3 store.
 
 [Production topology: ax on a Kubernetes cluster](deployment.md#production-topology-ax-on-a-kubernetes-cluster)

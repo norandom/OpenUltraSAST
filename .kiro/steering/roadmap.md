@@ -8,7 +8,7 @@ asked for: every open work stream led milestone by milestone to the narrow advis
 acceptance profiles (`pre-push-safety-net/release-milestones.md`) and stop conditions
 (`detection-quality.md`) apply unchanged; this ladder sequences work, it lowers no bar.
 
-### Position (2026-11-20)
+### Position (2026-11-20; refreshed 2026-11-25)
 
 - M1a/M1b met on fixtures (NodeGoat). M2 measured unmet (engine startup, 2026-09-17). M3
   partial (PHP blocked by runtime). M4/M5 pending.
@@ -18,11 +18,17 @@ acceptance profiles (`pre-push-safety-net/release-milestones.md`) and stop condi
   arithmetically unreachable at 3/12 in-family pairs.
 - Real-world results do not exist yet. That is the gap this ladder closes first: no product
   milestone outranks a governed admission number on real repositories.
-- Open work by spec (verified 2026-11-20): valid-detection-benchmark 27 subtasks;
-  contributor-scan 24; plane-on-kubernetes 22 (paused, re-plan); reachability-flow-model 16
+- **Refreshed 2026-11-25.** R1 and R2: every subtask is checked (their group headers are not). R3
+  waits on 11.6, the one governed admission run, and on 11.7 after it. R4: 15.1 and 15.2 are
+  checked, 15.2 provisionally until 11.6 has been read. R5 is in progress. The local kind cluster
+  is stopped since 2026-11-24 and its code stays until the plane re-plan decides whether the
+  executor code is deleted.
+- Open work by spec (verified 2026-11-25): valid-detection-benchmark 2 subtasks (11.6, 11.7);
+  contributor-scan 18; plane-on-kubernetes 22 (paused, re-plan); reachability-flow-model 16
   and authorization-obligations 18 (tasks-generated, not yet implementation-ready);
-  pre-push-safety-net 6; hunter-learning-loop 1 (model lane, proposal-only); detection-core 1
-  (11.4, closing under R0). access-control-prover subtasks are complete.
+  pre-push-safety-net 4 (8.3, 11.3, 13.2, 13.3); hunter-learning-loop 1 (model lane,
+  proposal-only); detection-core 0 (11.4 closed under R0). access-control-prover subtasks are
+  complete.
 
 ### R0 -- Closure (2026-11-20)
 
@@ -236,7 +242,8 @@ Each environment handles different parts of the work:
   No API keys and no store credentials in the cluster; tasks read and write through short-lived presigned links.
 - The VM or CI runner handles candidate selection and the decision engine's model calls (DeepSeek). It also hosts
   the memory store and the fallback engine lane (2.5 GB heap) for pins that do not fit the cluster's 1.7 GB heap.
-- **kind** stays the local development profile, with the same code and manifests.
+- **kind** stays the local development profile, with the same code and manifests. **Since 2026-11-24** its local
+  cluster is stopped; the code stays, and whether it is deleted is decided at the plane re-plan.
 
 ### The question everything answers
 
@@ -257,7 +264,7 @@ Within-pair AUC on known fix pairs answers neither. It stays a development signa
 | Pre-push hook | Operational and advisory on any repository | `2026-10-02-pre-push-operational-1/record.json` |
 | Labelled data | 710 complete real fix pairs | `2026-10-04-decision-engine-harvest-3/record.json` |
 | Engine | Almost blind to fixes (paths differ between sides in 2 of 105 both-asked pairs) | `2026-10-04-joern-slice-leak-audit/record.json` |
-| Infrastructure | Engine runs on kube-ax as AX Tasks with a VM fallback; kind for development | memory `kube-ax-cluster` |
+| Infrastructure | Engine runs on kube-ax as AX Tasks with a VM fallback; the local kind cluster is stopped since 2026-11-24 and its code stays | memory `kube-ax-cluster`; `plane-on-kubernetes/tasks.md`, section of 2026-11-24 |
 
 Correction recorded 2026-10-04: most work in the previous two days went into infrastructure and engine internals
 without improving a generalisation number. Further work on those areas must remove a bottleneck for the
@@ -422,7 +429,7 @@ Population v4 (11 cases, frozen 2026-11-23) is the untouched population held for
 | --- | --- | --- |
 | `unseen-repo-evaluation` (new) | G0, G1: the pool and the push-level metric | To specify |
 | `learned-decision-engine` | G1-G3, G5; fix-mechanisms plan is one G2 arm | Implementation; experiments 3-5 recorded |
-| `plane-on-kubernetes` | G4; the engine executors for kube-ax | Groups 1-2 done (kind); production path re-scoped to the operator's kube-ax (AX Tasks), groups 3-8 to re-plan |
+| `plane-on-kubernetes` | G4; the engine executors for kube-ax | Groups 1-2 done (kind); local kind cluster stopped 2026-11-24, code stays; production path re-scoped to the operator's kube-ax (AX Tasks), groups 3-8 to re-plan |
 | `pre-push-safety-net` | the hook replayed in G0-G1; M4-M5 in G5 | Operational increment 1 done; M4-M5 open |
 | `ai-service-plane` | The plane the above runs on | Complete |
 

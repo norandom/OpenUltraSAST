@@ -1,7 +1,8 @@
-# The kind profile: the plane on this server VM's single-node kind cluster, which ops/ax/up.sh creates and which is
-# the development default (plane-on-kubernetes design section 1). Values only; a credential never goes here
-# (keys stay in the environment or .env). Every field is overridable by OUSAST_<FIELD> in the environment, a pool
-# by OUSAST_POOL_<NAME>_<FIELD>. This file may name the kind cluster; the code must not (tests/test_plane_literals.py).
+# The kind profile: the plane on this server VM's single-node kind cluster, which ops/ax/up.sh creates. That cluster
+# is stopped since 2026-11-24 and its code stays until the plane re-plan decides whether that code is deleted
+# (plane-on-kubernetes tasks, section of 2026-11-24). Values only; a credential never goes here (keys stay in
+# environment or .env). Every field is overridable by OUSAST_<FIELD> in the environment, a pool by
+# OUSAST_POOL_<NAME>_<FIELD>. This file may name the kind cluster; the code must not (tests/test_plane_literals.py).
 
 kind_observability = false      # opt in with OUSAST_KIND_OBSERVABILITY=1
 exec = "local"                   # the reconciler runs on this host against the cluster below

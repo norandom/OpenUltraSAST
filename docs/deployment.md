@@ -1,7 +1,8 @@
 # Deployment
 
-This page covers two things. First, how the agentic plane is deployed today. Second, what moving it to a
-separate Kubernetes cluster would take. It describes the state as of 2026-10-02 (v2.0.0).
+This page covers two things. First, how the agentic plane was deployed on the maintainer's host. Second, what
+moving it to a separate Kubernetes cluster would take. It describes the state as of 2026-10-02 (v2.0.0), with
+the stop of 2026-11-24 noted below.
 
 A scan needs none of this. `ousast scan` and `ousast pre-push` run from the Python package. Joern runs
 from the Docker image (see [Engine and pre-push](ops/README.md)). The plane is the maintainers' tool for
@@ -17,7 +18,12 @@ This page uses two words strictly:
 been made.** Section B is guidance, not a record. (kind runs a Kubernetes cluster inside Docker
 containers on one machine.)
 
-The kind profile runs on a 7.7 GB server VM. Observability is off by default
+**The local kind cluster is stopped (2026-11-24).** The maintainer decided to stop it and to keep the code
+until the plane is re-planned. It was torn down with `ops/ax/down.sh`; `ops/ax/up.sh` recreates the cluster,
+and a cold bring-up has not been timed. Nothing on the product's main line used the cluster: a scan,
+`ousast pre-push` and the MCP server run without it.
+
+The kind profile ran on a 7.7 GB server VM. Observability is off by default
 (`kind_observability = false` in `ops/k8s/profiles/kind.toml`). This saves the measured
 930 MiB used by `otel-system`, about 40% of the cluster's 2.3 GB. The smoke Run still
 completes with those deployments stopped. To enable the stack, run
@@ -32,7 +38,7 @@ collector endpoint and metric timing keys. On an existing cluster, `up.sh` scale
 observability deployments to zero, replaces the ConfigMap data and rolls its consumers when
 the configuration changes. Opting in restores the upstream ConfigMap and observability manifests.
 
-## What runs where today (implemented)
+## What runs where (implemented)
 
 ```mermaid
 flowchart LR
@@ -371,10 +377,13 @@ This section answers the maintainer's questions from the code and the upstream c
 
 The decisions of 2026-10-02 set the target: **two profiles of one code base**.
 
-- `kind` is this server VM. It stays a first-class local execution mode. Every change is proven here first.
+- `kind` is this server VM. It was to be a first-class local execution mode, every change proven here first.
+  **Stopped 2026-11-24:** the local cluster is down and the code stays; whether the code is deleted is decided
+  at the plane re-plan.
 - `k3s` is production. (k3s is a small Kubernetes distribution.)
 
-Everything marked **planned** is not built. The rest is what runs on this host today.
+Everything marked **planned** is not built. The rest has run: the hook runs from the Python package, and the
+kind profile ran on this host until 2026-11-24.
 
 ```mermaid
 flowchart LR
@@ -501,9 +510,9 @@ Substrate ships two scaling aids:
 `ops/ax/up.sh` applies neither. The production profile's pool manifests and autoscaling rule are
 **planned**.
 
-### The three components that are bound to the host today
+### The three components that are bound to the host in the kind profile
 
-| Component | Today (the kind profile) | Production (the k3s profile, planned) |
+| Component | The kind profile (stopped 2026-11-24) | Production (the k3s profile, planned) |
 | --- | --- | --- |
 | Reconciler (`ousast plane run`, `src/openultrasast/plane/reconciler.py`) | a process on the operator's host; calls `ax` and `kubectl` against the profile's `kube_context`, holds the Run's state under `OUSAST_RESULTS` | **the reconciler stays the CLI.** An execution mode `local` or `remote`: in `remote`, the same `ousast plane run` from a laptop or a CI job submits the Run to ax-server in k3s (over the cluster's ingress or a kubeconfig), sends the start requests, then polls the store and prints the same `status` and attribution table. Credentials come from the caller's environment as today (CI secrets in a job; B.8's rule, no value in a manifest). An unattended in-cluster reconciler (a Deployment with a submit API, or a Job per Run) is a **later option**, not the first step |
 | Artifact receiver (`plane/egress.py`, the `Receiver` thread inside the reconciler) | reached through the Service `ousast-receiver.ax-system` whose EndpointSlice points at the kind gateway address on the host (`ops/ax/receiver-service.yaml.tmpl`) | **no receiver in remote mode.** Tasks deliver their artifacts and fetch their inputs through presigned URLs on the S3 memory store (B.5, path 3; the store's hostname enters each Task's EgressPolicy, B.7), and the CLI reads completion from the store. The kind profile keeps the receiver thread; an in-cluster receiver Deployment (B.5, path 2) is not the chosen direction |

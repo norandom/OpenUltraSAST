@@ -67,8 +67,9 @@ direction lives in `roadmap.md`, section of 2026-10-04 (phases G0-G5).
   measured yet; the unseen-repository pool (G0, spec `unseen-repo-evaluation`) comes first.
 - **Correction, 2026-10-04.** Infrastructure and engine work had drifted from that goal. It is now done only when
   it removes a bottleneck for those measurements.
-- **Engine.** Joern runs on the operator's kube-ax cluster as AX Tasks, with a VM fallback lane; kind stays the
-  development profile. It is almost blind to fixes: paths differ between sides in 2 of 105 both-asked pairs.
+- **Engine.** Joern runs on the operator's kube-ax cluster as AX Tasks, with a VM fallback lane; kind was the
+  development profile until its local cluster was stopped on 2026-11-24 (the code stays). It is almost blind
+  to fixes: paths differ between sides in 2 of 105 both-asked pairs.
 - **Decision engine.** Ranks but cannot block (exp-003 to exp-005 inconclusive; 710 fix pairs in memory). Fix
   mechanisms is one G2 arm, paused after mining until the pool exists.
 - **Hook.** `ousast pre-push` is operational and advisory on any repository; rollout stays NO-GO.

@@ -4,6 +4,10 @@
 
 **Status:** brief only, unapproved.
 
+> **Overtaken 2026-11-24:** question 2 (the C arithmetic class and a second pipeline) is not pursued. The
+> maintainer decided on contributor-scan task 4.1: "C memory-safety beyond string-function misuse is out of
+> scope. Record that, and say so per corpus slice." Question 1 is not affected.
+
 ## Why now
 
 > "we should make sure our code base here doesn't explode. for example we have a custom IR. maybe vine

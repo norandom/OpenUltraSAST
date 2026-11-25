@@ -138,8 +138,9 @@ Keys and store settings live in `.env` in the working directory. The file is git
 
 ### Tier 3: the plane on ax (maintainers)
 
-Tier 1 and 2 need none of this. The current profile is a single-node kind cluster on the maintainer's
-host.
+Tier 1 and 2 need none of this. The local profile is a single-node kind cluster on the maintainer's
+host. That cluster is stopped since 2026-11-24: the code stays, `ops/ax/up.sh` recreates the
+cluster, and whether the executor code is deleted is decided at the plane re-plan.
 
 - `ops/ax/up.sh` needs `docker`, `go`, `kubectl`, `kind`, `ko` and `ax` on the PATH. It refuses to
   start when one is missing.
@@ -154,9 +155,9 @@ See [ops/ax/README.md](ops/ax/README.md) for bring-up and doctor instructions, a
 
 ### Tier 4: Kubernetes (k3s), planned
 
-Nothing has been deployed to any cluster other than that kind cluster. The target is two profiles
-of one code base: `kind` locally and `k3s` in production. The same `ousast plane run` would
-submit a Run in a remote execution mode. It needs:
+Nothing has been deployed to any cluster other than that kind cluster, stopped on 2026-11-24. The
+target is two profiles of one code base: `kind` locally and `k3s` in production. The same `ousast
+plane run` would submit a Run in a remote execution mode. It needs:
 
 - a kubeconfig context or the cluster's ingress (and an `imagePullSecret` on the worker
   ServiceAccount for a private package);

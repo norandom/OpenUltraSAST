@@ -359,7 +359,7 @@ A node dominates a path if every route from that path's entry to its sink passes
 
 ## Data Models
 
-Artifacts under `.openultrasast/runs/<id>/`: `callgraph.json`, `paths.json`, `fixpoints.json`. Manifest additions:
+Artifacts under the scan's run directory, `~/.cache/openultrasast/runs/<scan-id>/` by default (`$XDG_CACHE_HOME/openultrasast/runs/<scan-id>/` when that variable is set to an absolute path, and the directory `OPENULTRASAST_RUNS_DIR` names when it is set; the scan prints it as `run_dir=<path>`; the old location `.openultrasast/runs/<id>/` ended on 2026-11-24): `callgraph.json`, `paths.json`, `fixpoints.json`. Manifest additions:
 
 ```json
 {
