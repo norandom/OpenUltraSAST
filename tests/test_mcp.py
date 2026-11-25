@@ -204,6 +204,41 @@ def test_serve_stdio_loop_handles_tools_list() -> None:
     assert {tool["name"] for tool in response["result"]["tools"]} == EXPECTED_TOOLS
 
 
+def test_serve_stdio_loop_survives_a_tool_that_stops_the_cli(tmp_path: Path) -> None:
+    """A tool can stop the CLI (`_run_scan` on a missing scan path); the loop answers that call and reads on."""
+    scan = {"name": "openultrasast.scan", "arguments": {"path": str(tmp_path / "missing")}}
+    requests = [
+        {"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": scan},
+        {"jsonrpc": "2.0", "id": 2, "method": "ping"},
+    ]
+    stdin = io.StringIO("".join(json.dumps(request) + "\n" for request in requests))
+    stdout = io.StringIO()
+
+    assert serve(stdin, stdout) == 0
+
+    failed, pong = (json.loads(line) for line in stdout.getvalue().splitlines())
+    assert failed == {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "error": {"code": -32603, "message": f"SystemExit: scan path is not a directory: {tmp_path / 'missing'}"},
+    }
+    assert pong == {"jsonrpc": "2.0", "id": 2, "result": {}}
+
+
+def test_handle_answers_a_tool_that_stops_the_cli_with_an_error(tmp_path: Path) -> None:
+    """The catch lives in `handle`, the public dispatch; `serve` is not its only possible caller."""
+    scan = {"name": "openultrasast.scan", "arguments": {"path": str(tmp_path / "missing")}}
+    server = McpServer()
+
+    response = server.handle({"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": scan})
+
+    assert response == {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "error": {"code": -32603, "message": f"SystemExit: scan path is not a directory: {tmp_path / 'missing'}"},
+    }
+
+
 def test_the_findings_list_carries_the_rung_and_leads_with_what_was_decided(tmp_path: Path) -> None:
     """The final objective is an LLM diving in without re-deriving the reasoning.
 

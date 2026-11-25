@@ -328,7 +328,8 @@ class McpServer:
             result = self._dispatch(method, request.get("params") or {})
         except McpToolError as exc:
             return _error(request_id, -32602, str(exc))
-        except Exception as exc:  # noqa: BLE001 — surface as a JSON-RPC error, never crash the loop
+        # SystemExit included: a tool that stops the CLI (a missing scan path) stops one call, not the loop
+        except (Exception, SystemExit) as exc:  # noqa: BLE001 — surface as a JSON-RPC error, never crash the loop
             return _error(request_id, -32603, f"{type(exc).__name__}: {exc}")
         return {"jsonrpc": "2.0", "id": request_id, "result": result}
 
