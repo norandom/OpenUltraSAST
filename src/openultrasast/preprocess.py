@@ -105,18 +105,22 @@ def enumerate_source_files(root: Path, skip: Path | None = None) -> list[Path]:
     excluded = _excluded_directory(root, skip)
     paths: list[Path] = []
     for path in root.rglob("*"):
-        if (
-            path.is_symlink()
-            or not path.is_file()
-            or _has_ignored_dir(root, path)
-            or _is_ignored(root, path, patterns, tracked)
-            or _is_vendored(root, path)
-            or (excluded is not None and path.is_relative_to(excluded))
-        ):
+        if (excluded is not None and path.is_relative_to(excluded)) or not _is_read_as_source(root, path, patterns, tracked):
             continue
-        if detect_language(path) != "unknown":
-            paths.append(path)
+        paths.append(path)
     return sorted(paths, key=lambda item: item.relative_to(root).as_posix())
+
+
+def _is_read_as_source(root: Path, path: Path, patterns: list[_IgnoreRule], tracked: set[str] | None) -> bool:
+    """Whether `root`'s rules let a scan read `path` as source."""
+    kept = not (
+        path.is_symlink()
+        or not path.is_file()
+        or _has_ignored_dir(root, path)
+        or _is_ignored(root, path, patterns, tracked)
+        or _is_vendored(root, path)
+    )
+    return kept and detect_language(path) != "unknown"
 
 
 def _excluded_directory(root: Path, skip: Path | None) -> Path | None:
@@ -128,6 +132,20 @@ def _excluded_directory(root: Path, skip: Path | None) -> Path | None:
     if named == resolved or not named.is_relative_to(resolved):
         return None
     return root / named.relative_to(resolved)
+
+
+def count_skipped_source_files(root: Path, skip: Path | None) -> int:
+    """How many source files `skip` leaves out of `enumerate_source_files(root, skip)`, for a scan to say so.
+
+    The files under the skipped directory that `root`'s own rules let a scan read, since those are the ones
+    the skip takes from it; 0 when `skip` keeps nothing out.
+    """
+    excluded = _excluded_directory(root, skip)
+    if excluded is None:
+        return 0
+    patterns = _load_ignore_patterns(root)
+    tracked = _tracked_files(root) if patterns else None
+    return sum(1 for path in excluded.rglob("*") if _is_read_as_source(root, path, patterns, tracked))
 
 
 def build_file_target(root: Path, path: Path) -> FileTarget:

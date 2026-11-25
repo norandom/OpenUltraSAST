@@ -55,7 +55,7 @@ from .pairs import (
     select_vendored,
 )
 from .policy import assert_rules_resolve, load_policy
-from .preprocess import FileTarget, preprocess_repository, write_preprocess_artifact
+from .preprocess import FileTarget, count_skipped_source_files, preprocess_repository, write_preprocess_artifact
 from .profiling import start as start_profiling
 from .provenance import fingerprint
 from .rank import rank_obligations, rank_targets, write_rankings
@@ -598,7 +598,7 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
     )
     write_harness_config(config=config, path=run.root / "harness.json")
     runtime.start(mode=mode, target=run.target)
-    policy, ruleset, targets, entry_points = _map_scan_targets(runtime, run, config, mode)
+    policy, ruleset, targets, entry_points, left_out = _map_scan_targets(runtime, run, config, mode)
     ledger_path = run.target / CALIBRATION_DIR / "false_positive_learnings.json"
     provenance = runtime.run_stage("provenance", lambda: fingerprint(run.target))
     rankings = runtime.run_stage("rank", lambda: rank_targets(targets))
@@ -731,7 +731,8 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
             for item in runtime.state["degradations"]
             if item.get("reason") == "language_not_covered"
         )
-        + prune_notices,
+        + prune_notices
+        + _skipped_files_notices(Path(config.runs_dir), left_out),
     )
 
 
@@ -740,21 +741,23 @@ def _map_scan_targets(
     run: ScanRun,
     config: ResolvedConfig,
     mode: str,
-) -> tuple[dict[str, CwePolicy], tuple[PatternRule, ...], list[FileTarget], list[EntryPointRecord]]:
-    """The policy and ruleset the scan runs under, and the targets and entry points every later stage reads."""
+) -> tuple[dict[str, CwePolicy], tuple[PatternRule, ...], list[FileTarget], list[EntryPointRecord], int]:
+    """The policy and ruleset the scan runs under, the targets and entry points every later stage reads, and how
+    many source files the skip left out."""
     policy = runtime.run_stage("policy_load", load_policy)
     rule_ledger_path = run.target / CALIBRATION_DIR / "rule_policy.json"
     ruleset = runtime.run_stage("ruleset_load", lambda: load_ruleset(DEFAULT_RULESET_DIR, rule_ledger_path))
     runtime.run_stage("policy_check", lambda: assert_rules_resolve(ruleset, policy))
     static_hints = runtime.run_stage("static_mapping", lambda: _load_static_hints(config.static_analysis.sarif_paths))
     write_static_hints(static_hints, run.root / "mapping" / "static_hints.json")
+    runs_dir = Path(config.runs_dir)
     snapshot, targets = runtime.run_stage(
         "preprocess",
         lambda: preprocess_repository(
             run.target,
             run.root / "preprocess" / "file_targets.json",
             static_hints,
-            skip=Path(config.runs_dir),
+            skip=runs_dir,
         ),
     )
     # A language nothing here covers is named, never a silent zero (pre-push 17.2, Requirement 9.2).
@@ -772,7 +775,17 @@ def _map_scan_targets(
     write_entry_points(entry_points, run.root / "mapping" / "entry_points.json")
     targets = attach_reachability_hints(targets, entry_points)
     write_preprocess_artifact(snapshot, targets, run.root / "preprocess" / "file_targets.json")
-    return policy, ruleset, targets, entry_points
+    # After the preprocess stage, so a tree whose ignore file cannot be read stops the scan inside that stage, as before.
+    left_out = count_skipped_source_files(run.target, runs_dir)
+    return policy, ruleset, targets, entry_points, left_out
+
+
+def _skipped_files_notices(runs_dir: Path, left_out: int) -> tuple[str, ...]:
+    """What the scan says about the source files it left out under its runs directory: nothing when there are none."""
+    if not left_out:
+        return ()
+    files = "file" if left_out == 1 else "files"
+    return (f"skipped {left_out} source {files} under the runs directory {runs_dir}",)
 
 
 def _collect_findings(

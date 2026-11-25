@@ -13,7 +13,7 @@ import pytest
 
 from openultrasast import cli
 from openultrasast.cli import main
-from openultrasast.config import ResolvedConfig
+from openultrasast.config import ResolvedConfig, load_config
 from openultrasast.preprocess import enumerate_source_files
 
 LEDGER = ".openultrasast/calibration/false_positive_learnings.json"
@@ -300,8 +300,11 @@ def test_a_target_that_lies_inside_the_runs_directory_is_read_as_it_was(
 
     assert _scan(repo) == 0
 
-    (printed,) = re.findall(r"^run_dir=(.+)$", capsys.readouterr().out, flags=re.MULTILINE)
+    out = capsys.readouterr().out
+    (printed,) = re.findall(r"^run_dir=(.+)$", out, flags=re.MULTILINE)
     assert _files_read(Path(printed)) == ["app.py", "pkg/lib.py"]
+    # Nothing is left out there, so nothing is said.
+    assert "notice:" not in out
 
 
 def test_the_runs_directory_is_found_under_a_relative_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -318,3 +321,113 @@ def test_no_test_can_write_a_scan_run_into_the_developers_cache(tmp_path_factory
     """tests/conftest.py redirects the override for every test, so one that forgets to name a location cannot
     write into the real `~/.cache/openultrasast/runs`."""
     assert Path(ResolvedConfig().runs_dir).is_relative_to(tmp_path_factory.getbasetemp())
+
+
+def _notices(capsys: pytest.CaptureFixture[str]) -> list[str]:
+    return re.findall(r"^notice: (.+)$", capsys.readouterr().out, flags=re.MULTILINE)
+
+
+@pytest.mark.parametrize("form", ["override", "default_location", "symlinked_override"])
+@pytest.mark.parametrize("left_out", [2, 1])
+def test_a_scan_says_how_many_source_files_it_left_out_under_its_runs_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], form: str, left_out: int
+) -> None:
+    repo = _target(tmp_path)
+    runs = _runs_inside(repo, tmp_path, monkeypatch, form)
+    (runs / "earlier").mkdir()
+    (runs / "earlier" / "copy.py").write_text((repo / "app.py").read_text())
+    # What a run keeps: no source file, so none of these is counted.
+    (runs / "earlier" / "report.md").write_text("# report\n")
+    (runs / "earlier" / "findings.json").write_text("{}\n")
+    if left_out == 2:
+        (runs / "earlier" / "pkg").mkdir()
+        (runs / "earlier" / "pkg" / "lib.py").write_text((repo / "pkg" / "lib.py").read_text())
+
+    assert _scan(repo) == 0
+
+    runs_dir = load_config(None).runs_dir
+    files = "file" if left_out == 1 else "files"
+    assert _notices(capsys) == [f"skipped {left_out} source {files} under the runs directory {runs_dir}"]
+
+
+@pytest.mark.parametrize("where", ["inside", "outside"])
+def test_nothing_is_said_when_no_source_file_is_left_out(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], where: str
+) -> None:
+    # Inside the scanned path a run keeps no source file, and outside it nothing is skipped: neither is said.
+    repo = _target(tmp_path)
+    if where == "inside":
+        runs = _runs_inside(repo, tmp_path, monkeypatch, "override")
+        kept = ("report.md", "findings.json")
+    else:
+        runs = tmp_path / "elsewhere" / "runs"
+        runs.mkdir(parents=True)
+        monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", str(runs))
+        kept = ("copy.py",)
+    (runs / "earlier").mkdir()
+    for name in kept:
+        (runs / "earlier" / name).write_text("x = 1\n")
+
+    assert _scan(repo) == 0
+
+    assert _notices(capsys) == []
+
+
+def _left_out_copy(repo: Path, runs: Path) -> None:
+    """A source file under the runs directory, where a run of this package keeps none."""
+    (runs / "earlier").mkdir(parents=True)
+    (runs / "earlier" / "copy.py").write_text((repo / "app.py").read_text())
+
+
+def test_a_gitignore_inside_the_runs_directory_does_not_hide_what_the_scan_left_out(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # The scan reads the target's root .gitignore and no other: one inside the runs directory hides nothing from
+    # the count.
+    repo = _target(tmp_path)
+    runs = repo / "pkg"
+    (runs / ".gitignore").write_text("*.py\n")
+    monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", str(runs))
+
+    assert _scan(repo) == 0
+
+    assert _notices(capsys) == [f"skipped 1 source file under the runs directory {runs}"]
+
+
+def test_nothing_is_left_out_where_the_target_already_ignores_the_runs_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    repo = _target(tmp_path)
+    (repo / ".gitignore").write_text("__pycache__/\n.runs/\n")
+    runs = _runs_inside(repo, tmp_path, monkeypatch, "override")
+    _left_out_copy(repo, runs)
+
+    assert _scan(repo) == 0
+
+    assert _notices(capsys) == []
+
+
+def test_nothing_is_left_out_under_a_directory_the_scan_ignores(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    repo = _target(tmp_path)
+    runs = repo / ".openultrasast" / "runs"
+    _left_out_copy(repo, runs)
+    monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", str(runs))
+
+    assert _scan(repo) == 0
+
+    assert _notices(capsys) == []
+
+
+def test_a_directory_named_gitignore_in_the_runs_directory_costs_the_scan_nothing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # The count reads what the preprocess stage read, and nothing of its own under the runs directory.
+    repo = _target(tmp_path)
+    runs = _runs_inside(repo, tmp_path, monkeypatch, "override")
+    (runs / ".gitignore").mkdir()
+
+    assert _scan(repo) == 0
+
+    assert _notices(capsys) == []
