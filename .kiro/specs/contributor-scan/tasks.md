@@ -423,7 +423,7 @@
     directory should be named (it is read as before and prints nothing about it); a sentence for the user docs,
     since README.md and docs/examples.md say where a run goes and not what a scan reads.
 
-- [ ] 3.2 Build and verify the image
+- [x] 3.2 Build and verify the image
   - `docker compose build`, then run a real scan through it and through the shell wrapper. The Dockerfile and
     compose exist and are syntax-valid; **the image has never been built**, so nothing about it is proven.
   - Observable: the image builds; `TARGET=<repo> docker compose run --rm ousast scan /target` produces the
@@ -435,6 +435,72 @@
     and the v2.1.0-alpha.1 job failed); and libpng is scanned natively and in the image for the parity check, with
     what the entailment at `contrib/examples/iccfrompng.c:124` does at HEAD recorded against the roadmap's second
     release criterion.
+  - _Part 2, 2026-11-26 (eighth session), commits `9d53c32` and `88ea171`, started on the maintainer's word
+    "proceed" of 2026-11-26, read as this step only._ `9d53c32`: the `/reports` mount of `docker-compose.yml` is in
+    the long syntax with `create_host_path: false`, as the handover planned it ("use the long syntax with
+    `create_host_path: false`, and create the directory in the wrapper and in the documented command"), and the
+    documented command in the compose header, in README.md and in ops/README.md creates `reports/` first; both
+    shell wrappers already did. `88ea171`: the `images` job of `.github/workflows/release.yml` reads
+    `plane/task-base.digest` in a `pins` step before its build, with the pattern of `engine-image.yml`, and
+    passes the tag and the digest as `TASK_BASE_TAG` and `TASK_BASE_DIGEST`. Evidence on record, not decisions;
+    the scratch of the session is under `/tmp/opencode/s8_*` and is not kept. The image: `docker compose build` in
+    a `git archive HEAD` copy of `88ea171` ended with exit 0 in 6 s, the Joern stages cached, and left no
+    `reports/` behind; `openultrasast:dev` is `sha256:3f959b31f2f2`, 3,620,142,613 bytes, `User ousast`, and the
+    package installed in it equals `src/openultrasast` of `88ea171`, 337 files compared by sha256. Before
+    `9d53c32`, the documented command from a tree without `reports/` stopped in 1 s with exit 1 and
+    `PermissionError: [Errno 13] Permission denied: '/reports/runs'`, on a `reports/` that Docker had created as
+    root; after it, without the directory the daemon refuses ("bind source path does not exist") and creates
+    nothing, and after `mkdir -p reports` the command ends with exit 0 and writes the run as the user. Inside the
+    container `touch /target/x` fails with "Read-only file system", `/proc/mounts` shows `/target` `ro` and
+    `/reports` `rw`, `/sys/class/net` lists `lo` only and `example.com` does not resolve, and `/app/benchmarks`
+    has no `valid`, no `unseen` and no `search/private`. Parity, first scan of a tree, no key in the
+    environment: on `contrib/examples` of libpng at `cf53e54` (four C files, 1,337 lines) quick mode reports 4
+    findings natively and 4 in the image, and standard mode 15 in 43 s natively and 15 in 40 s in the image, the
+    same ids, severities, rungs, evidence levels, ranking priorities and score (26); on libpng whole (600 files,
+    76 `.c`) standard mode reports 167 findings in 172 s natively and 167 in 155 s in the image, the same ids
+    and fields, score 0 in both. The wrapper, from a scratch directory with `OUSAST_HOME` on the same tree: with
+    `OUSAST_VERSION` set to a tag that did not exist, the wrapper said so, built the image on first use (from a
+    warm cache, the same image id), and `ousast scan . --mode standard` reported the same 15 findings, with the
+    run in `./.ousast/runs/`. The entailment at `contrib/examples/iccfrompng.c:124` is still reported at
+    `88ea171`, in both libpng runs, as `model:memory:contrib/examples/iccfrompng.c:124:extract_one_file` (rung
+    `model_entailed`), with one more entailed finding beside it:
+    `model:path:contrib/pngexif/exifinfo.py:304:<module>`. The record of 2026-09-09
+    calls the site a false positive, so against the roadmap's second criterion ("Zero known-false entailed
+    findings on every pinned checkout") libpng answers no at `88ea171`; the second finding was not assessed. The
+    release pins, read with `gh`, the workflow not run: run 42229293910 of tag `v2.1.0-alpha.1` failed in
+    `images (openultrasast, Dockerfile)` on `base-unpublished`; run 42229294086 of the same tag passes the two
+    arguments to a leg that does not declare them, and its log holds no warning about it. Each commit: its test
+    failed before the change and passes after; ruff, mypy, the three gates and compileall pass, and the gates
+    print what they printed before; an independent reviewer approved each in one round.
+  - _Left for the maintainer after part 2, 2026-11-26 (eighth session). None of it was changed._
+    (1) The native path of `ops/shell/ousast.sh` (lines 35-39) changes into `$OUSAST_HOME` and passes the arguments
+    as they are, before any path is rewritten: `ousast scan .` from a user's directory would scan the OpenUltraSAST
+    checkout, and a relative file name would be looked up there. Shown with a stub interpreter in place of
+    `.venv/bin/python`: `cwd=/tmp/opencode/s8_fakehome args=-m openultrasast.cli scan .`. That path is taken when
+    `joern-parse` is on PATH and the checkout has a venv. On a host whose PATH holds Joern's `bin/` but not the
+    `joern` launcher (this one, until both directories are on PATH) every batch query then fails at once and is
+    reported as `cpg batch taint failed: timeout` (measured on the four-file subject: 14 findings where 15 are
+    right, and each batch unanswered in 0.0 s). (2) The `/target` mount is still in the short syntax: a `TARGET`
+    that does not exist is created as an empty root-owned directory, and the scan ends with exit 0 and no findings
+    (measured). (3) The calibration ledger is written under the target, which the image mounts read-only: a scan
+    through the image records `ledger_not_written` and starts every time without the learnings of an earlier
+    scan, where a native second scan applies those of its first (score 59 against 26 on the four-file subject);
+    the report says so under "What could not be analysed". (4) With a key in the shell and the network off,
+    standard mode still asks the judge: 16 failed calls in one scan, said on stderr only, nothing in the run
+    directory; the findings were the same as without a key. (5) A comment in `ousast.sh` says the first build is
+    silent, and the build prints its output (84 lines in all on the first run here, 74 of them build output,
+    from a warm cache). (6) `.ousast` is not in `.gitignore`, and no decision is on record about where the
+    wrapper's output belongs; with three earlier runs under `.ousast/`, a fourth scan read the four source
+    files, none under `.ousast/`, and reported the same 15 findings (measured). (7) The documented build
+    commands without the base arguments would fail as the old release job did: README.md:445, README.md:450,
+    docs/scanning.md:190 (found by the reviewer of `88ea171`, not run).
+    (8) `docs/detection-techniques.md:171` and `:299` cite `docker-compose.yml` and `Dockerfile` lines that were
+    already off at HEAD; the one that was exact, `docker-compose.yml:15`, is line 16 since `9d53c32`.
+    (9) In the `v2.1.0-alpha.1` run the `build-release` job failed too (seen with `gh`, not assessed).
+    (10) The step count in a model finding's rationale is not stable between runs of the same bytes (37, 39 and 41
+    on the four-file subject; 19 in both libpng runs). (11) On the machine of the sessions the image
+    `91e6d69fcf03`, the `openultrasast:dev` of the seventh session, is dangling since the rebuild, beside
+    `0a739cbaea51`.
 
 ## Group 4 — Close the deferred decisions
 
