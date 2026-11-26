@@ -53,8 +53,8 @@ flowchart LR
   [Detection techniques](detection-techniques.md).
 - Operate the plane and its store: [ax on this host](ops/ax/README.md) and
   [RustFS setup](rustfs.md).
-- Where the plane runs today, and what a separate Kubernetes cluster would take (planned, not
-  done): [Deployment](deployment.md).
+- How the plane was deployed on the maintainer's host, and what moving it to a separate
+  Kubernetes cluster would take (planned, not done): [Deployment](deployment.md).
 - Where the model spend goes, per Task at runtime and in the maintainers' own coding sessions,
   and what is reused instead of paid again: [Token ergonomics](token-ergonomics.md).
 - Trust boundaries and hardening: [Threat model](threat-model.md).

@@ -267,8 +267,9 @@ uv run ousast plane remember validation-46               # ingest the run's rows
 ```
 
 `workspaces`, `harvest`, `alerts-engine` and `memory-normalise` generate Runs, their inputs and
-the store's rewrites. The flow and the task catalogue: [docs/plane.md](docs/plane.md). What runs
-where today, and what a separate cluster would take: [docs/deployment.md](docs/deployment.md).
+the store's rewrites. The flow and the task catalogue: [docs/plane.md](docs/plane.md). How the plane
+was deployed on the maintainer's host, and what moving it to a separate cluster would take:
+[docs/deployment.md](docs/deployment.md).
 
 HarnessX, the earlier agentic extra, was retired 2026-09-30. A `[harnessx]` section is ignored
 with one warning. `[models] verifier`, `[fusion] panel_model` and `[fusion] decider_model` fail and

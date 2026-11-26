@@ -1,9 +1,10 @@
 # ax on this host
 
-The agentic plane runs every task on google/ax over Agent Substrate in a single-node kind cluster. ax is the
-only executor; `ousast plane run` submits, resumes, starts and collects. The flow is drawn in
-[The plane on ax](../../plane.md); the bucket setup for the S3 memory store is in
-[RustFS setup](../../rustfs.md).
+The agentic plane runs every task on google/ax over Agent Substrate in a single-node kind cluster.
+That cluster is stopped since 2026-11-24: the code stays, `ops/ax/up.sh` recreates the cluster, and whether
+the executor code is deleted is decided at the plane re-plan. ax is the only executor; `ousast plane run`
+submits, resumes, starts and collects. The flow is drawn in [The plane on ax](../../plane.md); the bucket
+setup for the S3 memory store is in [RustFS setup](../../rustfs.md).
 
 --8<-- "ops/ax/README.md:5"
 

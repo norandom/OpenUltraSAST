@@ -318,6 +318,8 @@ What remains before the G1 engine-arm replay:
 - **Run the open spec tasks** that gate G1: **4.4** (engine smoke on kube-ax → record 04) and **5.4** (replay
   proof on kind, then kube-ax → record 05), both marked `(coordinator, network)`. Then the full engine-arm
   replay (`--lane ax`).
+  - **Noted 2026-11-26:** the replay proof of 5.4 on kind waits for the local kind cluster, which is
+    stopped since 2026-11-24; its code stays.
 
 ### Phases
 

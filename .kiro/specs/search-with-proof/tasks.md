@@ -27,6 +27,8 @@ gates, runs every networked or paid step.
   - [ ] 3.2 Probe: the toy apps from 2.3 verified as AX Tasks on kube-ax (gVisor) and on kind. Record image size,
     RAM peak, disk, wall time per verification and per 18-run search, oracle success per family, and that observers
     are unreachable. Record `benchmarks/measurements/2026-10-xx-search-probe/record.json`. _Requirements: 6.2_
+    - _Note 2026-11-26:_ this task assumes the local kind cluster. That cluster is stopped since
+      2026-11-24 and its code stays, so the kind half of the probe waits for it.
   - [ ] 3.3 Gate: every oracle works under gVisor, or the family is marked `no_oracle` for the pilot.
 
 - [x] 4. Board, coordinator, budgets

@@ -426,7 +426,7 @@ This picture has no inbound path:
 - the tasks push their artifacts to the store through the egress gateway;
 - the CLI reads the store.
 
-Today's EndpointSlice back to the server VM (`ops/ax/receiver-service.yaml.tmpl`) belongs to the kind
+The EndpointSlice back to the server VM (`ops/ax/receiver-service.yaml.tmpl`) belongs to the kind
 profile only. It does not appear in production.
 
 ### ax, Kubernetes and Agent Substrate in three sentences

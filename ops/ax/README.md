@@ -1,7 +1,7 @@
 # ax on this host
 
 The service plane (`.kiro/specs/ai-service-plane/`) runs every task on google/ax over Agent Substrate in a
-single-node kind cluster. ax is the only executor; `ousast plane run` submits, resumes, starts and collects.
+single-node kind cluster, stopped since 2026-11-24 (the code stays); ax is the only executor.
 
 ## Bring-up
 

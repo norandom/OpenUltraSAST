@@ -384,5 +384,6 @@ read under the same analysis deadline.
 Model-driven work over whole repositories runs as tasks on google/ax over Agent Substrate. Bring-up, the task
 catalogue, the memory store, the measured footprint, the lessons from the live cluster and the checklist for a
 separate Kubernetes cluster are in [`ops/ax/README.md`](ax/README.md);
-`ousast plane run|status|doctor|remember|memory-normalise|alerts-engine|harvest|workspaces` drives it. Where each part
-runs today and the guidance for a separate Kubernetes cluster (planned, not done) are in `docs/deployment.md`.
+`ousast plane run|status|doctor|remember|memory-normalise|alerts-engine|harvest|workspaces` drives it. How the plane
+was deployed on the maintainer's host and the guidance for a separate Kubernetes cluster (planned, not done)
+are in `docs/deployment.md`.

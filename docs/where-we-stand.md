@@ -182,8 +182,9 @@ This list is the order of operations.
 ## 3. AI integration: ax on the server
 
 All model work runs as Tasks on google/ax over Agent Substrate. They run in a single-node kind
-cluster on the maintainer's host. Each Task runs in its own gVisor sandbox. There is no local
-subprocess path.
+cluster on the maintainer's host. That cluster is stopped since 2026-11-24: the code stays,
+`ops/ax/up.sh` recreates the cluster, and whether the executor code is deleted is decided at the
+plane re-plan. Each Task runs in its own gVisor sandbox. There is no local subprocess path.
 
 The reconciler (`ousast plane run`) is a host process. It does five things:
 
