@@ -36,12 +36,12 @@ RUN if getent passwd 1000 > /dev/null; then \
       usermod --login ousast --home /home/ousast --move-home "$(getent passwd 1000 | cut -d: -f1)"; \
     else useradd --create-home --uid 1000 ousast; fi
 WORKDIR /app
-COPY pyproject.toml README.md LICENSE ./
-COPY src ./src
+# Each layer under /app names the runtime user itself; a later `chown -R /app` would store every file twice.
+COPY --chown=1000 pyproject.toml README.md LICENSE ./
+COPY --chown=1000 src ./src
 RUN --mount=type=cache,target=/root/.cache/pip \
     /venv/bin/pip install --no-deps --no-cache-dir .
 COPY --chown=1000 benchmarks ./benchmarks
-RUN chown -R ousast /app
 USER ousast
 ENTRYPOINT ["python", "-m", "openultrasast.cli"]
 CMD ["--help"]

@@ -37,7 +37,7 @@ def test_digest_required_and_code_last(name, variant):
     assert f"ARG TASK_{variant}_DIGEST" in lines
     ref = f"ghcr.io/norandom/ousast-task-base:${{TASK_{variant}_TAG}}@${{TASK_{variant}_DIGEST}}"
     assert any(line.startswith(f"FROM {ref}") for line in lines)
-    code = next(i for i, line in enumerate(lines) if line.startswith("COPY src "))
+    code = next(i for i, line in enumerate(lines) if line.startswith(("COPY src ", "COPY --chown=1000 src ")))
     for i, line in enumerate(lines):
         if "apt-get" in line or "--from=joern-build" in line or "frontend-retention-install.py" in line:
             assert i < code
@@ -215,3 +215,14 @@ def test_search_pilot_files_stay_out_of_the_image():
     assert private in patterns, f"{private} is not excluded from the build context"
     # Docker cleans each line, so `!benchmarks/search/private` lets the directory back in as well.
     assert not any(line.startswith(f"!{private}".rstrip("/")) for line in patterns), f"{private} is let back in"
+
+
+def test_app_layers_carry_their_owner():
+    """`COPY --chown` on every layer under /app: a final `chown -R` would store each of its files twice."""
+    lines = instructions("Dockerfile")
+    final_stage = lines[max(i for i, line in enumerate(lines) if line.startswith("FROM ")) :]
+    assert not any(line.startswith("RUN chown") for line in final_stage), "a chown over /app stores its files twice"
+    copies = [line for line in final_stage if line.startswith("COPY ") and "--from=" not in line]
+    assert copies
+    for line in copies:
+        assert line.startswith("COPY --chown=1000 "), f"{line} does not name the runtime user"
