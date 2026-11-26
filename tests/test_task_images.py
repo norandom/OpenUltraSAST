@@ -58,6 +58,15 @@ def test_compose_builds_from_the_pinned_base():
     assert service["environment"]["OPENULTRASAST_RUNS_DIR"].startswith("/reports/")
 
 
+def test_compose_leaves_the_reports_directory_to_the_user():
+    """Docker creates a missing bind source as root, and the image runs as uid 1000: the run could not write."""
+    service = yaml.safe_load(read("docker-compose.yml"))["services"]["ousast"]
+    mounts = {v["target"]: v for v in service["volumes"] if isinstance(v, dict)}
+    assert "/reports" in mounts, "the /reports volume is short syntax, so Docker creates a missing source as root"
+    assert mounts["/reports"]["source"] == "${OUSAST_REPORTS:-./reports}"
+    assert mounts["/reports"].get("bind", {}).get("create_host_path") is False
+
+
 def test_shared_ancestry_and_replay_exact_engine():
     base = read("plane/Dockerfile.base")
     assert "FROM ghcr.io/norandom/ax-task-runner:v0.3.1 AS base" in base

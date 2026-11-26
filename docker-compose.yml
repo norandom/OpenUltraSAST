@@ -1,6 +1,7 @@
 # OpenUltraSAST as a contributor runs it: nothing installed on the host but Docker.
 #
 #   docker compose build
+#   mkdir -p reports
 #   TARGET=/path/to/repo docker compose run --rm ousast scan /target
 #
 # The target is mounted READ-ONLY. A tool that reads your source to tell you about it has no business being
@@ -19,7 +20,13 @@ services:
     image: openultrasast:${OUSAST_VERSION:-dev}
     volumes:
       - ${TARGET:-.}:/target:ro                       # the repository under analysis, read-only
-      - ${OUSAST_REPORTS:-./reports}:/reports          # where findings land, the one writable mount
+      # Where findings land, the one writable mount. Long syntax on purpose: the short syntax lets Docker create a
+      # missing source, as root, and the image runs as uid 1000. Create the directory first; the wrapper does.
+      - type: bind
+        source: ${OUSAST_REPORTS:-./reports}
+        target: /reports
+        bind:
+          create_host_path: false
     working_dir: /work
     tmpfs:
       # CPG construction is scratch-heavy and none of it should outlive the run or touch the host.

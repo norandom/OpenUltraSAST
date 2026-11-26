@@ -119,7 +119,8 @@ ousast-with-judge scan . --mode standard            # network on, the model is a
 ```
 
 `docker compose build` and `TARGET=/path/to/repo docker compose run --rm ousast scan /target` do
-the same without the wrapper.
+the same without the wrapper. Create `reports/` first (`mkdir -p reports`): compose does not create it,
+because a directory Docker creates is root-owned and the image runs as an ordinary user. Findings land there.
 
 `deep` requests the REGRESS stage, which was retired on 2026-10-13: the scan records a `regress_retired` degradation and otherwise equals `standard`. Execution proof now comes from the search-with-proof arm.
 

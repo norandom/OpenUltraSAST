@@ -42,6 +42,7 @@ translation:
 
 ```bash
 docker compose build
+mkdir -p reports
 TARGET=/path/to/repo docker compose run --rm ousast scan /target
 ```
 
@@ -50,6 +51,9 @@ is optional and passed through the environment, never baked into a layer — wit
 entails, and its residual and suspicion questions go unasked. `network_mode` defaults to `none`; set it to `bridge`
 (`OUSAST_NETWORK=bridge`, which `ousast-with-judge` does) only when the model layer should reach the model
 endpoint. Compose passes `DEEPSEEK_API_KEY` and `OPENROUTER_API_KEY` through from the environment.
+
+Findings land in `reports/`, which must already exist: the image runs as an ordinary user, and a directory
+Docker has to create is root-owned.
 
 **pyinfra (for a persistent host install).** Same engine, same pin, same checksum, but on the machine:
 
