@@ -169,6 +169,40 @@ def test_ci_pin_gate_offline(case, tmp_path, monkeypatch):
             assert not calls
 
 
+@pytest.mark.parametrize("case", ["unpublished", "bare-tag", "short-digest", "wrong-repo", "valid"])
+def test_release_pins_the_base_of_its_scan_image(case, tmp_path, monkeypatch):
+    """`Dockerfile`'s own default base is `base-unpublished`: built without the pin, the release image cannot exist."""
+    steps = workflow("release")["jobs"]["images"]["steps"]
+    pin_steps = [s for s in steps if s.get("id") == "pins"]
+    assert pin_steps, "the images job reads no pin, so its build takes Dockerfile's default base"
+    build = next(s for s in steps if s.get("uses") == "docker/build-push-action@v6")
+    assert steps.index(pin_steps[0]) < steps.index(build), "the pin is read after the build that needs it"
+    assert "TASK_BASE_TAG=${{ steps.pins.outputs.base_tag }}" in build["with"]["build-args"]
+    assert "TASK_BASE_DIGEST=${{ steps.pins.outputs.base_digest }}" in build["with"]["build-args"]
+    script = pin_steps[0]["run"].split("<<'PYTHON'\n", 1)[1].rsplit("PYTHON", 1)[0]
+    pinned = "ghcr.io/norandom/ousast-task-base:base-1234567@sha256:" + "a" * 64
+    ref = {
+        "unpublished": None,
+        "bare-tag": pinned.split("@")[0],
+        "short-digest": pinned[:-40],
+        "wrong-repo": pinned.replace("norandom/ousast-task-base", "other/base"),
+        "valid": pinned,
+    }[case]
+    (tmp_path / "plane").mkdir()
+    (tmp_path / "plane/task-base.digest").write_text(json.dumps({"base": ref}))
+    output = tmp_path / "output"
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("GITHUB_OUTPUT", str(output))
+    if case == "valid":
+        exec(compile(script, "release-pin-gate", "exec"), {})
+        assert output.read_text() == "base_tag=base-1234567\nbase_digest=sha256:" + "a" * 64 + "\n"
+    else:
+        with pytest.raises(SystemExit) as stopped:
+            exec(compile(script, "release-pin-gate", "exec"), {})
+        assert stopped.value.code == "base: unpublished/invalid pin; run task-base-image and update plane/task-base.digest"
+        assert not output.exists()
+
+
 def test_base_preserves_executor_build_toolchains():
     common = read("plane/Dockerfile.base").split("FROM ${TASK_BASE_REF} AS base-browser")[0]
     commands = " ".join(instructions("plane/Dockerfile.base")).split("FROM ${TASK_BASE_REF} AS base-browser")[0]
