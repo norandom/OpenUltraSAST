@@ -30,8 +30,9 @@ you expect. Anything outside the mount is passed through unchanged with a warnin
 rewritten into a path the container cannot see. Your directory is mounted **read-only**; findings go to
 `./.ousast`, the one writable mount. The image builds itself on first use and says so.
 
-If `joern-parse` is already on your PATH and a local venv exists, the wrapper uses those instead — someone who
-installed the engine deliberately should not be quietly routed through a container. Set
+If `joern` and `joern-parse` are already on your PATH and a local venv exists, the wrapper uses those instead,
+from your directory — someone who installed the engine deliberately should not be quietly routed through a
+container. A native run reads `.env` from your directory, not from the checkout. Set
 `OUSAST_PREFER_NATIVE=0` to always containerise.
 
 ## Two ways to get the engine

@@ -6,7 +6,6 @@
 #
 #     ousast scan .
 #     ousast scan src/api
-#     ousast pairs --slice vibe-py
 #
 # Docker is an implementation detail on purpose. The engine is a JVM and ~2 GB of Joern, and a contributor
 # evaluating this tool should not have to install either to try it. What they get instead is a command.
@@ -31,15 +30,19 @@ ousast() {
     fi
 
     # A native install wins when it is there: it is faster, and someone who installed Joern deliberately
-    # should not be quietly routed through a container.
-    if [ "${OUSAST_PREFER_NATIVE:-1}" = "1" ] && command -v joern-parse >/dev/null 2>&1 \
-       && [ -x "$OUSAST_HOME/.venv/bin/python" ]; then
-        ( cd "$OUSAST_HOME" && .venv/bin/python -m openultrasast.cli "$@" )
+    # should not be quietly routed through a container. It runs in the caller's directory, as the container
+    # does, so `.`, relative names and relative options mean the caller's files. -P keeps that directory off
+    # the interpreter's path, where a file of it could stand in for a module the CLI imports. Joern is looked
+    # for as well: the batch queries run `joern`, and with `joern-parse` alone every one fails while the scan
+    # still exits 0.
+    if [ "${OUSAST_PREFER_NATIVE:-1}" = "1" ] && command -v joern >/dev/null 2>&1 \
+       && command -v joern-parse >/dev/null 2>&1 && [ -x "$OUSAST_HOME/.venv/bin/python" ]; then
+        "$OUSAST_HOME/.venv/bin/python" -P -m openultrasast.cli "$@"
         return $?
     fi
 
     if ! command -v docker >/dev/null 2>&1; then
-        echo "ousast: docker is not installed, and no local joern-parse was found" >&2
+        echo "ousast: docker is not installed, and no local joern and joern-parse were found" >&2
         return 1
     fi
 
