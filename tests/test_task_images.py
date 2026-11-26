@@ -205,3 +205,13 @@ def test_reserved_populations_stay_out_of_the_image():
     for population in ("benchmarks/valid", "benchmarks/unseen"):
         assert population in patterns, f"{population} is not excluded from the build context"
         assert not any(line.startswith(f"!{population}") for line in patterns), f"{population} is let back in"
+
+
+def test_search_pilot_files_stay_out_of_the_image():
+    """The search pilot's working files are git-ignored, so a checkout never has them; a local build context does."""
+    patterns = [line.strip() for line in read(".dockerignore").splitlines()]
+    patterns = [line for line in patterns if line and not line.startswith("#")]
+    private = "benchmarks/search/private/"
+    assert private in patterns, f"{private} is not excluded from the build context"
+    # Docker cleans each line, so `!benchmarks/search/private` lets the directory back in as well.
+    assert not any(line.startswith(f"!{private}".rstrip("/")) for line in patterns), f"{private} is let back in"

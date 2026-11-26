@@ -30,3 +30,7 @@ benchmarks/measurements/*
 # the hunter's contamination report reads them from a checkout, not from the image.
 benchmarks/valid
 benchmarks/unseen
+
+# The search pilot's working files are git-ignored (.gitignore), so a checkout never has them; a local
+# build context does.
+benchmarks/search/private/
