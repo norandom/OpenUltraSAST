@@ -19,7 +19,14 @@ services:
         TASK_BASE_DIGEST: ${TASK_BASE_DIGEST:-sha256:0f374138fcb49fef41609d323cc80b6c2324b1e798d3a2aee5c8038b8c7ac3aa}
     image: openultrasast:${OUSAST_VERSION:-dev}
     volumes:
-      - ${TARGET:-.}:/target:ro                       # the repository under analysis, read-only
+      # The repository under analysis, read-only. In the long syntax, like /reports below: in the short syntax Docker
+      # creates a TARGET that does not exist, as an empty directory, and an empty target scans clean.
+      - type: bind
+        source: ${TARGET:-.}
+        target: /target
+        read_only: true
+        bind:
+          create_host_path: false
       # Where findings land, the one writable mount. Long syntax on purpose: the short syntax lets Docker create a
       # missing source, as root, and the image runs as uid 1000. Create the directory first; the wrapper does.
       - type: bind

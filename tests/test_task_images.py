@@ -67,6 +67,16 @@ def test_compose_leaves_the_reports_directory_to_the_user():
     assert mounts["/reports"].get("bind", {}).get("create_host_path") is False
 
 
+def test_compose_refuses_a_target_that_does_not_exist():
+    """Docker creates a missing bind source as an empty directory, and an empty target scans clean: a typo reads as clean."""
+    service = yaml.safe_load(read("docker-compose.yml"))["services"]["ousast"]
+    mounts = {v["target"]: v for v in service["volumes"] if isinstance(v, dict)}
+    assert "/target" in mounts, "the /target volume is short syntax, so Docker creates a missing source as an empty directory"
+    assert mounts["/target"]["source"] == "${TARGET:-.}"
+    assert mounts["/target"]["read_only"] is True
+    assert mounts["/target"].get("bind", {}).get("create_host_path") is False
+
+
 def test_shared_ancestry_and_replay_exact_engine():
     base = read("plane/Dockerfile.base")
     assert "FROM ghcr.io/norandom/ax-task-runner:v0.3.1 AS base" in base
