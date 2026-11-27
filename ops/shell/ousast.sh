@@ -47,8 +47,8 @@ ousast() {
         return 1
     fi
 
-    # Build once, silently, the first time. A first run that prints a wall of build output and then works is
-    # worse than one that pauses and explains itself.
+    # Build once, the first time. The run says why it waits, then the build's progress shows: on a cold build it
+    # is the only sign that a long download is running.
     if ! docker image inspect "openultrasast:${OUSAST_VERSION:-dev}" >/dev/null 2>&1; then
         echo "ousast: building the analysis image once (this pulls ~2 GB of engine; later runs are instant)" >&2
         ( cd "$OUSAST_HOME" && docker compose build ) || return 1
