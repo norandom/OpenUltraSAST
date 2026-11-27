@@ -437,30 +437,25 @@ available VM image; Docker never pulls it implicitly. A STOP file prevents new
 launches; interrupted fallback queues are recovered on resume.
 
 Coordinator commands, from this worktree (the AX binary and kubeconfig remain
-configurable). Build/push the actual uncommitted tree and read its digest:
+configurable). Build the image of the Docker lane, then set `TASK_IMAGE` to the
+`ousast-engine-task` reference the Engine image workflow printed:
 
 ```bash
 cd /home/mc/Source/OpenUltraSAST/.claude/worktrees/engine-ax
 export PATH=/home/mc/Source/OpenUltraSAST/.venv/bin:$PATH
 export PYTHONPATH="$PWD/src"
-TASK_TAG="ghcr.io/norandom/ousast-engine-task:sha-$(git rev-parse --short=7 HEAD)"
-docker buildx build --platform linux/amd64 -f plane/Dockerfile.engine-task \
-  --build-arg TASK_BASE_TAG=base-b696c08 \
-  --build-arg TASK_BASE_DIGEST=sha256:0f374138fcb49fef41609d323cc80b6c2324b1e798d3a2aee5c8038b8c7ac3aa \
-  -t "$TASK_TAG" -t ghcr.io/norandom/ousast-engine-task:main \
-  --push --metadata-file /tmp/ousast-engine-task-build.json .
-export TASK_IMAGE="ghcr.io/norandom/ousast-engine-task@$(python -c 'import json; print(json.load(open("/tmp/ousast-engine-task-build.json"))["containerimage.digest"])')"
-printf '%s\n' "$TASK_IMAGE"
-docker build -f Dockerfile \
-  --build-arg TASK_BASE_TAG=base-b696c08 \
-  --build-arg TASK_BASE_DIGEST=sha256:0f374138fcb49fef41609d323cc80b6c2324b1e798d3a2aee5c8038b8c7ac3aa \
-  -t openultrasast:engine-ax .
+OUSAST_VERSION=engine-ax docker compose build
+# The ousast-engine-task reference the Engine image workflow printed, in its log and its summary:
+export TASK_IMAGE="ghcr.io/norandom/ousast-engine-task@sha256:<digest>"
 ```
 
-The Engine image workflow also builds/pushes both images and prints each digest;
-CI needs the changes published before dispatch. The local build above includes
-uncommitted changes without publishing a git commit. Both builds take the base from
-`plane/task-base.digest`; when that pin changes, change the two `--build-arg` pairs with it.
+`docker compose build` takes the base from the defaults in `docker-compose.yml`,
+which a test keeps equal to `plane/task-base.digest`; `OUSAST_VERSION` sets the tag
+of the image, here `openultrasast:engine-ax`. The Engine image workflow also
+builds/pushes both images and prints each digest; CI needs the changes published
+before dispatch. When the workflow runs is the rebuild policy in
+[ops/ax/README.md](ops/ax/README.md). The Docker lane runs the local image,
+committed or not; the AX lanes run the task image of the revision the workflow built.
 
 With `KUBECONFIG` pointing to the operator's kube-ax config and store settings in
 `.env`, run a one-pin smoke using the default experiment units and local example
