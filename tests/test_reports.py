@@ -569,6 +569,28 @@ def test_every_recorded_scan_degradation_is_rendered(tmp_path) -> None:  # type:
         assert needle in text, needle
 
 
+def test_a_failed_judge_call_is_reported_as_unasked_and_not_as_a_no(tmp_path) -> None:
+    """With a key set and the network off, 16 judge calls failed in one scan and each dropped its claim as a
+    `no` would; the report then said less than that of a run without an endpoint.
+    """
+    from openultrasast.reports import write_markdown_report
+
+    path = tmp_path / "report.md"
+    write_markdown_report(
+        [],
+        path,
+        [],
+        degradations=[
+            {"stage": "model", "reason": "judge_calls_failed", "count": 3},
+            {"stage": "model", "reason": "judge_withheld", "questions": 5},
+        ],
+    )
+    section = path.read_text().split("### What could not be analysed", 1)[1]
+    assert "3 judge call(s) gave no decision" in section
+    assert "went unanswered: its finding is not in this report, and that is not a `no` from the judge" in section
+    assert "5 further question(s) were refused in the question being put, and no question after it was put to the judge" in section
+
+
 def test_an_unwritable_ledger_is_stated_in_the_report(tmp_path) -> None:  # type: ignore[no-untyped-def]
     """What was not written, and where this scan's learnings are instead: a reader told only a code cannot
     find them."""

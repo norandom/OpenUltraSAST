@@ -209,6 +209,15 @@ def _ask(client: Any, model: str, question: str) -> bool | None:
     except Exception as exc:  # noqa: BLE001 — an endpoint failure is a degradation, never a verdict
         logger.warning("judge call failed: %s", exc)
         return None
+    return judge_decision(response)
+
+
+def judge_decision(response: Any) -> bool | None:
+    """What the judge decided, or `None` when its answer holds no decision.
+
+    `None` is also what a call that raised amounts to, and both drop the claim: the driver counts them
+    alike (`model.scan._CountingClient`), because a reader who is not told cannot tell that from a `no`.
+    """
     content = getattr(response, "content", None)
     if not isinstance(content, str) or not content.strip():
         return None
@@ -245,4 +254,4 @@ def _site(path: str, function: str, verdict: Verdict) -> str:
     return f"{path or '?'}:{line}:{function or '?'}"
 
 
-__all__ = ["CANDIDATE_QUESTION", "MAX_JUDGED_CANDIDATES", "ModelFinding", "residual_question", "scan_region"]
+__all__ = ["CANDIDATE_QUESTION", "MAX_JUDGED_CANDIDATES", "ModelFinding", "judge_decision", "residual_question", "scan_region"]

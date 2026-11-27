@@ -40,6 +40,31 @@ class _Backend:
         return CpgResult(cpg_path=Path("cpg.bin"), run=lambda q, p: [])
 
 
+class _AnsweringJudge:
+    """The judge as it is when the endpoint answers: one call per question put to it, each answered `yes`."""
+
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def complete(self, **kw):  # type: ignore[no-untyped-def]
+        from openultrasast.tool_hunter import ChatResponse
+
+        self.calls += 1
+        return ChatResponse(content='{"vulnerable": true}')
+
+
+def _ten_files_with_six_sinks(tmp_path):  # type: ignore[no-untyped-def]
+    """Ten identical files with six sinks each, in two families: twenty questions that each put six to the judge."""
+    source = (
+        "import os\nimport subprocess\n\n\ndef run(cmd):\n"
+        "    os.system(cmd)\n    subprocess.call(cmd, shell=True)\n    eval(cmd)\n"
+        "    exec(cmd)\n    open(cmd).read()\n    os.popen(cmd)\n"
+    )
+    for i in range(10):
+        (tmp_path / f"f{i}.py").write_text(source)
+    return tuple(_region(path=f"f{i}.py", families=("injection", "path")) for i in range(10))
+
+
 def test_one_cpg_is_built_for_the_whole_repository() -> None:
     from openultrasast.model.scan import scan_repository
 
@@ -120,6 +145,69 @@ def test_a_region_the_budget_could_not_afford_is_not_reported_as_clean(tmp_path)
     assert generous.regions_unasked == 0, "nothing went unasked when the budget covered the run"
     assert starved.regions_unasked > generous.regions_unasked
     assert starved.regions_scanned == generous.regions_scanned == 10
+
+
+def test_a_judge_that_cannot_be_reached_is_recorded_and_asked_no_further(tmp_path) -> None:
+    """A failed judge call is no verdict. It used to be read as one: with a key set and the network off, every
+    call failed, three attempts each, each dropped its claim as a `no` would, and nothing recorded it. The first
+    failure is now counted and the questions after it are not put to the judge.
+    """
+    from openultrasast.model.scan import ScanBudget, scan_repository
+
+    class _Unreachable(_AnsweringJudge):
+        def complete(self, **kw):  # type: ignore[no-untyped-def]
+            self.calls += 1
+            raise ConnectionError("network is unreachable")
+
+    regions = _ten_files_with_six_sinks(tmp_path)
+    budget = ScanBudget(max_model_calls=500, max_regions=10)
+
+    agreeing = _AnsweringJudge()
+    scan_repository(tmp_path, regions, backend=_Backend(), client=agreeing, model="m", budget=budget)
+    per_question = agreeing.calls // 20
+    assert agreeing.calls == per_question * 20 and per_question > 1, "twenty questions with the same calls each, more than one"
+
+    judge = _Unreachable()
+    result = scan_repository(tmp_path, regions, backend=_Backend(), client=judge, model="m", budget=budget)
+
+    assert judge.calls == 1, "a judge that could not be reached is not asked again"
+    assert result.model_calls == 1, "the call that was made and failed is counted as one"
+    assert result.regions_scanned == 10, "the graph still arbitrated every region"
+    failed = [dict(d) for d in result.degradations if d.get("reason") == "judge_calls_failed"]
+    assert failed == [{"stage": "model", "reason": "judge_calls_failed", "count": 1}]
+    withheld = [dict(d) for d in result.degradations if d.get("reason") == "judge_withheld"]
+    # The judge calls refused after the failure in the first question. The nineteen questions after it (the
+    # other family of the first region, and nine regions with both of theirs) are not counted here: the count
+    # is of judge calls, and the report says of the rest that none was put to the judge.
+    assert withheld == [{"stage": "model", "reason": "judge_withheld", "questions": per_question - 1}]
+
+
+def test_a_judge_answer_with_no_decision_in_it_is_counted_and_the_rest_are_still_asked(tmp_path) -> None:
+    """An answer that decides nothing drops its claim as a call that raises does. The judge was reached, so the
+    questions after it are still put; the scan counts the failures and goes on.
+    """
+    from openultrasast.model.scan import ScanBudget, scan_repository
+
+    class _Rambling(_AnsweringJudge):
+        def complete(self, **kw):  # type: ignore[no-untyped-def]
+            from openultrasast.tool_hunter import ChatResponse
+
+            self.calls += 1
+            return ChatResponse(content="I cannot say.")
+
+    regions = _ten_files_with_six_sinks(tmp_path)
+    budget = ScanBudget(max_model_calls=500, max_regions=10)
+
+    agreeing = _AnsweringJudge()
+    scan_repository(tmp_path, regions, backend=_Backend(), client=agreeing, model="m", budget=budget)
+    judge = _Rambling()
+    result = scan_repository(tmp_path, regions, backend=_Backend(), client=judge, model="m", budget=budget)
+
+    assert judge.calls == agreeing.calls, "a judge that answered is asked the next question"
+    assert result.findings == ()
+    failed = [dict(d) for d in result.degradations if d.get("reason") == "judge_calls_failed"]
+    assert failed == [{"stage": "model", "reason": "judge_calls_failed", "count": judge.calls}]
+    assert not [d for d in result.degradations if d.get("reason") == "judge_withheld"]
 
 
 def test_the_budget_is_spent_on_the_highest_ranked_regions_first() -> None:

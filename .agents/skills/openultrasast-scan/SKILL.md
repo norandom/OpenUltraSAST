@@ -68,6 +68,12 @@ Each entry in `manifest.json` `degradations` is `{"stage": ..., "reason": ...}`.
 - `learning_endpoint_unavailable` (stage `model`): no provider key resolved. The graph's entailed
   findings are still reported; the residual question is skipped. This is recorded in `manifest.json`
   but has no line in `report.md`'s "What could not be analysed" section.
+- `judge_calls_failed` (stage `model`): `count` judge calls gave no decision, because the endpoint sent no
+  answer or nothing the scan can read as one. Each dropped its claim as a `no` would, so its finding is not
+  in the report; that is not a refutation. The first call that gets no answer from the endpoint ends the
+  asking, and `judge_withheld` (stage `model`) follows it: `questions` counts the judge calls refused after
+  that failure in the question being put; no question after it was put to the judge either. Both have a line
+  under "What could not be analysed".
 - `hunter_model_unavailable` (stage `map`): `[models] hunter` is unset, so the tool hunter did not run.
   Recorded on every standard scan without that setting; it is expected, not an error.
 - `ledger_not_written` (stage `record_calibration`): the scan rejected or held a finding and could not write the

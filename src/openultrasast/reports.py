@@ -430,6 +430,17 @@ _COVERAGE_DEGRADATIONS: dict[str, str] = {
         "No model endpoint is configured, so the graph's entailed findings are reported and the residual "
         "`suspicion` questions went unasked."
     ),
+    # Recorded by model/scan.py. A judge call that gave no decision dropped its claim as a `no` would, and a
+    # scan with a key set and the network off, where every call failed, said nothing about it.
+    "judge_calls_failed": (
+        "{count} judge call(s) gave no decision, so the question each one put **went unanswered: its finding is "
+        "not in this report, and that is not a `no` from the judge**. The endpoint sent no answer, or nothing "
+        "the scan can read as one."
+    ),
+    "judge_withheld": (
+        "After a judge call got no answer from the endpoint, the judge was not asked again: {questions} further "
+        "question(s) were refused in the question being put, and no question after it was put to the judge."
+    ),
     "model_withheld_execution_budget": "The model was not asked, because the run's time budget leaves no room for it.",
     "facts_unavailable": "The fact tables for the `{stage}` stage could not be loaded, so that stage decided nothing. {detail}",
     "policy_invalid": "The `{stage}` policy could not be loaded, so that stage decided nothing. {detail}",

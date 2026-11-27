@@ -46,7 +46,7 @@ from .evidence import TIER_EXCLUDE, Evidence, evidence_from_rows
 from .ladder import Rung
 from .layout import is_vendored, layout_facts, with_layout
 from .partitions import PartitionCoverage, build_partitions
-from .pipeline import ModelFinding, scan_region
+from .pipeline import ModelFinding, judge_decision, scan_region
 from .regions import MODULE_SCOPE, ScanRegion, affected_context
 from .specs import ConfigSpec, DominanceSpec, TaintSpec, config_specs, dominance_specs, taint_specs
 from .taint import request_params as taint_params
@@ -106,7 +106,8 @@ class ModelScanResult:
     regions_scanned: int = 0
     regions_unjudged: int = 0
     # Arbitrated by the graph, but with the judge withheld because the budget was spent. Not the same as
-    # unjudged, and not the same as clean.
+    # unjudged, and not the same as clean. A judge that could not be reached is counted apart, as
+    # `judge_withheld`.
     regions_unasked: int = 0
     model_calls: int = 0
     cost_usd: float = 0.0
@@ -544,9 +545,10 @@ def _scan_repository_impl(
         if rid not in rows_by_id:
             continue
         exhausted = counted is not None and counted.calls >= limits.max_model_calls
+        unreachable = counted is not None and counted.unreachable
         family = getattr(spec, "family", "")
         prefetched = CpgResult(cpg_path=cpg.cpg_path, run=_prefetched(rows_by_id.get(rid, [])))
-        judge = None if exhausted else counted
+        judge = None if exhausted or unreachable else counted
         try:
             # Candidates exist to be PUT to the judge, and `scan_region` discards them the moment there is
             # no judge to put them to. Enumerating them anyway costs a parse of the region's file per family
@@ -587,6 +589,11 @@ def _scan_repository_impl(
 
     if unasked:
         degradations.append({"stage": "model", "reason": "budget_exhausted", "regions_unasked": len(unasked)})
+
+    if counted is not None and counted.failed:
+        degradations.append({"stage": "model", "reason": "judge_calls_failed", "count": counted.failed})
+    if counted is not None and counted.unreachable:
+        degradations.append({"stage": "model", "reason": "judge_withheld", "questions": counted.refused})
 
     graph_gaps = tuple(str(d["reason"]) for d in degradations if d.get("reason") in GRAPH_INTEGRITY_GAPS)
     # An integrity gap reaches the questions it can actually be wrong about, which for a census gap is the
@@ -1626,15 +1633,39 @@ def _tally(findings: Sequence[ModelFinding]) -> dict[str, int]:
 
 
 class _CountingClient:
-    """Wraps a chat client so the driver counts its own spend, whatever the client records."""
+    """Wraps a chat client so the driver counts its own spend, whatever the client records.
+
+    It also counts the calls that gave no decision. A call that raises is no verdict, and it used to be read
+    as one: with a key set and the network off, every judge call failed, three attempts each, and each dropped
+    its claim as a `no` would. So the first call that raises ends the asking. The calls left in the question
+    that was being put are refused there and then, and the driver withholds the judge from the questions after
+    it, as it does from regions when the budget runs out. The failures and the refused calls reach the
+    manifest as degradations.
+    """
 
     def __init__(self, inner: Any) -> None:
         self._inner = inner
         self.calls = 0
+        self.failed = 0
+        self.refused = 0
+        self.unreachable = False
 
     def complete(self, **kwargs: Any) -> Any:
+        if self.unreachable:
+            self.refused += 1
+            # No decision in it, which is what `_ask` reads in an answer that says nothing. Not a failure of
+            # its own: nothing was attempted.
+            return None
         self.calls += 1
-        return self._inner.complete(**kwargs)
+        try:
+            response = self._inner.complete(**kwargs)
+        except Exception:
+            self.failed += 1
+            self.unreachable = True
+            raise
+        if judge_decision(response) is None:
+            self.failed += 1
+        return response
 
     def cost_usd(self) -> float:
         meter = getattr(self._inner, "cost_usd", None)
