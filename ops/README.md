@@ -37,6 +37,10 @@ from your directory — someone who installed the engine deliberately should not
 container. A native run reads `.env` from your directory, not from the checkout. Set
 `OUSAST_PREFER_NATIVE=0` to always containerise.
 
+With their defaults, `ousast pairs` and `ousast repos` need the root of the checkout as the working
+directory, which under the wrapper means a native run: `benchmarks/pairs/catalog.toml` and
+`benchmarks/repos` are read from the current directory.
+
 ## Two ways to get the engine
 
 **Docker (recommended for contributors).** The tool and Joern ship in one image, so nothing is installed on
