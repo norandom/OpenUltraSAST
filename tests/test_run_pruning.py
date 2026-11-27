@@ -1,5 +1,6 @@
-"""What a scan removes from its cache (contributor-scan Requirement 5.3, decision of 2026-11-24): once its run
-is written, the expired runs go from the default location, and nothing else does."""
+"""What a scan removes from its cache (contributor-scan Requirement 5.3, decisions of 2026-11-24 and 2026-11-27):
+once its run is written, the expired runs go from the default location and from the shell wrapper's mount of it,
+and nothing else does."""
 
 import errno
 import os
@@ -13,7 +14,7 @@ import pytest
 from test_scan_output_location import _scan, _target, _user_cache
 
 from openultrasast import run
-from openultrasast.config import ResolvedConfig, load_config
+from openultrasast.config import WRAPPER_RUNS_MOUNT, ResolvedConfig, load_config
 from openultrasast.run import prune_old_runs, prune_scan_runs
 
 NOW = datetime(2026, 11, 24, 12, tzinfo=UTC)
@@ -266,6 +267,42 @@ def test_a_scan_with_the_runs_dir_override_pointing_at_the_default_location_remo
     assert (default / Path(this_run).name / "manifest.json").is_file()
     assert (expired / "manifest.json").is_file()
     assert _notices(out) == []
+
+
+def test_a_scan_through_the_wrapper_removes_the_expired_runs_from_the_mounted_runs_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """What a scan in the image sees through the shell wrapper. The runs directory is a stand-in for `/reports`,
+    which only root can make on the host."""
+    monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", "/reports")
+    monkeypatch.delenv(RETENTION, raising=False)
+    mounted = tmp_path / "reports"
+    _earlier_run(mounted, 40)
+    last_week = _earlier_run(mounted, 5)
+    current = _run(mounted, _run_id(datetime.now(UTC), "badc0de0"))
+
+    notices = prune_scan_runs(ResolvedConfig(runs_dir=str(mounted)), keep=current)
+
+    assert notices == (f"removed 1 run older than 30 days from {mounted}",)
+    assert sorted(mounted.iterdir()) == [last_week, current]
+
+
+def test_a_scan_that_compose_runs_without_the_wrapper_removes_nothing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The compose file's own `OPENULTRASAST_RUNS_DIR`, `/reports/runs`: a location chosen, where nothing is removed."""
+    monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", "/reports/runs")
+    monkeypatch.delenv(RETENTION, raising=False)
+    runs = tmp_path / "reports" / "runs"
+    expired = _earlier_run(runs, 40)
+    current = _run(runs, _run_id(datetime.now(UTC), "badc0de0"))
+
+    assert prune_scan_runs(ResolvedConfig(runs_dir=str(runs)), keep=current) == ()
+    assert sorted(runs.iterdir()) == [expired, current]
+
+
+def test_the_wrapper_passes_the_override_that_a_scan_prunes() -> None:
+    """The wrapper's word and the scan's mount point must not drift apart: the scan prunes `/reports` by that name."""
+    wrapper = Path(__file__).resolve().parents[1] / "ops" / "shell" / "ousast.sh"
+    assert f"-e OPENULTRASAST_RUNS_DIR={WRAPPER_RUNS_MOUNT} ousast" in wrapper.read_text()
 
 
 def test_a_scan_with_an_empty_runs_dir_override_removes_the_expired_runs_from_the_default_location(

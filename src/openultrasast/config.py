@@ -208,8 +208,24 @@ def _runs_dir_override() -> str:
     return os.environ.get("OPENULTRASAST_RUNS_DIR", "")
 
 
+WRAPPER_RUNS_MOUNT = "/reports"
+
+
+def runs_dir_is_the_wrappers() -> bool:
+    """Whether `OPENULTRASAST_RUNS_DIR` is the shell wrapper's: the runs directory, mounted in the image.
+
+    The wrappers pass `/reports` (`ops/shell/ousast.sh`), where the compose file mounts the directory a native
+    scan writes to by default, so a scan prunes it as it prunes the default location.
+    """
+    return Path(_runs_dir_override()) == Path(WRAPPER_RUNS_MOUNT)
+
+
 def runs_dir_is_overridden() -> bool:
-    """Whether `OPENULTRASAST_RUNS_DIR` names where runs go. Wherever it points, that location is never pruned."""
+    """Whether `OPENULTRASAST_RUNS_DIR` names where runs go.
+
+    Wherever it points, that location is not pruned; the wrapper's mount is the one exception
+    (`runs_dir_is_the_wrappers`).
+    """
     return bool(_runs_dir_override())
 
 

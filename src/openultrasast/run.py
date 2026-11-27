@@ -7,7 +7,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from uuid import uuid4
 
-from .config import ResolvedConfig, runs_dir_is_overridden, write_resolved_config
+from .config import ResolvedConfig, runs_dir_is_overridden, runs_dir_is_the_wrappers, write_resolved_config
 
 _RUN_ID = re.compile(r"(\d{8}T\d{6}Z)-[0-9a-f]{8}")
 
@@ -70,11 +70,12 @@ def prune_old_runs(runs_root: Path, *, keep: Path | None = None, retention_days:
 def prune_scan_runs(config: ResolvedConfig, *, keep: Path) -> tuple[str, ...]:
     """Remove the expired runs once a scan has written its own; returns what the scan is to say about it.
 
-    Only the default location is pruned: while `OPENULTRASAST_RUNS_DIR` is set, wherever it points, every run
-    stays. Nothing is said when nothing was removed, and a removal that fails is said once and costs the scan
-    nothing.
+    Two locations are pruned: the default one, and the shell wrapper's runs directory, which is the user's runs
+    directory mounted in the image (`runs_dir_is_the_wrappers`). While `OPENULTRASAST_RUNS_DIR` points anywhere
+    else, wherever it points, every run stays. Nothing is said when nothing was removed, and a removal that
+    fails is said once and costs the scan nothing.
     """
-    if runs_dir_is_overridden():
+    if runs_dir_is_overridden() and not runs_dir_is_the_wrappers():
         return ()
     root = Path(config.runs_dir)
     try:
