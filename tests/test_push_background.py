@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import time
+from pathlib import Path
 
 from test_push_runner import history
 
@@ -53,6 +54,27 @@ def test_one_background_engine_at_a_time(tmp_path):
     assert state["status"] == "busy" and not (directory / f"{head}.log").exists()
     delivery = replay(root, base=base, head=head, artifact=artifact, backend=NullBackend(), engine="background")
     assert "is still busy, so none was started" in delivery.text
+
+
+def test_the_background_child_does_not_import_a_module_of_the_pushed_repository(tmp_path):
+    """`-m` alone puts the working directory first on the interpreter's path, and the child runs in the pushed
+    repository: a file there could stand in for a module the CLI imports. That is the fault fixed for the
+    wrapper in a6e8e26; the child is started with `-P`, which keeps that directory off the path.
+    """
+    root, base, head, _ = history(tmp_path)
+    (root / "json.py").write_text('import sys\nsys.exit("SHADOW-EXECUTED")\n')
+    artifact = tmp_path / "a" / "push.json"
+    # A short deadline for the child, and a longer wait: where the engine is installed the child uses its
+    # whole deadline and then writes the artifact.
+    state = background.start(root, base=base, head=head, artifact=artifact, deadline_seconds=5)
+    assert state["status"] == "started"
+    target = Path(state["artifact"])
+    deadline = time.monotonic() + 60
+    while not target.exists() and time.monotonic() < deadline:
+        time.sleep(0.2)
+    log = Path(state["log"]).read_text()
+    assert "SHADOW-EXECUTED" not in log
+    assert target.exists(), log
 
 
 def test_previous_summarises_advisory_engine_findings(tmp_path):

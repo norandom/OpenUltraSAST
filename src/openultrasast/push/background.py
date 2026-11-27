@@ -67,8 +67,11 @@ def start(
             return {"status": "busy", "head": str(running.get("head", "")), "directory": str(directory)}
         target = directory / f"{head}.json"
         log = directory / f"{head}.log"
+        # -P keeps the repository off the interpreter's path: -m alone puts the working directory first, so
+        # a file of the pushed repository could stand in for a module the CLI imports.
         command = [
             sys.executable,
+            "-P",
             "-m",
             "openultrasast.cli",
             "pre-push",
