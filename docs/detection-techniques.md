@@ -155,7 +155,7 @@ A frontend is the Joern parser that turns one language into a CPG.
 
 | Language | Frontend (`cpg/backend.py:73-81`) | Notes |
 | --- | --- | --- |
-| PHP | `php2cpg` | Built directly, not through `joern-parse` (`backend.py:97, 607-628`). On one WordPress slice `joern-parse` produced 5 usable builds of 8 and reported success on empty graphs; `php2cpg` produced 11 of 12 and names the files it dropped (`backend.py:85-90`). Files with a `global` inside a closure are excluded for php2cpg before 4.0.625 (`backend.py:124-149`); joernio/joern#6281 is the graph bug fixed in 4.0.625 (`2026-09-20-php-runtime-after-graph-fix.json`, `.the_graph_bug_is_fixed`). The frontend needs a PHP interpreter; the image installs `php-cli` (`Dockerfile:17-21`). |
+| PHP | `php2cpg` | Built directly, not through `joern-parse` (`backend.py:97, 607-628`). On one WordPress slice `joern-parse` produced 5 usable builds of 8 and reported success on empty graphs; `php2cpg` produced 11 of 12 and names the files it dropped (`backend.py:85-90`). Files with a `global` inside a closure are excluded for php2cpg before 4.0.625 (`backend.py:124-149`); joernio/joern#6281 is the graph bug fixed in 4.0.625 (`2026-09-20-php-runtime-after-graph-fix.json`, `.the_graph_bug_is_fixed`). The frontend needs a PHP interpreter; the base image installs `php-cli` (the `apt-get install` line of the `base` stage in `plane/Dockerfile.base`). |
 | Python | `pysrc2cpg` | |
 | JavaScript, TypeScript | `jssrc2cpg` | Called directly, skipping `joern-parse` (`backend.py:629-637`). TypeScript adds the boundary `typescript_property_support_unvalidated` (`model/partitions.py`). |
 | Java | `javasrc2cpg` | |
@@ -168,10 +168,11 @@ names, and makes no claim about arithmetic overflows: an index, a pointer offset
 2026-11-24: of the 176 pairs in the real-world `vfc` slice, none is labelled as going through a
 string API the family models, and 129 carry no sink label.
 
-Joern is pinned at `v4.0.625` in the image (`Dockerfile:14`, `docker-compose.yml:15`,
-`ops/joern.py`), on `eclipse-temurin:21-jre-noble` (`Dockerfile:12`). The pin stayed there after
-the graph fix. That decision is recorded in `2026-09-20-php-runtime-after-graph-fix.json`
-(`.on_the_engine_pin.decision`).
+Joern is pinned at `v4.0.625` in the image (the `ARG JOERN_VERSION` line of `Dockerfile`, the
+`JOERN_VERSION` build argument of `docker-compose.yml`, `ops/joern.py`), on Temurin 21 (the
+`FROM eclipse-temurin:21-jdk-jammy AS jdk` line of `plane/Dockerfile.base`). The pin stayed
+there after the graph fix. That decision is recorded in
+`2026-09-20-php-runtime-after-graph-fix.json` (`.on_the_engine_pin.decision`).
 
 ### Our approach
 
@@ -296,8 +297,8 @@ clean (`scan.py:716-729`).
 
 **Operating the engine.** The engine runs inside the `openultrasast:dev` image with
 `--network none --memory 3g`, one container at a time (`engine_alerts.py:43-44, 128-136`;
-`evaluate.py:82-93`). `docker-compose.yml:30-31` gives the reason: "two Joern JVMs at once is
-what triggered an out-of-memory kill on a 7.7 GB machine".
+`evaluate.py:82-93`). The comment above `mem_limit` in `docker-compose.yml` gives the reason:
+"two Joern JVMs at once is what triggered an out-of-memory kill on a 7.7 GB machine".
 
 The source mounted into the container is a frozen export of a commit, never the live tree
 (`engine_alerts.py:102-110`). This is because a five-hour replay was once confounded by edits
