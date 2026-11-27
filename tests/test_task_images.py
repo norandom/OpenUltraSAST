@@ -2,6 +2,7 @@
 
 import json
 import re
+from fnmatch import fnmatchcase
 from pathlib import Path
 
 import pytest
@@ -268,6 +269,33 @@ def test_search_pilot_files_stay_out_of_the_image():
     assert private in patterns, f"{private} is not excluded from the build context"
     # Docker cleans each line, so `!benchmarks/search/private` lets the directory back in as well.
     assert not any(line.startswith(f"!{private}".rstrip("/")) for line in patterns), f"{private} is let back in"
+
+
+def _kept_by_build_context(path, patterns):
+    """Docker keeps a path unless a line of .dockerignore names it or a directory above it; the last matching line wins."""
+    kept = True
+    ancestors = [path[:cut] for cut in (match.start() for match in re.finditer("/", path))]
+    for pattern in patterns:
+        negated = pattern.startswith("!")
+        pattern = pattern[1:] if negated else pattern
+        if any(fnmatchcase(candidate, pattern.rstrip("/")) for candidate in (path, *ancestors)):
+            kept = negated
+    return kept
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["Dockerfile", "plane/Dockerfile.base", "plane/Dockerfile.engine-task", "plane/Dockerfile.search-task"],
+)
+def test_copy_sources_are_kept_by_the_build_context(name):
+    """A COPY whose source the root .dockerignore excludes stops the build: the replay stage copied from benchmarks/unseen."""
+    patterns = [line.strip() for line in read(".dockerignore").splitlines()]
+    patterns = [line for line in patterns if line and not line.startswith("#")]
+    copies = [line.split()[1:] for line in instructions(name) if line.startswith("COPY ") and "--from=" not in line]
+    sources = [word for words in copies for word in words[:-1] if not word.startswith("--")]
+    assert sources
+    for source in sources:
+        assert _kept_by_build_context(source, patterns), f"{name} copies {source}, which the root .dockerignore excludes"
 
 
 def test_app_layers_carry_their_owner():

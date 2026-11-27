@@ -79,7 +79,7 @@ def test_scaled_task_contract(lane, arm, expected):
     spec = json.loads(item.inputs["SPEC_URL"])
     assert spec["hook_flags"] == ["--deadline", str(expected)]
     assert spec["deadline_seconds"] == expected and spec["deadline_scale"] == 2.5
-    entry = importlib.import_module("benchmarks.unseen.replay_entry")
+    entry = importlib.import_module("benchmarks.replay.replay_entry")
     entry.validate_spec({**spec, "repository_url": "https://public.example/test", "base": "a" * 40, "head": "b" * 40})
 
 

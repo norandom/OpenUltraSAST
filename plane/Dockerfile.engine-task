@@ -44,5 +44,5 @@ RUN /venv/bin/python -I -c 'import pathlib, runpy, sys; sys.modules.update(yaml=
 # ENTRYPOINT and CMD belong to the upstream AX runner.
 
 FROM ${ENGINE_REF} AS replay
-COPY benchmarks/unseen/replay_entry.py ./benchmarks/unseen/replay_entry.py
+COPY benchmarks/replay/replay_entry.py ./benchmarks/replay/replay_entry.py
 RUN /venv/bin/ousast pre-push --help > /dev/null

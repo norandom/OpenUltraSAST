@@ -11,7 +11,7 @@ from pathlib import Path
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-e = importlib.import_module("benchmarks.unseen.replay_entry")
+e = importlib.import_module("benchmarks.replay.replay_entry")
 
 
 @pytest.fixture

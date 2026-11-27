@@ -43,7 +43,7 @@ def make_item(change, arm, image, *, deadline_scale=1.0, lane="ax", deadline=Non
         "replay-" + identity,
         {"SPEC_URL": data},
         "result.dat",
-        ("python3", "/app/benchmarks/unseen/replay_entry.py"),
+        ("python3", "/app/benchmarks/replay/replay_entry.py"),
         {},
         digest,
         {"SPEC_URL": "spec.dat"},
