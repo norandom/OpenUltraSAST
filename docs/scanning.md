@@ -187,7 +187,8 @@ Docker image, an invalid setting, a crash.
       hook and runs the check in the container (repository read-only, no network,
       `--memory 3g`). The container runs the code of its image's version: the quick-rule
       tier, the plain skip lines and `--engine` need an image built from a version that has them
-      (`docker build -t openultrasast:dev .`, then `OUSAST_IMAGE=openultrasast:dev`).
+      (`docker compose build` in a checkout of this repository, which pins the base and
+      tags `openultrasast:dev`, then `OUSAST_IMAGE=openultrasast:dev`).
 
 4. Remove it with `ousast pre-push uninstall`. Only a hook this tool wrote is removed, and a
    chained previous hook is restored.

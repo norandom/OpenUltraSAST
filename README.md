@@ -443,16 +443,22 @@ export PATH=/home/mc/Source/OpenUltraSAST/.venv/bin:$PATH
 export PYTHONPATH="$PWD/src"
 TASK_TAG="ghcr.io/norandom/ousast-engine-task:sha-$(git rev-parse --short=7 HEAD)"
 docker buildx build --platform linux/amd64 -f plane/Dockerfile.engine-task \
+  --build-arg TASK_BASE_TAG=base-b696c08 \
+  --build-arg TASK_BASE_DIGEST=sha256:0f374138fcb49fef41609d323cc80b6c2324b1e798d3a2aee5c8038b8c7ac3aa \
   -t "$TASK_TAG" -t ghcr.io/norandom/ousast-engine-task:main \
   --push --metadata-file /tmp/ousast-engine-task-build.json .
 export TASK_IMAGE="ghcr.io/norandom/ousast-engine-task@$(python -c 'import json; print(json.load(open("/tmp/ousast-engine-task-build.json"))["containerimage.digest"])')"
 printf '%s\n' "$TASK_IMAGE"
-docker build -f Dockerfile -t openultrasast:engine-ax .
+docker build -f Dockerfile \
+  --build-arg TASK_BASE_TAG=base-b696c08 \
+  --build-arg TASK_BASE_DIGEST=sha256:0f374138fcb49fef41609d323cc80b6c2324b1e798d3a2aee5c8038b8c7ac3aa \
+  -t openultrasast:engine-ax .
 ```
 
 The Engine image workflow also builds/pushes both images and prints each digest;
 CI needs the changes published before dispatch. The local build above includes
-uncommitted changes without publishing a git commit.
+uncommitted changes without publishing a git commit. Both builds take the base from
+`plane/task-base.digest`; when that pin changes, change the two `--build-arg` pairs with it.
 
 With `KUBECONFIG` pointing to the operator's kube-ax config and store settings in
 `.env`, run a one-pin smoke using the default experiment units and local example
