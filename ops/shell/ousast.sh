@@ -47,6 +47,18 @@ ousast() {
         return 1
     fi
 
+    # The runs go under HOME. Both checks come before the build: on a cold one it pulls ~2 GB, and a run that
+    # cannot write its runs should say so first.
+    if [ -z "${HOME:-}" ]; then
+        echo "ousast: HOME is not set, so there is no ~/.cache/openultrasast/runs to write the runs to" >&2
+        return 1
+    fi
+    local runs="$HOME/.cache/openultrasast/runs"
+    if ! mkdir -p "$runs"; then
+        echo "ousast: cannot create $runs, where the runs are written" >&2
+        return 1
+    fi
+
     # Build once, the first time. The run says why it waits, then the build's progress shows: on a cold build it
     # is the only sign that a long download is running.
     if ! docker image inspect "openultrasast:${OUSAST_VERSION:-dev}" >/dev/null 2>&1; then
@@ -72,8 +84,6 @@ ousast() {
         fi
     done
 
-    local runs="$HOME/.cache/openultrasast/runs"
-    mkdir -p "$runs"
     # /reports is the runs directory itself here, not a reports directory with runs under it: the override puts
     # the run beside a native one, where the pruning of the default location finds it.
     TARGET="$PWD" OUSAST_REPORTS="$runs" \
