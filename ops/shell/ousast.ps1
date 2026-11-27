@@ -46,8 +46,9 @@ function ousast {
     $env:TARGET = $cwd
     $env:OUSAST_REPORTS = $runs
     if (-not $env:OUSAST_NETWORK) { $env:OUSAST_NETWORK = 'none' }
-    # /reports is the runs directory itself: the override puts the run beside a native one, to be pruned.
-    docker compose -f $compose run --rm -e OPENULTRASAST_RUNS_DIR=/reports ousast @mapped
+    # /reports is the runs directory itself: the override puts the run beside a native one, to be pruned. The
+    # retention goes in without a value: compose sets it only when the host has it.
+    docker compose -f $compose run --rm -e OPENULTRASAST_RUNS_DIR=/reports -e OPENULTRASAST_RUNS_RETENTION_DAYS ousast @mapped
 }
 
 # The LLM judge needs network and a key; opt in explicitly.

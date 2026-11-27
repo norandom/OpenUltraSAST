@@ -302,7 +302,7 @@ def test_a_scan_that_compose_runs_without_the_wrapper_removes_nothing(tmp_path: 
 def test_the_wrapper_passes_the_override_that_a_scan_prunes() -> None:
     """The wrapper's word and the scan's mount point must not drift apart: the scan prunes `/reports` by that name."""
     wrapper = Path(__file__).resolve().parents[1] / "ops" / "shell" / "ousast.sh"
-    assert f"-e OPENULTRASAST_RUNS_DIR={WRAPPER_RUNS_MOUNT} ousast" in wrapper.read_text()
+    assert f"OPENULTRASAST_RUNS_DIR={WRAPPER_RUNS_MOUNT}" in wrapper.read_text().split()
 
 
 def test_a_scan_with_an_empty_runs_dir_override_removes_the_expired_runs_from_the_default_location(

@@ -72,6 +72,18 @@ def test_the_container_writes_its_runs_to_the_users_cache(tmp_path):
     assert words.index("OPENULTRASAST_RUNS_DIR=/reports") < words.index("ousast")
 
 
+def test_the_container_path_passes_the_retention_into_the_image(tmp_path):
+    """The wrapper passed the runs directory alone. A scan in the image prunes that directory with the retention
+    its own environment names, 30 days when the host's does not reach it: a host keeping every run with 0 would
+    lose the old ones through the wrapper."""
+    result = ousast(tmp_path, (), "scan", ".")
+    assert result.returncode == 0, result.stderr
+    words = result.stdout.splitlines()[-1].split()
+    # Without a value: compose passes the variable on only when the host has it.
+    assert words.index("OPENULTRASAST_RUNS_RETENTION_DAYS") < words.index("ousast")
+    assert not any(word.startswith("OPENULTRASAST_RUNS_RETENTION_DAYS=") for word in words)
+
+
 def test_the_container_path_stops_when_home_is_not_set(tmp_path):
     """With HOME unset, `$HOME/.cache` became `/.cache`: the wrapper went on to the container just the same."""
     result = ousast(tmp_path, (), "scan", ".", without_home=True)

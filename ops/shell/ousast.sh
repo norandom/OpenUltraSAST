@@ -85,10 +85,13 @@ ousast() {
     done
 
     # /reports is the runs directory itself here, not a reports directory with runs under it: the override puts
-    # the run beside a native one, where the pruning of the default location finds it.
+    # the run beside a native one, where the scan in the image prunes the expired runs as a native scan does. The
+    # retention goes in without a value: compose sets it in the container only when the host has it, so a host
+    # that keeps every run with 0 keeps them through the wrapper too.
     TARGET="$PWD" OUSAST_REPORTS="$runs" \
     OUSAST_NETWORK="${OUSAST_NETWORK:-none}" \
-        docker compose -f "$compose" run --rm -e OPENULTRASAST_RUNS_DIR=/reports ousast "${args[@]}"
+        docker compose -f "$compose" run --rm -e OPENULTRASAST_RUNS_DIR=/reports \
+            -e OPENULTRASAST_RUNS_RETENTION_DAYS ousast "${args[@]}"
 }
 
 # The LLM judge needs the network and a key; without them the model layer still entails and only the
