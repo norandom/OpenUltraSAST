@@ -194,6 +194,15 @@ go-ahead** with a ceiling; steps that need a hand on a cluster that does not exi
     `ghcr-pull` if the package is private; the smoke Run passes on the GHCR image.
   - `benchmarks/measurements/<date>-k8s-04-ghcr-images/record.json`: image sizes, pull seconds, visibility.
   - _Requirements: 1.1, 4.2, 7.1_
+  - _On kube-ax, noted 2026-11-27 (ninth session), by the maintainer's decision of 2026-11-26 ("4.4 line to
+    kube-ax"), as the handover records it._ The roadmap counts 4.4 among "the open spec tasks that gate G1" and
+    describes it as the engine smoke on kube-ax, leading to record 04 (`.kiro/steering/roadmap.md`, "Restoring
+    the kube `ax` lane"). The title and the bullets above stay as written for kind, as the header of this file
+    says of groups 3 to 8; the local kind cluster is stopped since 2026-11-24 (the last section). Open, and not
+    decided here: what the proof is on kube-ax, since the roadmap calls 4.4 the engine smoke and the bullets
+    above prove the GHCR images; how a task of a group to re-plan under G4 gates G1, in a section of the roadmap
+    whose ordering the sections above it supersede; and the marker `(coordinator, network)`, which the roadmap
+    says 4.4 and 5.4 carry and neither task's line in this file has.
 
 - [ ] 5. The engine as a plane task (design section 4) -- to re-plan (kube-ax, roadmap G4)
 - [ ] 5.1 `cpg/dump.py` and `tasks/engine.py`
