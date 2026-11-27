@@ -1,7 +1,7 @@
 {
   "feature_name": "contributor-scan",
   "created_at": "2026-09-08T20:00:00Z",
-  "updated_at": "2026-11-24T16:53:30.184851+00:00",
+  "updated_at": "2026-11-27T10:49:05.540047+00:00",
   "language": "en",
   "phase": "implementation",
   "approvals": {
@@ -71,6 +71,11 @@
       "at": "2026-11-24T16:53:30.184851+00:00",
       "source": "approved",
       "action": "Decisions taken after the maintainer asked to stop, recorded at the time of writing. Run retention for task 3.1: after each scan, with no OPENULTRASAST_RUNS_DIR set, runs in the default location older than 30 days are removed; the scan's own run and anything not named like a run are never touched; OPENULTRASAST_RUNS_RETENTION_DAYS sets the days and 0 disables it; a failed prune never fails the scan. A push follows a local gate, the whole test suite and every CI command passing locally, while GitHub CI stays red for reasons in other specs. The next session also repairs GitHub CI, splits _run_scan, guards the cache when a scan meets a directory that contains it, and moves the benchmark runs to the cache. One documentation commit brings up to date the kind-cluster wording, the roadmap Position table, the ir-consolidation brief and the old run location in another spec. Tasks 5.14, 7.3, 7.7, 7.8 and 5.9 close on the fresh pmpro measurement. The libpng re-measurement and the release workflow fix belong to task 3.2 part 2."
+    },
+    {
+      "at": "2026-11-27T10:49:05.540047+00:00",
+      "source": "approved",
+      "action": "Decisions of 2026-11-26 and 2026-11-27, recorded on 2026-11-27 with the work they chose (item 5a, under task 3.2). The eighth session's menu, answered on 2026-11-26: (1) the wrapper's native path is fixed now and keeps the working directory; (2) a mistyped TARGET is refused by compose only; (3) the ledger in the image becomes an open task on 3.1; (4) the wrapper's output goes to the user cache; (5) the judge calls with the network off indicate bugs and are assessed, with no fix decided; (6) the first-use build keeps its output and its comment is corrected; (7) the three build commands are all fixed; (8) the citations in docs/detection-techniques.md name instructions; (9) the release job's tests are assessed read-only; (10) both dangling images are removed; (11) the fixes come before step 6 of the queue (part B of task 3.1), each in its own commit, test first and with a reviewer; (12) that step starts on the maintainer's word; (13) src/openultrasast/regress is deleted and the line of task 4.4 goes to kube-ax. On 2026-11-27, asked during the work on answer 4: the wrapper's runs land by the mount of ~/.cache/openultrasast/runs at /reports together with the override OPENULTRASAST_RUNS_DIR=/reports; the PowerShell wrapper gets the same change, untested on that machine."
     }
   ],
   "implementation_verification": {

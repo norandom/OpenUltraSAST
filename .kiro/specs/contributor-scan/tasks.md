@@ -535,6 +535,129 @@
     on the four-file subject; 19 in both libpng runs). (11) On the machine of the sessions the image
     `91e6d69fcf03`, the `openultrasast:dev` of the seventh session, is dangling since the rebuild, beside
     `0a739cbaea51`.
+  - _Item 5a, 2026-11-26 and 2026-11-27 (ninth session), recorded 2026-11-27: commits `a6e8e26`, `5ad9e77`,
+    `d1f61fb`, `53a6937`, `dbcbbd7`, `6e4a62e`, `7e26f5f` and `9a8e003`, the work the maintainer chose in the
+    eighth session's menu of 2026-11-26, started on the word "proceed", read as the work of item 5a only. The
+    answers are in `spec.json`, `approval_history`, and in the handover, which is not tracked._ In the order of
+    the commits, each with the menu item it answers:
+    (1) `a6e8e26` (menu 1): the native path of `ops/shell/ousast.sh` runs in the caller's directory and is taken
+    only when `joern` and `joern-parse` are both on PATH; `tests/test_shell_wrapper.py` is new. It passes `-P`,
+    because without the `cd` the caller's directory comes first on `sys.path` and a file of the scanned tree can
+    stand in for a module the CLI imports (a reviewer found it; a run confirmed it).
+    (2) `5ad9e77` (menu 2): `/target` in `docker-compose.yml` is in the long syntax with
+    `create_host_path: false`: a `TARGET` that does not exist is refused before the container starts and nothing
+    is created. A directory that exists but is empty still scans clean (measured in the eighth session, in the
+    image; its record adds that it scans clean natively too; not measured again): "Compose and empty-target
+    failure" was not chosen.
+    (3) `d1f61fb` (menu 4): the wrapper mounts `~/.cache/openultrasast/runs` at `/reports` and passes
+    `OPENULTRASAST_RUNS_DIR=/reports`; `ops/shell/ousast.ps1` has the same change, by reading, not run. Two
+    decisions of the maintainer on 2026-11-27: "Mount and override" (the mount alone put a run at
+    `runs/runs/<run>`, which nothing prunes), and "Change it, untested here" for the PowerShell wrapper.
+    (4) `53a6937` (menu 6): the comment on the first-use build says what the wrapper does.
+    (5) `dbcbbd7` (menu 7): the documented build commands of README.md and docs/scanning.md carry the base pin.
+    (6) `6e4a62e` (menu 8): the citations of docs/detection-techniques.md name the instruction, not the line.
+    Two positions of the session, not decisions: a fifth citation of the same kind (line 158) was named too, and
+    the sentence on the Java base now says Temurin 21 from `eclipse-temurin:21-jdk-jammy`
+    (`plane/Dockerfile.base`), where it said `eclipse-temurin:21-jre-noble`, a `FROM` that left the root
+    `Dockerfile` in `1b9d1ca`. Measured in `openultrasast:dev` `3f959b31f2f2` on 2026-11-27: Debian 13, Temurin
+    21.0.12.1, PHP 8.4.26.
+    (7) `7e26f5f` (menu 3): the ledger in the image is an open task, the dated note on task 3.1 above.
+    (8) `9a8e003` (menu 13): task 4.4 of `plane-on-kubernetes` is on kube-ax, a dated note there; its text stays
+    as written. Menu items 5 and 9 are the two assessments below; answer 10 and the regress directory of answer
+    13 were done in the eighth session without a commit.
+    Where code changed, its test failed before the change and passes after. In each commit ruff, mypy, the three
+    gates and compileall pass, and the gates print what they printed before; an independent reviewer approved
+    each: in the second round for (1), one round for (2) to (6), three for (7), two for (8). Evidence on record,
+    not decisions: the scratch of the session is under `/tmp/opencode/s9_*` and is not kept.
+  - _The judge calls with the network off, assessed 2026-11-27 (ninth session), on the maintainer's answer to
+    item 5 of the menu ("this indicates bugs, and should be assessed"). Nothing is fixed; no fix is decided._
+    What the code does, by reading: a chat client is resolved whenever `DEEPSEEK_API_KEY` or `OPENROUTER_API_KEY`
+    is in the environment (`model/endpoint.py:192-222`); each judge question goes through `_ask`
+    (`model/pipeline.py:200-219`), which catches every exception, logs "judge call failed" as a warning and
+    returns `None`; both callers keep a claim only when the answer is true (`model/pipeline.py:129-132` and
+    `146-155`), so a failed call drops the claim as a "no" does; `learning_endpoint_unavailable` is recorded only
+    when no endpoint is resolved (`cli.py:1298-1302`); `model_calls` counts calls, answered or not
+    (`model/scan.py:1628-1637`); the transport makes three attempts with sleeps of 0.5 s and 1.0 s for a
+    connection error (`provider/openrouter.py:19-60`).
+    Measured on 2026-11-27 on `contrib/examples` of libpng at `cf53e54`, standard mode, in five runs: natively
+    with the network off (`unshare -rn`), without a key and with `DEEPSEEK_API_KEY` set to a placeholder; in the
+    image `3f959b31f2f2`, with the placeholder, through the compose file at `7e26f5f`; and the eighth session's
+    two image runs, with a real key and without a key. All five report the same 15 findings on id, rung,
+    severity, evidence level, path, line and title, `project_score` 26 and `penalty_total` 80.0. In each of the
+    three runs with a key, 16 judge calls fail ("Name or service not known" natively, "Temporary failure in name
+    resolution" in the image), `model_calls` is 16 and `cost_usd` 0.0, the manifest's degradations are those of
+    the run without a key minus `learning_endpoint_unavailable` and nothing more, no file of the run directory
+    mentions a failed call, and the report lacks the sentence a run without an endpoint has ("No model endpoint
+    is configured, so ... the residual `suspicion` questions went unasked"). Natively 68 s with the placeholder
+    against 44 s without a key (the model stage 62.29 s against 38.12 s); in the image 65 s against 40 s.
+    Exit 0. The two native scans wrote the same four learnings into their trees: a failed call left no learning.
+    Not measured: what the judge would have answered with the network on. Through the wrapper the network is off
+    by default and compose passes the key from the environment, so this is the path of a user with a key in the
+    shell. For the maintainer: (a) a failed call counts as "no"; (b) nothing in the manifest or the run
+    directory says so, and such a report says less than one without an endpoint; (c) all questions are still
+    asked after the first failure, about 24 s more on four files; (d) the exit is 0. Not chosen on 2026-11-26:
+    "Degradation in manifest (Recommended)", "Wrapper passes keys for judge", "Both", "Leave it".
+  - _The release job's tests, assessed 2026-11-27 (ninth session), on the maintainer's answer to item 9 of the
+    menu ("Assess read-only"). Nothing is fixed._ Read with `gh`: run 42229293910 (tag `v2.1.0-alpha.1`, head
+    `d242ebd`, 2026-11-06), job `build-release`, step "Run release tests". On a pre-release tag the step runs
+    `uv run pytest` with one test deselected; it ended "12 failed, 5252 passed, 52 skipped, 1 deselected" in
+    652.82 s, and `uv build` and the release were skipped. The twelve: in `tests/test_entry_fact_integration.py`
+    `test_production_censuses_find_no_projection_evidence_or_writer_bypass`; in
+    `tests/test_search_browser.py` `test_real_browser_executes_not_reflects`; in `tests/test_search_probe.py`
+    `test_task_boundary_probe_executes_packaged_pairs[real]`; in `tests/test_search_verify.py`
+    `test_real_differential[ssrf]`, `test_private_namespace_handoff_without_sockets` and the six of
+    `test_node_directory_option_uses_owned_fixture`; in `tests/test_search_worker.py`
+    `test_run_timeout_truncation_and_disk_bound`. At `7e26f5f`, on the machine of the sessions, those twelve
+    pass (12 passed in 33.61 s, none skipped). Main's `checks` job for the same commit (run 42229224966) failed
+    eleven of the twelve, and instead the deselected one. At `origin/main` (`d26fbcb`, run 45352669096,
+    2026-11-24) the `checks` job failed eleven tests: ten of the twelve, the search tests, and
+    `tests/test_detection_core_final_gate.py::test_detection_core_final_gate_reads_and_executes_every_declared_input`.
+    Two commits of 2026-11-24 address the search tests on the runner, `c4720ba` (skip by cause where the host
+    refuses the browser sandbox, a private network namespace or node) and `7c707d6` (the disk-bound write is
+    flushed); both are among the commits not yet pushed, so no runner has run them. The CI workflow on main has
+    not been green in its last ten runs (one cancelled, nine failures). Not measured: the twelve on the runner at
+    HEAD. For the maintainer: the release job's twelve are not release-specific; ten still failed on the runner
+    at `origin/main`; and one more test fails there, the detection-core final gate.
+  - _Left for the maintainer after item 5a, 2026-11-27 (ninth session). The first is a fault. The rest is
+    reported, not fixed in passing._
+    (1) The `replay` job of the Engine image workflow will fail on the next push to main and on every `v*` tag,
+    by a reviewer's reading, not run: `.dockerignore:32` has excluded `benchmarks/unseen` since `9017038`
+    (2026-11-24), and `plane/Dockerfile.engine-task:47` (stage `replay`) copies
+    `benchmarks/unseen/replay_entry.py`. Measured: with the base arguments the build stops at that `COPY`, so
+    README.md's buildx line does not run to the end either. By the same reading, the `engine` job and the
+    release image are not affected. The maintainer chooses the fix; `tests/test_task_images.py` forbids a
+    negation pattern for the reserved populations.
+    (2) The judge calls with the network off: the four points of the assessment above. No fix is decided.
+    (3) Main's CI is not green: ten of the release job's twelve still failed on the runner at `origin/main`, the
+    two commits that address them are not pushed, and the detection-core final gate fails there too. By reading,
+    not measured: step 9, the whole suite and every CI command locally before a push, is where it must be met.
+    (4) README.md's copy of the base pin is kept by hand and no test reads it: when the pin changes, both builds
+    still succeed on the old base until that base is deleted.
+    (5) `-P` needs Python 3.11, the project's floor.
+    (6) Natively, `ousast pairs` and `ousast repos` no longer find their defaults outside the checkout (`pairs`
+    measured, `repos` by reading); the container path already behaved so.
+    (7) A scan in the image never prunes: the wrapper's runs are removed only by a later native scan on the
+    default location. The wrapper writes to `~/.cache/openultrasast/runs` whether or not `XDG_CACHE_HOME` (set
+    and absolute) or `OPENULTRASAST_RUNS_DIR` moves a native run.
+    (8) With `HOME` unset the shell wrapper now fails, where it wrote `./.ousast` before; a failed `mkdir` is not
+    checked, as before.
+    (9) Not touched: the background child of `ousast pre-push` (`src/openultrasast/push/background.py`) starts the
+    CLI with `-m` and without `-P`, from the pushed repository.
+    (10) The two positions of `6e4a62e`, the fifth citation and the changed fact on the Java base, are the
+    session's, not decisions, and are open to a correction.
+    (11) Stale citations left alone because they are records, not site pages:
+    `.kiro/specs/plane-on-kubernetes/design.md:252` (`Dockerfile:1-7`) and, by a reviewer's reading,
+    `design.md:248` and `tasks.md:180` (`Dockerfile.runner:25-29`).
+    (12) Task 4.4 of `plane-on-kubernetes`: three points are open in its dated note (the proof on kube-ax; a task
+    of a group to re-plan under G4 that gates G1; the marker `(coordinator, network)`), and a reviewer would put
+    a dated note in `.kiro/steering/roadmap.md` beside its note of 2026-11-26 on 5.4.
+    (13) No test reads a spec (a grep of `tests/`): the handover's rule that names
+    `tests/test_obligation_siblings.py` as the test file that reads the specs is wrong.
+    (14) Still open from the eighth session's list, and not in the menu: the step count in a model finding's
+    rationale is not stable between runs of the same bytes (37, 39 and 41 on the four-file subject; 19 in both
+    libpng runs).
+    (15) Whether "Docs tests" in answers 7 and 8 meant adding a test: none was added.
+    (16) Step 6, part B of task 3.1 (the readable summary in `model/report.py`), starts on the maintainer's word.
 
 ## Group 4 — Close the deferred decisions
 
