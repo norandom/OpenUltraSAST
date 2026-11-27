@@ -422,6 +422,40 @@
     say when it left files out under its runs directory; whether a scan whose target lies inside its runs
     directory should be named (it is read as before and prints nothing about it); a sentence for the user docs,
     since README.md and docs/examples.md say where a run goes and not what a scan reads.
+  - _The ledger in the image is an open task, 2026-11-27 (ninth session), by the maintainer's decision of
+    2026-11-26 on the eighth session's menu (item 3, "Open task"), as the handover records it. Nothing
+    changes now._
+    The ledger is the one write a scan still makes into the analysed tree (part A, above):
+    `<target>/.openultrasast/calibration/false_positive_learnings.json`. `_run_scan` reads it before the
+    ranking is calibrated, and `_persist_calibration_feedback` writes it when its content would change
+    (`src/openultrasast/cli.py`). The image mounts the target read-only. There the write fails, the manifest
+    records `ledger_not_written` (stage `record_calibration`, detail "[Errno 30] Read-only file system:
+    '/target/.openultrasast'"), the report says so under "What could not be analysed", and the next scan
+    starts without the learnings of the one before; the learnings of a scan are kept in its run directory.
+    Through the image a scan applies learnings only from a ledger that is already in the tree, and can never
+    add one (by the code, not run).
+    Measured on 2026-11-26 (eighth session), standard mode, no key on either side, `contrib/examples` of
+    libpng at `cf53e54` (four C files), 15 findings on both sides. In the image (`openultrasast:dev`
+    `3f959b31f2f2`): `calibrations_applied=0`, `project_score` 26, `penalty_total` 80.0. Natively, a second
+    scan of a copy that held the ledger an earlier native scan had written: `calibrations_applied=2`,
+    `project_score` 59, `penalty_total` 32.0. That ledger holds four entries, each of `reason`
+    `unreachable_path`; the native second scan applied all four, to two files (`calibrations_applied` counts
+    files). By the eighth session's record the scan that wrote it was its first native attempt, whose batch
+    queries had failed. Read again on 2026-11-27 from the run artifacts.
+    Open, the design question: should the ledger live under the runs directory, which the image can write?
+    A ledger there must be keyed by target, because its entries name paths relative to the target, and so
+    does the id of a finding: `c-unsafe-copy:iccfrompng.c:124` in a scan of `contrib/examples` is
+    `c-unsafe-copy:contrib/examples/iccfrompng.c:124` in a scan of libpng. Through the image every target is
+    mounted at `/target`, so the key cannot be the path the scan sees. The `fingerprint` of the `provenance`
+    stage is not a key either: it classes the tree as `human`, `agent` or `mixed` from tooling paths,
+    markers and git trailers, and hashes nothing (`src/openultrasast/provenance.py`). A scan also reads two
+    more files of that directory when they exist, `rule_policy.json` and `complexity_ledger.json`, which a
+    move would have to decide about. Not chosen on 2026-11-26: "Leave it, by design"; "Docker volume for
+    ledger" (compose only, a named volume at `/target/.openultrasast`); "Fix in scan path now". Evidence on
+    record, the eighth session's scratch under `/tmp/opencode`, not kept: `s8_evidence.md`,
+    `s8_d_standard_nokey.out`, `s8_d_native_standard.out`, the run directories
+    `s8_build/reports/runs/20261126T125414Z-facce3bb` and `s8_native_runs/20261126T125839Z-ec9e1a0e`; the
+    ninth session's readings `s9_c7_*.out`.
 
 - [x] 3.2 Build and verify the image
   - `docker compose build`, then run a real scan through it and through the shell wrapper. The Dockerfile and
