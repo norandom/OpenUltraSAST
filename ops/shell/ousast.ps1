@@ -8,7 +8,7 @@
 #     ousast scan src\api
 #
 # Docker is an implementation detail. Your working directory is mounted READ-ONLY and findings are written
-# to .\.ousast, the only writable mount.
+# to %USERPROFILE%\.cache\openultrasast\runs, the only writable mount.
 
 $script:OusastHome = if ($env:OUSAST_HOME) { $env:OUSAST_HOME }
                      else { Split-Path -Parent (Split-Path -Parent $PSScriptRoot) }
@@ -41,11 +41,13 @@ function ousast {
         } else { $a }
     }
 
-    New-Item -ItemType Directory -Force -Path (Join-Path $cwd '.ousast') | Out-Null
+    $runs = Join-Path $env:USERPROFILE '.cache\openultrasast\runs'
+    New-Item -ItemType Directory -Force -Path $runs | Out-Null
     $env:TARGET = $cwd
-    $env:OUSAST_REPORTS = Join-Path $cwd '.ousast'
+    $env:OUSAST_REPORTS = $runs
     if (-not $env:OUSAST_NETWORK) { $env:OUSAST_NETWORK = 'none' }
-    docker compose -f $compose run --rm ousast @mapped
+    # /reports is the runs directory itself: the override puts the run beside a native one, to be pruned.
+    docker compose -f $compose run --rm -e OPENULTRASAST_RUNS_DIR=/reports ousast @mapped
 }
 
 # The LLM judge needs network and a key; opt in explicitly.

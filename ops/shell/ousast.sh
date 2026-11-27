@@ -11,8 +11,9 @@
 # evaluating this tool should not have to install either to try it. What they get instead is a command.
 #
 # The one thing worth knowing: your working directory is mounted READ-ONLY, and findings are written to
-# ./.ousast, which is the only writable mount. A tool that reads your source to tell you about it has no
-# business being able to change it.
+# ~/.cache/openultrasast/runs, where a native scan writes them too. That directory is mounted at /reports, the
+# only writable mount, so nothing is written to the directory being scanned. A tool that reads your source to
+# tell you about it has no business being able to change it.
 
 # Resolve this script's own location so the function works from anywhere, under bash or zsh.
 if [ -n "${BASH_SOURCE[0]:-}" ]; then
@@ -71,10 +72,13 @@ ousast() {
         fi
     done
 
-    mkdir -p "$PWD/.ousast"
-    TARGET="$PWD" OUSAST_REPORTS="$PWD/.ousast" \
+    local runs="$HOME/.cache/openultrasast/runs"
+    mkdir -p "$runs"
+    # /reports is the runs directory itself here, not a reports directory with runs under it: the override puts
+    # the run beside a native one, where the pruning of the default location finds it.
+    TARGET="$PWD" OUSAST_REPORTS="$runs" \
     OUSAST_NETWORK="${OUSAST_NETWORK:-none}" \
-        docker compose -f "$compose" run --rm ousast "${args[@]}"
+        docker compose -f "$compose" run --rm -e OPENULTRASAST_RUNS_DIR=/reports ousast "${args[@]}"
 }
 
 # The LLM judge needs the network and a key; without them the model layer still entails and only the

@@ -27,8 +27,10 @@ ousast-with-judge scan . --mode standard   # container network on, so the model 
 
 The wrapper rewrites paths under your working directory to their mounted equivalents, so `src/api` means what
 you expect. Anything outside the mount is passed through unchanged with a warning rather than silently
-rewritten into a path the container cannot see. Your directory is mounted **read-only**; findings go to
-`./.ousast`, the one writable mount. The image builds itself on first use and says so.
+rewritten into a path the container cannot see. Your directory is mounted **read-only**. The wrapper writes its
+runs to `~/.cache/openultrasast/runs` (`%USERPROFILE%\.cache\openultrasast\runs` on Windows), the default location
+of a native scan, and mounts that directory as the one writable mount, so nothing is written to your directory.
+The image builds itself on first use and says so.
 
 If `joern` and `joern-parse` are already on your PATH and a local venv exists, the wrapper uses those instead,
 from your directory — someone who installed the engine deliberately should not be quietly routed through a
