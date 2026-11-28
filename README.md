@@ -6,6 +6,20 @@ OpenUltraSAST is an experimental static security analyser. It aims to check secu
 repositories it has never seen. It scans a checkout or the commits a `git push` would publish. It
 distinguishes what it can prove from what it suspects.
 
+The safety net is not released yet. A scan and the pre-push hook are advisory, and nothing
+blocks a push. Detection on repositories the tool has never seen has not met its release gate.
+[Status and roadmap](#status-and-roadmap) says where the project stands.
+
+## What you can run today
+
+- A quick scan of a checkout. It is deterministic and needs no Docker, network or API key.
+- The pre-push hook, in any repository. It runs the quick rules on the lines a push changes, names
+  every check it could not run, and never blocks the push.
+- A standard scan, with the Joern engine. It follows a value across statements and files. It needs
+  Joern: the Docker image, or the host install.
+- A coding agent. An agent that can run shell commands needs nothing but the CLI. `ousast mcp`
+  exposes the same work to an MCP client.
+
 A scan combines up to four parts:
 
 - language-scoped pattern rules;
@@ -18,51 +32,15 @@ a degradation instead of reporting a clean result.
 
 Where a repository's application can be built and run, an experimental proof arm goes further. It
 demonstrates a finding by executing it. The issue triggers on the vulnerable revision and not on
-the fixed one, which makes the finding reproducible. This arm is in pilot testing and is being
-qualified on repositories the tool has never seen; see [Status](#status).
-
-`ousast` is the interface. Model work over whole repositories runs on a separate agentic plane
-(google/ax). A learned decision engine is in development. A scan needs neither of them.
-
-Each section in this file links to the corresponding page on the documentation site.
-The site is published at <https://norandom.github.io/OpenUltraSAST/>. Its sources are in `docs/` and
-`mkdocs.yml`; to preview it locally, run `uv sync --extra docs && uv run mkdocs serve`.
-
-## Status
-
-**v2.1.0-alpha.1 checkpoint, state as of 2026-11-06.** The pre-push safety net is **not yet released**. Blocking on
-the static analyser by hand is **NO-GO** against every M4 gate, and the project no longer tries to
-meet those gates that way.
-
-- No blocking hook capability is enabled; the pre-push hook is advisory only.
-- Two independent populations (case sets frozen before any scan) have been spent on the static
-  engine: recall was 1 of 11, then 0 of 17. The learned decision engine ranks findings but does not block for any
-  family.
-- Static abstract interpretation could not prove the precision needed to block a push. Current
-  work focuses on a **dynamic proof arm**. It builds and runs a repository's app and
-  demonstrates a finding by a differential: the issue triggers on the vulnerable revision and not
-  on the fixed one. Execution establishes the finding as ground truth, so it can justify a block
-  without calibration. Pilot demonstrations exist, including one executed on the cluster; the arm
-  is being qualified, not shipped.
-- The release gate is a **measured** catch-rate and false-alarm number on repositories the tool
-  has never seen (the unseen-repo evaluation). Until that number
-  exists, treat all output as advisory.
-
-Every detection change must show an improvement in a controlled measurement on held-out repositories.
-The current status and the record behind each figure are in
-[docs/where-we-stand.md](docs/where-we-stand.md). For developers, the pre-push check and its
-honest limits: [docs/pre-push-for-developers.md](docs/pre-push-for-developers.md); the
-catch–prove–fix–re-verify loop: [docs/use-case-fix-and-reverify.md](docs/use-case-fix-and-reverify.md).
-The release history is in [RELEASE_NOTES.md](RELEASE_NOTES.md).
+the fixed one, which makes the finding reproducible. Pilot demonstrations exist. The arm is parked
+until the roadmap's step R4 needs it, and it is not shipped.
 
 ## Install and first scan
 
-Pick the tier you need:
-
-1. Tier 1: a deterministic scan of a checkout, or a CI gate.
-2. Tier 2: the Joern engine (`standard`, `deep`).
-3. Tier 3, for maintainers: model work over whole repositories on the plane.
-4. Tier 4 does not exist yet.
+Pick the tier you need. Tier 1 and Tier 2 are for everyone. Tier 3, model work over whole
+repositories on the plane, is for maintainers. Tier 4, a Kubernetes deployment, is planned and not
+done. Both are in the documentation: [ax on this host](docs/ops/ax/README.md) and
+[Deployment](docs/deployment.md).
 
 ### Tier 1: quick scan, no Docker
 
@@ -103,7 +81,7 @@ to GHCR. It is big: a JRE plus about 2 GB of Joern. Pull it instead of building,
 shell wrapper uses:
 
 ```bash
-docker pull ghcr.io/norandom/openultrasast:2.0.1
+docker pull ghcr.io/norandom/openultrasast:2.0.1   # the last full release; a prerelease is tagged with its version
 docker tag ghcr.io/norandom/openultrasast:2.0.1 openultrasast:dev   # or build: docker compose build
 ```
 
@@ -122,8 +100,6 @@ ousast-with-judge scan . --mode standard            # network on, the model is a
 the same without the wrapper. Create `reports/` first (`mkdir -p reports`): compose does not create it,
 because a directory Docker creates is root-owned and the image runs as an ordinary user. Findings land there.
 
-`deep` requests the REGRESS stage, which was retired on 2026-10-13: the scan records a `regress_retired` degradation and otherwise equals `standard`. Execution proof now comes from the search-with-proof arm.
-
 Details, including the host install, are in [ops/README.md](ops/README.md).
 
 Keys and store settings live in `.env` in the working directory. The file is gitignored;
@@ -133,52 +109,23 @@ Keys and store settings live in `.env` in the working directory. The file is git
 - `OPENROUTER_API_KEY` is used for embeddings only (`ousast learn memory embed`).
 - `.env` never overrides a variable already exported in your shell. If a key change seems to have
   no effect, `unset` the stale export.
-- The plane's memory store defaults to a local file store under `~/ousast-results/plane/memory`.
-- An S3-compatible bucket is optional: `uv sync --extra s3`, then `OUSAST_MEMORY=s3://<bucket>`
-  with `S3_ENDPOINT` and the AWS credentials in `.env`. Nothing in a scan needs it.
 
-### Tier 3: the plane on ax (maintainers)
-
-Tier 1 and 2 need none of this. The local profile is a single-node kind cluster on the maintainer's
-host. That cluster is stopped since 2026-11-24: the code stays, `ops/ax/up.sh` recreates the
-cluster, and whether the executor code is deleted is decided at the plane re-plan.
-
-- `ops/ax/up.sh` needs `docker`, `go`, `kubectl`, `kind`, `ko` and `ax` on the PATH. It refuses to
-  start when one is missing.
-- It builds Agent Substrate and ax from their checkouts under `~/.cache/ousast/ax-src/`.
-- Measured idle footprint with two workers: the kind node takes 1.7 GiB of memory (27% of the
-  7.7 GiB host) and 4.9 GB of disk for images. The build uses several GB more for Go caches.
-- The worker pool is sized for that 7 GB host.
-- The verify and roles tasks need `DEEPSEEK_API_KEY`.
-- Memory lives in the local file store or the S3 store. RustFS is the tested server.
-
-See [ops/ax/README.md](ops/ax/README.md) for bring-up and doctor instructions, along with the smoke Run.
-
-### Tier 4: Kubernetes (k3s), planned
-
-Nothing has been deployed to any cluster other than that kind cluster, stopped on 2026-11-24. The
-target is two profiles of one code base: `kind` locally and `k3s` in production. The same `ousast
-plane run` would submit a Run in a remote execution mode. It needs:
-
-- a kubeconfig context or the cluster's ingress (and an `imagePullSecret` on the worker
-  ServiceAccount for a private package);
-- runner and engine images published to GHCR and pinned by digest;
-- the S3 store as the artifact path, with no receiver on a laptop.
-
-The plan and required code changes, with file paths, are in
-[docs/deployment.md](docs/deployment.md#production-topology-ax-on-a-kubernetes-cluster).
+The plane's memory store and the optional S3 bucket are maintainer topics:
+[Memory](docs/memory.md) and [RustFS setup](docs/rustfs.md). Nothing in a scan needs them.
 
 ## Scan modes
 
 There are three modes. Each adds to the one before.
 
 - `quick` runs the pattern rules, hints, ranking, verification and score. It needs nothing.
-- `standard` adds the MAP stage: complexity map, semantic overlay, authorization obligations and
-  the Joern model layer. The model layer builds one code property graph per repository. It decides
-  taint, guard-dominance and configuration questions on that graph. A model is asked only the
-  residual question. Without a key, that question is skipped and only the graph's entailed
-  findings are reported.
-- `deep` requests the REGRESS stage, which was retired on 2026-10-13: the scan records a `regress_retired` degradation and otherwise equals `standard`. Execution proof now comes from the search-with-proof arm.
+- `standard` adds a complexity map, the semantic overlay, authorization obligations and the Joern
+  model layer. The model layer builds one code property graph per repository. It decides taint,
+  guard-dominance and configuration questions on that graph. A model is asked only the residual
+  question. Without a key, that question is skipped and only the graph's entailed findings are
+  reported.
+- `deep` requests the REGRESS stage, which was retired on 2026-10-13: the scan records a
+  `regress_retired` degradation and otherwise equals `standard`. Execution proof now comes from the
+  search-with-proof arm.
 
 A missing engine is a recorded degradation (`cpg_unavailable`, `regress_retired`), never a
 clean result.
@@ -188,32 +135,10 @@ loads settings. Every run writes `manifest.json`, `findings.json`, `verification
 `score.json`, `report.md`, `report.sarif` and `trace/events.jsonl` under
 `~/.cache/openultrasast/runs/<scan-id>/`, or under `$XDG_CACHE_HOME/openultrasast/runs/` when that
 variable is set to an absolute path. The scan prints that path (`run_dir=<path>`).
-`OPENULTRASAST_RUNS_DIR` moves the run directory: an absolute path is used as given, and a relative
-one is resolved against the current working directory, never against the directory being scanned.
-After a scan writes its run to the default location, with no `OPENULTRASAST_RUNS_DIR` set, the runs
-there older than 30 days are removed, and `ousast` prints one `notice:` line when it removes any;
-`OPENULTRASAST_RUNS_RETENTION_DAYS` sets the number of days (`0` keeps every run), and nothing is
-ever removed from a location chosen with `OPENULTRASAST_RUNS_DIR`, except through the shell wrapper:
-it mounts `~/.cache/openultrasast/runs` at `/reports` in the image, and a scan through it removes the
-expired runs there as well; the ledgers of tree digests (`calibration/` under the same directories)
-go by the same number of days, dated by their last use. A scan does not read the files
-under its runs directory when that directory lies inside the scanned path; when this leaves source
-files out of the scan, `ousast` prints one `notice:` line naming the directory and how many.
-
-`ousast benchmark` writes its run to the same runs directory, as
-`<runs_dir>/<benchmark-run-id>/` beside the scan runs, and prints that path
-(`benchmark_run_dir=<path>`); run retention removes it like a scan run. The MCP tool
-`openultrasast.benchmark` uses the same directory.
-
-A scan that rejects or holds a finding writes one file into the scanned tree,
-`<target>/.openultrasast/calibration/false_positive_learnings.json`, and only when that file's
-content would change. On a read-only tree the scan records `ledger_not_written` instead and keeps
-the learnings in the ledger of the tree's digest, `<runs_dir>/calibration/<digest>.json`, where the
-digest is a sha256 of every file's name and bytes under the target. Only a scan of the very same
-bytes reads it; the first scan that can write the tree carries its entries into the tree's ledger
-and removes it. The `ledger` block of `manifest.json` names the digest, how many learnings came
-from each ledger, and what became of the digest's ledger. A digest's ledger is removed like a run
-once its last use is `OPENULTRASAST_RUNS_RETENTION_DAYS` days past.
+`OPENULTRASAST_RUNS_DIR` moves the run directory. Runs older than 30 days are removed from the
+default location, and `OPENULTRASAST_RUNS_RETENTION_DAYS` sets the number of days.
+[Examples](docs/examples.md) has the details: a relative run directory, the retention notice, and
+where `ousast benchmark` and its MCP tool write.
 
 `ousast pre-push` (experimental) analyses the commits a push would publish against their base.
 First, the quick rules run on the changed lines. Then the engine compares head with base, and only
@@ -226,7 +151,7 @@ Flows and the per-language rule table: [docs/scanning.md](docs/scanning.md).
 
 ## How detection works
 
-The tool uses three representations of code, from cheap to expensive:
+The tool reads code in three ways, from cheap to expensive:
 
 1. Text: regex quick rules, one statement at a time.
 2. Tree: the tree-sitter CST (concrete syntax tree) and an IR (intermediate representation) per
@@ -234,136 +159,97 @@ The tool uses three representations of code, from cheap to expensive:
 3. Graph: the Joern CPG. It is the only one that follows a value across statements, calls and
    files.
 
-Taint analysis uses fact tables and queries on the graph to produce verdicts. Absence bugs involve
-operations that should have been guarded. The tool finds them through obligations and dominance
-checks, plus a configuration census. A model answers only the residual question.
-
-- [docs/detection-techniques.md](docs/detection-techniques.md) explains each technique, with the
-  code it comes from and what it misses.
-- [docs/architecture.md](docs/architecture.md) gives the stage order and the evidence ladder (a
-  state machine, not a label a model may assign). It also covers the central CWE policy, the
-  project score.
-
 Quick rules cover C/C++, Python, JavaScript/TypeScript, Java with Groovy templates, and PHP. Each
 rule runs only against files of its language.
 
-The detection gate (`uv run python -m openultrasast.gate`) enforces at least 90% recall and under
-10% false positives per language on the bundled cheat-sheet corpora. On this tree it reports
-93.62% recall (44/47) and 0.0% false positives. Those corpora show that a rule change did not
-break a known detection. They are not a recall estimate on real code, and PHP is not in the gate.
+What each technique can establish, with the code it comes from and what it misses:
+[docs/detection-techniques.md](docs/detection-techniques.md). The stage order and the evidence
+ladder (a state machine, not a label a model may assign), the central CWE policy and the project
+score: [docs/architecture.md](docs/architecture.md).
 
-Framework knowledge (WordPress, Flask, Django, Express, Spring) is tagged as an optional prior in
-`src/openultrasast/ruleset/frameworks.toml`. Its contribution can be measured and switched off.
+## Status and roadmap
 
-## The plane on ax
+The project works through a seven-step plan, the ladder. It is at R3, the first honest number: one
+governed run that measures detection on real repositories the tool was not tuned on. That run has
+not happened. It waits on independently reviewed cases, which do not exist yet. No detection arm
+has met the release gate on unseen repositories. On two frozen populations the engine found 1 of 11
+and then 0 of 17 of the known vulnerabilities; [Where we stand](docs/where-we-stand.md) gives the
+record behind each figure. Work on the engine runs alongside and does not wait for R3.
 
-Model-driven work over whole repositories runs as a Run manifest. A Run is a DAG of ax Tasks. Each
-Task runs in its own gVisor actor (an isolated sandbox) on Agent Substrate. ax is the only agentic
-executor; there is no local subprocess path.
-
-- Each Task binds at most one Model and its own `usd`/`calls` budget.
-- Egress is deny-by-default per Task, by hostname only.
-- The provider key travels only in the Task's start request, never in a manifest or an image.
-
-Measured on the first increment: the plane agreed on 16 of 20 declared sites at $0.0205 per
-candidate.
-
-```bash
-uv run ousast plane doctor                               # kind, Agent Substrate, ax controller, runner image
-uv run ousast plane run plane/runs/validation-46.yaml    # a rerun skips tasks already done; --workers bounds tasks in flight
-uv run ousast plane status validation-46                 # per-task status and the token attribution table
-uv run ousast plane remember validation-46               # ingest the run's rows into the memory store
+```mermaid
+flowchart LR
+    R0["R0 Closure: done"] --> R1["R1 Benchmark machinery: done"]
+    R1 --> R2["R2 Real population: machinery done, reviewed cases missing"]
+    R2 --> R3["R3 First honest number: waiting"]
+    R3 --> R4["R4 Shippable scope: drafted"]
+    R4 --> R6["R6 Narrow advisory rollout: not started"]
+    R5["R5 Engine depth and hardening: in progress"] -. "feeds later claims" .-> R4
+    classDef done fill:#c8e6c9,stroke:#388e3c
+    classDef now fill:#fff9c4,stroke:#f9a825
+    classDef todo fill:#eeeeee,stroke:#90a4ae
+    class R0,R1 done
+    class R2,R3,R4,R5 now
+    class R6 todo
 ```
 
-`workspaces`, `harvest`, `alerts-engine` and `memory-normalise` generate Runs, their inputs and
-the store's rewrites. The flow and the task catalogue: [docs/plane.md](docs/plane.md). How the plane
-was deployed on the maintainer's host, and what moving it to a separate cluster would take:
-[docs/deployment.md](docs/deployment.md).
+| Step | What it gives you | State on 2026-11-28 |
+| --- | --- | --- |
+| R0 Closure | The blocked engine work is unblocked, and the backlog is pushed. | Done, 2026-11-20 |
+| R1 Benchmark machinery | The machinery that measures detection fairly. | Every subtask is checked |
+| R2 Real population frozen | Real repositories to measure on. | Machinery checked. The independently reviewed cases are still missing |
+| R3 First honest number | Recall and false alarms on repositories the tool has never seen. | Waiting on the reviewed cases |
+| R4 Shippable scope declared | The exact families a release may claim. | Drafted. Provisional until R3 has been read |
+| R5 Engine depth and hardening | Better detection in the static engine. | In progress |
+| R6 Narrow advisory rollout | A first release, with a stated scope. | Not started |
 
-HarnessX, the earlier agentic extra, was retired 2026-09-30. A `[harnessx]` section is ignored
-with one warning. `[models] verifier`, `[fusion] panel_model` and `[fusion] decider_model` fail and
-name the plane replacement. Config keys that nothing ever read fail the same way. Fusion is
-deterministic.
+Past milestones:
 
-## Memory
+| Date | Milestone | Result |
+| --- | --- | --- |
+| 2026-09-14 | The release path: prove usefulness, then speed and transfer. | Accepted |
+| 2026-09-16 | M1a: the detection shown, with every veto recorded. | Met, on a fixture repository (NodeGoat) |
+| 2026-09-17 | M2: the same analysis fast enough for a push. | Measured and not met |
+| 2026-10-02 | The pre-push hook on any repository. | Operational and advisory |
+| 2026-10-30 | The third admission read of the access-control arm. | NO-GO. The arm is parked |
+| 2026-11-06 | Checkpoint v2.1.0-alpha.1. | The project stops trying to block a push on the static analyser alone |
+| 2026-11-20 | R0 Closure, and the ladder replaces the earlier plans. | Done |
+| 2026-11-23 | Population v4 for M4 frozen: 11 cases. | Frozen, not scanned |
 
-One store holds what plane runs and the decision engine learned. It is keyed by repository and pin.
-It holds two kinds of data:
+The release milestones M1 to M5, the status of 2026-11-06 and the rules that bind every step are
+in [Roadmap](docs/roadmap.md). The release history is in [RELEASE_NOTES.md](RELEASE_NOTES.md).
+Every figure has its record in [Where we stand](docs/where-we-stand.md).
 
-- rows: facts, verdicts, unit costs, alerts, coverage and feature records;
-- content-addressed blobs: excerpts, embeddings, cached responses and compiled programs.
+## Documentation
 
-`OUSAST_MEMORY` selects the backend. It is either a local file store or `s3://<bucket>` on any
-S3-compatible server. The S3 server must support versioning, lifecycle rules, object tags and S3
-Select. RustFS is the tested server.
+The documentation site is published at <https://norandom.github.io/OpenUltraSAST/>. Its sources are
+in `docs/` and `mkdocs.yml`; to preview it locally, run `uv sync --extra docs && uv run mkdocs serve`.
+Every page, by what you want to do:
 
-An admin sets the bucket up once. The store verifies it at every start. If anything is missing, it
-refuses to run and names each missing piece. It does not fall back.
+| Page | For |
+| --- | --- |
+| [Documentation home](docs/index.md) | The site's home page: the three layers, how they connect, and where to go next |
+| [End-to-end examples](docs/examples.md) | Walkthroughs from a first quick scan to an MCP client; where a run is written and how long it is kept |
+| [Scanning](docs/scanning.md) | The three scan modes, the quick rules per language, the pre-push hook with its install, settings, skip reasons and a CI recipe |
+| [Pre-push security for developers](docs/pre-push-for-developers.md) | What the hook checks for you, and its honest limits |
+| [Use case: catch, prove, fix, re-verify](docs/use-case-fix-and-reverify.md) | The loop from a finding to a proven fix |
+| [Threat model](docs/threat-model.md) | What the tool trusts and what it does not: untrusted code, secret redaction, egress, budgets, the `deep` sandbox |
+| [Architecture](docs/architecture.md) | The scan pipeline, the evidence ladder, the CWE policy, the project score, calibration |
+| [Detection techniques](docs/detection-techniques.md) | The program analysis under a scan, with the code it comes from and what it misses |
+| [Roadmap](docs/roadmap.md) | Past milestones, the present state and what is next |
+| [Where we stand](docs/where-we-stand.md) | The state in one page, every figure with its record |
+| [Evaluation](docs/evaluation.md) | How anything is measured on code the tool was not tuned on |
+| [The plane on ax](docs/plane.md) | Maintainers: model work over whole repositories as Runs of isolated Tasks |
+| [Memory](docs/memory.md) | Maintainers: the store that holds what plane runs and the decision engine learned |
+| [Memory and detection](docs/memory-and-detection.md) | Maintainers: how stored rows are meant to improve decisions |
+| [Decision engine](docs/decision-engine.md) | Maintainers: the learned classifier, in development; its design, evaluation slices and A/B protocol |
+| [Token ergonomics](docs/token-ergonomics.md) | Maintainers: where model tokens go at runtime and in the maintainers' own sessions |
+| [Engine and pre-push](docs/ops/README.md) | Operations: the engine image, the Docker wrapper and the host install |
+| [ax on this host](docs/ops/ax/README.md) | Operations: bring-up and doctor instructions for the plane's local cluster |
+| [Engine traces on kube-ax](docs/ops/ax/engine-traces.md) | Operations: dispatching an engine trace run to AX tasks, with a Docker fallback lane |
+| [Deployment](docs/deployment.md) | How the plane was deployed, and what moving it to a separate Kubernetes cluster would take |
+| [RustFS setup for the memory store](docs/rustfs.md) | The bucket policy and the admin steps for the S3 store |
 
-- Layout and the read and write paths: [docs/memory.md](docs/memory.md).
-- The bucket policy and admin steps: [docs/rustfs.md](docs/rustfs.md).
-- How stored rows are meant to turn into better decisions:
-  [docs/memory-and-detection.md](docs/memory-and-detection.md).
-
-## Decision engine and evaluation
-
-A learned decision engine is being built to replace hand-tuned detection edits. Its rules are:
-
-- Every instrument produces signals, never verdicts.
-- Labels come from ground truth only.
-- A compiled AI classifier with local memory turns retrieved similar cases and the candidate's
-  signals into a calibrated probability. It has BLOCK and ADVISORY operating points.
-
-It is **in development, not adopted**. No scan, pre-push check or report uses it.
-
-It was measured on six families, on repositories the compiled program was not shown:
-
-- The pooled AUC (area under the ROC curve) of its score runs from 0.77 (injection) to 0.96
-  (access control).
-- The stricter within-pair AUC is 0.72 to 0.93 across the same families.
-- BLOCK is offered for no family
-  (`benchmarks/measurements/2026-10-02-decision-engine-slice-2/record.json`).
-
-Maintainer surface: `ousast learn labels|memory|compile|evaluate|curve|experiment|audit-leaks`.
-The design and evaluation slices are in [docs/decision-engine.md](docs/decision-engine.md), along with the A/B protocol.
-
-[docs/evaluation.md](docs/evaluation.md) explains how anything is measured on code the tool was not
-tuned on. It covers the pair corpora, the independent populations and the M4 gates. It also covers
-the fold discipline that keeps learned decisions out of their own training data. Population v3
-(PHP, 15 cases) is frozen as the one-time final check. Nothing in the tree may read it. Population v4
-(11 cases) was frozen on 2026-11-23 and is unscanned; `protocol-v4.md` is committed and no result
-exists.
-
-```bash
-uv run ousast benchmark benchmarks/manifests/python-vulnerable.toml --mode quick
-uv run ousast pairs --slice sast                     # fire on the vulnerable side, stay silent on the fix
-uv run python -m openultrasast.pair_gate             # CI: local pairs must all pass
-```
-
-## Token economics
-
-Model tokens are the one running cost. At runtime the plane routes them:
-
-- one Model and one budget per Task;
-- a metered client that refuses the next call at the ceiling;
-- repository facts computed without a model and reused;
-- blobs replayed at $0, with no new model call;
-- triage before the hunt;
-- a tie-break only on disputed candidates.
-
-In development, 85.5% of the maintainers' coding-session tokens were tool input and output rather
-than reasoning. That is down from 90%. The remedies in `benchmarks/dev/` target that share.
-Mechanisms, the measured costs and the before-and-after table:
-[docs/token-ergonomics.md](docs/token-ergonomics.md).
-
-## Examples, threat model
-
-- End-to-end walkthroughs, from a quick scan to an MCP client: [docs/examples.md](docs/examples.md).
-- What the tool trusts and what it does not: [docs/threat-model.md](docs/threat-model.md). This
-  covers scanned code as untrusted input, secret redaction, per-task egress, budgets and the
-  `deep` sandbox.
-
-## Contributing and maintainer tooling
+## For maintainers and contributors
 
 ```bash
 uv run pytest                 # tests, incl. the 90/10 detection gate
@@ -375,8 +261,13 @@ uv run python -m openultrasast.pair_gate  # local vuln-vs-fix pairs
 uv run python dagger/ci.py    # containerized CI pipeline
 ```
 
-An agent that can run shell commands needs nothing but the CLI. For [OpenCode](https://opencode.ai)
-there are two project skills in `.agents/skills/`:
+Two parts are in development, and a scan needs neither of them: the agentic plane for model work
+over whole repositories ([The plane on ax](docs/plane.md)) and a learned decision engine
+([Decision engine](docs/decision-engine.md)). The benchmark and pair commands that maintainers run
+are in [Examples](docs/examples.md). Other maintainer commands: `ousast repos` (pinned
+known-vulnerable checkouts) and `ousast model candidates` (what the candidate enumerator can reach).
+
+For [OpenCode](https://opencode.ai) there are two project skills in `.agents/skills/`:
 
 - `openultrasast-scan`: modes and their prerequisites, `--fail-on`, the evidence ladder, recorded
   degradations and run artifacts.
@@ -393,10 +284,7 @@ command.
 ```
 
 The `kiro-*` skills, `AGENTS.md` and the Kiro-style specifications under `.kiro/` are the
-maintainer's development tooling. Users can ignore them. Other maintainer commands:
-
-- `ousast repos`: pinned known-vulnerable checkouts.
-- `ousast model candidates`: what the candidate enumerator can reach.
+maintainer's development tooling. Users can ignore them.
 
 ## Licence
 
@@ -406,83 +294,3 @@ own terms:
 - Joern (Apache-2.0) is downloaded at image build time.
 - The tree-sitter wheels of the `semantic` extra are MIT.
 - The published benchmark cases were licence-checked one by one. v1's OpenCVE case is BUSL-1.1, see [RELEASE_NOTES.md](RELEASE_NOTES.md).
-
-## Engine traces on kube-ax
-
-`benchmarks/learn/engine_trace.py --executor ax` submits AX v0.3.1 Tasks with
-`ax apply -f -` and removes them with `ax delete task NAME`. The operator supplies
-kubeconfig and AX access; the dispatcher creates no Kubernetes resources or secrets.
-The `ousast-engine-task` GHCR package **must be made Public once** in its package
-settings so the actors can pull it without registry credentials.
-
-The task image contains the current engine and worker code. Rebuild it after code
-changes and pass its digest with `--image`; no analyzer download is needed. The host
-prepares each pin as usual and uploads source and prepared questions under
-`engine-queue/<run>/<pin>/`. Only object-scoped presigned URLs and deadline parameters
-enter Task env. Credentials stay on the coordinator. Configure `OUSAST_MEMORY=s3://…`
-and the store credentials in the coordinator's `.env` or environment, with
-`S3_ENDPOINT=https://files.because-security.com`. Presigned links expire after the
-pin deadline plus ten minutes. IP and HTTP endpoints are rejected: the operator's
-actor EgressPolicy must allow files.because-security.com:443.
-
-The result object marks completion, even while AX reports Running. Failed phases and
-host deadlines produce explicit failure/timeout rows. Task and staging-object cleanup
-runs on success and failure; cleanup failure stops further dispatch. Per-pin files,
-`--rerun-status`, resume and `progress.json` retain the existing trace-runner behavior.
-AX results include `executor: "ax"`, `worker_ip`, and the image digest. Placement is
-random; `--parallel` defaults to two AX tasks and cannot exceed two.
-
-AX workers use `--heap-profile cluster` with
-`-Xms1700m -Xmx1700m -XX:MaxMetaspaceSize=256m -XX:ReservedCodeCacheSize=128m -XX:MaxDirectMemorySize=256m -Xss512k -XX:ActiveProcessorCount=1 -XX:+UseG1GC`
-on every frontend/query JVM; instruments record the flags. A `JVM out of memory`
-result is automatically re-queued to one local Docker lane with `--heap-profile vm`
-(2560m), recording `fallback: "vm-oom"` and the AX attempt. `mixed-ax` also uses this
-one Docker lane for overflow, prioritizing pending OOM fallbacks. Thus a mixed run has
-up to two AX tasks plus one Docker container. Use `--docker-image` for the locally
-available VM image; Docker never pulls it implicitly. A STOP file prevents new
-launches; interrupted fallback queues are recovered on resume.
-
-Coordinator commands, from this worktree (the AX binary and kubeconfig remain
-configurable). Build the image of the Docker lane, then set `TASK_IMAGE` to the
-`ousast-engine-task` reference the Engine image workflow printed:
-
-```bash
-cd /home/mc/Source/OpenUltraSAST/.claude/worktrees/engine-ax
-export PATH=/home/mc/Source/OpenUltraSAST/.venv/bin:$PATH
-export PYTHONPATH="$PWD/src"
-OUSAST_VERSION=engine-ax docker compose build
-# The ousast-engine-task reference the Engine image workflow printed, in its log and its summary:
-export TASK_IMAGE="ghcr.io/norandom/ousast-engine-task@sha256:<digest>"
-```
-
-`docker compose build` takes the base from the defaults in `docker-compose.yml`,
-which a test keeps equal to `plane/task-base.digest`; `OUSAST_VERSION` sets the tag
-of the image, here `openultrasast:engine-ax`. The Engine image workflow also
-builds/pushes both images and prints each digest; CI needs the changes published
-before dispatch. When the workflow runs is the rebuild policy in
-[ops/ax/README.md](ops/ax/README.md). The Docker lane runs the local image,
-committed or not; the AX lanes run the task image of the revision the workflow built.
-
-With `KUBECONFIG` pointing to the operator's kube-ax config and store settings in
-`.env`, run a one-pin smoke using the default experiment units and local example
-memory (or add `--examples /path/to/frozen-examples.jsonl`). Use the `ax` binary at
-`$HOME/go/bin/ax`. `$HOME/.local/ax-v0.3.1/ax` hits the AX-lane dispatch blocker:
-
-```bash
-: "${KUBECONFIG:?Set KUBECONFIG to the operator kube-ax configuration}"
-python benchmarks/learn/engine_trace.py --executor ax \
-  --ax-bin "$HOME/go/bin/ax" --kubeconfig "$KUBECONFIG" \
-  --atespace default --image "$TASK_IMAGE" --docker-image openultrasast:engine-ax \
-  --parallel 1 --limit 1 --deadline 900 \
-  --out "$HOME/ousast-results/plane/engine-ax-smoke"
-```
-
-Then run the mixed lanes (repeat to resume; defaults re-run failed/timeout pins):
-
-```bash
-python benchmarks/learn/engine_trace.py --executor mixed-ax \
-  --ax-bin "$HOME/go/bin/ax" --kubeconfig "$KUBECONFIG" \
-  --atespace default --image "$TASK_IMAGE" --docker-image openultrasast:engine-ax \
-  --parallel 2 --deadline 900 --rerun-status failed,timeout \
-  --out "$HOME/ousast-results/plane/engine-ax-mixed"
-```

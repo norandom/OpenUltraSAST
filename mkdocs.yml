@@ -52,6 +52,7 @@ nav:
   - Overview: index.md
   - How it works:
       - Where we stand: where-we-stand.md
+      - Roadmap: roadmap.md
       - Scanning: scanning.md
       - Detection techniques: detection-techniques.md
       - Architecture: architecture.md
@@ -69,5 +70,6 @@ nav:
   - Operations (maintainers):
       - Engine and pre-push: ops/README.md
       - ax on this host: ops/ax/README.md
+      - Engine traces on kube-ax: ops/ax/engine-traces.md
       - Deployment: deployment.md
       - RustFS setup for the memory store: rustfs.md

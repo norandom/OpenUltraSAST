@@ -17,6 +17,10 @@ Recall means the share of known bugs found. FP means false positives.
 The detection gate and the local pairs are CI gates. They catch regressions. They do not
 estimate recall on real code, because the rules were written against them.
 
+The gate's committed baseline, `benchmarks/measurements/2026-09-06-gate-baseline.txt`, records 93.62%
+recall (44/47) and 0.0% false positives. The README quoted it from 2026-10-02 (commit `bdabb97`). PHP
+is not in the gate.
+
 ## Pair corpora
 
 A pair is a vulnerable function and its fixed version. You can run the catalog

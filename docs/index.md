@@ -5,9 +5,10 @@ repositories it has never seen. It scans a checkout, or the commits a `git push`
 keeps what it can prove apart from what it only suspects. When a scan could not look at
 something, it records a degradation. It does not report a clean result.
 
-**State as of 2026-10-02 (v2.0.0):** the pre-push safety net is **NO-GO** for rollout.
-No hook capability is enabled. No independent population (a case set frozen before any scan) has
-passed the qualification gates (see [Evaluation](evaluation.md)).
+**State as of 2026-11-28:** the safety net is not released yet. No hook capability is enabled: the pre-push
+hook is advisory, and nothing blocks a push. No detection arm has met the release gate on unseen
+repositories (see [Evaluation](evaluation.md)). The project is at step R3 of its ladder, the first
+honest number, which waits on independently reviewed cases (see [Roadmap](roadmap.md)).
 
 ## Three layers
 

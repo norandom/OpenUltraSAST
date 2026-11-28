@@ -16,15 +16,16 @@ under its runs directory when that directory lies inside the scanned path; when 
 files out of the scan, `ousast` prints one `notice:` line naming the directory and how many.
 `ousast benchmark` writes its run to the same directory, as `<runs_dir>/<benchmark-run-id>/` beside
 the scan runs, and prints that path (`benchmark_run_dir=<path>`); run retention removes it like a
-scan run.
+scan run. The MCP tool `openultrasast.benchmark` uses the same directory.
 
 A scan that rejects or holds a finding writes one file into the scanned tree, and only when that
 file's content would change:
 `<target>/.openultrasast/calibration/false_positive_learnings.json` (`.openultrasast/` is
 gitignored in this repository, not in one of your own). On a read-only tree the scan records
 `ledger_not_written` instead and keeps the learnings in the ledger of the tree's digest,
-`<runs_dir>/calibration/<digest>.json`, read by the next scan of the very same bytes (the README says
-the same under "Scan modes").
+`<runs_dir>/calibration/<digest>.json`, read by the next scan of the very same bytes. The `ledger` block
+of `manifest.json` names the digest, how many learnings came from each ledger, and what became of the
+digest's ledger. [Architecture](architecture.md#scoped-calibration-every-scan) describes the mechanism.
 
 ## 1. Quick scan a local repo (deterministic, no keys)
 
