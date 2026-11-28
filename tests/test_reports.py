@@ -616,6 +616,33 @@ def test_an_unwritable_ledger_is_stated_in_the_report(tmp_path) -> None:  # type
     assert "`ledger_not_written`" not in section
 
 
+def test_an_unwritable_ledger_kept_by_digest_names_the_file_the_next_scan_reads(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    """When the learnings are kept in the ledger of the tree's digest, the sentence says where: a reader told only a
+    code cannot find them."""
+    path = tmp_path / "report.md"
+    kept = "/reports/calibration/" + "a" * 64 + ".json"
+    write_markdown_report(
+        [],
+        path,
+        [],
+        degradations=[
+            {
+                "stage": "record_calibration",
+                "reason": "ledger_not_written",
+                "detail": "[Errno 30] Read-only file system: '/target/.openultrasast'",
+                "kept_in": kept,
+            }
+        ],
+    )
+    section = path.read_text().split("### What could not be analysed", 1)[1]
+    assert (
+        "The false-positive ledger in the analysed tree could not be written, so this scan's learnings are kept in "
+        f"the ledger of this tree's digest under the runs directory, at `{kept}`, and the next scan of the same "
+        "bytes reads them. [Errno 30] Read-only file system: '/target/.openultrasast'"
+    ) in section
+    assert "only in this run directory" not in section
+
+
 def test_quick_scan_names_a_language_nothing_covers(tmp_path, monkeypatch, capsys) -> None:  # type: ignore[no-untyped-def]
     monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", str(tmp_path / "runs"))
     """pre-push 17.2 / Req 9.2: a Go-only tree is not a silent zero."""

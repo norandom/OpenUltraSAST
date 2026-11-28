@@ -4,21 +4,26 @@ tree is left as it was unless the scan has a false positive to remember."""
 import errno
 import hashlib
 import json
+import os
 import re
 import shutil
 import subprocess
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
 
-from openultrasast import cli
+from openultrasast import cli, digest_ledger
+from openultrasast.calibration import FalsePositiveLearning, FalsePositiveReason, write_false_positive_learnings
 from openultrasast.cli import main
 from openultrasast.config import ResolvedConfig, load_config
 from openultrasast.preprocess import enumerate_source_files
+from openultrasast.tree_digest import tree_digest
 
 LEDGER = ".openultrasast/calibration/false_positive_learnings.json"
 LEDGER_DIRECTORIES = {".openultrasast", ".openultrasast/calibration"}
 LEDGER_UNWRITTEN = {"stage": "record_calibration", "reason": "ledger_not_written"}
+DIGEST_LEDGERS = "calibration"
 
 
 def _user_cache(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
@@ -94,6 +99,7 @@ def test_a_scan_that_learns_writes_the_ledger_into_the_tree_and_nothing_else(
     assert [learning["path"] for learning in learnings] == ["pkg/lib.py"]
     kept = json.loads((run / "calibration" / "false_positive_learnings.json").read_text())["learnings"]
     assert kept == learnings
+    assert _ledger_of(run)["digest_ledger"] == "none"
     files_after, directories_after = _tree(repo)
     assert {name: files_after[name] for name in files_before} == files_before
     assert set(files_after) - set(files_before) == {LEDGER}
@@ -113,7 +119,8 @@ def test_a_scan_that_cannot_write_the_ledger_records_it_and_goes_on(
 
     assert _scan(repo, mode) == 0
 
-    (run,) = runs.iterdir()
+    # This scan learned something the tree could not take: its learnings are kept in the ledger of the tree's digest.
+    (run,) = [path for path in runs.iterdir() if path.name != DIGEST_LEDGERS]
     degradations = json.loads((run / "manifest.json").read_text())["degradations"]
     recorded = [{key: item.get(key) for key in LEDGER_UNWRITTEN} for item in degradations]
     assert LEDGER_UNWRITTEN in recorded
@@ -180,6 +187,233 @@ def test_a_rescan_on_a_read_only_tree_records_nothing_because_nothing_needed_wri
     degradations = json.loads((run / "manifest.json").read_text()).get("degradations") or []
     assert "ledger_not_written" not in [item["reason"] for item in degradations]
     assert _tree(repo) == tree_before
+
+
+def _refusing(monkeypatch: pytest.MonkeyPatch, ledger: Path) -> None:
+    """The tree refuses its ledger from here on, as a read-only mount does, while its bytes stay as they are."""
+    write = cli.write_false_positive_learnings
+
+    def refuse_the_store(learnings, path):
+        if path == ledger:
+            raise PermissionError(errno.EACCES, "Permission denied", str(path))
+        write(learnings, path)
+
+    monkeypatch.setattr(cli, "write_false_positive_learnings", refuse_the_store)
+
+
+def _digest_ledger(runs: Path, repo: Path) -> Path:
+    """Where a scan keeps what it learned while `repo` could not be written."""
+    return runs / DIGEST_LEDGERS / f"{tree_digest(repo, runs)}.json"
+
+
+def _ledger_of(run: Path) -> dict[str, object]:
+    return json.loads((run / "manifest.json").read_text())["ledger"]
+
+
+def _reasons(run: Path) -> list[str]:
+    return [item["reason"] for item in json.loads((run / "manifest.json").read_text()).get("degradations") or []]
+
+
+def test_a_scan_whose_tree_refuses_the_ledger_keeps_it_under_the_runs_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """What a scan in the image learns is not lost: it goes to the ledger of the tree's digest, which only a scan of
+    the very same bytes reads."""
+    runs = _user_cache(tmp_path, monkeypatch)
+    repo = _target(tmp_path, learns=True)
+    tree_before = _tree(repo)
+
+    with pytest.MonkeyPatch.context() as refusing:
+        _refusing(refusing, (repo / LEDGER).resolve())
+
+        assert _scan(repo) == 0
+
+    (run,) = [path for path in runs.iterdir() if path.name != DIGEST_LEDGERS]
+    kept = _digest_ledger(runs, repo)
+    learnings = json.loads(kept.read_text())["learnings"]
+    assert [learning["path"] for learning in learnings] == ["pkg/lib.py"]
+    assert json.loads((run / "calibration" / "false_positive_learnings.json").read_text())["learnings"] == learnings
+    assert _ledger_of(run) == {
+        "tree_digest": tree_digest(repo, runs),
+        "learnings_read": {"tree": 0, "digest": 0},
+        "digest_ledger": "written",
+    }
+    assert (
+        "The false-positive ledger in the analysed tree could not be written, so this scan's learnings are kept in "
+        f"the ledger of this tree's digest under the runs directory, at `{kept}`, and the next scan of the same "
+        "bytes reads them."
+    ) in (run / "report.md").read_text()
+    assert _tree(repo) == tree_before
+
+
+def test_the_next_scan_of_the_same_bytes_reads_the_ledger_of_its_digest(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    runs = _user_cache(tmp_path, monkeypatch)
+    repo = _target(tmp_path, learns=True)
+
+    with pytest.MonkeyPatch.context() as refusing:
+        _refusing(refusing, (repo / LEDGER).resolve())
+
+        assert _scan(repo) == 0
+        assert "calibrations_applied=0\n" in capsys.readouterr().out
+        kept = _digest_ledger(runs, repo)
+        assert kept.is_file()
+        earlier = set(runs.iterdir())
+
+        assert _scan(repo) == 0
+
+    assert "calibrations_applied=1\n" in capsys.readouterr().out
+    (run,) = set(runs.iterdir()) - earlier
+    assert _ledger_of(run)["learnings_read"] == {"tree": 0, "digest": 1}
+    assert _ledger_of(run)["digest_ledger"] == "left as it was"
+    assert [path.name for path in (runs / DIGEST_LEDGERS).iterdir()] == [kept.name]
+
+
+@pytest.mark.parametrize("learns_again", [True, False])
+def test_the_first_scan_that_can_write_the_tree_carries_the_entries_into_it_and_removes_the_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], learns_again: bool
+) -> None:
+    """By the decision of 2026-11-28, also when that scan learns nothing new: the entries are new to the tree."""
+    runs = _user_cache(tmp_path, monkeypatch)
+    repo = _target(tmp_path, learns=True)
+    ledger = (repo / LEDGER).resolve()
+
+    with pytest.MonkeyPatch.context() as refusing:
+        _refusing(refusing, ledger)
+        assert _scan(repo) == 0
+
+    kept = _digest_ledger(runs, repo)
+    assert kept.is_file()
+    if not learns_again:
+        monkeypatch.setattr(cli, "learnings_from_verifications", lambda findings, verifications: [])
+    earlier = set(runs.iterdir())
+
+    assert _scan(repo) == 0
+
+    (run,) = set(runs.iterdir()) - earlier
+    assert [learning["path"] for learning in json.loads(ledger.read_text())["learnings"]] == ["pkg/lib.py"]
+    assert not kept.exists()
+    assert _ledger_of(run)["digest_ledger"] == "removed"
+    assert "ledger_not_written" not in _reasons(run)
+
+
+def test_a_ledger_of_a_digest_is_removed_once_the_tree_holds_its_entries(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    runs = _user_cache(tmp_path, monkeypatch)
+    repo = _target(tmp_path, learns=True)
+    ledger = (repo / LEDGER).resolve()
+
+    with pytest.MonkeyPatch.context() as refusing:
+        _refusing(refusing, ledger)
+        assert _scan(repo) == 0
+
+    kept = _digest_ledger(runs, repo)
+    # The entries reach the tree's ledger by hand, as a commit could bring them. `.openultrasast` is no part of the
+    # digest, so this is still the same tree to a scan.
+    ledger.parent.mkdir(parents=True)
+    shutil.copyfile(kept, ledger)
+    stamp = ledger.stat().st_mtime_ns
+    earlier = set(runs.iterdir())
+
+    assert _scan(repo) == 0
+
+    (run,) = set(runs.iterdir()) - earlier
+    assert not kept.exists()
+    assert ledger.is_file()
+    assert ledger.stat().st_mtime_ns == stamp
+    assert _ledger_of(run)["digest_ledger"] == "removed"
+
+
+def test_an_entry_that_is_in_both_ledgers_is_taken_from_the_trees(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The tree's ledger is the file a user can read, edit and commit: where the two disagree, its version is applied."""
+    runs = _user_cache(tmp_path, monkeypatch)
+    repo = _target(tmp_path)
+    tree_entry = FalsePositiveLearning(
+        "py-eval:pkg/lib.py:2", "pkg/lib.py", "xss", FalsePositiveReason.UNREACHABLE_PATH, "the tree's evidence", "pkg"
+    )
+    tree_ledger = repo / LEDGER
+    write_false_positive_learnings([tree_entry], tree_ledger)
+    write_false_positive_learnings([replace(tree_entry, evidence="the digest's evidence")], _digest_ledger(runs, repo))
+
+    tree_learnings, ledger, prior_learnings = cli._read_ledgers(tree_ledger.resolve(), runs, tree_digest(repo, runs))
+
+    assert (ledger.found, [learning.evidence for learning in tree_learnings]) == ("read", ["the tree's evidence"])
+    assert [learning.evidence for learning in prior_learnings] == ["the tree's evidence"]
+
+
+@pytest.mark.parametrize("content", ["not a ledger\n", "[" * 5000 + "]" * 5000], ids=["not a ledger", "nested too deep"])
+def test_a_ledger_of_a_digest_that_is_not_a_ledger_does_not_stop_the_scan(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], content: str
+) -> None:
+    """Whatever a hand or another tool left there: taken for empty, said unreadable, and gone."""
+    runs = _user_cache(tmp_path, monkeypatch)
+    repo = _target(tmp_path, learns=True)
+    ledger = (repo / LEDGER).resolve()
+    with pytest.MonkeyPatch.context() as refusing:
+        _refusing(refusing, ledger)
+        assert _scan(repo) == 0
+    kept = _digest_ledger(runs, repo)
+    kept.write_text(content)
+    earlier = set(runs.iterdir())
+
+    assert _scan(repo) == 0
+
+    (run,) = set(runs.iterdir()) - earlier
+    assert _ledger_of(run)["digest_ledger"] == "unreadable"
+    assert not kept.exists()
+    assert [learning["path"] for learning in json.loads(ledger.read_text())["learnings"]] == ["pkg/lib.py"]
+
+
+@pytest.mark.parametrize("failure", ["write", "removal"])
+def test_a_ledger_of_a_digest_that_cannot_be_written_or_removed_is_said_once_and_costs_the_scan_nothing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], failure: str
+) -> None:
+    runs = _user_cache(tmp_path, monkeypatch)
+    repo = _target(tmp_path, learns=True)
+    ledger = (repo / LEDGER).resolve()
+    rename = os.replace
+    unlink = Path.unlink
+
+    def refusing_rename(source, target):  # type: ignore[no-untyped-def]
+        if Path(target) == kept:
+            raise PermissionError(errno.EACCES, "Permission denied", str(target))
+        return rename(source, target)
+
+    def refusing_unlink(path, *args, **kwargs):  # type: ignore[no-untyped-def]
+        if path == kept:
+            raise PermissionError(errno.EACCES, "Permission denied", str(path))
+        return unlink(path, *args, **kwargs)
+
+    kept = _digest_ledger(runs, repo)
+    with pytest.MonkeyPatch.context() as refusing:
+        _refusing(refusing, ledger)
+        if failure == "write":
+            refusing.setattr(digest_ledger.os, "replace", refusing_rename)
+        assert _scan(repo) == 0
+    if failure == "write":
+        (run,) = [path for path in runs.iterdir() if path.name != DIGEST_LEDGERS]
+        assert not kept.exists()
+        assert "kept only in this run directory" in (run / "report.md").read_text()
+    else:
+        assert kept.is_file()
+        earlier = set(runs.iterdir())
+        monkeypatch.setattr(Path, "unlink", refusing_unlink)
+
+        assert _scan(repo) == 0
+
+        (run,) = set(runs.iterdir()) - earlier
+        assert kept.is_file()
+        assert ledger.is_file()
+
+    assert _ledger_of(run)["digest_ledger"] == "failed"
+    assert (
+        capsys.readouterr().out.count(
+            f"notice: the ledger of this tree's digest could not be written or removed: [Errno 13] Permission denied: '{kept}'"
+        )
+        == 1
+    )
 
 
 def test_the_scan_prints_the_run_directory_once(

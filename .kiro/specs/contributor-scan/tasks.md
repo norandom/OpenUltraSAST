@@ -456,6 +456,50 @@
     `s8_d_standard_nokey.out`, `s8_d_native_standard.out`, the run directories
     `s8_build/reports/runs/20261126T125414Z-facce3bb` and `s8_native_runs/20261126T125839Z-ec9e1a0e`; the
     ninth session's readings `s9_c7_*.out`.
+  - _The ledger of a tree that cannot be written, 2026-11-28 (tenth session), by the maintainer's decision of
+    2026-11-27 on the ninth session's menu (item 5b, answer 9, "Decide the key now": "a digest of the tree's files
+    (the `fingerprint` of the `provenance` stage is no digest), one ledger per digest under the runs directory; a
+    design note is shown to the maintainer before any code") and by the maintainer's three answers of 2026-11-28 to
+    that note, given through the question tool: "Stand as written (Recommended)" on its rule of reading and writing
+    (the note's section 3.3), "With the runs, by last use (Recommended)" on how long a ledger stays (section 3.5),
+    and "Build it now (Recommended)". The rule as it stands: a scan reads the tree's ledger and then the ledger of
+    the tree's digest, `<runs_dir>/calibration/<digest>.json`, the tree's entry winning by finding id; the first
+    scan that can write the tree's ledger carries the digest's entries into it and removes the digest's ledger,
+    whether or not that scan learns something new, which departs from the decision of 2026-11-24 that the tree's
+    ledger "is written only when a scan learns something" (`spec.json:68`); an expired ledger of a digest is
+    removed by the step that removes old runs, in the same two locations, dated by its last use, which changes
+    the decision of 2026-11-24 in three points (`spec.json:73`: anything under the runs directory not named like a
+    run is never touched; a run is dated by its id)._
+    Evidence of the tenth session. The digest (`src/openultrasast/tree_digest.py`) is a sha256 over one entry per
+    file in path order (the length of the path, a colon, the path, a tab, the sha256 of the bytes), over every
+    regular file under the target but links, the directories a scan ignores and the runs directory; a file that
+    cannot be read and a directory that cannot be listed are named `unreadable`. The built function gives the
+    digest of the design note's prototype for the four-file subject and for libpng (`s10_c10_port.out`), and the
+    digest the scan took in the image equals the one taken on the host for the same files
+    (`s10_c10_image_digest_host4.out`). The rule is `src/openultrasast/digest_ledger.py`, read in `_read_ledgers`
+    and settled in `_persist_calibration_feedback` (`cli.py`); the removal is `prune_expired_ledgers`
+    (`run.py`), called by `prune_scan_runs`. The manifest gains a `ledger` block: `tree_digest`,
+    `learnings_read` from the tree's ledger and from the digest's, and `digest_ledger`, what became of the
+    digest's ledger in the scan (none, unreadable, written, left as it was, removed, failed). The report's
+    `ledger_not_written` sentence names the digest's ledger when it holds the learnings; a `notice:` line when
+    an expired ledger is removed or cannot be. Tests first: `tests/test_tree_digest.py` (7),
+    `tests/test_digest_ledger.py` (11, one over nine contents a file may hold), seven tests in
+    `tests/test_scan_output_location.py` (six through the scan, three of them over two cases; one on
+    `_read_ledgers`), six in `tests/test_run_pruning.py`, one sentence in `tests/test_reports.py`; RED 15 failed
+    on an archive of e231b78, GREEN 134 passed over the five files and 873 over the 60 files of the scan path.
+    Measured in the image on the build (a probe image of `openultrasast:dev` with the tree's package), standard
+    mode, no key, the four C files of `contrib/examples` of libpng mounted read-only: the first scan learns four
+    entries and keeps them in `/reports/calibration/<digest>.json` (`calibrations_applied=0`, `project_score` 26);
+    the second scan of the same bytes reads them (`learnings_read` 4 from the digest's ledger,
+    `calibrations_applied=2` on two files, `project_score` 59, `penalty_total` 32.0). The shipped image
+    `3f959b31f2f2`, the control, gives 0 and 26 on both scans, with no `ledger` block and no ledger. Natively, on
+    a fresh copy of the same five files, the network off: the first scan writes the tree's ledger
+    (`calibrations_applied=0`, `project_score` 26, `digest_ledger` none), the second reads it (`learnings_read` 4
+    from the tree's ledger, `calibrations_applied=2`, `project_score` 59), and no ledger of a digest is made: the
+    native path is as before. Evidence, the tenth session's scratch under `/tmp/opencode`, not kept:
+    `s10_c10_design_note.md`, `s10_c10_digest.py`, `s10_c10_probe.sh`, `s10_c10_digest_probe/`,
+    `s10_c10_image_probe/`, `s10_c10_native/`, and the test and gate outputs `s10_c10_red12.out`,
+    `s10_c10_red13.out`, `s10_c10_green9.out`, `s10_c10_wide4_full.out`, `s10_c10e_exits.txt`.
 
 - [x] 3.2 Build and verify the image
   - `docker compose build`, then run a real scan through it and through the shell wrapper. The Dockerfile and

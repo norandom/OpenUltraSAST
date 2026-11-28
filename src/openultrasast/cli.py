@@ -35,6 +35,7 @@ from .calibration import (
 )
 from .complexity import map as complexity_map
 from .config import ModelLayerConfig, ObligationsConfig, ResolvedConfig, RetiredConfigError, load_config, load_dotenv
+from .digest_ledger import HOLDS_LEARNINGS, DigestLedger, digest_ledger_path, read_digest_ledger, settle_digest_ledger
 from .findings import StaticFinding, quick_scan_findings, uncovered_languages, write_findings
 from .fusion import FusionDecision, fuse_findings
 from .harness import HarnessRuntime, HarnessTraceWriter, write_harness_config
@@ -82,6 +83,7 @@ from .semantic import (
 )
 from .semantic.facts import FactLoadError, SemanticFacts
 from .stages import Stage, plan_for_mode, record_completed, record_skip, skip_as_degradation, stages_payload
+from .tree_digest import tree_digest
 from .verification import VerificationResult, verify_findings, write_verification_results
 
 CALIBRATION_DIR = ".openultrasast/calibration"
@@ -598,11 +600,14 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
     )
     write_harness_config(config=config, path=run.root / "harness.json")
     runtime.start(mode=mode, target=run.target)
+    # The key of the ledger kept under the runs directory for a tree that could not be written into. Taken before
+    # any stage reads the tree.
+    digest = runtime.run_stage("tree_digest", lambda: tree_digest(run.target, Path(config.runs_dir)))
     policy, ruleset, targets, entry_points, left_out = _map_scan_targets(runtime, run, config, mode)
     ledger_path = run.target / CALIBRATION_DIR / "false_positive_learnings.json"
     provenance = runtime.run_stage("provenance", lambda: fingerprint(run.target))
     rankings = runtime.run_stage("rank", lambda: rank_targets(targets))
-    prior_learnings = load_false_positive_learnings(ledger_path)
+    tree_learnings, ledger_of_digest, prior_learnings = _read_ledgers(ledger_path, Path(config.runs_dir), digest)
     rankings, calibrations = runtime.run_stage("calibrate", lambda: calibrate_rankings(rankings, prior_learnings))
     applied_calibrations = [calibration for calibration in calibrations if calibration.applied_learning_ids]
     write_rankings(rankings, run.root / "rank" / "ranking.json")
@@ -617,7 +622,16 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
         write_hunter_trajectories(trajectories, files.trajectories)
 
     verifications, fusion_decisions = _verify_and_fuse(
-        runtime, run, config, mode, findings=findings, prior_learnings=prior_learnings, ledger_path=ledger_path, files=files
+        runtime,
+        run,
+        config,
+        mode,
+        findings=findings,
+        tree_learnings=tree_learnings,
+        ledger_of_digest=ledger_of_digest,
+        prior_learnings=prior_learnings,
+        ledger_path=ledger_path,
+        files=files,
     )
     cwe_by_rule = {rule.rule_id: rule.cwe for rule in ruleset}
     rule_cwe_by_id = {finding.finding_id: cwe_by_rule.get(finding.finding_id.split(":", 1)[0], "") for finding in findings}
@@ -714,10 +728,16 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
             provenance=provenance.to_dict(),
             obligations=map_stage.obligations_summary,
             model=map_stage.model,
+            ledger={
+                "tree_digest": digest,
+                "learnings_read": {"tree": len(tree_learnings), "digest": len(ledger_of_digest.learnings)},
+                "digest_ledger": runtime.state["digest_ledger"][0],
+            },
         ),
     )
     runtime.finish(status="succeeded")
     prune_notices = prune_scan_runs(config, keep=run.root)
+    ledger_error = runtime.state["digest_ledger"][1]
     return ScanOutcome(
         scan_id=run.scan_id,
         run_dir=run.root,
@@ -732,6 +752,7 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
             if item.get("reason") == "language_not_covered"
         )
         + prune_notices
+        + ((f"the ledger of this tree's digest could not be written or removed: {ledger_error}",) if ledger_error else ())
         + _skipped_files_notices(Path(config.runs_dir), left_out),
     )
 
@@ -845,6 +866,8 @@ def _verify_and_fuse(
     mode: str,
     *,
     findings: list[StaticFinding],
+    tree_learnings: list[FalsePositiveLearning],
+    ledger_of_digest: DigestLedger,
     prior_learnings: list[FalsePositiveLearning],
     ledger_path: Path,
     files: _RunFiles,
@@ -854,7 +877,9 @@ def _verify_and_fuse(
     write_verification_results(verifications, files.verification)
     runtime.run_stage(
         "record_calibration",
-        lambda: _persist_calibration_feedback(run, ledger_path, prior_learnings, findings, verifications, runtime),
+        lambda: _persist_calibration_feedback(
+            run, ledger_path, tree_learnings, ledger_of_digest, prior_learnings, findings, verifications, runtime
+        ),
     )
     # Fusion: deterministic two-panel adjudication for triggered findings (standard mode).
     fusion_decisions: list[FusionDecision] = []
@@ -1057,9 +1082,27 @@ def _attach_tool_hunter(
     return built_map, findings, verifications
 
 
+def _read_ledgers(
+    ledger_path: Path, runs_directory: Path, digest: str
+) -> tuple[list[FalsePositiveLearning], DigestLedger, list[FalsePositiveLearning]]:
+    """What the tree's ledger holds, the ledger of the tree's digest (what scans learned while the tree could not be
+    written into), and the learnings the scan is to apply.
+
+    An entry whose finding id is in both is taken from the tree's ledger: that is the file a user can read, edit
+    and commit.
+    """
+    tree_learnings = load_false_positive_learnings(ledger_path)
+    ledger_of_digest = read_digest_ledger(digest_ledger_path(runs_directory, digest))
+    tree_ids = {learning.finding_id for learning in tree_learnings}
+    prior_learnings = tree_learnings + [learning for learning in ledger_of_digest.learnings if learning.finding_id not in tree_ids]
+    return tree_learnings, ledger_of_digest, prior_learnings
+
+
 def _persist_calibration_feedback(
     run: ScanRun,
     ledger_path: Path,
+    tree_learnings: list[FalsePositiveLearning],
+    ledger_of_digest: DigestLedger,
     prior_learnings: list[FalsePositiveLearning],
     findings: list[StaticFinding],
     verifications: list[VerificationResult],
@@ -1068,14 +1111,27 @@ def _persist_calibration_feedback(
     # Store rejected or held findings as scoped learnings for the next scan.
     new_learnings = learnings_from_verifications(findings, verifications)
     merged = merge_false_positive_learnings(prior_learnings, new_learnings)
-    if merged != prior_learnings:
-        # The ledger is the one thing a scan still writes into the analysed tree, so it is written only when its
-        # content would change: a false positive already in the store is not a new learning. A tree that refuses
-        # the write (mounted read-only) is recorded, not fatal.
+    refused: OSError | None = None
+    tree_takes_it = False
+    if merged != tree_learnings:
+        # The ledger is the one thing a scan still writes into the analysed tree. It is written when its content
+        # would change, also when only the entries of the digest's ledger are new to it: the first scan that can
+        # write the tree carries them into it. A tree that refuses the write (mounted read-only) is recorded, not
+        # fatal: what was learned is kept in the ledger of the tree's digest under the runs directory instead.
         try:
             write_false_positive_learnings(merged, ledger_path)
+            tree_takes_it = True
         except OSError as exc:
-            runtime.state["degradations"].append({"stage": "record_calibration", "reason": "ledger_not_written", "detail": str(exc)})
+            refused = exc
+    outcome, error = settle_digest_ledger(
+        ledger_of_digest, tree=tree_learnings, merged=merged, new=new_learnings, tree_takes_it=tree_takes_it
+    )
+    runtime.state["digest_ledger"] = (outcome, error)
+    if refused is not None:
+        degradation: dict[str, object] = {"stage": "record_calibration", "reason": "ledger_not_written", "detail": str(refused)}
+        if outcome in HOLDS_LEARNINGS:
+            degradation["kept_in"] = str(ledger_of_digest.path)
+        runtime.state["degradations"].append(degradation)
     write_false_positive_learnings(new_learnings, run.root / "calibration" / "false_positive_learnings.json")
     return merged
 

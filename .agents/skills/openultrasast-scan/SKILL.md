@@ -81,7 +81,10 @@ Each entry in `manifest.json` `degradations` is `{"stage": ..., "reason": ...}`.
 - `ledger_not_written` (stage `record_calibration`): the scan rejected or held a finding and could not write the
   false-positive ledger into the analysed tree, as on a read-only mount. Recorded whenever such a scan has a
   learning the tree's ledger does not already hold; the learnings are in this run's
-  `calibration/false_positive_learnings.json`, and the next scan starts without them.
+  `calibration/false_positive_learnings.json`. They are also kept in the ledger of the tree's digest,
+  `<runs_dir>/calibration/<digest>.json`, which the next scan of the very same bytes reads: the report's sentence
+  names that file when it holds them (`digest_ledger` is `written` or `left as it was` in the manifest's `ledger`
+  block), and says the next scan starts without them when it could not be written either.
 - coverage facts from the graph, rendered in `report.md` under "What could not be analysed":
   `cpg_empty`, `cpg_build_failed`, `cpg_sharded`, `files_unparsed`, `query_failed`,
   `query_budget_reserved`, `query_too_expensive`, `budget_exhausted`, `regions_truncated`,
@@ -115,7 +118,8 @@ above, and that is what `--fail-on verified` counts. There is no configurable re
 
 Under `~/.cache/openultrasast/runs/<scan-id>/`:
 
-- `report.md`, `report.sarif` (SARIF 2.1.0 for code hosts and IDEs), `manifest.json` (stages, degradations, model payload)
+- `report.md`, `report.sarif` (SARIF 2.1.0 for code hosts and IDEs), `manifest.json` (stages, degradations, model
+  payload, the `ledger` block: the tree's digest and what became of the digest's ledger)
 - `findings.json`, `verification.json`, `score.json`, `shadow_findings.json` (rules shipped as `shadow`)
 - `harness.json`: the resolved harness configuration the run used
 - standard: `fusion.json`, `complexity_map.json`, `overlay.json`; deep: `verdicts.json`
@@ -124,7 +128,9 @@ Under `~/.cache/openultrasast/runs/<scan-id>/`:
 The only write a scan makes into the scanned tree is the ledger
 `<target>/.openultrasast/calibration/false_positive_learnings.json`: a scan that rejects or holds a finding
 writes it only when that file's content would change; on a read-only tree the scan records `ledger_not_written`
-instead and keeps the learnings in this run directory's `calibration/false_positive_learnings.json`.
+instead and keeps the learnings in this run directory's `calibration/false_positive_learnings.json` and in the
+ledger of the tree's digest, `<runs_dir>/calibration/<digest>.json`, which the next scan of the very same bytes
+reads; the first scan that can write the tree carries its entries into the tree's ledger and removes it.
 
 ## Changed code only
 

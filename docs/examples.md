@@ -10,7 +10,8 @@ are removed, and `ousast` prints one `notice:` line when it removes any;
 `OPENULTRASAST_RUNS_RETENTION_DAYS` sets the number of days (`0` keeps every run), and nothing is
 ever removed from a location chosen with `OPENULTRASAST_RUNS_DIR`, except through the shell wrapper:
 it mounts `~/.cache/openultrasast/runs` at `/reports` in the image, and a scan through it removes the
-expired runs there as well. A scan does not read the files
+expired runs there as well; the ledgers of tree digests (`calibration/` under the same directories)
+go by the same number of days, dated by their last use. A scan does not read the files
 under its runs directory when that directory lies inside the scanned path; when this leaves source
 files out of the scan, `ousast` prints one `notice:` line naming the directory and how many.
 `ousast benchmark` writes its run to the same directory, as `<runs_dir>/<benchmark-run-id>/` beside
@@ -20,8 +21,10 @@ scan run.
 A scan that rejects or holds a finding writes one file into the scanned tree, and only when that
 file's content would change:
 `<target>/.openultrasast/calibration/false_positive_learnings.json` (`.openultrasast/` is
-gitignored in this repository, not in one of your own); on a read-only tree the scan records
-`ledger_not_written` instead and keeps the learnings in the run directory.
+gitignored in this repository, not in one of your own). On a read-only tree the scan records
+`ledger_not_written` instead and keeps the learnings in the ledger of the tree's digest,
+`<runs_dir>/calibration/<digest>.json`, read by the next scan of the very same bytes (the README says
+the same under "Scan modes").
 
 ## 1. Quick scan a local repo (deterministic, no keys)
 

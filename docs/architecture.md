@@ -35,6 +35,10 @@ policy_load ─▶ ruleset_load ─▶ policy_check            (fail loud on an 
   ─▶ report.md, report.sarif, manifest.json
 ```
 
+Before `policy_load`, the `tree_digest` stage takes a sha256 of the tree's files: the key of a
+ledger under the runs directory, for a tree the scan cannot write into ("Scoped calibration",
+point 3).
+
 **The model layer** (`model/`, `cpg/`) is the core of `standard`. It builds one code property
 graph (CPG: a graph of the program's syntax, control flow and data flow) per scan with Joern.
 It runs `joern-parse`, then batched `joern --script` queries from `cpg/queries/*.sc`. Each
@@ -146,6 +150,12 @@ next scan ─▶ rank ─▶ calibrate (demote rejected scopes) ─▶ findings
    the ledger, de-duplicated by finding ID.
 2. `calibrate` runs after `rank`. It demotes the priority of every scope that produced a
    rejection and writes `applied_calibrations.json`.
+3. `tree_digest` runs on every scan, before `preprocess`: a sha256 of every file's name and bytes
+   under the target. It is the key of a second ledger under the runs directory,
+   `<runs_dir>/calibration/<digest>.json`, in which `record_calibration` keeps what it learned when
+   the tree refused the write, as the image's read-only mount does. Only a scan of the very same
+   bytes reads it; the first scan that can write the tree carries its entries into the tree's ledger
+   and removes it (`src/openultrasast/digest_ledger.py`, `tests/test_digest_ledger.py`).
 
 Demotion is scoped and reversible (`tests/test_pipeline_calibration.py`).
 

@@ -195,7 +195,8 @@ there older than 30 days are removed, and `ousast` prints one `notice:` line whe
 `OPENULTRASAST_RUNS_RETENTION_DAYS` sets the number of days (`0` keeps every run), and nothing is
 ever removed from a location chosen with `OPENULTRASAST_RUNS_DIR`, except through the shell wrapper:
 it mounts `~/.cache/openultrasast/runs` at `/reports` in the image, and a scan through it removes the
-expired runs there as well. A scan does not read the files
+expired runs there as well; the ledgers of tree digests (`calibration/` under the same directories)
+go by the same number of days, dated by their last use. A scan does not read the files
 under its runs directory when that directory lies inside the scanned path; when this leaves source
 files out of the scan, `ousast` prints one `notice:` line naming the directory and how many.
 
@@ -206,8 +207,13 @@ files out of the scan, `ousast` prints one `notice:` line naming the directory a
 
 A scan that rejects or holds a finding writes one file into the scanned tree,
 `<target>/.openultrasast/calibration/false_positive_learnings.json`, and only when that file's
-content would change; on a read-only tree the scan records `ledger_not_written` instead and keeps
-the learnings in the run directory.
+content would change. On a read-only tree the scan records `ledger_not_written` instead and keeps
+the learnings in the ledger of the tree's digest, `<runs_dir>/calibration/<digest>.json`, where the
+digest is a sha256 of every file's name and bytes under the target. Only a scan of the very same
+bytes reads it; the first scan that can write the tree carries its entries into the tree's ledger
+and removes it. The `ledger` block of `manifest.json` names the digest, how many learnings came
+from each ledger, and what became of the digest's ledger. A digest's ledger is removed like a run
+once its last use is `OPENULTRASAST_RUNS_RETENTION_DAYS` days past.
 
 `ousast pre-push` (experimental) analyses the commits a push would publish against their base.
 First, the quick rules run on the changed lines. Then the engine compares head with base, and only

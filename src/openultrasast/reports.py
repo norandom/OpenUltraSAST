@@ -209,6 +209,7 @@ def write_manifest(
     variants: dict[str, object] | None = None,
     obligations: dict[str, object] | None = None,
     model: dict[str, object] | None = None,
+    ledger: dict[str, object] | None = None,
 ) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     verification_by_id = _verification_by_id(verifications)
@@ -250,6 +251,8 @@ def write_manifest(
         payload["obligations"] = obligations
     if model is not None:
         payload["model"] = model
+    if ledger is not None:
+        payload["ledger"] = ledger
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
 
 
@@ -455,6 +458,13 @@ _COVERAGE_DEGRADATIONS: dict[str, str] = {
         "The false-positive ledger in the analysed tree could not be written, so this scan's learnings are kept "
         "only in this run directory and the next scan starts without them. {detail}"
     ),
+    # The same degradation when the ledger of the tree's digest holds the learnings (`kept_in`, written in this scan
+    # or before): the next scan of the same bytes reads them there.
+    "ledger_kept_by_digest": (
+        "The false-positive ledger in the analysed tree could not be written, so this scan's learnings are kept in "
+        "the ledger of this tree's digest under the runs directory, at `{kept_in}`, and the next scan of the same "
+        "bytes reads them. {detail}"
+    ),
 }
 
 
@@ -467,7 +477,10 @@ def _append_not_analysed(lines: list[str], degradations: Sequence[Mapping[str, o
     """
     rendered: list[str] = []
     for item in degradations:
-        template = _COVERAGE_DEGRADATIONS.get(str(item.get("reason") or ""))
+        reason = str(item.get("reason") or "")
+        if reason == "ledger_not_written" and item.get("kept_in"):
+            reason = "ledger_kept_by_digest"
+        template = _COVERAGE_DEGRADATIONS.get(reason)
         if template is None:
             # Never hide a recorded degradation because nobody wrote a sentence for it yet.
             rendered.append(f"`{item.get('reason')}` (stage `{item.get('stage', 'unknown')}`)")

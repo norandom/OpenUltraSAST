@@ -369,3 +369,107 @@ def test_a_scan_with_a_retention_longer_than_the_calendar_succeeds_and_says_noth
 
     assert (expired / "manifest.json").is_file()
     assert _notices(capsys.readouterr().out) == []
+
+
+def _ledger_file(runs: Path, age_days: int, name: str) -> Path:
+    """A file under the directory of the ledgers of tree digests, last used `age_days` ago by the real clock."""
+    path = runs / "calibration" / name
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text('{"learnings": []}\n')
+    last_used = (datetime.now(UTC) - timedelta(days=age_days)).timestamp()
+    os.utime(path, (last_used, last_used))
+    return path
+
+
+def _digest(suffix: str = ".json") -> str:
+    return f"{uuid.uuid4().hex}{uuid.uuid4().hex[:32]}{suffix}"
+
+
+def test_a_ledger_of_a_tree_digest_unused_for_longer_than_the_retention_is_removed_with_the_runs(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """By the decision of 2026-11-28: a ledger is dated by its last use, a run by its id."""
+    monkeypatch.delenv("OPENULTRASAST_RUNS_DIR", raising=False)
+    monkeypatch.delenv(RETENTION, raising=False)
+    runs = tmp_path / "runs"
+    _ledger_file(runs, 40, _digest())
+    last_week = _ledger_file(runs, 5, _digest())
+    current = _run(runs, _run_id(datetime.now(UTC), "badc0de0"))
+
+    notices = prune_scan_runs(ResolvedConfig(runs_dir=str(runs)), keep=current)
+
+    assert notices == (f"removed 1 ledger of a tree digest unused for 30 days from {runs / 'calibration'}",)
+    assert list((runs / "calibration").iterdir()) == [last_week]
+    assert sorted(runs.iterdir()) == sorted([runs / "calibration", current])
+
+
+def test_a_scan_removes_the_expired_ledgers_and_says_so(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    runs = _default_cache(tmp_path, monkeypatch)
+    _ledger_file(runs, 40, _digest(".json." + uuid.uuid4().hex + ".tmp"))
+    _ledger_file(runs, 40, _digest())
+    last_week = _ledger_file(runs, 5, _digest())
+    repo = _target(tmp_path)
+
+    assert _scan(repo) == 0
+
+    assert list((runs / "calibration").iterdir()) == [last_week]
+    assert _notices(capsys.readouterr().out) == [f"removed 2 ledgers of a tree digest unused for 30 days from {runs / 'calibration'}"]
+
+
+def test_nothing_under_the_ledgers_directory_that_is_not_a_ledger_is_touched(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("OPENULTRASAST_RUNS_DIR", raising=False)
+    runs = tmp_path / "runs"
+    notes = _ledger_file(runs, 40, "notes.txt")
+    elsewhere = _ledger_file(tmp_path, 40, _digest())
+    link = runs / "calibration" / _digest()
+    link.symlink_to(elsewhere)
+    directory = runs / "calibration" / _digest()
+    directory.mkdir()
+
+    assert prune_scan_runs(ResolvedConfig(runs_dir=str(runs)), keep=runs / _run_id(datetime.now(UTC), "badc0de0")) == ()
+    assert sorted(path.name for path in (runs / "calibration").iterdir()) == sorted([notes.name, link.name, directory.name])
+    assert elsewhere.is_file()
+
+
+def test_a_retention_of_zero_keeps_every_ledger(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("OPENULTRASAST_RUNS_DIR", raising=False)
+    monkeypatch.setenv(RETENTION, "0")
+    runs = tmp_path / "runs"
+    expired = _ledger_file(runs, 40, _digest())
+
+    assert prune_scan_runs(ResolvedConfig(runs_dir=str(runs), runs_retention_days=0), keep=None) == ()
+    assert expired.is_file()
+
+
+def test_a_ledger_is_kept_through_compose_without_the_wrapper(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", "/reports/runs")
+    monkeypatch.delenv(RETENTION, raising=False)
+    runs = tmp_path / "reports" / "runs"
+    expired = _ledger_file(runs, 40, _digest())
+
+    assert prune_scan_runs(ResolvedConfig(runs_dir=str(runs)), keep=None) == ()
+    assert expired.is_file()
+
+
+def test_a_ledger_that_cannot_be_removed_is_said_once_and_costs_the_scan_nothing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    runs = _default_cache(tmp_path, monkeypatch)
+    expired = _ledger_file(runs, 40, _digest())
+    refusal = PermissionError(errno.EACCES, "Permission denied", str(expired))
+    unlink = Path.unlink
+
+    def refuse(path, *args, **kwargs):
+        if path == expired:
+            raise refusal
+        unlink(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "unlink", refuse)
+    repo = _target(tmp_path)
+
+    assert _scan(repo) == 0
+
+    assert expired.is_file()
+    assert _notices(capsys.readouterr().out) == [f"a ledger of a tree digest could not be removed from {runs / 'calibration'}: {refusal}"]
