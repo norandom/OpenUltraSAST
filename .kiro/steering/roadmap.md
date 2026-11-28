@@ -320,6 +320,12 @@ What remains before the G1 engine-arm replay:
   replay (`--lane ax`).
   - **Noted 2026-11-26:** the replay proof of 5.4 on kind waits for the local kind cluster, which is
     stopped since 2026-11-24; its code stays.
+  - **Noted 2026-11-28:** the text of 4.4 in `plane-on-kubernetes/tasks.md` stays as written (its title
+    says "Kind proof and record 04"). Three points on it are open and not decided: what the proof is on
+    kube-ax, since the parent bullet calls 4.4 the engine smoke and the task's bullets prove the GHCR images;
+    how a task of a group to re-plan under G4 gates G1, in this section whose ordering the milestone ladder
+    above supersedes; and the marker `(coordinator, network)`, which the parent bullet says 4.4 and 5.4 carry
+    and neither task's line in the spec has. The dated note under 4.4 holds the points.
 
 ### Phases
 
