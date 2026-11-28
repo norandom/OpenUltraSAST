@@ -221,6 +221,11 @@ Every figure has its record in [Where we stand](docs/where-we-stand.md).
 
 ## Documentation
 
+![System map of OpenUltraSAST in four groups](docs/system-map.svg)
+
+The system in four groups: what you call, what runs inside a scan, what only maintainers use, and how
+detection is measured. Each box names its page in short; the table below has the links.
+
 The documentation site is published at <https://norandom.github.io/OpenUltraSAST/>. Its sources are
 in `docs/` and `mkdocs.yml`; to preview it locally, run `uv sync --extra docs && uv run mkdocs serve`.
 Every page, by what you want to do:

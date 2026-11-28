@@ -88,6 +88,9 @@ stateDiagram-v2
     end note
 ```
 
+What is still open on this road, the reviewed cohorts, the governed run and the reading of M4, is
+listed in [Open parts](roadmap.md#open-parts) on the roadmap page.
+
 ## Folds: how learned decisions are kept out of their own training data
 
 The decision engine is evaluated on repositories it was not shown

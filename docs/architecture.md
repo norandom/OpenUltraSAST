@@ -73,6 +73,9 @@ asked. Only the graph's entailed findings are reported then.
 
 **REGRESS** was retired on 2026-10-13. Deep mode records a `regress_retired` degradation and otherwise equals standard. Execution proof is the search-with-proof arm's job (`search/verify.py`, bubblewrap sandbox, differential runs against owned canaries).
 
+Reusing the graph across revisions, which would let a changed-code scan fit its 30 second budget, is
+not scheduled; see [Open parts](roadmap.md#open-parts) on the roadmap page.
+
 ## Evidence ladder: how a false positive is eliminated
 
 Evidence level is a state machine, not a label a model may assign. The verifier

@@ -746,4 +746,5 @@ verdict (`model/ladder.py`): suspicion, `model_corroborated`, `model_entailed`,
 read it, ranking reads it, and the report uses it to group pattern-only matches. Folding one
 vocabulary into the other would either present a text match as a model verdict or change the
 JSON, SARIF and MCP output and the `min_evidence_level` declared on all 52 rules. A reader
-must never take `static_corroboration` as `model_corroborated`.
+must never take `static_corroboration` as `model_corroborated`. What is still missing in the engine,
+and the step that builds it, is in [Open parts](roadmap.md#open-parts) on the roadmap page.

@@ -95,4 +95,5 @@ formatter and the automatic landing of a proof as a committed regression test ar
 not packaged yet, and the base-versus-head path inherits the open large-repo
 latency limit, so a long deadline or a cluster lane may be needed on big diffs.
 The full-repository CI scan (as opposed to a diff) is roadmap work
-(`plane-on-kubernetes`), not the pre-push diff path shown here.
+(`plane-on-kubernetes`), not the pre-push diff path shown here. The proof arm is a pilot; it is parked
+until step R4 of the roadmap needs it, see [Open parts](roadmap.md#open-parts) on the roadmap page.

@@ -107,6 +107,23 @@ Every detection change must show an improvement in a controlled measurement on h
 - The local cluster that runs the plane is stopped since 2026-11-24. A wider Kubernetes deployment
   of the plane waits for a re-plan.
 
+## Open parts
+
+Work that is not done, with the page that describes it and the step that closes it. The states are
+those the records hold today.
+
+| Open part | State today | Described in | Closed by |
+| --- | --- | --- | --- |
+| Reviewed cohorts of real repositories | None exist. The tasks that prepare them are ticked, on synthetic review batches. | [Evaluation](evaluation.md#independent-populations-and-the-m4-gates) | R2 |
+| The governed admission run (task 11.6) and the final gate (task 11.7) | Not run. | [Evaluation](evaluation.md#independent-populations-and-the-m4-gates) | R3 |
+| An admitted pre-push capability | None. The eligibility registry was last written on 2026-09-13. | [Pre-push security for developers](pre-push-for-developers.md) | R6 |
+| Engine depth: control dependence, modelled sinks, sanitizer and framework knowledge | Open. The PHP transfer is blocked by its runtime. | [Detection techniques](detection-techniques.md#8-what-each-technique-misses) | R5 |
+| Graph reuse across revisions (M2, the 30 second gate) | Accepted on 2026-09-17. No open task owns it. | [Architecture](architecture.md#the-scan-pipeline) | Not scheduled; no step owns it |
+| The proof arm | A pilot, parked until R4 needs it. | [Use case: catch, prove, fix, re-verify](use-case-fix-and-reverify.md#honest-status) | R4, if it needs it |
+| The plane on a separate Kubernetes cluster | Planned, not done. The local cluster is stopped since 2026-11-24. | [Deployment](deployment.md#b-a-separate-kubernetes-cluster-planned) | R4 or R6, after a re-plan |
+| The qualification M4 | Pending M3. Its 11 cases are frozen and unscanned. | [Evaluation](evaluation.md#independent-populations-and-the-m4-gates) | R4 (M4) |
+| The decision engine | In development, not adopted. The roadmap does not schedule its adoption. | [Decision engine](decision-engine.md) | Not on the ladder |
+
 ## Rules at every step
 
 - The benchmark population measures. It never trains.

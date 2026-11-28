@@ -3,7 +3,8 @@
 **Status 2026-10-02: in development, not adopted.** No scan, pre-push check or report uses it.
 Every user-facing path stays on today's deterministic one until a compiled program is adopted.
 The design is the `learned-decision-engine` specification (maintainer tooling). The code is in
-`src/openultrasast/learn/`.
+`src/openultrasast/learn/`. The roadmap does not schedule its adoption; see
+[Open parts](roadmap.md#open-parts) on the roadmap page.
 
 ## Why
 

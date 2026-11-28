@@ -85,4 +85,5 @@ No code annotations. No markup. No per-project security config.
 
 An MCP agent and skills so your editor or your coding agent gets the same check
 earlier, inline, before the push, so feedback arrives while you are still writing
-rather than at the gate. See the follow-up spec `mcp-shift-left-agent`.
+rather than at the gate. See the follow-up spec `mcp-shift-left-agent`. No pre-push capability is admitted yet. What is still open,
+and the step that closes it, is in [Open parts](roadmap.md#open-parts) on the roadmap page.

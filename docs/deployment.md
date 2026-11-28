@@ -365,6 +365,9 @@ Running the reconciler in-cluster is itself planned. Today it is a host process.
 | Reconciler running in-cluster with Secrets injected into its environment | **planned** |
 | `AX_SNAPSHOTS_BUCKET` on your own bucket, worker pool sized to the cluster | your deployment's setting; documented, nothing to change in this repository |
 
+The move to a separate cluster is planned and waits for a re-plan; see
+[Open parts](roadmap.md#open-parts) on the roadmap page.
+
 ## Production topology: ax on a Kubernetes cluster
 
 This section answers the maintainer's questions from the code and the upstream checkouts under
