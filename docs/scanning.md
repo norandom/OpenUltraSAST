@@ -15,7 +15,7 @@ The stages each mode requests are listed in `MODE_STAGES` in `src/openultrasast/
 
 - `quick` runs STATIC.
 - `standard` adds MAP.
-- `deep` requests the REGRESS stage, which was retired on 2026-10-13: the scan records a `regress_retired` degradation and otherwise equals `standard`. Execution proof now comes from the search-with-proof arm.
+- `deep` requests the REGRESS stage, which was retired on 2026-10-13: the scan records a `regress_retired` degradation and otherwise equals `standard`. Execution proof comes from the search-with-proof arm.
 
 ```mermaid
 flowchart TD

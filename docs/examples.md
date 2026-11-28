@@ -119,4 +119,4 @@ Then call the tools in this order:
 2. `openultrasast.findings {run_dir}` lists the findings.
 3. `openultrasast.explain {run_dir, finding_id}` explains one.
 
-See the README section "Agent integrations".
+See the README section "For maintainers and contributors".

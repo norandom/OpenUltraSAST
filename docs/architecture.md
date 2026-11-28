@@ -16,7 +16,7 @@ The CLI is thin. `HarnessRuntime` owns the lifecycle. It writes an event trace f
 
 - `quick` runs STATIC;
 - `standard` adds MAP;
-- `deep` requests the REGRESS stage, which was retired on 2026-10-13: the scan records a `regress_retired` degradation and otherwise equals `standard`. Execution proof now comes from the search-with-proof arm.
+- `deep` requests the REGRESS stage, which was retired on 2026-10-13: the scan records a `regress_retired` degradation and otherwise equals `standard`. Execution proof comes from the search-with-proof arm.
 
 ```
 policy_load ─▶ ruleset_load ─▶ policy_check            (fail loud on an ungoverned CWE)

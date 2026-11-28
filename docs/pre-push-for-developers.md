@@ -25,7 +25,8 @@ without you having to become the security reviewer.
 
 ## From a finding to capacity
 
-The point of the proof is the prioritization conversation, not just your terminal.
+The proof matters beyond your terminal: it is what you bring to the prioritization
+conversation.
 
 A theoretical warning dies in the backlog. A demonstrated proof does not: it is a
 reproducible check that triggers the problem on the current code and stops once
@@ -45,7 +46,7 @@ itself. That is what gets a fix scheduled rather than deferred.
 2. Push normally. Findings print at push time.
 3. Optionally set model keys and a spend cap in `.env`; nothing else is required.
 
-No code annotations. No markup. No per-project security config.
+You need no code annotations, no markup and no per-project security config.
 
 ## How it decides, without annotations
 
@@ -54,7 +55,7 @@ No code annotations. No markup. No per-project security config.
   not declare any of this.
 - **It looks only at your change.** It builds a graph of the changed code and
   checks it against those framework facts, scoped to the diff, not the whole repo.
-- **It can prove, not just warn.** When the app is runnable, the proof arm builds
+- **It can prove as well as warn.** When the app is runnable, the proof arm builds
   and runs it and demonstrates the issue by execution, so a finding is a
   reproducible fact, not a confidence score.
 
@@ -63,7 +64,7 @@ No code annotations. No markup. No per-project security config.
 - **Advisory or blocking.** Advisory by default; `OUSAST_PUSH_MODE=blocking`
   turns it into a gate. Adopt in advisory mode, build trust, then block.
 - **Budget and deadline.** One budget covers the whole push; if it runs out you
-  get an honest "incomplete coverage" notice, never a made-up verdict.
+  get an honest "incomplete coverage" notice instead of a made-up verdict.
 - **Where proof runs.** Local sandbox, a container, or a shared cluster.
 - **Models and spend.** Keys and caps live in `.env`.
 

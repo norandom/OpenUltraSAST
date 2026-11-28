@@ -43,7 +43,7 @@ Each instrument contributes one block to a candidate's feature record (`learn/sc
 - `roles` (model source, sink and sanitizer roles);
 - `delta`;
 - `verify` and `agree` (the plane's verify passes and their agreement);
-- `model_sinks` (the archived stage-1 classifier, `benchmarks/archive/model_sinks.py`). Its logic now
+- `model_sinks` (the archived stage-1 classifier, `benchmarks/archive/model_sinks.py`). Its logic
   lives in `plane/tasks/roles.py`.
 
 A candidate is `(path, function, family)` of one repository and pin. At least one instrument must have

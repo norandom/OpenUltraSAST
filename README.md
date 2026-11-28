@@ -115,7 +115,8 @@ The plane's memory store and the optional S3 bucket are maintainer topics:
 
 ## Scan modes
 
-There are three modes. Each adds to the one before.
+There are three modes. `standard` adds to `quick`. `deep` requests a stage that was retired, so
+it equals `standard` apart from the recorded degradation.
 
 - `quick` runs the pattern rules, hints, ranking, verification and score. It needs nothing.
 - `standard` adds a complexity map, the semantic overlay, authorization obligations and the Joern
@@ -124,11 +125,11 @@ There are three modes. Each adds to the one before.
   question. Without a key, that question is skipped and only the graph's entailed findings are
   reported.
 - `deep` requests the REGRESS stage, which was retired on 2026-10-13: the scan records a
-  `regress_retired` degradation and otherwise equals `standard`. Execution proof now comes from the
+  `regress_retired` degradation and otherwise equals `standard`. Execution proof comes from the
   search-with-proof arm.
 
-A missing engine is a recorded degradation (`cpg_unavailable`, `regress_retired`), never a
-clean result.
+A missing engine is recorded as a degradation (`cpg_unavailable`, `regress_retired`). It does
+not count as a clean result.
 
 `--fail-on never|findings|verified|worth-fixing` sets the exit code. `--config openultrasast.toml`
 loads settings. Every run writes `manifest.json`, `findings.json`, `verification.json`,
