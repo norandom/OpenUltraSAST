@@ -1,0 +1,150 @@
+name: Release retention
+# Keeps the newest RELEASES_TO_KEEP version tags with their releases and their versioned images,
+# and names the older ones. The run that follows a release only lists. A manual run deletes when
+# "dry run" is off. It never touches a tag that is not a version tag (vX.Y.Z with an optional
+# pre-release), the latest stable release, or an image version that carries a tag no release made
+# (latest, main, a sha).
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "List only and delete nothing"
+        type: boolean
+        default: true
+  workflow_run:
+    workflows: ["Tagged Release"]
+    types: [completed]
+
+permissions:
+  contents: write
+  packages: write
+
+concurrency:
+  group: release-retention
+  cancel-in-progress: false
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  RELEASES_TO_KEEP: "3"
+  # The two images release.yml pushes under the tag's version, for a user-owned package owner.
+  IMAGE_PACKAGES: "openultrasast openultrasast-runner"
+
+jobs:
+  retention:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: List what the retention deletes, then delete unless this is a dry run
+        env:
+          APPLY: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == false }}
+        run: |
+          python3 - <<'PYTHON'
+          import json
+          import os
+          import re
+          import subprocess
+          import sys
+
+          OWNER, REPO = os.environ["GITHUB_REPOSITORY"].split("/")
+          KEEP = int(os.environ["RELEASES_TO_KEEP"])
+          APPLY = os.environ["APPLY"] == "true"
+          PACKAGES = os.environ["IMAGE_PACKAGES"].split()
+          VERSION = re.compile(r"^v(\d+)\.(\d+)\.(\d+)(-[0-9A-Za-z][0-9A-Za-z.-]*)?$")
+          LIMIT = 20
+          # More deletions than this in one run is a plan that nobody has read.
+
+          def gh(*args):
+              try:
+                  return subprocess.run(["gh", *args], check=True, capture_output=True, text=True).stdout
+              except subprocess.CalledProcessError as error:
+                  sys.exit(f"gh {' '.join(args)}: exit {error.returncode}\n{error.stderr}")
+
+          def say(line):
+              print(line)
+              with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
+                  summary.write(line + "\n")
+
+          def image_tags(tag):
+              """The tags docker/metadata-action gives the images of a release tag."""
+              name = tag[1:]
+              if "-" in name:
+                  return {name}
+              major, minor = VERSION.match(tag)[1], VERSION.match(tag)[2]
+              return {name, f"{major}.{minor}"}
+
+          def plan(tags, latest):
+              """The version tags to keep and to delete, newest first by the date of the tag."""
+              version_tags = [tag for tag in tags if VERSION.match(tag)]
+              kept, deleted = version_tags[:KEEP], version_tags[KEEP:]
+              if latest in deleted:
+                  deleted.remove(latest)
+                  kept.append(latest)
+              return kept, deleted
+
+          def image_plan(versions, deleted):
+              """The versions whose every tag came from a deleted release tag."""
+              allowed = set()
+              for tag in deleted:
+                  allowed |= image_tags(tag)
+              chosen = []
+              for version in versions:
+                  tags = set(version["metadata"]["container"]["tags"])
+                  if tags and tags <= allowed:
+                      chosen.append((version["id"], sorted(tags)))
+              return chosen
+
+          if KEEP < 1:
+              sys.exit("RELEASES_TO_KEEP must be at least 1")
+          tags = subprocess.run(
+              ["git", "for-each-ref", "--sort=-creatordate", "--format=%(refname:short)", "refs/tags"],
+              check=True, capture_output=True, text=True,
+          ).stdout.split()
+          # One read, and it must succeed: a swallowed failure here would turn the protection of
+          # the latest stable release off while the job went on deleting.
+          listed = gh(
+              "release", "list", "--limit", "400", "--json", "tagName,isLatest",
+              "--jq", ".[] | [.tagName, .isLatest] | @tsv",
+          )
+          rows = [line.split("\t") for line in listed.splitlines()]
+          releases = {tag for tag, _ in rows}
+          latest = next((tag for tag, is_latest in rows if is_latest == "true"), "")
+          kept, deleted = plan(tags, latest)
+          say(f"## Release retention: {'delete' if APPLY else 'dry run'}")
+          say(f"Kept, the newest version tags by the date of the tag, and the latest stable release: {', '.join(kept)}")
+          kinds = [f"{tag} (release and tag)" if tag in releases else f"{tag} (tag)" for tag in deleted]
+          say(f"To delete: {', '.join(kinds) if kinds else 'nothing'}")
+          if len(deleted) > LIMIT:
+              sys.exit(f"{len(deleted)} tags to delete, more than the limit of {LIMIT}: nothing is done")
+          images = {}
+          for package in PACKAGES:
+              path = f"/user/packages/container/{package}/versions?per_page=100"
+              pages = json.loads(gh("api", "--paginate", "--slurp", path))
+              versions = [version for page in pages for version in page]
+              images[package] = image_plan(versions, deleted)
+              for version_id, tags_of_version in images[package]:
+                  say(f"To delete: image {package}, version {version_id}, tags {', '.join(tags_of_version)}")
+              chosen_ids = {version_id for version_id, _ in images[package]}
+              left = [version for version in versions if version["id"] not in chosen_ids]
+              names = []
+              for version in left:
+                  tags_left = version["metadata"]["container"]["tags"]
+                  names.append(', '.join(tags_left) if tags_left else f"id {version['id']}, untagged")
+              say(f"Image {package}: {len(left)} of {len(versions)} versions stay: {'; '.join(names)}")
+          if not APPLY:
+              say("Dry run: nothing was deleted.")
+              sys.exit(0)
+          for package, chosen in images.items():
+              for version_id, _ in chosen:
+                  gh("api", "--method", "DELETE", f"/user/packages/container/{package}/versions/{version_id}")
+                  say(f"Deleted image {package}, version {version_id}")
+          for tag in deleted:
+              if tag in releases:
+                  gh("release", "delete", tag, "--yes", "--cleanup-tag")
+                  say(f"Deleted the release and the tag {tag}")
+              else:
+                  gh("api", "--method", "DELETE", f"repos/{OWNER}/{REPO}/git/refs/tags/{tag}")
+                  say(f"Deleted the tag {tag}")
+          PYTHON
